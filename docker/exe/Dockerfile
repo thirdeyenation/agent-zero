@@ -46,7 +46,7 @@ RUN $VIRTUAL_ENV/bin/pip install \
 
 # Expose SSH port
 EXPOSE 22
-
+EXPOSE 5500
 # Init .bashrc
 CMD ["/usr/local/bin/initialize.sh"]
 
