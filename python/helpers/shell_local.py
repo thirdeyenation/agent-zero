@@ -10,7 +10,6 @@ class LocalInteractiveSession:
     def __init__(self):
         self.session: tty_session.TTYSession|None = None
         self.full_output = ''
-        self.is_running = False
 
     async def connect(self):
         self.session = tty_session.TTYSession("/bin/bash")
@@ -27,7 +26,6 @@ class LocalInteractiveSession:
             raise Exception("Shell not connected")
         self.full_output = ""
         await self.session.sendline(command)
-        self.is_running = True
  
     async def read_output(self, timeout: float = 0, reset_full_output: bool = False) -> Tuple[str, Optional[str]]:
         if not self.session:

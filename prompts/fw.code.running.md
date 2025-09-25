@@ -1,1 +1,1 @@
-Terminal session {{session}} is still running. Decide wait for more 'output' or 'reset' base on context.
+Terminal session {{session}} is still running. Decide to wait for more 'output', 'reset', or use another session number based on situation.

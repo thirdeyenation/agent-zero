@@ -30,9 +30,15 @@ OUTPUT_TIMEOUTS: dict[str, int] = {
 }
 
 @dataclass
+class ShellWrap:
+    id: int
+    session: LocalInteractiveSession | SSHInteractiveSession
+    running: bool
+
+@dataclass
 class State:
     ssh_enabled: bool
-    shells: dict[int, LocalInteractiveSession | SSHInteractiveSession]
+    shells: dict[int, ShellWrap]
 
 
 class CodeExecution(Tool):
@@ -112,18 +118,18 @@ class CodeExecution(Tool):
         # always reset state when ssh_enabled changes
         if not self.state or self.state.ssh_enabled != self.agent.config.code_exec_ssh_enabled:
             # initialize shells dictionary if not exists
-            shells: dict[int, LocalInteractiveSession | SSHInteractiveSession] = {}
+            shells: dict[int, ShellWrap] = {}
         else:
             shells = self.state.shells.copy()
 
         # Only reset the specified session if provided
         if reset and session is not None and session in shells:
-            await shells[session].close()
+            await shells[session].session.close()
             del shells[session]
         elif reset and not session:
             # Close all sessions if full reset requested
             for s in list(shells.keys()):
-                await shells[s].close()
+                await shells[s].session.close()
             shells = {}
 
         # initialize local or remote interactive shell interface for session 0 if needed
@@ -144,7 +150,7 @@ class CodeExecution(Tool):
             else:
                 shell = LocalInteractiveSession()
 
-            shells[session] = shell
+            shells[session] = ShellWrap(id=session, session=shell, running=False)
             await shell.connect()
 
         self.state = State(shells=shells, ssh_enabled=self.agent.config.code_exec_ssh_enabled)
@@ -186,14 +192,15 @@ class CodeExecution(Tool):
         for i in range(2):
             try:
 
-                await self.state.shells[session].send_command(command)
+                self.state.shells[session].running = True
+                await self.state.shells[session].session.send_command(command)
 
                 locl = (
                     " (local)"
-                    if isinstance(self.state.shells[session], LocalInteractiveSession)
+                    if isinstance(self.state.shells[session].session, LocalInteractiveSession)
                     else (
                         " (remote)"
-                        if isinstance(self.state.shells[session], SSHInteractiveSession)
+                        if isinstance(self.state.shells[session].session, SSHInteractiveSession)
                         else " (unknown)"
                     )
                 )
@@ -258,7 +265,7 @@ class CodeExecution(Tool):
 
         while True:
             await asyncio.sleep(sleep_time)
-            full_output, partial_output = await self.state.shells[session].read_output(
+            full_output, partial_output = await self.state.shells[session].session.read_output(
                 timeout=1, reset_full_output=reset_full_output
             )
             reset_full_output = False  # only reset once
@@ -367,16 +374,12 @@ class CodeExecution(Tool):
         reset_full_output=True, 
         prefix=""
     ):
-        state = getattr(self, "state", None)
-        if not state:
+        if not self.state or session not in self.state.shells:
             return None
-        if not (
-            session in state.shells
-            and getattr(state.shells[session], "is_running", False)
-        ):
+        if not self.state.shells[session].running:
             return None
         
-        full_output, _ = await state.shells[session].read_output(
+        full_output, _ = await self.state.shells[session].session.read_output(
             timeout=1, reset_full_output=reset_full_output
         )
         truncated_output = self.fix_full_output(full_output)
@@ -418,11 +421,8 @@ class CodeExecution(Tool):
     
     def mark_session_idle(self, session: int = 0):
         # Mark session as idle - command finished
-        state = getattr(self, "state", None)
-        if state and session in state.shells:
-            shell = state.shells[session]
-            if hasattr(shell, "is_running"):
-                shell.is_running = False
+        if self.state and session in self.state.shells:
+            self.state.shells[session].running = False
 
     async def reset_terminal(self, session=0, reason: str | None = None):
         # Print the reason for the reset to the console if provided
