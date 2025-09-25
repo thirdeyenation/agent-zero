@@ -246,22 +246,6 @@ class CodeExecution(Tool):
             dialog_timeout = timeouts.get("dialog_timeout", dialog_timeout)
             max_exec_timeout = timeouts.get("max_exec_timeout", max_exec_timeout)
 
-        # Common shell prompt regex patterns (add more as needed)
-        prompt_patterns = [
-            re.compile(r"\(venv\).+[$#] ?$"),  # (venv) ...$ or (venv) ...#
-            re.compile(r"root@[^:]+:[^#]+# ?$"),  # root@container:~#
-            re.compile(r"[a-zA-Z0-9_.-]+@[^:]+:[^$#]+[$#] ?$"),  # user@host:~$
-            re.compile(r"bash-\d+\.\d+\$ ?$"),  # bash-3.2$ (version can vary)
-        ]
-
-        # potential dialog detection
-        dialog_patterns = [
-            re.compile(r"Y/N", re.IGNORECASE),  # Y/N anywhere in line
-            re.compile(r"yes/no", re.IGNORECASE),  # yes/no anywhere in line
-            re.compile(r":\s*$"),  # line ending with colon
-            re.compile(r"\?\s*$"),  # line ending with question mark
-        ]
-
         start_time = time.time()
         last_output_time = start_time
         full_output = ""
