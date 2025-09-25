@@ -342,7 +342,7 @@ class CodeExecution(Tool):
     async def handle_running_session(
         self,
         session=0,
-        reset_full_output=False, 
+        reset_full_output=True, 
         prefix=""
     ):
         state = getattr(self, "state", None)
