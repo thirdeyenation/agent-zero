@@ -397,7 +397,7 @@ ${memory.content_full}
       .map((memory) => this.formatMemoryForCopy(memory))
       .join("\n");
 
-    this.copyToClipboard(content);
+    this.copyToClipboard(content, false);
     justToast(
       `Copied ${selectedMemories.length} memories with metadata to clipboard`,
       "success"
@@ -516,23 +516,24 @@ ${memory.content_full}
     return colors[area] || "#6c757d";
   },
 
-  copyToClipboard(text) {
+  copyToClipboard(text, toastSuccess = true) {
     if (navigator.clipboard && window.isSecureContext) {
       navigator.clipboard
         .writeText(text)
         .then(() => {
-          justToast("Copied to clipboard!", "success");
+          if(toastSuccess)
+            justToast("Copied to clipboard!", "success");
         })
         .catch((err) => {
           console.error("Clipboard copy failed:", err);
-          this.fallbackCopyToClipboard(text);
+          this.fallbackCopyToClipboard(text, toastSuccess);
         });
     } else {
-      this.fallbackCopyToClipboard(text);
+      this.fallbackCopyToClipboard(text, toastSuccess);
     }
   },
 
-  fallbackCopyToClipboard(text) {
+  fallbackCopyToClipboard(text, toastSuccess = true) {
     const textArea = document.createElement("textarea");
     textArea.value = text;
     textArea.style.position = "fixed";
@@ -543,7 +544,8 @@ ${memory.content_full}
     textArea.select();
     try {
       document.execCommand("copy");
-      justToast("Copied to clipboard!", "success");
+      if(toastSuccess)
+        justToast("Copied to clipboard!", "success");
     } catch (err) {
       console.error("Fallback clipboard copy failed:", err);
       justToast("Failed to copy to clipboard", "error");
