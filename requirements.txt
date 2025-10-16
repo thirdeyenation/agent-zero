@@ -4,7 +4,7 @@ browser-use==0.5.11
 docker==7.1.0
 duckduckgo-search==6.1.12
 faiss-cpu==1.11.0
-fastmcp==2.3.4
+fastmcp==2.12.4
 fasta2a==0.5.0
 flask[async]==3.0.3
 flask-basicauth==0.2.0
@@ -42,3 +42,6 @@ crontab==1.0.1
 pathspec>=0.12.1
 psutil>=7.0.0
 soundfile==0.13.1
+imapclient>=3.0.1
+html2text>=2024.2.26
+beautifulsoup4>=4.12.3
