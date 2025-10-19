@@ -118,11 +118,17 @@
       display: contents;
     }
 
-    /* Ensure the collapse wrapper participates in flex sizing */
-    #tasks-section div[x-show][x-collapse] {
-      display: contents;
+    /* Bootstrap collapse elements need proper display for animation to work */
+    #tasks-section .collapse {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
     }
-
+    /* During the collapsing transition, allow height animation to control size */
+    #tasks-section .collapsing {
+      flex: 0 0 auto !important;
+    }
     /* Common section header styling (Chats, Tasks) - matching Preferences style */
     .section-header {
       display: flex;
@@ -139,17 +145,6 @@
     /* Collapsible section headers (Tasks) */
     .section-header-collapsible {
       cursor: pointer;
-    }
-    
-    /* Arrow icon for collapsible sections */
-    .section-header .arrow-icon {
-      margin-left: 0.5rem;
-      transition: transform 0.15s ease;
-      transform: rotate(90deg);
-    }
-    
-    .section-header .arrow-icon.rotated {
-      transform: rotate(0deg);
     }
     
     @media (max-width: 768px) {
