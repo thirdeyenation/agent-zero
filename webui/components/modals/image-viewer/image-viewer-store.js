@@ -40,7 +40,7 @@ const model = {
 
     try {
       // Open modal and track close promise for cleanup
-      this.closePromise = window.openModal('modals/image-viewer.html');
+      this.closePromise = window.openModal('modals/image-viewer/image-viewer.html');
       
       // Setup cleanup on modal close
       if (this.closePromise && typeof this.closePromise.finally === 'function') {

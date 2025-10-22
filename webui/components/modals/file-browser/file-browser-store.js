@@ -33,7 +33,7 @@ const model = {
     
     try {
       // Open modal FIRST (immediate UI feedback)
-      this.closePromise = window.openModal('modals/file-browser.html');
+      this.closePromise = window.openModal('modals/file-browser/file-browser.html');
       
       // Setup cleanup on modal close
       if (this.closePromise && typeof this.closePromise.then === 'function') {

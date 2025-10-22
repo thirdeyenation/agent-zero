@@ -1,5 +1,5 @@
 // message actions and components
-import { store as imageViewerStore } from "/components/modals/image-viewer-store.js";
+import { store as imageViewerStore } from "../components/modals/image-viewer/image-viewer-store.js";
 import { marked } from "../vendor/marked/marked.esm.js";
 import { store as _messageResizeStore } from "/components/messages/resize/message-resize-store.js"; // keep here, required in html
 import { store as attachmentsStore } from "/components/chat/attachments/attachmentsStore.js";

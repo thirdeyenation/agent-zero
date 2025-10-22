@@ -1,6 +1,6 @@
 import { createStore } from "/js/AlpineStore.js";
 import { fetchApi } from "/js/api.js";
-import { store as imageViewerStore } from "/components/modals/image-viewer-store.js";
+import { store as imageViewerStore } from "../../modals/image-viewer/image-viewer-store.js";
 
 const model = {
   // State properties

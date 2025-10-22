@@ -3,24 +3,24 @@ import { createStore } from "/js/AlpineStore.js";
 const model = {
   // State
   isLoading: false,
-  contextData: null,
+  historyData: null,
   tokenCount: 0,
   error: null,
   editor: null,
   closePromise: null,
 
-  // Open Context Window modal
+  // Open History modal
   async open() {
     if (this.isLoading) return; // Prevent double-open
     
     this.isLoading = true;
     this.error = null;
-    this.contextData = null;
+    this.historyData = null;
     this.tokenCount = 0;
 
     try {
       // Open modal FIRST (immediate UI feedback, but DON'T await)
-      this.closePromise = window.openModal('modals/context.html');
+      this.closePromise = window.openModal('modals/history/history.html');
       
       // Setup cleanup on modal close
       if (this.closePromise && typeof this.closePromise.then === 'function') {
@@ -33,12 +33,12 @@ const model = {
       
       // Fetch data from backend
       const contextId = window.getContext();
-      const response = await window.sendJsonData('/ctx_window_get', {
+      const response = await window.sendJsonData('/history_get', {
         context: contextId,
       });
       
       // Update state with data
-      this.contextData = response.content;
+      this.historyData = response.history;
       this.tokenCount = response.tokens || 0;
       this.isLoading = false;
       this.updateModalTitle(); // Update with token count
@@ -47,8 +47,8 @@ const model = {
       this.scheduleEditorInit();
       
     } catch (error) {
-      console.error("Context fetch error:", error);
-      this.error = error?.message || "Failed to load context window";
+      console.error("History fetch error:", error);
+      this.error = error?.message || "Failed to load history";
       this.isLoading = false;
       this.updateModalTitle(); // Show error in title
     }
@@ -63,9 +63,9 @@ const model = {
   },
 
   initEditor() {
-    const container = document.getElementById("context-viewer-container");
+    const container = document.getElementById("history-viewer-container");
     if (!container) {
-      console.warn("Context container not found, deferring editor init");
+      console.warn("History container not found, deferring editor init");
       return;
     }
 
@@ -81,7 +81,7 @@ const model = {
       return;
     }
 
-    const editorInstance = window.ace.edit("context-viewer-container");
+    const editorInstance = window.ace.edit("history-viewer-container");
     if (!editorInstance) {
       console.error("Failed to create ACE editor instance");
       return;
@@ -95,7 +95,7 @@ const model = {
 
     this.editor.setTheme(theme);
     this.editor.session.setMode("ace/mode/markdown");
-    this.editor.setValue(this.contextData, -1); // -1 moves cursor to start
+    this.editor.setValue(this.historyData, -1); // -1 moves cursor to start
     this.editor.setReadOnly(true);
     this.editor.clearSelection();
   },
@@ -110,11 +110,11 @@ const model = {
       if (!title) return;
 
       if (this.error) {
-        title.textContent = "Context Window – Error";
+        title.textContent = "History – Error";
       } else if (this.isLoading) {
-        title.textContent = "Context Window (loading…)";
+        title.textContent = "History (loading…)";
       } else {
-        title.textContent = `Context Window ~${this.tokenCount} tokens`;
+        title.textContent = `History ~${this.tokenCount} tokens`;
       }
     });
   },
@@ -128,5 +128,5 @@ const model = {
   },
 };
 
-export const store = createStore("context", model);
+export const store = createStore("history", model);
 
