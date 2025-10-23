@@ -1,0 +1,24 @@
+<html>
+
+<head>
+    <script type="module">
+        import { store } from "/components/projects/projectsStore.js";
+    </script>
+</head>
+
+<body>
+    <div x-data>
+        <template x-if="$store.projects">
+            <div>
+                <template x-if="$store.selectedProject">
+                    <button type="button" class="btn btn-outline-primary" x-text="$store.selectedProject.name"></button>
+                </template>
+                <template x-if="!$store.selectedProject">
+                    <button type="button" class="btn btn-outline-secondary">No project</button>
+                </template>
+            </div>
+        </template>
+    </div>
+</body>
+
+</html>
