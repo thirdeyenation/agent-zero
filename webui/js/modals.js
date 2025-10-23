@@ -74,6 +74,7 @@ function createModalElement(name) {
       <div class="modal-scroll">
         <div class="modal-bd"></div>
       </div>
+      <div class="modal-footer-slot" style="display: none;"></div>
     </div>
   `;
 
@@ -96,6 +97,8 @@ function createModalElement(name) {
     title: newModal.querySelector(".modal-title"),
     body: newModal.querySelector(".modal-bd"),
     close: close_button,
+    footerSlot: newModal.querySelector(".modal-footer-slot"),
+    inner: newModal.querySelector(".modal-inner"),
     styles: [],
     scripts: [],
   };
@@ -135,6 +138,18 @@ export function openModal(modalPath) {
           if (doc.body && doc.body.classList) {
             modal.body.classList.add(...doc.body.classList);
           }
+          
+          // Some modals have a footer. Check if it exists and move it to footer slot
+          // Use requestAnimationFrame to let Alpine mount the component first
+          requestAnimationFrame(() => {
+            const componentFooter = modal.body.querySelector('[data-modal-footer]');
+            if (componentFooter && modal.footerSlot) {
+              // Move footer outside modal-scroll scrollable area
+              modal.footerSlot.appendChild(componentFooter);
+              modal.footerSlot.style.display = 'block';
+              modal.inner.classList.add('modal-with-footer');
+            }
+          });
         })
         .catch((error) => {
           console.error("Error loading modal content:", error);
