@@ -16,42 +16,42 @@
             </svg>
           </h3>
           <ul class="config-list collapse show" id="pref-list">
-            <li x-data x-init="$watch('$store.preferences.autoScroll', v => $store.preferences.applyAutoScroll(v))">
+            <li x-data>
               <span>Autoscroll</span>
               <label class="switch">
                 <input id="auto-scroll-switch" type="checkbox" x-model="$store.preferences.autoScroll">
                 <span class="slider"></span>
               </label>
             </li>
-            <li x-data x-init="$watch('$store.preferences.darkMode', v => $store.preferences.applyDarkMode(v))">
+            <li x-data>
               <span class="switch-label">Dark mode</span>
               <label class="switch">
                 <input type="checkbox" x-model="$store.preferences.darkMode">
                 <span class="slider"></span>
               </label>
             </li>
-            <li x-data x-init="$watch('$store.preferences.speech', v => $store.preferences.applySpeech(v))">
+            <li x-data>
               <span class="switch-label">Speech</span>
               <label class="switch">
                 <input type="checkbox" x-model="$store.preferences.speech">
                 <span class="slider"></span>
               </label>
             </li>
-            <li x-data x-init="$watch('$store.preferences.showThoughts', v => $store.preferences.applyShowThoughts(v))">
+            <li x-data>
               <span>Show thoughts</span>
               <label class="switch">
                 <input type="checkbox" x-model="$store.preferences.showThoughts">
                 <span class="slider"></span>
               </label>
             </li>
-            <li x-data x-init="$watch('$store.preferences.showJson', v => $store.preferences.applyShowJson(v))">
+            <li x-data>
               <span>Show JSON</span>
               <label class="switch">
                 <input type="checkbox" x-model="$store.preferences.showJson">
                 <span class="slider"></span>
               </label>
             </li>
-            <li x-data x-init="$watch('$store.preferences.showUtils', v => $store.preferences.applyShowUtils(v))">
+            <li x-data>
               <span>Show utility messages</span>
               <label class="switch">
                 <input type="checkbox" x-model="$store.preferences.showUtils">

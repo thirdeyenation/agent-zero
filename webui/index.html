@@ -99,7 +99,9 @@
     <script type="module" src="index.js"></script>
 
     <!-- Bootstrap JS (only for logic, importing bundled CSS => UI conflicts) -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM"
+        crossorigin="anonymous"></script>
 
     <!-- Then load Alpine.js -->
     <!-- <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script> -->
@@ -133,15 +135,19 @@
     </script>
 </head>
 
-<body class="dark-mode device-pointer">
+<body class="dark-mode device-pointer" x-data>
     <div class="container">
         <!-- Sidebar Overlay -->
-        <div id="sidebar-overlay" class="sidebar-overlay" x-data :class="{'visible': $store.sidebar.isOpen && $store.sidebar.isMobile()}" @click="$store.sidebar.close()"></div>
+        <template x-if="$store.sidebar">
+            <div id="sidebar-overlay" class="sidebar-overlay" x-data
+                :class="{'visible': $store.sidebar.isOpen && $store.sidebar.isMobile()}"
+                @click="$store.sidebar.close()"></div>
+        </template>
         <!-- Left Sidebar (Header Icons, Quick Actions, Tabs, Chats, Tasks) -->
         <x-component path="sidebar/left-sidebar.html"></x-component>
-        
+
         <!-- Right Panel (Message History and Input Section) -->
-        <div id="right-panel" class="panel" :class="{'expanded': !$store.sidebar.isOpen}">
+        <div id="right-panel" class="panel" >
             <!-- Time and Date -->
             <div id="time-date-container">
                 <div id="time-date"></div>
