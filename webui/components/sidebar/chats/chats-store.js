@@ -5,6 +5,12 @@ import { store as notificationStore } from "/components/notifications/notificati
 const model = {
   contexts: [],
   selected: "",
+  selectedContext: null,
+
+  // for convenience
+  getSelectedChatId() {
+    return this.selected;
+  },
 
   init() {
     // Initialize from localStorage
@@ -259,6 +265,7 @@ const model = {
   // Set selected context
   setSelected(contextId) {
     this.selected = contextId;
+    this.selectedContext = this.contexts.find((ctx) => ctx.id === contextId);
     localStorage.setItem("lastSelectedChat", contextId);
   },
 

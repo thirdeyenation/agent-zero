@@ -54,6 +54,7 @@ class AgentContext:
         type: AgentContextType = AgentContextType.USER,
         last_message: datetime | None = None,
         data: dict | None = None,
+        output_data: dict | None = None,
     ):
         # build context
         self.id = id or AgentContext.generate_id()
@@ -70,6 +71,7 @@ class AgentContext:
         self.no = AgentContext._counter
         self.last_message = last_message or datetime.now(timezone.utc)
         self.data = data or {}
+        self.output_data = output_data or {}
 
         existing = self._contexts.get(self.id, None)
         if existing:
@@ -121,6 +123,10 @@ class AgentContext:
         # recursive is not used now, prepared for context hierarchy
         self.data[key] = value
 
+    def set_output_data(self, key: str, value: Any, recursive: bool = True):
+        # recursive is not used now, prepared for context hierarchy
+        self.output_data[key] = value
+
     def output(self):
         return {
             "id": self.id,
@@ -141,6 +147,7 @@ class AgentContext:
                 else Localization.get().serialize_datetime(datetime.fromtimestamp(0))
             ),
             "type": self.type.value,
+            **self.output_data,
         }
 
     @staticmethod

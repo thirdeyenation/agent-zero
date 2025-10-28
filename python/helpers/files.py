@@ -346,21 +346,21 @@ def move_dir(old_path: str, new_path: str):
         pass  # suppress all errors, keep behavior consistent
 
 # move dir safely, remove with number if needed
-def move_dir_safe(src, dst):
+def move_dir_safe(src, dst, rename_format="{name}_{number}"):
     base_dst = dst
     i = 2
     while exists(dst):
-        dst = f"{base_dst} {i}"
+        dst = rename_format.format(name=base_dst, number=i)
         i += 1
     move_dir(src, dst)
     return dst
 
 # create dir safely, add number if needed
-def create_dir_safe(dst):
+def create_dir_safe(dst, rename_format="{name}_{number}"):
     base_dst = dst
     i = 2
     while exists(dst):
-        dst = f"{base_dst} {i}"
+        dst = rename_format.format(name=base_dst, number=i)
         i += 1
     create_dir(dst)
     return dst
