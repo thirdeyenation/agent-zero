@@ -168,9 +168,13 @@
                 <!-- Project Selector -->
                 <x-component path="projects/project-selector.html"></x-component>
             </div>
-            <!-- Message History (actual messages) -->
-            <div id="chat-history">
+
+            <!-- Welcome Screen Component -->
+            <div x-data x-show="$store.welcomeStore && $store.welcomeStore.isVisible">
+                <x-component path="welcome/welcome-screen.html"></x-component>
             </div>
+            <!-- Message History (actual messages) -->
+            <div id="chat-history" x-data x-show="!$store.welcomeStore || !$store.welcomeStore.isVisible"></div>
 
             <!-- NEW: Toast Stack Component -->
             <div style="position: relative; height: 0;">

@@ -1,5 +1,4 @@
 import { createStore } from "/js/AlpineStore.js";
-import { store as contextStore } from "/components/chat/context/context-store.js";
 
 const model = {
   // State

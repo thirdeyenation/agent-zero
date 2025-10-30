@@ -13,14 +13,23 @@ import { store as tasksStore } from "/components/sidebar/tasks/tasks-store.js";
 globalThis.fetchApi = api.fetchApi; // TODO - backward compatibility for non-modular scripts, remove once refactored to alpine
 
 // Declare variables for DOM elements, they will be assigned on DOMContentLoaded
-let leftPanel, rightPanel, container, chatInput, chatHistory, sendButton, inputSection, statusSection, progressBar, autoScrollSwitch, timeDate;
+let leftPanel,
+  rightPanel,
+  container,
+  chatInput,
+  chatHistory,
+  sendButton,
+  inputSection,
+  statusSection,
+  progressBar,
+  autoScrollSwitch,
+  timeDate;
 
 let autoScroll = true;
-let context = "";
+let context = null;
 globalThis.resetCounter = 0; // Used by stores and getChatBasedId
 let skipOneSpeech = false;
 let connectionStatus = undefined; // undefined = not checked yet, true = connected, false = disconnected
-
 
 // Sidebar toggle logic is now handled by sidebar-store.js
 
@@ -226,7 +235,9 @@ function setConnectionStatus(connected) {
   connectionStatus = connected;
   // Broadcast connection status without touching Alpine directly
   try {
-    window.dispatchEvent(new CustomEvent("connection-status", { detail: { connected } }));
+    window.dispatchEvent(
+      new CustomEvent("connection-status", { detail: { connected } })
+    );
   } catch (_e) {
     // no-op
   }
@@ -256,8 +267,13 @@ async function poll() {
       return false;
     }
 
-    if (!context) setContext(response.context);
-    if (response.context != context) return; //skip late polls after context change
+    if (
+      response.context != context &&
+      !(response.context === null && context === null) &&
+      context !== null
+    ) {
+      return;
+    }
 
     // if the chat has been reset, restart this poll as it may have been called with incorrect log_from
     if (lastLogGuid != response.log_guid) {
@@ -311,7 +327,7 @@ async function poll() {
     if (context) {
       // Update selection in both stores
       chatsStore.setSelected(context);
-      
+
       // Check if this context exists in the chats list
       const contextExists = chatsStore.contains(context);
 
@@ -323,7 +339,7 @@ async function poll() {
           chatsStore.setSelected(firstChatId);
         }
       }
-      
+
       tasksStore.setSelected(context);
     } else {
       // No context selected, try to select the first available item
@@ -429,8 +445,9 @@ globalThis.selectChat = async function (id) {
 };
 
 function generateShortId() {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let result = '';
+  const chars =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  let result = "";
   for (let i = 0; i < 8; i++) {
     result += chars.charAt(Math.floor(Math.random() * chars.length));
   }
@@ -440,7 +457,7 @@ function generateShortId() {
 export const newContext = function () {
   context = generateShortId();
   setContext(context);
-}
+};
 globalThis.newContext = newContext;
 
 export const setContext = function (id) {
@@ -467,16 +484,28 @@ export const setContext = function (id) {
   if (localStorage.getItem("speech") == "true") skipOneSpeech = true;
 };
 
+export const deselectChat = function () {
+  // Clear current context to show welcome screen
+  setContext(null);
+
+  // Clear localStorage selections so we don't auto-restore
+  localStorage.removeItem("lastSelectedChat");
+  localStorage.removeItem("lastSelectedTask");
+
+  // Clear the chat history
+  chatHistory.innerHTML = "";
+};
+globalThis.deselectChat = deselectChat;
+
 export const getContext = function () {
   return context;
-}
+};
 globalThis.getContext = getContext;
 globalThis.setContext = setContext;
 
 export const getChatBasedId = function (id) {
   return context + "-" + globalThis.resetCounter + "-" + id;
 };
-
 
 globalThis.loadChats = async function () {
   await chatsStore.loadChats();
@@ -485,7 +514,6 @@ globalThis.loadChats = async function () {
 globalThis.saveChat = async function () {
   await chatsStore.saveChat();
 };
-
 
 function addClassToElement(element, className) {
   element.classList.add(className);
@@ -496,34 +524,26 @@ function removeClassFromElement(element, className) {
 }
 
 function justToast(text, type = "info", timeout = 5000, group = "") {
-  notificationStore.addFrontendToastOnly(
-    type,
-    text,
-    "",
-    timeout / 1000,
-    group
-  )
+  notificationStore.addFrontendToastOnly(type, text, "", timeout / 1000, group);
 }
 globalThis.justToast = justToast;
-  
 
 function toast(text, type = "info", timeout = 5000) {
   // Convert timeout from milliseconds to seconds for new notification system
   const display_time = Math.max(timeout / 1000, 1); // Minimum 1 second
 
   // Use new frontend notification system based on type
-    switch (type.toLowerCase()) {
-      case "error":
-        return notificationStore.frontendError(text, "Error", display_time);
-      case "success":
-        return notificationStore.frontendInfo(text, "Success", display_time);
-      case "warning":
-        return notificationStore.frontendWarning(text, "Warning", display_time);
-      case "info":
-      default:
-        return notificationStore.frontendInfo(text, "Info", display_time);
-    }
-
+  switch (type.toLowerCase()) {
+    case "error":
+      return notificationStore.frontendError(text, "Error", display_time);
+    case "success":
+      return notificationStore.frontendInfo(text, "Success", display_time);
+    case "warning":
+      return notificationStore.frontendWarning(text, "Warning", display_time);
+    case "info":
+    default:
+      return notificationStore.frontendInfo(text, "Info", display_time);
+  }
 }
 globalThis.toast = toast;
 
@@ -540,7 +560,7 @@ function updateAfterScroll() {
   const tolerancePx = 10;
   const chatHistory = document.getElementById("chat-history");
   if (!chatHistory) return;
-  
+
   const isAtBottom =
     chatHistory.scrollHeight - chatHistory.scrollTop <=
     chatHistory.clientHeight + tolerancePx;
@@ -590,9 +610,9 @@ document.addEventListener("DOMContentLoaded", function () {
   progressBar = document.getElementById("progress-bar");
   autoScrollSwitch = document.getElementById("auto-scroll-switch");
   timeDate = document.getElementById("time-date-container");
-  
+
   // Sidebar and input event listeners are now handled by their respective stores
-  
+
   if (chatHistory) {
     chatHistory.addEventListener("scroll", updateAfterScroll);
   }
