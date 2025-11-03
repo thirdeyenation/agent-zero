@@ -111,7 +111,7 @@ export async function sendMessage() {
 }
 globalThis.sendMessage = sendMessage;
 
-function toastFetchError(text, error) {
+export function toastFetchError(text, error) {
   console.error(text, error);
   // Use new frontend error notification system (async, but we don't need to wait)
   const errorMessage = error?.message || error?.toString() || "Unknown error";
@@ -234,7 +234,7 @@ function generateGUID() {
   });
 }
 
-function getConnectionStatus() {
+export function getConnectionStatus() {
   return chatTopStore.connected;
 }
 globalThis.getConnectionStatus = getConnectionStatus;
@@ -256,7 +256,7 @@ let lastLogVersion = 0;
 let lastLogGuid = "";
 let lastSpokenNo = 0;
 
-async function poll() {
+export async function poll() {
   let updated = false;
   try {
     // Get timezone from navigator
@@ -448,22 +448,6 @@ globalThis.pauseAgent = async function (paused) {
   await inputStore.pauseAgent(paused);
 };
 
-globalThis.resetChat = async function (ctxid = null) {
-  await chatsStore.resetChat(ctxid);
-};
-
-globalThis.newChat = async function () {
-  await chatsStore.newChat();
-};
-
-globalThis.killChat = async function (id) {
-  await chatsStore.killChat(id);
-};
-
-globalThis.selectChat = async function (id) {
-  await chatsStore.selectChat(id);
-};
-
 function generateShortId() {
   const chars =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -527,14 +511,6 @@ export const getChatBasedId = function (id) {
   return context + "-" + globalThis.resetCounter + "-" + id;
 };
 
-globalThis.loadChats = async function () {
-  await chatsStore.loadChats();
-};
-
-globalThis.saveChat = async function () {
-  await chatsStore.saveChat();
-};
-
 function addClassToElement(element, className) {
   element.classList.add(className);
 }
@@ -543,12 +519,12 @@ function removeClassFromElement(element, className) {
   element.classList.remove(className);
 }
 
-function justToast(text, type = "info", timeout = 5000, group = "") {
+export function justToast(text, type = "info", timeout = 5000, group = "") {
   notificationStore.addFrontendToastOnly(type, text, "", timeout / 1000, group);
 }
 globalThis.justToast = justToast;
 
-function toast(text, type = "info", timeout = 5000) {
+export function toast(text, type = "info", timeout = 5000) {
   // Convert timeout from milliseconds to seconds for new notification system
   const display_time = Math.max(timeout / 1000, 1); // Minimum 1 second
 
@@ -574,7 +550,7 @@ function scrollChanged(isAtBottom) {
   preferencesStore.autoScroll = isAtBottom;
 }
 
-function updateAfterScroll() {
+export function updateAfterScroll() {
   // const toleranceEm = 1; // Tolerance in em units
   // const tolerancePx = toleranceEm * parseFloat(getComputedStyle(document.documentElement).fontSize); // Convert em to pixels
   const tolerancePx = 10;
@@ -635,18 +611,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
   if (chatHistory) {
     chatHistory.addEventListener("scroll", updateAfterScroll);
-  }
-
-  // Restore previously selected context (if any) before polling begins
-  let storedContext = null;
-  try {
-    storedContext = localStorage.getItem("lastSelectedChat");
-  } catch (_e) {
-    storedContext = null;
-  }
-
-  if (storedContext && storedContext !== "null" && storedContext !== "") {
-    setContext(storedContext);
   }
 
   // Start polling for updates

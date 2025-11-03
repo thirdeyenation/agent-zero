@@ -1,4 +1,5 @@
 import { createStore } from "/js/AlpineStore.js";
+import { store as chatsStore } from "/components/sidebar/chats/chats-store.js";
 
 // Tasks sidebar store: tasks list and selected task id
 const model = {
@@ -45,9 +46,7 @@ const model = {
   // Action methods for task management
   selectTask(taskId) {
     this.setSelected(taskId);
-    if (globalThis.selectChat) {
-      globalThis.selectChat(taskId);
-    }
+    chatsStore.selectChat(taskId);
   },
 
   openDetail(taskId) {
@@ -57,9 +56,7 @@ const model = {
   },
 
   reset(taskId) {
-    if (globalThis.resetChat) {
-      globalThis.resetChat(taskId);
-    }
+    chatsStore.resetChat(taskId);
   },
 
   deleteTask(taskId) {

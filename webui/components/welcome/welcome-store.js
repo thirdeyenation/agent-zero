@@ -1,4 +1,6 @@
 import { createStore } from "/js/AlpineStore.js";
+import { getContext } from "/index.js";
+import { store as chatsStore } from "/components/sidebar/chats/chats-store.js";
 
 const model = {
   // State
@@ -16,7 +18,7 @@ const model = {
 
   // Update visibility based on current context
   updateVisibility() {
-    const hasContext = !!(globalThis.getContext && globalThis.getContext());
+    const hasContext = !!getContext();
     this.isVisible = !hasContext;
   },
 
@@ -34,9 +36,7 @@ const model = {
   executeAction(actionId) {
     switch (actionId) {
       case "new-chat":
-        if (globalThis.newChat) {
-          globalThis.newChat();
-        }
+        chatsStore.newChat();
         break;
       case "settings":
         // Open settings modal
