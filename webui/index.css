@@ -164,8 +164,22 @@ img {
   transition: margin-left var(--transition-speed) ease-in-out;
 }
 
+/* Scrollbar styles for right panel */
 #right-panel.expanded {
   margin-left: 0;
+}
+div#right-panel::-webkit-scrollbar {
+  width: 6px;
+}
+div#right-panel::-webkit-scrollbar-track {
+  background: transparent;
+}
+div#right-panel::-webkit-scrollbar-thumb {
+  background-color: rgba(155, 155, 155, 0.3);
+  border-radius: 6px;
+}
+div#right-panel::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(155, 155, 155, 0.5);
 }
 
 #time-date-container {

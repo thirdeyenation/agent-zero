@@ -100,6 +100,9 @@
         display: flex;
         align-items: center;
     }
+    .projects-project-card-name {
+        margin-top: var(--spacing-xs);
+    }
 
     .project-color-ball {
         width: 0.6em;
@@ -133,8 +136,7 @@
 
     .projects-create-btn-top {
         float: right;
-        margin-bottom: 1em;
-        margin-top: 0.2em;
+        margin: var(--spacing-xs) var(--spacing-md);
     }
 
     .projects-list-header {
@@ -144,20 +146,17 @@
         align-items: center;
         margin-bottom: 0.5em;
     }
-</style>
 
-<style>
-  .active-project-display {
-    display: flex;
-    align-items: center;
-    gap: 0.5em;
-    border: 1px solid var(--color-highlight);
-    padding: 0.5em;
-    border-radius: 0.5em;
-    margin-right: auto;
-  }
-</style>
-<style>
+    .active-project-display {
+        display: flex;
+        align-items: center;
+        gap: 0.5em;
+        border: 1px solid var(--color-highlight);
+        padding: 0.5em;
+        border-radius: 0.5em;
+        margin-right: auto;
+    }
+
   @media (max-width: 600px) {
     .projects-list-header {
       flex-wrap: wrap;

@@ -340,26 +340,37 @@ async function poll() {
       // Check if this context exists in the chats list
       const contextExists = chatsStore.contains(context);
 
-      // If it doesn't exist in the chats list, try to select the first chat
-      if (!contextExists && chatsStore.contexts.length > 0) {
-        const firstChatId = chatsStore.firstId();
-        if (firstChatId) {
-          setContext(firstChatId);
-          chatsStore.setSelected(firstChatId);
+      if (!contextExists) {
+        if (chatsStore.contexts.length > 0) {
+          // If it doesn't exist in the list but other contexts do, fall back to the first
+          const firstChatId = chatsStore.firstId();
+          if (firstChatId) {
+            setContext(firstChatId);
+            chatsStore.setSelected(firstChatId);
+          }
+        } else if (typeof deselectChat === "function") {
+          // No contexts remain – clear state so the welcome screen can surface
+          deselectChat();
         }
+      } else {
+        tasksStore.setSelected(context);
       }
-
-      tasksStore.setSelected(context);
     } else {
-      // No context selected, try to select the first available item
-      if (contexts.length > 0) {
-        const firstChatId = chatsStore.firstId();
-        if (firstChatId) {
-          setContext(firstChatId);
-          chatsStore.setSelected(firstChatId);
-        }
+    const welcomeStore =
+      globalThis.Alpine && typeof globalThis.Alpine.store === "function"
+        ? globalThis.Alpine.store("welcomeStore")
+        : null;
+    const welcomeVisible = Boolean(welcomeStore && welcomeStore.isVisible);
+
+    // No context selected, try to select the first available item unless welcome screen is active
+    if (!welcomeVisible && contexts.length > 0) {
+      const firstChatId = chatsStore.firstId();
+      if (firstChatId) {
+        setContext(firstChatId);
+        chatsStore.setSelected(firstChatId);
       }
     }
+  }
 
     lastLogVersion = response.log_version;
     lastLogGuid = response.log_guid;
@@ -624,6 +635,18 @@ document.addEventListener("DOMContentLoaded", function () {
 
   if (chatHistory) {
     chatHistory.addEventListener("scroll", updateAfterScroll);
+  }
+
+  // Restore previously selected context (if any) before polling begins
+  let storedContext = null;
+  try {
+    storedContext = localStorage.getItem("lastSelectedChat");
+  } catch (_e) {
+    storedContext = null;
+  }
+
+  if (storedContext && storedContext !== "null" && storedContext !== "") {
+    setContext(storedContext);
   }
 
   // Start polling for updates
