@@ -11,7 +11,7 @@ from enum import Enum
 import uuid
 import models
 
-from python.helpers import extract_tools, files, errors, history, tokens
+from python.helpers import extract_tools, files, errors, history, tokens, context as context_helper
 from python.helpers import dirty_json
 from python.helpers.print_style import PrintStyle
 
@@ -55,12 +55,22 @@ class AgentContext:
         last_message: datetime | None = None,
         data: dict | None = None,
         output_data: dict | None = None,
+        set_current: bool = False,
     ):
-        # build context
+        # initialize context
         self.id = id or AgentContext.generate_id()
+        existing = self._contexts.get(self.id, None)
+        if existing:
+            AgentContext.remove(self.id)
+        self._contexts[self.id] = self
+        if set_current:
+            AgentContext.set_current(self.id)
+
+        # initialize state
         self.name = name
         self.config = config
         self.log = log or Log.Log()
+        self.log.context = self
         self.agent0 = agent0 or Agent(0, self.config, self)
         self.paused = paused
         self.streaming_agent = streaming_agent
@@ -73,14 +83,31 @@ class AgentContext:
         self.data = data or {}
         self.output_data = output_data or {}
 
-        existing = self._contexts.get(self.id, None)
-        if existing:
-            AgentContext.remove(self.id)
-        self._contexts[self.id] = self
+
 
     @staticmethod
     def get(id: str):
         return AgentContext._contexts.get(id, None)
+
+    @staticmethod
+    def use(id: str):
+        context = AgentContext.get(id)
+        if context:
+            AgentContext.set_current(id)
+        else:
+            AgentContext.set_current("")
+        return context
+
+    @staticmethod
+    def current():
+        ctxid = context_helper.get_context_data("agent_context_id","")
+        if not ctxid:
+            return None
+        return AgentContext.get(ctxid)
+
+    @staticmethod
+    def set_current(ctxid: str):
+        context_helper.set_context_data("agent_context_id", ctxid)
 
     @staticmethod
     def first():
@@ -122,6 +149,10 @@ class AgentContext:
     def set_data(self, key: str, value: Any, recursive: bool = True):
         # recursive is not used now, prepared for context hierarchy
         self.data[key] = value
+
+    def get_output_data(self, key: str, recursive: bool = True):
+        # recursive is not used now, prepared for context hierarchy
+        return self.output_data.get(key, None)
 
     def set_output_data(self, key: str, value: Any, recursive: bool = True):
         # recursive is not used now, prepared for context hierarchy
@@ -688,7 +719,7 @@ class Agent:
         response, _reasoning = await call_data["model"].unified_call(
             system_message=call_data["system"],
             user_message=call_data["message"],
-            response_callback=stream_callback,
+            response_callback=stream_callback if call_data["callback"] else None,
             rate_limiter_callback=self.rate_limiter_callback if not call_data["background"] else None,
         )
 

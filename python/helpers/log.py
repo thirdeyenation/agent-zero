@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 import json
-from typing import Any, Literal, Optional, Dict, TypeVar
+from typing import Any, Literal, Optional, Dict, TypeVar, TYPE_CHECKING
 
 T = TypeVar("T")
 import uuid
@@ -8,6 +8,11 @@ from collections import OrderedDict  # Import OrderedDict
 from python.helpers.strings import truncate_text_by_ratio
 import copy
 from typing import TypeVar
+from python.helpers.secrets import get_secrets_manager
+
+
+if TYPE_CHECKING:
+    from agent import AgentContext
 
 T = TypeVar("T")
 
@@ -107,24 +112,7 @@ def _truncate_content(text: str | None) -> str:
     return truncated
 
 
-def _mask_recursive(obj: T) -> T:
-    """Recursively mask secrets in nested objects."""
-    try:
-        from python.helpers.secrets import SecretsManager
 
-        secrets_mgr = SecretsManager.get_instance()
-
-        if isinstance(obj, str):
-            return secrets_mgr.mask_values(obj)
-        elif isinstance(obj, dict):
-            return {k: _mask_recursive(v) for k, v in obj.items()}  # type: ignore
-        elif isinstance(obj, list):
-            return [_mask_recursive(item) for item in obj]  # type: ignore
-        else:
-            return obj
-    except Exception as _e:
-        # If masking fails, return original object
-        return obj
 
 
 @dataclass
@@ -195,6 +183,7 @@ class LogItem:
 class Log:
 
     def __init__(self):
+        self.context: "AgentContext|None" = None # set from outside
         self.guid: str = str(uuid.uuid4())
         self.updates: list[int] = []
         self.logs: list[LogItem] = []
@@ -250,23 +239,23 @@ class Log:
 
         # adjust all content before processing
         if heading is not None:
-            heading = _mask_recursive(heading)
+            heading = self._mask_recursive(heading)
             heading = _truncate_heading(heading)
             item.heading = heading
         if content is not None:
-            content = _mask_recursive(content)
+            content = self._mask_recursive(content)
             content = _truncate_content(content)
             item.content = content
         if kvps is not None:
             kvps = OrderedDict(copy.deepcopy(kvps))
-            kvps = _mask_recursive(kvps)
+            kvps = self._mask_recursive(kvps)
             kvps = _truncate_value(kvps)
             item.kvps = kvps
         elif item.kvps is None:
             item.kvps = OrderedDict()
         if kwargs:
             kwargs = copy.deepcopy(kwargs)
-            kwargs = _mask_recursive(kwargs)
+            kwargs = self._mask_recursive(kwargs)
             item.kvps.update(kwargs)
 
         if type is not None:
@@ -285,7 +274,7 @@ class Log:
         self._update_progress_from_item(item)
 
     def set_progress(self, progress: str, no: int = 0, active: bool = True):
-        progress = _mask_recursive(progress)
+        progress = self._mask_recursive(progress)
         progress = _truncate_progress(progress)
         self.progress = progress
         if not no:
@@ -324,3 +313,28 @@ class Log:
                     item.heading,
                     (item.no if item.update_progress == "persistent" else -1),
                 )
+
+    def _mask_recursive(self, obj: T) -> T:
+        """Recursively mask secrets in nested objects."""
+        try:
+            from agent import AgentContext
+            secrets_mgr = get_secrets_manager(self.context or AgentContext.current())
+
+            # debug helper to identify context mismatch
+            self_id = self.context.id if self.context else None
+            current_ctx = AgentContext.current()
+            current_id = current_ctx.id if current_ctx else None
+            if self_id != current_id:
+                print(f"Context ID mismatch: {self_id} != {current_id}")
+
+            if isinstance(obj, str):
+                return secrets_mgr.mask_values(obj)
+            elif isinstance(obj, dict):
+                return {k: self._mask_recursive(v) for k, v in obj.items()}  # type: ignore
+            elif isinstance(obj, list):
+                return [self._mask_recursive(item) for item in obj]  # type: ignore
+            else:
+                return obj
+        except Exception as _e:
+            # If masking fails, return original object
+            return obj

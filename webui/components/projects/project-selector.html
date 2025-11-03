@@ -11,13 +11,13 @@
     <div x-data>
         <template x-if="$store.projects && $store.chats">
             <div>
-                <template x-if="$store.chats.selectedContext?.project_name">
+                <template x-if="$store.chats.selectedContext?.project?.name">
                     <button @click="$store.projects.openProjectsModal()" type="button" class="button project-button">
-                        <span class="project-color-ball" :style="$store.chats.selectedContext.project_color ? { backgroundColor: $store.chats.selectedContext.project_color } : { border: '1px solid var(--color-border)' }"></span>
-                        <span x-text="$store.chats.selectedContext?.project_name"></span>
+                        <span class="project-color-ball" :style="$store.chats.selectedContext.project.color ? { backgroundColor: $store.chats.selectedContext.project.color } : { border: '1px solid var(--color-border)' }"></span>
+                        <span x-text="$store.chats.selectedContext?.project?.name"></span>
                     </button>
                 </template>
-                <template x-if="!$store.chats.selectedContext?.project_name">
+                <template x-if="!$store.chats.selectedContext?.project?.name">
                     <button @click="$store.projects.openProjectsModal()" type="button" class="button project-button">
                         No project</button>
                 </template>

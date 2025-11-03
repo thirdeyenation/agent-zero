@@ -53,7 +53,7 @@ class Message(ApiHandler):
         message = text
 
         # Obtain agent context
-        context = self.get_context(ctxid)
+        context = self.use_context(ctxid)
 
         # Store attachments in agent data
         # context.agent0.set_data("attachments", attachment_paths)

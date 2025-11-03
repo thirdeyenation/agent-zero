@@ -11,18 +11,20 @@
     <div x-data>
         <template x-if="$store.projects && $store.projects.selectedProject">
             <div>
-                <!-- <div class="project-detail-header">
-                        <div class="projects-project-card-title">Project details</div>
-                        <div class="project-path" x-text="$store.projects.selectedProject.path"></div>
-                    </div> -->
 
                 <template x-if="!$store.projects.selectedProject._meta.creating">
                     <div class="projects-form-group">
                         <label class="projects-form-label">Folder name</label>
                         <span class="projects-form-description">Project files and settings are located in
-                            <strong>/a0/usr/projects/<span
-                                    x-text="$store.projects.selectedProject.name"></span></strong></span>
-                        <input class="projects-form-input projects-disabled" type="text" x-model="$store.projects.selectedProject.name" disabled>
+                            <strong><span
+                                    x-text="$store.projects.getSelectedAbsPath()"></span></strong></span>
+                        <div class="projects-input-with-button-wrapper">
+                            <input class="projects-form-input projects-disabled" type="text" x-model="$store.projects.selectedProject.name" disabled>
+                            <button class="button icon-button" @click="$store.projects.browseSelected()">
+                                <span class="icon material-symbols-outlined">folder</span>
+                                <span>Browse</span>
+                            </button>
+                        </div>
                     </div>
                 </template>
 
@@ -147,6 +149,24 @@
     .projects-disabled {
         opacity: 0.7;
     }
+
+    .projects-input-with-button-wrapper {
+        display: flex;
+        gap: 0.5em;
+        align-items: center;
+    }
+
+    .projects-input-with-button-wrapper input {
+        flex-grow: 1;
+    }
+
+    @media (max-width: 640px) {
+        .projects-input-with-button-wrapper {
+            flex-direction: column;
+            align-items: stretch;
+        }
+    }
+
 </style>
 
 </html>

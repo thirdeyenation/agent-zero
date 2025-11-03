@@ -20,7 +20,7 @@ class Poll(ApiHandler):
 
         # context instance - get or create only if ctxid is provided
         if ctxid:
-            context = self.get_context(ctxid)
+            context = self.use_context(ctxid, create_if_not_exists=False)
         else:
             context = None
 
@@ -106,6 +106,7 @@ class Poll(ApiHandler):
 
         # data from this server
         return {
+            "deselect_chat": ctxid and not context,
             "context": context.id if context else "",
             "contexts": ctxs,
             "tasks": tasks,

@@ -3,6 +3,7 @@ import * as api from "/js/api.js";
 import * as modals from "/js/modals.js";
 import * as notifications from "/components/notifications/notification-store.js";
 import { store as chatsStore } from "/components/sidebar/chats/chats-store.js";
+import { store as browserStore } from "/components/modals/file-browser/file-browser-store.js";
 
 const listModal = "projects/project-list.html";
 const createModal = "projects/project-create.html";
@@ -48,16 +49,17 @@ const model = {
   ],
 
   _toFolderName(str) {
-    if (!str) return '';
+    if (!str) return "";
     // a helper function to convert title to a folder safe name
-    const s = str.normalize('NFD') // remove all diacritics and replace it with the latin character
-      .replace(/[\u0300-\u036f]/g, '')
+    const s = str
+      .normalize("NFD") // remove all diacritics and replace it with the latin character
+      .replace(/[\u0300-\u036f]/g, "")
       .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, '_') // replace all special symbols with _
-      .replace(/\s+/g, '_') // replace spaces with _
-      .replace(/_{2,}/g, '_') // condense multiple underscores into 1
-      .replace(/^-+|-+$/g, '') // remove any leading and trailing underscores
-      .replace(/^_+|_+$/g, '');
+      .replace(/[^a-z0-9\s-]/g, "_") // replace all special symbols with _
+      .replace(/\s+/g, "_") // replace spaces with _
+      .replace(/_{2,}/g, "_") // condense multiple underscores into 1
+      .replace(/^-+|-+$/g, "") // remove any leading and trailing underscores
+      .replace(/^_+|_+$/g, "");
     return s;
   },
 
@@ -72,8 +74,8 @@ const model = {
     this.selectedProject = null;
   },
 
-  async openEditModal(projectPath) {
-    this.selectedProject = await this._createEditProjectData(projectPath);
+  async openEditModal(name) {
+    this.selectedProject = await this._createEditProjectData(name);
     await modals.openModal(editModal);
     this.selectedProject = null;
   },
@@ -92,7 +94,7 @@ const model = {
     const project = await this.saveSelectedProject(true);
     await this.loadProjectsList();
     await modals.closeModal(createModal);
-    await this.openEditModal(project.path);
+    await this.openEditModal(project.name);
   },
 
   async confirmEdit() {
@@ -101,12 +103,12 @@ const model = {
     await modals.closeModal(editModal);
   },
 
-  async activateProject(projectPath) {
+  async activateProject(name) {
     try {
       await api.callJsonApi("projects", {
         action: "activate",
         context_id: chatsStore.getSelectedChatId(),
-        path: projectPath,
+        name: name,
       });
       notifications.toastFrontendSuccess(
         "Project activated successfully",
@@ -159,11 +161,11 @@ const model = {
   },
 
   async deleteProjectAndCloseModal() {
-    await this.deleteProject(this.selectedProject.path);
+    await this.deleteProject(this.selectedProject.name);
     await modals.closeModal(editModal);
   },
 
-  async deleteProject(projectPath) {
+  async deleteProject(name) {
     // show confirmation dialog before proceeding
     const confirmed = window.confirm(
       "Are you sure you want to permanently delete this project? This action is irreversible and ALL FILES will be deleted."
@@ -172,7 +174,7 @@ const model = {
     try {
       const response = await api.callJsonApi("projects", {
         action: "delete",
-        path: projectPath,
+        name: name,
       });
       if (response.ok) {
         notifications.toastFrontendSuccess(
@@ -211,7 +213,7 @@ const model = {
     this.loading = true;
     try {
       const response = await api.callJsonApi("projects", {
-        action: "list-active",
+        action: "list",
       });
       this.projectList = response.data || [];
     } catch (error) {
@@ -281,20 +283,43 @@ const model = {
     };
   },
 
-  async _createEditProjectData(projectPath) {
+  async _createEditProjectData(name) {
     const projectData = (
       await api.callJsonApi("projects", {
         action: "load",
-        path: projectPath,
+        name: name,
       })
     ).data;
-    // const project = this.projectList.find((p) => p.path === projectPath);
     return {
       _meta: {
         creating: false,
       },
       ...projectData,
     };
+  },
+
+  async browseSelected(...relPath) {
+    const path = this.getSelectedAbsPath(...relPath);
+    return await browserStore.open(path);
+  },
+
+  async browseInstructionFiles() {
+    await this.browseSelected(".a0proj", "instructions");
+    try {
+      const newData = await this._createEditProjectData(
+        this.selectedProject.name
+      );
+      this.selectedProject.instruction_files_count =
+        newData.instruction_files_count;
+    } catch (error) {
+      //pass
+    }
+  },
+
+  getSelectedAbsPath(...relPath) {
+    return ["/a0/usr/projects", this.selectedProject.name, ...relPath]
+      .join("/")
+      .replace(/\/+/g, "/");
   },
 };
 

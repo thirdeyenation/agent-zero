@@ -9,6 +9,7 @@ import { store as preferencesStore } from "/components/sidebar/bottom/preference
 import { store as inputStore } from "/components/chat/input/input-store.js";
 import { store as chatsStore } from "/components/sidebar/chats/chats-store.js";
 import { store as tasksStore } from "/components/sidebar/tasks/tasks-store.js";
+import { store as chatTopStore } from "/components/chat/top-section/chat-top-store.js";
 
 globalThis.fetchApi = api.fetchApi; // TODO - backward compatibility for non-modular scripts, remove once refactored to alpine
 
@@ -29,7 +30,6 @@ let autoScroll = true;
 let context = null;
 globalThis.resetCounter = 0; // Used by stores and getChatBasedId
 let skipOneSpeech = false;
-let connectionStatus = undefined; // undefined = not checked yet, true = connected, false = disconnected
 
 // Sidebar toggle logic is now handled by sidebar-store.js
 
@@ -153,7 +153,16 @@ export function updateChatInput(text) {
   console.log("Updated chat input value:", chatInputEl.value);
 }
 
-function updateUserTime() {
+async function updateUserTime() {
+
+  let userTimeElement = document.getElementById("time-date");
+
+  while(!userTimeElement){
+    await sleep(100);
+    userTimeElement = document.getElementById("time-date");
+  }
+
+
   const now = new Date();
   const hours = now.getHours();
   const minutes = now.getMinutes();
@@ -171,7 +180,6 @@ function updateUserTime() {
   const dateString = now.toLocaleDateString(undefined, options);
 
   // Update the HTML
-  const userTimeElement = document.getElementById("time-date");
   userTimeElement.innerHTML = `${timeString}<br><span id="user-date">${dateString}</span>`;
 }
 
@@ -227,20 +235,21 @@ function generateGUID() {
 }
 
 function getConnectionStatus() {
-  return connectionStatus;
+  return chatTopStore.connected;
 }
 globalThis.getConnectionStatus = getConnectionStatus;
 
 function setConnectionStatus(connected) {
-  connectionStatus = connected;
-  // Broadcast connection status without touching Alpine directly
-  try {
-    window.dispatchEvent(
-      new CustomEvent("connection-status", { detail: { connected } })
-    );
-  } catch (_e) {
-    // no-op
-  }
+  chatTopStore.connected = connected;
+  // connectionStatus = connected;
+  // // Broadcast connection status without touching Alpine directly
+  // try {
+  //   window.dispatchEvent(
+  //     new CustomEvent("connection-status", { detail: { connected } })
+  //   );
+  // } catch (_e) {
+  //   // no-op
+  // }
 }
 
 let lastLogVersion = 0;

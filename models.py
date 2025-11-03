@@ -487,6 +487,7 @@ class LiteLLMChatWrapper(SimpleChatModel):
         call_kwargs: dict[str, Any] = {**self.kwargs, **kwargs}
         max_retries: int = int(call_kwargs.pop("a0_retry_attempts", 2))
         retry_delay_s: float = float(call_kwargs.pop("a0_retry_delay_seconds", 1.5))
+        stream = reasoning_callback is not None or response_callback is not None or tokens_callback is not None
 
         # results
         result = ChatGenerationResult()
@@ -499,41 +500,52 @@ class LiteLLMChatWrapper(SimpleChatModel):
                 _completion = await acompletion(
                     model=self.model_name,
                     messages=msgs_conv,
-                    stream=True,
+                    stream=stream,
                     **call_kwargs,
                 )
 
-                # iterate over chunks
-                async for chunk in _completion:  # type: ignore
-                    got_any_chunk = True
-                    # parse chunk
-                    parsed = _parse_chunk(chunk)
-                    output = result.add_chunk(parsed)
+                if stream:
+                    # iterate over chunks
+                    async for chunk in _completion:  # type: ignore
+                        got_any_chunk = True
+                        # parse chunk
+                        parsed = _parse_chunk(chunk)
+                        output = result.add_chunk(parsed)
 
-                    # collect reasoning delta and call callbacks
-                    if output["reasoning_delta"]:
-                        if reasoning_callback:
-                            await reasoning_callback(output["reasoning_delta"], result.reasoning)
-                        if tokens_callback:
-                            await tokens_callback(
-                                output["reasoning_delta"],
-                                approximate_tokens(output["reasoning_delta"]),
-                            )
-                        # Add output tokens to rate limiter if configured
-                        if limiter:
-                            limiter.add(output=approximate_tokens(output["reasoning_delta"]))
-                    # collect response delta and call callbacks
-                    if output["response_delta"]:
-                        if response_callback:
-                            await response_callback(output["response_delta"], result.response)
-                        if tokens_callback:
-                            await tokens_callback(
-                                output["response_delta"],
-                                approximate_tokens(output["response_delta"]),
-                            )
-                        # Add output tokens to rate limiter if configured
-                        if limiter:
+                        # collect reasoning delta and call callbacks
+                        if output["reasoning_delta"]:
+                            if reasoning_callback:
+                                await reasoning_callback(output["reasoning_delta"], result.reasoning)
+                            if tokens_callback:
+                                await tokens_callback(
+                                    output["reasoning_delta"],
+                                    approximate_tokens(output["reasoning_delta"]),
+                                )
+                            # Add output tokens to rate limiter if configured
+                            if limiter:
+                                limiter.add(output=approximate_tokens(output["reasoning_delta"]))
+                        # collect response delta and call callbacks
+                        if output["response_delta"]:
+                            if response_callback:
+                                await response_callback(output["response_delta"], result.response)
+                            if tokens_callback:
+                                await tokens_callback(
+                                    output["response_delta"],
+                                    approximate_tokens(output["response_delta"]),
+                                )
+                            # Add output tokens to rate limiter if configured
+                            if limiter:
+                                limiter.add(output=approximate_tokens(output["response_delta"]))
+
+                # non-stream response
+                else:
+                    parsed = _parse_chunk(_completion)
+                    output = result.add_chunk(parsed)
+                    if limiter:
+                        if output["response_delta"]:
                             limiter.add(output=approximate_tokens(output["response_delta"]))
+                        if output["reasoning_delta"]:
+                            limiter.add(output=approximate_tokens(output["reasoning_delta"]))
 
                 # Successful completion of stream
                 return result.response, result.reasoning
@@ -804,6 +816,10 @@ def _parse_chunk(chunk: Any) -> ChatChunk:
         delta.get("reasoning_content", "")
         if isinstance(delta, dict)
         else getattr(delta, "reasoning_content", "")
+    ) or (
+        message.get("reasoning_content", "")
+        if isinstance(message, dict)
+        else getattr(message, "reasoning_content", "")
     )
 
     return ChatChunk(reasoning_delta=reasoning_delta, response_delta=response_delta)

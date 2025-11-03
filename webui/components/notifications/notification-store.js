@@ -664,7 +664,8 @@ const model = {
     title = "Connection Error",
     display_time = 8,
     group = "",
-    priority = defaultPriority
+    priority = defaultPriority,
+    frontendOnly = false
   ) {
     return await this.addFrontendToast(
       NotificationType.ERROR,

@@ -9,13 +9,6 @@ const backdrop = document.createElement("div");
 backdrop.className = "modal-backdrop";
 backdrop.style.display = "none";
 backdrop.style.backdropFilter = "blur(5px)";
-
-// Make sure we only close when clicking directly on the backdrop, not its children
-backdrop.addEventListener("click", (event) => {
-  if (event.target === backdrop) {
-    closeModal();
-  }
-});
 document.body.appendChild(backdrop);
 
 // Function to update z-index for all modals and backdrop
@@ -55,12 +48,16 @@ function createModalElement(path) {
   newModal.className = "modal";
   newModal.path = path; // save name to the object
 
-  // Add click handler to the modal element to close when clicking outside content
-  newModal.addEventListener("click", (event) => {
-    // Only close if clicking directly on the modal container, not its content
-    if (event.target === newModal) {
+  // Add click handlers to only close modal if both mousedown and mouseup are on the modal container
+  let mouseDownTarget = null;
+  newModal.addEventListener("mousedown", (event) => {
+    mouseDownTarget = event.target;
+  });
+  newModal.addEventListener("mouseup", (event) => {
+    if (event.target === newModal && mouseDownTarget === newModal) {
       closeModal();
     }
+    mouseDownTarget = null;
   });
 
 

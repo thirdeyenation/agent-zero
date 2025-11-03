@@ -28,7 +28,7 @@ from langchain_core.documents import Document
 from python.helpers import knowledge_import
 from python.helpers.log import Log, LogItem
 from enum import Enum
-from agent import Agent
+from agent import Agent, AgentContext
 import models
 import logging
 from simpleeval import simple_eval
@@ -63,7 +63,7 @@ class Memory:
 
     @staticmethod
     async def get(agent: Agent):
-        memory_subdir = agent.config.memory_subdir or "default"
+        memory_subdir = get_agent_memory_subdir(agent)
         if Memory.index.get(memory_subdir) is None:
             log_item = agent.context.log.log(
                 type="util",
@@ -136,7 +136,7 @@ class Memory:
         em_dir = files.get_abs_path(
             "memory/embeddings"
         )  # just caching, no need to parameterize
-        db_dir = Memory._abs_db_dir(memory_subdir)
+        db_dir = abs_db_dir(memory_subdir)
 
         # make sure embeddings and database directories exist
         os.makedirs(db_dir, exist_ok=True)
@@ -249,7 +249,7 @@ class Memory:
             log_item.update(heading="Preloading knowledge...")
 
         # db abs path
-        db_dir = Memory._abs_db_dir(memory_subdir)
+        db_dir = abs_db_dir(memory_subdir)
 
         # Load the index file if it exists
         index_path = files.get_abs_path(db_dir, "knowledge_import.json")
@@ -418,7 +418,7 @@ class Memory:
 
     @staticmethod
     def _save_db_file(db: MyFaiss, memory_subdir: str):
-        abs_dir = Memory._abs_db_dir(memory_subdir)
+        abs_dir = abs_db_dir(memory_subdir)
         db.save_local(folder_path=abs_dir)
 
     @staticmethod
@@ -447,10 +447,6 @@ class Memory:
         return res
 
     @staticmethod
-    def _abs_db_dir(memory_subdir: str) -> str:
-        return files.get_abs_path("memory", memory_subdir)
-
-    @staticmethod
     def format_docs_plain(docs: list[Document]) -> list[str]:
         result = []
         for doc in docs:
@@ -466,10 +462,6 @@ class Memory:
         return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
-def get_memory_subdir_abs(agent: Agent) -> str:
-    return files.get_abs_path("memory", agent.config.memory_subdir or "default")
-
-
 def get_custom_knowledge_subdir_abs(agent: Agent) -> str:
     for dir in agent.config.knowledge_subdirs:
         if dir != "default":
@@ -480,3 +472,56 @@ def get_custom_knowledge_subdir_abs(agent: Agent) -> str:
 def reload():
     # clear the memory index, this will force all DBs to reload
     Memory.index = {}
+
+
+def abs_db_dir(memory_subdir: str) -> str:
+    # patch for projects, this way we don't need to re-work the structure of memory subdirs
+    if memory_subdir.startswith("projects/"):
+        from python.helpers.projects import get_project_meta_folder
+
+        return files.get_abs_path(get_project_meta_folder(memory_subdir[9:]), "memory")
+    # standard subdirs
+    return files.get_abs_path("memory", memory_subdir)
+
+
+def get_memory_subdir_abs(agent: Agent) -> str:
+    subdir = get_agent_memory_subdir(agent)
+    return abs_db_dir(subdir)
+
+
+def get_agent_memory_subdir(agent: Agent) -> str:
+    # if project is active, use project memory subdir
+    return get_context_memory_subdir(agent.context)
+
+
+def get_context_memory_subdir(context: AgentContext) -> str:
+    # if project is active, use project memory subdir
+    from python.helpers.projects import get_context_memory_subdir as get_project_memory_subdir
+
+    memory_subdir = get_project_memory_subdir(context)
+    if memory_subdir:
+        return memory_subdir
+
+    # no project, regular memory subdir
+    return context.config.memory_subdir or "default"
+
+def get_existing_memory_subdirs() -> list[str]:
+    try:
+        from python.helpers.projects import get_project_meta_folder, get_projects_parent_folder
+        # Get subdirectories from memory folder
+        subdirs = files.get_subdirectories("memory", exclude="embeddings")
+
+        project_subdirs = files.get_subdirectories(get_projects_parent_folder())
+        for project_subdir in project_subdirs:
+            if files.exists(get_project_meta_folder(project_subdir), "memory", "index.faiss"):
+                subdirs.append(f"projects/{project_subdir}")
+
+        # Ensure 'default' is always available
+        if "default" not in subdirs:
+            subdirs.insert(0, "default")
+        
+        return subdirs
+    except Exception as e:
+        PrintStyle.error(f"Failed to get memory subdirectories: {str(e)}")
+        return ["default"]
+        

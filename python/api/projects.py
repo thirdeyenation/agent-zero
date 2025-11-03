@@ -5,24 +5,26 @@ from python.helpers import projects
 class Projects(ApiHandler):
     async def process(self, input: Input, request: Request) -> Output:
         action = input.get("action", "")
+        ctxid = input.get("context_id", None)
+
+        if ctxid:
+            _context = self.use_context(ctxid)
 
         try:
-            if action == "list-active":
+            if action == "list":
                 data = self.get_active_projects_list()
-            elif action == "list-archive":
-                data = self.get_archived_projects_list()
             elif action == "load":
-                data = self.load_project(input.get("path", None))
+                data = self.load_project(input.get("name", None))
             elif action == "create":
                 data = self.create_project(input.get("project", None))
             elif action == "update":
                 data = self.update_project(input.get("project", None))
             elif action == "delete":
-                data = self.delete_project(input.get("path", None))
+                data = self.delete_project(input.get("name", None))
             elif action == "activate":
-                data = self.activate_project(input.get("context_id", None), input.get("path", None))
+                data = self.activate_project(ctxid, input.get("name", None))
             elif action == "deactivate":
-                data = self.deactivate_project(input.get("context_id", None))
+                data = self.deactivate_project(ctxid)
             else:
                 raise Exception("Invalid action")
 
@@ -39,41 +41,38 @@ class Projects(ApiHandler):
     def get_active_projects_list(self):
         return projects.get_active_projects_list()
 
-    def get_archived_projects_list(self):
-        return projects.get_archived_projects_list()
-
     def create_project(self, project: dict|None):
         if project is None:
             raise Exception("Project data is required")
         data = projects.BasicProjectData(**project)
-        path = projects.create_project(project["name"], data)
-        return projects.load_edit_project_data(path)
+        name = projects.create_project(project["name"], data)
+        return projects.load_edit_project_data(name)
 
-    def load_project(self, path: str|None):
-        if path is None:
-            raise Exception("Project path is required")
-        return projects.load_edit_project_data(path)
+    def load_project(self, name: str|None):
+        if name is None:
+            raise Exception("Project name is required")
+        return projects.load_edit_project_data(name)
 
     def update_project(self, project: dict|None):
         if project is None:
             raise Exception("Project data is required")
-        data = projects.BasicProjectData(**project)
-        path = projects.update_project(project["path"], data)
-        return projects.load_edit_project_data(path)
+        data = projects.EditProjectData(**project)
+        name = projects.update_project(project["name"], data)
+        return projects.load_edit_project_data(name)
 
-    def delete_project(self, path: str|None):
-        if path is None:
-            raise Exception("Project path is required")
-        return projects.delete_project(path)
+    def delete_project(self, name: str|None):
+        if name is None:
+            raise Exception("Project name is required")
+        return projects.delete_project(name)
 
-    def activate_project(self, context_id: str|None, path: str|None):
-        if context_id is None:
+    def activate_project(self, context_id: str|None, name: str|None):
+        if not context_id:
             raise Exception("Context ID is required")
-        if path is None:
-            raise Exception("Project path is required") 
-        return projects.activate_project(context_id, path)
+        if not name:
+            raise Exception("Project name is required") 
+        return projects.activate_project(context_id, name)
 
     def deactivate_project(self, context_id: str|None):
-        if context_id is None:
+        if not context_id:
             raise Exception("Context ID is required")
         return projects.deactivate_project(context_id)

@@ -139,14 +139,26 @@ const model = {
   // Create new chat
   async newChat() {
     try {
-      if (globalThis.newContext) {
-        globalThis.newContext();
+
+      // first create a new chat on the backend
+      const response = await sendJsonData("/chat_create", {
+        current_context: this.selected
+      });
+
+      if (response.ok) {
+        this.selectChat(response.ctxid);
+        return;
       }
-      if (globalThis.updateAfterScroll) {
-        globalThis.updateAfterScroll();
-      }
-      // UX: scroll-to-top
-      requestAnimationFrame(() => this._scrollChatsToTop());
+
+
+      // if (globalThis.newContext) {
+      //   globalThis.newContext();
+      // }
+      // if (globalThis.updateAfterScroll) {
+      //   globalThis.updateAfterScroll();
+      // }
+      // // UX: scroll-to-top
+      // requestAnimationFrame(() => this._scrollChatsToTop());
     } catch (e) {
       if (globalThis.toastFetchError) {
         globalThis.toastFetchError("Error creating new chat", e);
