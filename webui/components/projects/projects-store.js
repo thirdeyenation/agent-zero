@@ -228,8 +228,12 @@ const model = {
       // prepare data
       const data = {
         ...this.selectedProject,
-        _meta: undefined,
+        memory: this.selectedProject._ownMemory ? "own" : "global",
       };
+      // remove internal fields
+      for (const kvp of Object.entries(data))
+        if (kvp[0].startsWith("_")) delete data[kvp[0]];
+
       // call backend
       const response = await api.callJsonApi("projects", {
         action: creating ? "create" : "update",
@@ -276,6 +280,7 @@ const model = {
       _meta: {
         creating: true,
       },
+      _ownMemory: true,
       name: ``,
       title: `Project #${this.projectList.length + 1}`,
       description: "",
@@ -295,6 +300,7 @@ const model = {
         creating: false,
       },
       ...projectData,
+      _ownMemory: projectData.memory == "own",
     };
   },
 

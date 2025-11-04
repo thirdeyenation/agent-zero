@@ -3,7 +3,7 @@
 <head>
     <title>Edit project</title>
     <script type="module">
-        import { store } from "/components/projects/projectsStore.js";
+        import { store } from "/components/projects/projects-store.js";
     </script>
 </head>
 
@@ -39,6 +39,14 @@
                         <span class="projects-project-card-title">Instructions</span>
                     </div>
                     <x-component path="projects/project-edit-instructions.html">
+                    </x-component>
+                </div>
+
+                <div class="project-detail">
+                    <div class="project-detail-header">
+                        <span class="projects-project-card-title">Memory</span>
+                    </div>
+                    <x-component path="projects/project-edit-memory.html">
                     </x-component>
                 </div>
 

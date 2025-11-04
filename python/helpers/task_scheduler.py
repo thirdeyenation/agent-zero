@@ -776,6 +776,7 @@ class TaskScheduler:
                 self._printer.print(f"Scheduler Task '{current_task.name}' started")
 
                 context = await self._get_chat_context(current_task)
+                AgentContext.use(context.id)
 
                 # Ensure the context is properly registered in the AgentContext._contexts
                 # This is critical for the polling mechanism to find and stream logs

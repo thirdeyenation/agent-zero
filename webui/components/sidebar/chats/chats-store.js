@@ -26,7 +26,8 @@ const model = {
     // Initialize from localStorage
     const lastSelectedChat = localStorage.getItem("lastSelectedChat");
     if (lastSelectedChat) {
-      this.selected = lastSelectedChat;
+      this.selectChat(lastSelectedChat);
+      // this.selected = lastSelectedChat;
     }
   },
 
@@ -107,7 +108,8 @@ const model = {
       await this.selectChat(alternateChat.id);
     } else {
       // If no other chats, create a new empty context
-      await this.newChat();
+      this.deselectChat();
+      //await this.newChat();
     }
   },
 
@@ -156,6 +158,10 @@ const model = {
     } catch (e) {
       toastFetchError("Error creating new chat", e);
     }
+  },
+
+  deselectChat(){
+    globalThis.deselectChat(); //TODO move here
   },
 
   // Smoothly scroll the chats list to top if present

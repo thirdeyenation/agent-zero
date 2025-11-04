@@ -154,14 +154,12 @@ export function updateChatInput(text) {
 }
 
 async function updateUserTime() {
-
   let userTimeElement = document.getElementById("time-date");
 
-  while(!userTimeElement){
+  while (!userTimeElement) {
     await sleep(100);
     userTimeElement = document.getElementById("time-date");
   }
-
 
   const now = new Date();
   const hours = now.getHours();
@@ -276,6 +274,12 @@ export async function poll() {
       return false;
     }
 
+    // deselect chat if it is requested by the backend
+    if (response.deselect_chat) {
+      chatsStore.deselectChat();
+      return
+    }
+
     if (
       response.context != context &&
       !(response.context === null && context === null) &&
@@ -356,21 +360,21 @@ export async function poll() {
         tasksStore.setSelected(context);
       }
     } else {
-    const welcomeStore =
-      globalThis.Alpine && typeof globalThis.Alpine.store === "function"
-        ? globalThis.Alpine.store("welcomeStore")
-        : null;
-    const welcomeVisible = Boolean(welcomeStore && welcomeStore.isVisible);
+      const welcomeStore =
+        globalThis.Alpine && typeof globalThis.Alpine.store === "function"
+          ? globalThis.Alpine.store("welcomeStore")
+          : null;
+      const welcomeVisible = Boolean(welcomeStore && welcomeStore.isVisible);
 
-    // No context selected, try to select the first available item unless welcome screen is active
-    if (!welcomeVisible && contexts.length > 0) {
-      const firstChatId = chatsStore.firstId();
-      if (firstChatId) {
-        setContext(firstChatId);
-        chatsStore.setSelected(firstChatId);
+      // No context selected, try to select the first available item unless welcome screen is active
+      if (!welcomeVisible && contexts.length > 0) {
+        const firstChatId = chatsStore.firstId();
+        if (firstChatId) {
+          setContext(firstChatId);
+          chatsStore.setSelected(firstChatId);
+        }
       }
     }
-  }
 
     lastLogVersion = response.log_version;
     lastLogGuid = response.log_guid;

@@ -1,6 +1,8 @@
 import { createStore } from "/js/AlpineStore.js";
 import { getContext } from "/index.js";
 import { store as chatsStore } from "/components/sidebar/chats/chats-store.js";
+import { store as memoryStore } from "/components/settings/memory/memory-dashboard-store.js";
+import { store as projectsStore } from "/components/projects/projects-store.js";
 
 const model = {
   // State
@@ -44,6 +46,12 @@ const model = {
         if (settingsButton) {
           settingsButton.click();
         }
+        break;
+      case "projects":
+        projectsStore.openProjectsModal();
+        break;
+      case "memory":
+        memoryStore.openModal();
         break;
       case "website":
         window.open("https://agent-zero.ai", "_blank");
