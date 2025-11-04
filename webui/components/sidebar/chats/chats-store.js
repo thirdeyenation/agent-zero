@@ -11,6 +11,7 @@ import {
   getConnectionStatus,
 } from "/index.js";
 import { store as notificationStore } from "/components/notifications/notification-store.js";
+import { store as tasksStore } from "/components/sidebar/tasks/tasks-store.js";
 
 const model = {
   contexts: [],
@@ -272,6 +273,8 @@ const model = {
   setSelected(contextId) {
     this.selected = contextId;
     this.selectedContext = this.contexts.find((ctx) => ctx.id === contextId);
+    // if not found in contexts, try to find in tasks < not nice, will need refactor later
+    if(!this.selectedContext) this.selectedContext = tasksStore.tasks.find((ctx) => ctx.id === contextId);
     localStorage.setItem("lastSelectedChat", contextId);
   },
 

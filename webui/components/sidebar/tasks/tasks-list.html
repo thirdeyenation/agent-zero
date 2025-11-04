@@ -24,13 +24,16 @@
             <ul class="config-list tasks-config-list" x-show="$store.tasks.tasks.length > 0">
               <template x-for="task in $store.tasks.tasks" :key="task.id">
                 <li>
-                  <div :class="{'chat-list-button': true, 'font-bold': task.id === $store.tasks.selected, 'has-task-container': true}"
-                       @click="$store.tasks.selectTask(task.id)">
-                    <div class="task-container task-container-vertical">
-                      <span class="task-name"
-                            :title="(task.task_name || `Task #${task.no}`) + ' (' + (task.name || `Chat #${task.no}`) + ')'"
-                            x-text="(task.task_name || `Task #${task.no}`) + ' (' + (task.name || `Chat #${task.no}`) + ')'"
+                  <div class="task-container" :class="{'task-selected': task.id === $store.tasks.selected}">
+                    <div class="chat-list-button" @click="$store.tasks.selectTask(task.id)">
+                      <div class="task-container-vertical">
+                        <div class="task-title-line">
+                          <span class="project-color-ball" :style="task.project?.color ? { backgroundColor: task.project.color } : { border: '1px solid var(--color-border)' }"></span>
+                          <span class="task-name"
+                            :title="(task.task_name || `Task #${task.no}`)"
+                            x-text="(task.task_name || `Task #${task.no}`)"
                             :data-task-id="task.id"></span>
+                        </div>
                       <div class="task-info-line">
                         <span class="scheduler-status-badge scheduler-status-badge-small"
                               :class="task.state ? `scheduler-status-${task.state}` : 'scheduler-status-idle'"
@@ -49,6 +52,7 @@
                           </svg>
                         </button>
                         <button class="edit-button" title="Delete task" @click.stop="$store.tasks.deleteTask(task.id)">X</button>
+                      </div>
                       </div>
                     </div>
                   </div>
@@ -115,13 +119,50 @@
       height: 0;
     }
   
-    .task-name { display: block; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 3px 0; margin-left: 10px; cursor: pointer; border-radius: 4px; transition: background-color 0.2s; font-size: var(--font-size-small); margin-bottom: 2px; }
-    .task-name:hover { background-color: rgba(255,255,255,0.1); text-decoration: none; }
+    .task-title-line {
+      display: flex;
+      align-items: center;
+      gap: 0.5em;
+    }
+
+    .project-color-ball {
+      width: 0.6em;
+      height: 0.6em;
+      border-radius: 50%;
+      display: inline-block;
+      box-sizing: border-box;
+      flex-shrink: 0;
+    }
+
+    .task-name { display: block; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 3px 0; cursor: pointer; border-radius: 4px; transition: background-color 0.2s; font-size: var(--font-size-small); margin-bottom: 2px; }
     .light-mode .task-name:hover { background-color: rgba(0,0,0,0.05); }
   
-    .task-info-line { display: flex; justify-content: space-between; align-items: center; width: 100%; margin-top: 2px; margin-left: 5px; }
+    .task-info-line { display: flex; justify-content: space-between; align-items: center; width: 100%; margin-top: 2px; }
   
+    .task-container {
+      width: 100%;
+      display: flex;
+      align-items: stretch;
+      position: relative;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .task-container:hover { 
+      background-color: rgba(255, 255, 255, 0.03);
+     }
+    
+
     .task-container-vertical { display: flex; flex-direction: column; width: 100%; gap: 6px; }
+
+    /* Selected task accent */
+    .task-selected {
+      background-color: rgba(var(--color-border-rgb, 50, 50, 50), 0.5);
+    }
+
+    .task-selected .task-name {
+      font-weight: bold;
+    }
   
     /* Scheduler badges (subset used in sidebar) */
     .scheduler-status-badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500; text-transform: capitalize; white-space: nowrap; }
