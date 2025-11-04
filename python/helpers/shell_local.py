@@ -7,12 +7,13 @@ from python.helpers import tty_session
 from python.helpers.shell_ssh import clean_string
 
 class LocalInteractiveSession:
-    def __init__(self):
+    def __init__(self, cwd: str|None = None):
         self.session: tty_session.TTYSession|None = None
         self.full_output = ''
+        self.cwd = cwd
 
     async def connect(self):
-        self.session = tty_session.TTYSession("/bin/bash")
+        self.session = tty_session.TTYSession("/bin/bash", cwd=self.cwd)
         await self.session.start()
         await self.session.read_full_until_idle(idle_timeout=1, total_timeout=1)
 

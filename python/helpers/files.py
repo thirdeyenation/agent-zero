@@ -423,6 +423,14 @@ def fix_dev_path(path: str):
     return get_abs_path(path)
 
 
+def normalize_a0_path(path: str):
+    "Convert absolute paths into /a0/... paths"
+    if is_in_base_dir(path):
+        deabs = deabsolute_path(path)
+        return "/a0/" + deabs
+    return path
+
+
 def exists(*relative_paths):
     path = get_abs_path(*relative_paths)
     return os.path.exists(path)

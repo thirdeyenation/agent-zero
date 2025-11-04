@@ -3,7 +3,7 @@ from dataclasses import dataclass
 import shlex
 import time
 from python.helpers.tool import Tool, Response
-from python.helpers import files, rfc_exchange
+from python.helpers import files, rfc_exchange, projects
 from python.helpers.print_style import PrintStyle
 from python.helpers.shell_local import LocalInteractiveSession
 from python.helpers.shell_ssh import SSHInteractiveSession
@@ -146,9 +146,10 @@ class CodeExecution(Tool):
                     self.agent.config.code_exec_ssh_port,
                     self.agent.config.code_exec_ssh_user,
                     pswd,
+                    cwd=self.get_cwd(),
                 )
             else:
-                shell = LocalInteractiveSession()
+                shell = LocalInteractiveSession(cwd=self.get_cwd())
 
             shells[session] = ShellWrap(id=session, session=shell, running=False)
             await shell.connect()
@@ -469,3 +470,14 @@ class CodeExecution(Tool):
         output = "\n".join(line.strip() for line in output.splitlines())
         output = truncate_text_agent(agent=self.agent, output=output, threshold=1000000) # ~1MB, larger outputs should be dumped to file, not read from terminal
         return output
+
+    def get_cwd(self):
+        project_name = projects.get_context_project_name(self.agent.context)
+        if not project_name:
+            return None
+        project_path = projects.get_project_folder(project_name)
+        normalized = files.normalize_a0_path(project_path)
+        return normalized
+        
+
+        
