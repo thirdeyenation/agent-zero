@@ -337,10 +337,14 @@ export async function poll() {
       // Update selection in both stores
       chatsStore.setSelected(context);
 
-      // Check if this context exists in the chats list
-      const contextExists = chatsStore.contains(context);
+      const contextInChats = chatsStore.contains(context);
+      const contextInTasks = tasksStore.contains(context);
 
-      if (!contextExists) {
+      if (contextInTasks) {
+        tasksStore.setSelected(context);
+      }
+
+      if (!contextInChats && !contextInTasks) {
         if (chatsStore.contexts.length > 0) {
           // If it doesn't exist in the list but other contexts do, fall back to the first
           const firstChatId = chatsStore.firstId();
@@ -352,8 +356,6 @@ export async function poll() {
           // No contexts remain – clear state so the welcome screen can surface
           deselectChat();
         }
-      } else {
-        tasksStore.setSelected(context);
       }
     } else {
     const welcomeStore =
