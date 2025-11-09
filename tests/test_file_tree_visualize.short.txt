@@ -1,0 +1,341 @@
+================================================================================
+Scenario: basic_breadth_first — Default breadth-first traversal with mixed folders/files
+================================================================================
+--------------------------------------------------------------------------------
+Configuration: string • folders-first (name asc)
+--------------------------------------------------------------------------------
+Parameters:
+  output_mode   : string
+  folders_first : True
+  sort          : key=name, direction=asc
+  max_depth     : 0
+  max_lines     : 0
+  max_folders   : None
+  max_files     : None
+  ignore        : None
+
+tmp/tests/file_tree/visualize/basic_breadth_first/
+├── alpha/
+│   ├── nested/
+│   │   └── inner.txt
+│   └── alpha_file.txt
+├── beta/
+│   └── beta_file.txt
+├── zeta/
+├── a.txt
+└── b.txt
+--------------------------------------------------------------------------------
+Configuration: string • folders-first disabled
+--------------------------------------------------------------------------------
+Parameters:
+  output_mode   : string
+  folders_first : False
+  sort          : key=name, direction=asc
+  max_depth     : 0
+  max_lines     : 0
+  max_folders   : None
+  max_files     : None
+  ignore        : None
+
+tmp/tests/file_tree/visualize/basic_breadth_first/
+├── a.txt
+├── b.txt
+├── alpha/
+│   ├── alpha_file.txt
+│   └── nested/
+│       └── inner.txt
+├── beta/
+│   └── beta_file.txt
+└── zeta/
+--------------------------------------------------------------------------------
+Configuration: flat • folders-first
+--------------------------------------------------------------------------------
+Parameters:
+  output_mode   : flat
+  folders_first : True
+  sort          : key=name, direction=asc
+  max_depth     : 0
+  max_lines     : 0
+  max_folders   : None
+  max_files     : None
+  ignore        : None
+
+level  type     name                   text
+--------------------------------------------------------------------------------
+1      folder   alpha                 ├── alpha/
+2      folder   nested                │   ├── nested/
+3      file     inner.txt             │   │   └── inner.txt
+2      file     alpha_file.txt        │   └── alpha_file.txt
+1      folder   beta                  ├── beta/
+2      file     beta_file.txt         │   └── beta_file.txt
+1      folder   zeta                  ├── zeta/
+1      file     a.txt                 ├── a.txt
+1      file     b.txt                 └── b.txt
+--------------------------------------------------------------------------------
+Configuration: nested • folders-first
+--------------------------------------------------------------------------------
+Parameters:
+  output_mode   : nested
+  folders_first : True
+  sort          : key=name, direction=asc
+  max_depth     : 0
+  max_lines     : 0
+  max_folders   : None
+  max_files     : None
+  ignore        : None
+
+basic_breadth_first/
+├── alpha/  [folder]
+├── beta/  [folder]
+├── zeta/  [folder]
+├── a.txt  [file]
+└── b.txt  [file]
+
+================================================================================
+Scenario: sorting_variants — Demonstrate sorting by name and timestamp with folders/files
+================================================================================
+--------------------------------------------------------------------------------
+Configuration: string • sort by name asc
+--------------------------------------------------------------------------------
+Parameters:
+  output_mode   : string
+  folders_first : True
+  sort          : key=name, direction=asc
+  max_depth     : 0
+  max_lines     : 0
+  max_folders   : None
+  max_files     : None
+  ignore        : None
+
+tmp/tests/file_tree/visualize/sorting_variants/
+├── folder_alpha/
+├── folder_beta/
+├── file_first.txt
+├── file_second.txt
+└── file_third.txt
+--------------------------------------------------------------------------------
+Configuration: string • sort by created desc
+--------------------------------------------------------------------------------
+Parameters:
+  output_mode   : string
+  folders_first : True
+  sort          : key=created, direction=desc
+  max_depth     : 0
+  max_lines     : 0
+  max_folders   : None
+  max_files     : None
+  ignore        : None
+
+tmp/tests/file_tree/visualize/sorting_variants/
+├── folder_alpha/
+├── folder_beta/
+├── file_third.txt
+├── file_first.txt
+└── file_second.txt
+--------------------------------------------------------------------------------
+Configuration: flat • sort by modified asc
+--------------------------------------------------------------------------------
+Parameters:
+  output_mode   : flat
+  folders_first : True
+  sort          : key=modified, direction=asc
+  max_depth     : 0
+  max_lines     : 0
+  max_folders   : None
+  max_files     : None
+  ignore        : None
+
+level  type     name                   text
+--------------------------------------------------------------------------------
+1      folder   folder_alpha          ├── folder_alpha/
+1      folder   folder_beta           ├── folder_beta/
+1      file     file_first.txt        ├── file_first.txt
+1      file     file_second.txt       ├── file_second.txt
+1      file     file_third.txt        └── file_third.txt
+
+================================================================================
+Scenario: ignore_and_limits — Ignore file semantics with max_folders/max_files summaries
+================================================================================
+--------------------------------------------------------------------------------
+Configuration: string • folders-first with summaries
+--------------------------------------------------------------------------------
+Parameters:
+  output_mode   : string
+  folders_first : False
+  sort          : key=name, direction=asc
+  max_depth     : 0
+  max_lines     : 12
+  max_folders   : 1
+  max_files     : 2
+  ignore        : file:.treeignore
+
+tmp/tests/file_tree/visualize/ignore_and_limits/
+├── .treeignore
+├── guide.md
+├── # 2 more files
+├── archive/
+└── # 5 more folders
+--------------------------------------------------------------------------------
+Configuration: nested • inspect truncated branches & comments
+--------------------------------------------------------------------------------
+Parameters:
+  output_mode   : nested
+  folders_first : False
+  sort          : key=name, direction=asc
+  max_depth     : 0
+  max_lines     : 12
+  max_folders   : 1
+  max_files     : 2
+  ignore        : file:.treeignore
+
+ignore_and_limits/
+├── .treeignore  [file]
+├── guide.md  [file]
+├── # 2 more files  [comment]
+├── archive/  [folder]
+└── # 5 more folders  [comment]
+
+================================================================================
+Scenario: limits_exact_match — Per-directory limits exactly met (no summary comments)
+================================================================================
+--------------------------------------------------------------------------------
+Configuration: string • exact matches (no summaries)
+--------------------------------------------------------------------------------
+Parameters:
+  output_mode   : string
+  folders_first : True
+  sort          : key=name, direction=asc
+  max_depth     : 0
+  max_lines     : 0
+  max_folders   : 2
+  max_files     : 2
+  ignore        : None
+
+tmp/tests/file_tree/visualize/limits_exact_match/
+└── pkg/
+    ├── dir1/
+    ├── dir2/
+    ├── a.py
+    └── b.py
+--------------------------------------------------------------------------------
+Configuration: flat • exact matches (no summaries)
+--------------------------------------------------------------------------------
+Parameters:
+  output_mode   : flat
+  folders_first : True
+  sort          : key=name, direction=asc
+  max_depth     : 0
+  max_lines     : 0
+  max_folders   : 2
+  max_files     : 2
+  ignore        : None
+
+level  type     name                   text
+--------------------------------------------------------------------------------
+1      folder   pkg                   └── pkg/
+2      folder   dir1                      ├── dir1/
+2      folder   dir2                      ├── dir2/
+2      file     a.py                      ├── a.py
+2      file     b.py                      └── b.py
+
+================================================================================
+Scenario: single_overflow — Single overflow entries promoted instead of summary comment
+================================================================================
+--------------------------------------------------------------------------------
+Configuration: string • single folder overflow
+--------------------------------------------------------------------------------
+Parameters:
+  output_mode   : string
+  folders_first : True
+  sort          : key=name, direction=asc
+  max_depth     : 0
+  max_lines     : 0
+  max_folders   : 1
+  max_files     : None
+  ignore        : None
+
+tmp/tests/file_tree/visualize/single_overflow/
+└── pkg/
+    ├── dir_a/
+    ├── dir_b/
+    └── file_a.txt
+--------------------------------------------------------------------------------
+Configuration: string • single file overflow
+--------------------------------------------------------------------------------
+Parameters:
+  output_mode   : string
+  folders_first : False
+  sort          : key=name, direction=asc
+  max_depth     : 0
+  max_lines     : 0
+  max_folders   : None
+  max_files     : 1
+  ignore        : None
+
+tmp/tests/file_tree/visualize/single_overflow/
+└── pkg/
+    ├── file_a.txt
+    ├── dir_a/
+    └── dir_b/
+--------------------------------------------------------------------------------
+Configuration: flat • folders-first
+--------------------------------------------------------------------------------
+Parameters:
+  output_mode   : flat
+  folders_first : True
+  sort          : key=name, direction=asc
+  max_depth     : 0
+  max_lines     : 0
+  max_folders   : 1
+  max_files     : None
+  ignore        : None
+
+level  type     name                   text
+--------------------------------------------------------------------------------
+1      folder   pkg                   └── pkg/
+2      folder   dir_a                     ├── dir_a/
+2      folder   dir_b                     ├── dir_b/
+2      file     file_a.txt                └── file_a.txt
+
+================================================================================
+Scenario: global_max_lines — Global max_lines finishing current depth before truncation
+================================================================================
+--------------------------------------------------------------------------------
+Configuration: string • max_lines=6
+--------------------------------------------------------------------------------
+Parameters:
+  output_mode   : string
+  folders_first : True
+  sort          : key=name, direction=asc
+  max_depth     : 0
+  max_lines     : 6
+  max_folders   : None
+  max_files     : None
+  ignore        : None
+
+tmp/tests/file_tree/visualize/global_max_lines/
+├── layer1_a/
+│   └── layer2_a/
+│       └── layer3_a/
+├── layer1_b/
+│   └── layer2_b/
+│       └── layer3_b/
+└── root_file.txt
+--------------------------------------------------------------------------------
+Configuration: nested • max_lines=6
+--------------------------------------------------------------------------------
+Parameters:
+  output_mode   : nested
+  folders_first : True
+  sort          : key=name, direction=asc
+  max_depth     : 0
+  max_lines     : 6
+  max_folders   : None
+  max_files     : None
+  ignore        : None
+
+global_max_lines/
+├── layer1_a/  [folder]
+├── layer1_b/  [folder]
+└── root_file.txt  [file]
+

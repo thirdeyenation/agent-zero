@@ -1,0 +1,10 @@
+tmp/tests/file_tree/string_breadth_first/
+├── alpha/
+│   ├── nested/
+│   │   └── inner.txt
+│   └── alpha_file.txt
+├── beta/
+│   └── beta_file.txt
+├── zeta/
+├── a.txt
+└── b.txt
