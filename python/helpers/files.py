@@ -530,3 +530,17 @@ def read_text_files_in_dir(
         except Exception:
             continue
     return result
+
+def list_files_in_dir_recursively(relative_path: str) -> list[str]:
+    abs_path = get_abs_path(relative_path)
+    if not os.path.exists(abs_path):
+        return []
+    result = []
+    for root, dirs, files in os.walk(abs_path):
+        for file in files:
+            file_path = os.path.join(root, file)
+            # Return relative path from the base directory
+            rel_path = os.path.relpath(file_path, abs_path)
+            result.append(rel_path)
+    return result
+    

@@ -77,10 +77,11 @@ class Memory:
             )
             Memory.index[memory_subdir] = db
             wrap = Memory(db, memory_subdir=memory_subdir)
-            if agent.config.knowledge_subdirs:
-                await wrap.preload_knowledge(
-                    log_item, agent.config.knowledge_subdirs, memory_subdir
-                )
+            knowledge_subdirs = get_knowledge_subdirs_by_memory_subdir(
+                memory_subdir, agent.config.knowledge_subdirs or []
+            )
+            if knowledge_subdirs:
+                await wrap.preload_knowledge(log_item, knowledge_subdirs, memory_subdir)
             return wrap
         else:
             return Memory(
@@ -106,16 +107,20 @@ class Memory:
                 in_memory=False,
             )
             wrap = Memory(db, memory_subdir=memory_subdir)
-            if preload_knowledge and agent_config.knowledge_subdirs:
-                await wrap.preload_knowledge(
-                    log_item, agent_config.knowledge_subdirs, memory_subdir
+            if preload_knowledge:
+                knowledge_subdirs = get_knowledge_subdirs_by_memory_subdir(
+                    memory_subdir, agent_config.knowledge_subdirs or []
                 )
+                if knowledge_subdirs:
+                    await wrap.preload_knowledge(
+                        log_item, knowledge_subdirs, memory_subdir
+                    )
             Memory.index[memory_subdir] = db
         return Memory(db=Memory.index[memory_subdir], memory_subdir=memory_subdir)
 
     @staticmethod
     async def reload(agent: Agent):
-        memory_subdir = agent.config.memory_subdir or "default"
+        memory_subdir = get_agent_memory_subdir(agent)
         if Memory.index.get(memory_subdir):
             del Memory.index[memory_subdir]
         return await Memory.get(agent)
@@ -298,12 +303,24 @@ class Memory:
     ):
         # load knowledge folders, subfolders by area
         for kn_dir in kn_dirs:
+            # everything in the root of the knowledge goes to main
+            index = knowledge_import.load_knowledge(
+                log_item,
+                abs_knowledge_dir(kn_dir),
+                index,
+                {"area": Memory.Area.MAIN},
+                filename_pattern="*",
+                recursive=False,
+            )
+            # subdirectories go to their folders
             for area in Memory.Area:
                 index = knowledge_import.load_knowledge(
                     log_item,
-                    files.get_abs_path("knowledge", kn_dir, area.value),
+                    # files.get_abs_path("knowledge", kn_dir, area.value),
+                    abs_knowledge_dir(kn_dir, area.value),
                     index,
                     {"area": area.value},
+                    recursive=True,
                 )
 
         # load instruments descriptions
@@ -313,6 +330,7 @@ class Memory:
             index,
             {"area": Memory.Area.INSTRUMENTS.value},
             filename_pattern="**/*.md",
+            recursive=True,
         )
 
         return index
@@ -484,6 +502,18 @@ def abs_db_dir(memory_subdir: str) -> str:
     return files.get_abs_path("memory", memory_subdir)
 
 
+def abs_knowledge_dir(knowledge_subdir: str, *sub_dirs: str) -> str:
+    # patch for projects, this way we don't need to re-work the structure of knowledge subdirs
+    if knowledge_subdir.startswith("projects/"):
+        from python.helpers.projects import get_project_meta_folder
+
+        return files.get_abs_path(
+            get_project_meta_folder(knowledge_subdir[9:]), "knowledge", *sub_dirs
+        )
+    # standard subdirs
+    return files.get_abs_path("knowledge", knowledge_subdir, *sub_dirs)
+
+
 def get_memory_subdir_abs(agent: Agent) -> str:
     subdir = get_agent_memory_subdir(agent)
     return abs_db_dir(subdir)
@@ -496,7 +526,9 @@ def get_agent_memory_subdir(agent: Agent) -> str:
 
 def get_context_memory_subdir(context: AgentContext) -> str:
     # if project is active, use project memory subdir
-    from python.helpers.projects import get_context_memory_subdir as get_project_memory_subdir
+    from python.helpers.projects import (
+        get_context_memory_subdir as get_project_memory_subdir,
+    )
 
     memory_subdir = get_project_memory_subdir(context)
     if memory_subdir:
@@ -505,23 +537,39 @@ def get_context_memory_subdir(context: AgentContext) -> str:
     # no project, regular memory subdir
     return context.config.memory_subdir or "default"
 
+
 def get_existing_memory_subdirs() -> list[str]:
     try:
-        from python.helpers.projects import get_project_meta_folder, get_projects_parent_folder
+        from python.helpers.projects import (
+            get_project_meta_folder,
+            get_projects_parent_folder,
+        )
+
         # Get subdirectories from memory folder
         subdirs = files.get_subdirectories("memory", exclude="embeddings")
 
         project_subdirs = files.get_subdirectories(get_projects_parent_folder())
         for project_subdir in project_subdirs:
-            if files.exists(get_project_meta_folder(project_subdir), "memory", "index.faiss"):
+            if files.exists(
+                get_project_meta_folder(project_subdir), "memory", "index.faiss"
+            ):
                 subdirs.append(f"projects/{project_subdir}")
 
         # Ensure 'default' is always available
         if "default" not in subdirs:
             subdirs.insert(0, "default")
-        
+
         return subdirs
     except Exception as e:
         PrintStyle.error(f"Failed to get memory subdirectories: {str(e)}")
         return ["default"]
-        
+
+
+def get_knowledge_subdirs_by_memory_subdir(
+    memory_subdir: str, default: list[str]
+) -> list[str]:
+    if memory_subdir.startswith("projects/"):
+        from python.helpers.projects import get_project_meta_folder
+
+        default.append(get_project_meta_folder(memory_subdir[9:], "knowledge"))
+    return default

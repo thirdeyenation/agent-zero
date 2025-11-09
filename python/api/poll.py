@@ -20,7 +20,10 @@ class Poll(ApiHandler):
 
         # context instance - get or create only if ctxid is provided
         if ctxid:
-            context = self.use_context(ctxid, create_if_not_exists=False)
+            try:
+                context = self.use_context(ctxid, create_if_not_exists=False)
+            except Exception as e:
+                context = None
         else:
             context = None
 

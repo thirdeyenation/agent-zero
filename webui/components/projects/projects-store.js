@@ -4,6 +4,7 @@ import * as modals from "/js/modals.js";
 import * as notifications from "/components/notifications/notification-store.js";
 import { store as chatsStore } from "/components/sidebar/chats/chats-store.js";
 import { store as browserStore } from "/components/modals/file-browser/file-browser-store.js";
+import * as shortcuts from "/js/shortcuts.js";
 
 const listModal = "projects/project-list.html";
 const createModal = "projects/project-create.html";
@@ -319,6 +320,56 @@ const model = {
         newData.instruction_files_count;
     } catch (error) {
       //pass
+    }
+  },
+
+  async browseKnowledgeFiles() {
+    await this.browseSelected(".a0proj", "knowledge");
+    // refresh and reindex project
+    try {
+      // progress notification
+      shortcuts.frontendNotification({
+        type: shortcuts.NotificationType.PROGRESS,
+        message: "Loading knowledge...",
+        priority: shortcuts.NotificationPriority.NORMAL,
+        displayTime: 999,
+        group: "knowledge_load",
+        frontendOnly: true,
+      });
+
+      // call reindex knowledge
+      const reindexCall = api.callJsonApi("/knowledge_reindex", {
+        ctxid: shortcuts.getCurrentContextId(),
+      });
+
+      const newData = await this._createEditProjectData(
+        this.selectedProject.name
+      );
+      this.selectedProject.knowledge_files_count =
+        newData.knowledge_files_count;
+
+      // wait for reindex to finish
+      await reindexCall;
+
+      // finished notification
+      shortcuts.frontendNotification({
+        type: shortcuts.NotificationType.SUCCESS,
+        message: "Knowledge loaded successfully",
+        priority: shortcuts.NotificationPriority.NORMAL,
+        displayTime: 2,
+        group: "knowledge_load",
+        frontendOnly: true,
+      });
+    } catch (error) {
+      // error notification
+      shortcuts.frontendNotification({
+        type: shortcuts.NotificationType.ERROR,
+        message: "Error loading knowledge",
+        priority: shortcuts.NotificationPriority.NORMAL,
+        displayTime: 5,
+        group: "knowledge_load",
+        frontendOnly: true,
+      });
     }
   },
 

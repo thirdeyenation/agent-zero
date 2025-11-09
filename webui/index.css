@@ -49,6 +49,7 @@
   --color-border: var(--color-border-dark);
   --color-input: var(--color-input-dark);
   --color-input-focus: var(--color-input-focus-dark);
+  --color-background-hover: color-mix(in srgb, var(--color-border) 50%, transparent);
 
   /* Spacing variables */
   --spacing-xxs: 0.15rem;
@@ -88,6 +89,7 @@
   --color-border: var(--color-border-light);
   --color-input: var(--color-input-light);
   --color-input-focus: var(--color-input-focus-light);
+  --color-background-hover: color-mix(in srgb, var(--color-border) 50%, transparent);
 }
 
 /* Reset and Base Styles */

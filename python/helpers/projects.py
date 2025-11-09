@@ -11,6 +11,7 @@ if TYPE_CHECKING:
 PROJECTS_PARENT_DIR = "usr/projects"
 PROJECT_META_DIR = ".a0proj"
 PROJECT_INSTRUCTIONS_DIR = "instructions"
+PROJECT_KNOWLEDGE_DIR = "knowledge"
 PROJECT_HEADER_FILE = "project.json"
 
 CONTEXT_DATA_KEY_PROJECT = "project"
@@ -21,13 +22,15 @@ class BasicProjectData(TypedDict):
     description: str
     instructions: str
     color: str
-    memory: Literal["own", "global"] # in the future we can add cutom and point to another existing folder
-
+    memory: Literal[
+        "own", "global"
+    ]  # in the future we can add cutom and point to another existing folder
 
 
 class EditProjectData(BasicProjectData):
     name: str
     instruction_files_count: int
+    knowledge_files_count: int
     variables: str
     secrets: str
 
@@ -39,8 +42,9 @@ def get_projects_parent_folder():
 def get_project_folder(name: str):
     return files.get_abs_path(get_projects_parent_folder(), name)
 
-def get_project_meta_folder(name: str):
-    return files.get_abs_path(get_project_folder(name), PROJECT_META_DIR)
+
+def get_project_meta_folder(name: str, *sub_dirs: str):
+    return files.get_abs_path(get_project_folder(name), PROJECT_META_DIR, *sub_dirs)
 
 
 def delete_project(name: str):
@@ -54,9 +58,7 @@ def create_project(name: str, data: BasicProjectData):
     abs_path = files.create_dir_safe(
         files.get_abs_path(PROJECTS_PARENT_DIR, name), rename_format="{name}_{number}"
     )
-    files.create_dir(
-        files.get_abs_path(abs_path, PROJECT_META_DIR, PROJECT_INSTRUCTIONS_DIR)
-    )
+    create_project_meta_folders(name)
     data = _normalizeBasicData(data)
     save_project_header(name, data)
     return name
@@ -80,6 +82,7 @@ def _normalizeBasicData(data: BasicProjectData):
         memory=data.get("memory", "own"),
     )
 
+
 def _normalizeEditData(data: EditProjectData):
     return EditProjectData(
         name=data.get("name", ""),
@@ -89,16 +92,19 @@ def _normalizeEditData(data: EditProjectData):
         variables=data.get("variables", ""),
         color=data.get("color", ""),
         instruction_files_count=data.get("instruction_files_count", 0),
+        knowledge_files_count=data.get("knowledge_files_count", 0),
         secrets=data.get("secrets", ""),
         memory=data.get("memory", "own"),
     )
 
+
 def _edit_data_to_basic_data(data: EditProjectData):
     return _normalizeBasicData(data)
 
+
 def _basic_data_to_edit_data(data: BasicProjectData):
-    return _normalizeEditData(data) # type: ignore
-        
+    return _normalizeEditData(data)  # type: ignore
+
 
 def update_project(name: str, data: EditProjectData):
     # merge with current state
@@ -117,6 +123,7 @@ def update_project(name: str, data: EditProjectData):
     reactivate_project_in_chats(name)
     return name
 
+
 def load_basic_project_data(name: str) -> BasicProjectData:
     data = BasicProjectData(**load_project_header(name))
     normalized = _normalizeBasicData(data)
@@ -130,10 +137,12 @@ def load_edit_project_data(name: str) -> EditProjectData:
     )  # for additional info
     variables = load_project_variables(name)
     secrets = load_project_secrets_masked(name)
+    knowledge_files_count = get_knowledge_files_count(name)
     data = EditProjectData(
         **data,
         name=name,
         instruction_files_count=len(additional_instructions),
+        knowledge_files_count=knowledge_files_count,
         variables=variables,
         secrets=secrets,
     )
@@ -254,33 +263,37 @@ def get_additional_instructions_files(name: str):
     )
     return files.read_text_files_in_dir(instructions_folder)
 
+
 def get_context_project_name(context: "AgentContext") -> str | None:
     return context.get_data(CONTEXT_DATA_KEY_PROJECT)
 
+
 def load_project_variables(name: str):
     try:
-        abs_path = files.get_abs_path(
-            get_project_meta_folder(name), "variables.env"
-        )
+        abs_path = files.get_abs_path(get_project_meta_folder(name), "variables.env")
         return files.read_file(abs_path)
     except Exception:
         return ""
 
+
 def save_project_variables(name: str, variables: str):
-    abs_path = files.get_abs_path(
-        get_project_meta_folder(name), "variables.env"
-    )
+    abs_path = files.get_abs_path(get_project_meta_folder(name), "variables.env")
     files.write_file(abs_path, variables)
 
-def load_project_secrets_masked(name:str, merge_with_global=False):
+
+def load_project_secrets_masked(name: str, merge_with_global=False):
     from python.helpers import secrets
+
     mgr = secrets.get_project_secrets_manager(name, merge_with_global)
     return mgr.get_masked_secrets()
 
+
 def save_project_secrets(name: str, secrets: str):
     from python.helpers.secrets import get_project_secrets_manager
+
     secrets_manager = get_project_secrets_manager(name)
     secrets_manager.save_secrets_with_merge(secrets)
+
 
 def get_context_memory_subdir(context: "AgentContext") -> str | None:
     # if a project is active and has memory isolation set, return the project memory subdir
@@ -289,4 +302,25 @@ def get_context_memory_subdir(context: "AgentContext") -> str | None:
         project_data = load_basic_project_data(project_name)
         if project_data["memory"] == "own":
             return "projects/" + project_name
-    return None # no memory override
+    return None  # no memory override
+
+
+def create_project_meta_folders(name: str):
+    # create instructions folder
+    files.create_dir(get_project_meta_folder(name, PROJECT_INSTRUCTIONS_DIR))
+
+    # create knowledge folders
+    files.create_dir(get_project_meta_folder(name, PROJECT_KNOWLEDGE_DIR))
+    from python.helpers import memory
+
+    for memory_type in memory.Memory.Area:
+        files.create_dir(
+            get_project_meta_folder(name, PROJECT_KNOWLEDGE_DIR, memory_type.value)
+        )
+
+
+def get_knowledge_files_count(name: str):
+    knowledge_folder = files.get_abs_path(
+        get_project_meta_folder(name, PROJECT_KNOWLEDGE_DIR)
+    )
+    return len(files.list_files_in_dir_recursively(knowledge_folder))

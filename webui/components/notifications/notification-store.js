@@ -733,6 +733,50 @@ const model = {
       frontendOnly
     );
   },
+
+  async frontendProgress(
+    message,
+    title = "Progress",
+    display_time = 3,
+    group = "",
+    priority = defaultPriority,
+    frontendOnly = false
+  ) {
+    return await this.addFrontendToast(
+      NotificationType.PROGRESS,
+      message,
+      title,
+      display_time,
+      group,
+      priority,
+      frontendOnly
+    );
+  },
+
+  // NEW: Enhanced frontend toast with object parameters and type annotations
+  /**
+   * Adds a frontend toast notification with object parameters.
+   * @param {Object} options - The options for the toast notification.
+   * @param {string} options.type - The type of notification (e.g., info, success, error).
+   * @param {string} options.message - The message content of the notification.
+   * @param {string} [options.title=''] - The title of the notification.
+   * @param {number} [options.displayTime=5] - The display duration in seconds.
+   * @param {string} [options.group=''] - The group identifier for the notification.
+   * @param {string} [options.priority='medium'] - The priority of the notification.
+   * @param {boolean} [options.frontendOnly=false] - Whether to show only on frontend.
+   * @returns {Promise<string>} The ID of the added notification.
+   */
+  async frontendNotification({
+    type,
+    message,
+    title = '',
+    displayTime = 5,
+    group = '',
+    priority = defaultPriority,
+    frontendOnly = false
+  }) {
+    return await this.addFrontendToast(type, message, title, displayTime, group, priority, frontendOnly);
+  },
 };
 
 // Create and export the store
@@ -744,12 +788,14 @@ const toastFrontendInfo = store.frontendInfo.bind(store);
 const toastFrontendSuccess = store.frontendSuccess.bind(store);
 const toastFrontendWarning = store.frontendWarning.bind(store);
 const toastFrontendError = store.frontendError.bind(store);
+const toastFrontendProgress = store.frontendProgress.bind(store);
 
 export {
   toastFrontendInfo,
   toastFrontendSuccess,
   toastFrontendWarning,
   toastFrontendError,
+  toastFrontendProgress,
 };
 
 // add toasts to global for backward compatibility with older scripts
@@ -757,3 +803,4 @@ globalThis.toastFrontendInfo = toastFrontendInfo;
 globalThis.toastFrontendSuccess = toastFrontendSuccess;
 globalThis.toastFrontendWarning = toastFrontendWarning;
 globalThis.toastFrontendError = toastFrontendError;
+globalThis.toastFrontendProgress = toastFrontendProgress;

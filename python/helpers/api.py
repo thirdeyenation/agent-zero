@@ -95,3 +95,6 @@ class ApiHandler:
             if create_if_not_exists:
                 context = AgentContext(config=initialize_agent(), id=ctxid, set_current=True)
                 return context
+            else:
+                raise Exception(f"Context {ctxid} not found")
+            
