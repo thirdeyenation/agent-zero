@@ -92,9 +92,20 @@ def print_flat(items: List[Dict[str, Any]]) -> None:
 
 def print_nested(items: List[Dict[str, Any]], root_label: str) -> None:
     print(root_label)
-    for item in items:
-        text = item["text"]
-        print(f"{text}  [{item['type']}]")
+
+    def recurse(nodes: List[Dict[str, Any]], prefix: str) -> None:
+        total = len(nodes)
+        for index, node in enumerate(nodes):
+            is_last = index == total - 1
+            connector = "└── " if is_last else "├── "
+            label = node["name"] + ("/" if node["type"] == "folder" else "")
+            print(f"{prefix}{connector}{label}  [{node['type']}]")
+            children = node.get("items") or []
+            if children:
+                child_prefix = prefix + ("    " if is_last else "│   ")
+                recurse(children, child_prefix)
+
+    recurse(items, "")
 
 
 @contextmanager
