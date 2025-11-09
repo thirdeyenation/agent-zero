@@ -70,7 +70,9 @@ def file_tree(
     Notes:
         * The utility is synchronous; avoid calling from latency-sensitive async loops.
         * The ASCII renderer walks the established tree depth-first so connectors reflect parent/child structure,
-          while traversal and limit calculations remain breadth-first by depth.
+          while traversal and limit calculations remain breadth-first by depth. When ``max_lines`` is set, the number
+          of non-comment entries (excluding the root banner) never exceeds that limit; informational summary comments
+          are emitted in addition when necessary.
         * ``created`` and ``modified`` values in structured outputs are timezone-aware UTC
           :class:`datetime.datetime` objects::
 
@@ -115,7 +117,8 @@ def file_tree(
 
     queue: deque[tuple[_TreeEntry, str, int]] = deque([(root_node, abs_root, 1)])
     nodes_in_order: list[_TreeEntry] = []
-    limit_level: Optional[int] = None
+    rendered_count = 0
+    limit_reached = False
     visibility_cache: dict[str, bool] = {}
 
     def make_entry(entry: os.DirEntry, parent: _TreeEntry, level: int, item_type: Literal["file", "folder"]) -> _TreeEntry:
@@ -133,7 +136,7 @@ def file_tree(
             rel_path=rel_posix,
         )
 
-    while queue:
+    while queue and not limit_reached:
         parent_node, current_dir, level = queue.popleft()
 
         if max_depth and level > max_depth:
@@ -161,35 +164,63 @@ def file_tree(
             directory_node=parent_node,
         )
 
-        parent_node.items = children
-        nodes_in_order.extend(children)
+        trimmed_children: list[_TreeEntry] = []
+        hidden_children_local: list[_TreeEntry] = []
+        if max_lines and rendered_count >= max_lines:
+            limit_reached = True
+            hidden_children_local = children
+        else:
+            for index, child in enumerate(children):
+                if max_lines and rendered_count >= max_lines:
+                    limit_reached = True
+                    hidden_children_local = children[index:]
+                    break
+                trimmed_children.append(child)
+                nodes_in_order.append(child)
+                is_global_summary = (
+                    child.item_type == "comment"
+                    and child.rel_path.endswith("#summary:limit")
+                )
+                if not is_global_summary:
+                    rendered_count += 1
+            if limit_reached and hidden_children_local:
+                summary = _create_global_limit_comment(
+                    parent_node,
+                    hidden_children_local,
+                )
+                trimmed_children.append(summary)
+                nodes_in_order.append(summary)
 
-        if max_lines and limit_level is None and len(nodes_in_order) >= max_lines:
-            limit_level = level
+        parent_node.items = trimmed_children or None
 
-        for child in children:
+        if limit_reached:
+            break
+
+        for child in trimmed_children:
             if child.item_type != "folder":
                 continue
             if max_depth and level >= max_depth:
                 continue
-            if limit_level is not None and level >= limit_level:
-                continue
             child_abs = os.path.join(current_dir, child.name)
             queue.append((child, child_abs, level + 1))
 
-    pruned_nodes: list[_TreeEntry] = nodes_in_order
-    if max_lines and limit_level is not None:
-        _prune_nested_children(
-            root_node,
-            lambda entry: entry.level <= limit_level,
-        )
-        pruned_nodes = [node for node in nodes_in_order if node.level <= limit_level]
+    remaining_queue = list(queue) if limit_reached else []
+    queue.clear()
 
-    visible_nodes: list[_TreeEntry]
-    if max_lines and limit_level is None:
-        visible_nodes = pruned_nodes[:max_lines]
-    else:
-        visible_nodes = pruned_nodes
+    if limit_reached and remaining_queue:
+        for folder_node, folder_path, _ in remaining_queue:
+            summary = _create_folder_unprocessed_comment(
+                folder_node,
+                folder_path,
+                abs_root,
+                ignore_spec,
+            )
+            if summary is None:
+                continue
+            folder_node.items = (folder_node.items or []) + [summary]
+            nodes_in_order.append(summary)
+
+    visible_nodes = nodes_in_order
 
     visible_ids = {id(node) for node in visible_nodes}
     if visible_ids:
@@ -320,15 +351,84 @@ def _create_summary_comment(parent: _TreeEntry, noun: str, count: int) -> _TreeE
     )
 
 
-def _prune_nested_children(node: _TreeEntry, predicate: Callable[[_TreeEntry], bool]) -> None:
-    if node.items is None:
-        return
-    pruned: list[_TreeEntry] = []
-    for child in node.items:
-        if predicate(child):
-            _prune_nested_children(child, predicate)
-            pruned.append(child)
-    node.items = pruned
+def _create_global_limit_comment(parent: _TreeEntry, hidden_children: Sequence[_TreeEntry]) -> _TreeEntry:
+    folders = sum(1 for child in hidden_children if child.item_type == "folder")
+    files = sum(1 for child in hidden_children if child.item_type == "file")
+    parts: list[str] = []
+    if folders:
+        label = "folder" if folders == 1 else "folders"
+        parts.append(f"{folders} {label}")
+    if files:
+        label = "file" if files == 1 else "files"
+        parts.append(f"{files} {label}")
+    if not parts:
+        remaining = len(hidden_children)
+        label = "item" if remaining == 1 else "items"
+        parts.append(f"{remaining} {label}")
+    label_text = ", ".join(parts)
+    return _TreeEntry(
+        name=f"limit reached – hidden: {label_text}",
+        level=parent.level + 1,
+        item_type="comment",
+        created=parent.created,
+        modified=parent.modified,
+        parent=parent,
+        items=None,
+        rel_path=f"{parent.rel_path}#summary:limit",
+    )
+
+
+def _create_folder_unprocessed_comment(
+    folder_node: _TreeEntry,
+    folder_path: str,
+    abs_root: str,
+    ignore_spec: Optional[PathSpec],
+) -> Optional[_TreeEntry]:
+    try:
+        folders, files = _list_directory_children(
+            folder_path,
+            abs_root,
+            ignore_spec,
+            max_depth_remaining=-1,
+            cache={},
+        )
+    except FileNotFoundError:
+        return None
+
+    hidden_entries: list[_TreeEntry] = []
+    for entry in folders:
+        stat = entry.stat(follow_symlinks=False)
+        hidden_entries.append(
+            _TreeEntry(
+                name=entry.name,
+                level=folder_node.level + 1,
+                item_type="folder",
+                created=datetime.fromtimestamp(stat.st_ctime, tz=timezone.utc),
+                modified=datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc),
+                parent=folder_node,
+                items=None,
+                rel_path=os.path.join(folder_node.rel_path, entry.name),
+            )
+        )
+    for entry in files:
+        stat = entry.stat(follow_symlinks=False)
+        hidden_entries.append(
+            _TreeEntry(
+                name=entry.name,
+                level=folder_node.level + 1,
+                item_type="file",
+                created=datetime.fromtimestamp(stat.st_ctime, tz=timezone.utc),
+                modified=datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc),
+                parent=folder_node,
+                items=None,
+                rel_path=os.path.join(folder_node.rel_path, entry.name),
+            )
+        )
+
+    if not hidden_entries:
+        return None
+
+    return _create_global_limit_comment(folder_node, hidden_entries)
 
 
 def _prune_to_visible(node: _TreeEntry, visible_ids: set[int]) -> None:
@@ -339,7 +439,7 @@ def _prune_to_visible(node: _TreeEntry, visible_ids: set[int]) -> None:
         if not visible_ids or id(child) in visible_ids:
             _prune_to_visible(child, visible_ids)
             filtered.append(child)
-    node.items = filtered
+    node.items = filtered or None
 
 
 def _mark_last_flags(node: _TreeEntry) -> None:
@@ -481,10 +581,6 @@ def _apply_sorting_and_limits(
 
         overflow = group[limit:]
         if not overflow:
-            return
-
-        if len(overflow) == 1 and limit > 0:
-            combined.append(overflow[0])
             return
 
         combined.append(

@@ -464,6 +464,7 @@ def build_scenarios() -> List[Scenario]:
                     {
                         "output_mode": OUTPUT_MODE_NESTED,
                         "max_lines": 6,
+                        "folders_first": True,
                         "sort": (SORT_BY_NAME, SORT_ASC),
                     },
                 ),
@@ -637,6 +638,180 @@ def build_scenarios() -> List[Scenario]:
                         "sort": (SORT_BY_NAME, SORT_ASC),
                         "max_folders": 2,
                         "max_files": 0,
+                    },
+                ),
+            ],
+        )
+    )
+
+    stress_structure = {
+        "level1_a": {
+            "level2_a1": {
+                "leaf_a1_1.txt": "",
+                "leaf_a1_2.txt": "",
+                "leaf_a1_3.txt": "",
+            },
+            "level2_a2": {
+                "leaf_a2_1.txt": "",
+                "leaf_a2_2.txt": "",
+                "leaf_a2_3.txt": "",
+            },
+            "level2_a3": {
+                "subfolder_a3": {
+                    "deep_a3_1.txt": "",
+                    "deep_a3_2.txt": "",
+                    "deep_a3_3.txt": "",
+                    "subsubfolder_a3": {
+                        "deep_a3_4.txt": "",
+                        "deep_a3_5.txt": "",
+                    },
+                    "subsubfolder_a3_extra": {
+                        "deep_a3_extra_1.txt": "",
+                        "deep_a3_extra_2.txt": "",
+                    },
+                },
+                "subfolder_a3_extra": {
+                    "deep_extra_1.txt": "",
+                    "deep_extra_2.txt": "",
+                },
+                "subfolder_a3_more": {
+                    "deep_more_1.txt": "",
+                },
+            },
+        },
+        "level1_b": {
+            "level2_b1": {
+                "leaf_b1_1.txt": "",
+                "leaf_b1_2.txt": "",
+            },
+            "level2_b2": {
+                "leaf_b2_1.txt": "",
+                "leaf_b2_2.txt": "",
+                "leaf_b2_3.txt": "",
+                "leaf_b2_4.txt": "",
+                "leaf_b2_5.txt": "",
+            },
+            "level2_b3": {
+                "subfolder_b3": {
+                    "deep_b3_1.txt": "",
+                    "deep_b3_2.txt": "",
+                    "deep_b3_3.txt": "",
+                    "deep_b3_4.txt": "",
+                },
+                "subfolder_b3_extra": {
+                    "deeper_b3_extra.txt": "",
+                    "deeper_b3_extra_2.txt": "",
+                },
+            },
+        },
+        "level1_c": {
+            "level2_c1": {
+                "leaf_c1_1.txt": "",
+                "leaf_c1_2.txt": "",
+                "leaf_c1_3.txt": "",
+                "leaf_c1_4.txt": "",
+                "leaf_c1_5.txt": "",
+            },
+            "level2_c2": {
+                "subfolder_c2": {
+                    "deep_c2_1.txt": "",
+                    "deep_c2_2.txt": "",
+                },
+                "subfolder_c2_extra": {
+                    "deep_c2_extra_1.txt": "",
+                },
+            },
+        },
+        "level1_d": {
+            "level2_d1": {
+                "leaf_d1_1.txt": "",
+                "leaf_d1_2.txt": "",
+                "leaf_d1_3.txt": "",
+            },
+            "level2_d2": {
+                "subfolder_d2": {
+                    "deep_d2_1.txt": "",
+                    "deep_d2_2.txt": "",
+                },
+            },
+        },
+        "root_file.txt": "",
+        "root_notes.md": "",
+        "root_file_2.txt": "",
+        "root_file_3.txt": "",
+    }
+
+    scenarios.append(
+        Scenario(
+            name="mixed_limits_baseline",
+            description="Full structure without truncation for comparison",
+            structure=stress_structure,
+            configs=[
+                Config(
+                    "string • no limits baseline",
+                    {
+                        "output_mode": OUTPUT_MODE_STRING,
+                        "folders_first": True,
+                        "sort": (SORT_BY_NAME, SORT_ASC),
+                    },
+                ),
+                Config(
+                    "flat • no limits baseline",
+                    {
+                        "output_mode": OUTPUT_MODE_FLAT,
+                        "folders_first": True,
+                        "sort": (SORT_BY_NAME, SORT_ASC),
+                    },
+                ),
+                Config(
+                    "nested • no limits baseline",
+                    {
+                        "output_mode": OUTPUT_MODE_NESTED,
+                        "folders_first": True,
+                        "sort": (SORT_BY_NAME, SORT_ASC),
+                    },
+                ),
+            ],
+        )
+    )
+
+    scenarios.append(
+        Scenario(
+            name="mixed_limits_stress",
+            description="Same structure with local and global limits applied",
+            structure=stress_structure,
+            configs=[
+                Config(
+                    "string • mixed local/global limits stress",
+                    {
+                        "output_mode": OUTPUT_MODE_STRING,
+                        "folders_first": True,
+                        "sort": (SORT_BY_NAME, SORT_ASC),
+                        "max_folders": 2,
+                        "max_files": 2,
+                        "max_lines": 19,
+                    },
+                ),
+                Config(
+                    "flat • mixed limits stress",
+                    {
+                        "output_mode": OUTPUT_MODE_FLAT,
+                        "folders_first": True,
+                        "sort": (SORT_BY_NAME, SORT_ASC),
+                        "max_folders": 2,
+                        "max_files": 2,
+                        "max_lines": 19,
+                    },
+                ),
+                Config(
+                    "nested • mixed limits stress",
+                    {
+                        "output_mode": OUTPUT_MODE_NESTED,
+                        "folders_first": True,
+                        "sort": (SORT_BY_NAME, SORT_ASC),
+                        "max_folders": 2,
+                        "max_files": 2,
+                        "max_lines": 19,
                     },
                 ),
             ],
