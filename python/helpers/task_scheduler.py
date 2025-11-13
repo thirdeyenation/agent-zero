@@ -22,6 +22,7 @@ from python.helpers.print_style import PrintStyle
 from python.helpers.defer import DeferredTask
 from python.helpers.files import get_abs_path, make_dirs, read_file, write_file
 from python.helpers.localization import Localization
+from python.helpers import projects
 import pytz
 from typing import Annotated
 
@@ -735,6 +736,10 @@ class TaskScheduler:
         # context.id = task.context_id
         # initial name before renaming is same as task name
         # context.name = task.name
+
+        # Activate project if set
+        if task.project_name:
+            projects.activate_project(context.id, task.project_name)
 
         # Save the context
         save_tmp_chat(context)

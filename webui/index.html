@@ -400,8 +400,8 @@
                                             </div>
                                             <template x-if="isCreating">
                                                 <div class="project-selector">
-                                                    <span class="project-color-ball"
-                                                          :style="editingTask.project?.color ? { backgroundColor: editingTask.project.color } : { border: '1px solid var(--color-border)' }"></span>
+                                                    <!-- <span class="project-color-ball"
+                                                          :style="editingTask.project?.color ? { backgroundColor: editingTask.project.color } : { border: '1px solid var(--color-border)' }"></span> -->
                                                     <select class="scheduler-project-select"
                                                             x-model="selectedProjectSlug"
                                                             @change="onProjectSelect($event.target.value)">

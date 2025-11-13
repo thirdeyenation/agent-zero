@@ -321,11 +321,11 @@ class Log:
             secrets_mgr = get_secrets_manager(self.context or AgentContext.current())
 
             # debug helper to identify context mismatch
-            self_id = self.context.id if self.context else None
-            current_ctx = AgentContext.current()
-            current_id = current_ctx.id if current_ctx else None
-            if self_id != current_id:
-                print(f"Context ID mismatch: {self_id} != {current_id}")
+            # self_id = self.context.id if self.context else None
+            # current_ctx = AgentContext.current()
+            # current_id = current_ctx.id if current_ctx else None
+            # if self_id != current_id:
+            #     print(f"Context ID mismatch: {self_id} != {current_id}")
 
             if isinstance(obj, str):
                 return secrets_mgr.mask_values(obj)
