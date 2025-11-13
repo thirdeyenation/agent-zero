@@ -378,6 +378,33 @@ const model = {
       .join("/")
       .replace(/\/+/g, "/");
   },
+
+  async editActiveProject() {
+    const ctx = shortcuts.getCurrentContext();
+    if(!ctx) return;
+    this.openEditModal(ctx.project.name);
+  },
+
+  async testFileStructure() {
+    try {
+      const response = await api.callJsonApi("projects", {
+        action: "file_structure",
+        name: this.selectedProject.name,
+        settings: this.selectedProject.file_structure,
+      });
+      this.fileStructureTestOutput = response.data;
+      shortcuts.openModal("projects/project-file-structure-test.html");
+    } catch (error) {
+      console.error("Error testing file structure:", error);
+      shortcuts.frontendNotification({
+        type: shortcuts.NotificationType.ERROR,
+        message: "Error testing file structure",
+        priority: shortcuts.NotificationPriority.NORMAL,
+        displayTime: 3,
+        frontendOnly: true,
+      });
+    }
+  },
 };
 
 // convert it to alpine store

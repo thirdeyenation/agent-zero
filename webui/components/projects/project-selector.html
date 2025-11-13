@@ -26,7 +26,8 @@
                 </template>
 
                 <div x-show="open" x-init="$store.projects.loadProjectsList()" class="project-dropdown-menu" style="display: none;" x-transition>
-                    <a href="#" @click.prevent="$store.projects.openProjectsModal(); open = false;" class="project-dropdown-item"><span class="icon material-symbols-outlined">snippet_folder</span> <span class="project-selector-item-text">Edit Projects</span></a>
+                    <a href="#" @click.prevent="$store.projects.openProjectsModal(); open = false;" class="project-dropdown-item"><span class="icon material-symbols-outlined">snippet_folder</span> <span class="project-selector-item-text">Projects</span></a>
+                    <a x-show="$store.chats.selectedContext.project?.name" href="#" @click.prevent="$store.projects.editActiveProject(); open = false;" class="project-dropdown-item"><span class="icon material-symbols-outlined">edit</span> <span class="project-selector-item-text">Edit <span x-text="$store.chats.selectedContext.project?.title"></span></span></a>
                     <a x-show="$store.chats.selectedContext.project?.name" href="#" @click.prevent="$store.projects.deactivateProject(); open = false;" class="project-dropdown-item"><span class="icon material-symbols-outlined">close</span> <span class="project-selector-item-text">Deactivate</span></a>
                     <!-- <a href="#" @click.prevent="$store.projects.openProjectsModal(); $store.projects.openCreateModal(); open = false;" class="project-dropdown-item">Create Project</a> -->
                     

@@ -28,11 +28,11 @@ def file_tree(
     max_depth: int = 0,
     max_lines: int = 0,
     folders_first: bool = True,
-    max_folders: int | None = None,
-    max_files: int | None = None,
-    sort: tuple[str, str] = (SORT_BY_MODIFIED, SORT_DESC),
+    max_folders: int = 0,
+    max_files: int = 0,
+    sort: tuple[Literal["name", "created", "modified"], Literal["asc", "desc"]] = ("modified", "desc"),
     ignore: str | None = None,
-    output_mode: str = OUTPUT_MODE_STRING,
+    output_mode: Literal["string", "flat", "nested"] = OUTPUT_MODE_STRING,
 ) -> str | list[dict]:
     """Render a directory tree relative to the repository base path.
 

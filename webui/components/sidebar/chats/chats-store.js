@@ -23,6 +23,10 @@ const model = {
     return this.selected;
   },
 
+  getSelectedContext(){
+    return this.selectedContext;
+  },
+
   init() {
     // Initialize from localStorage
     const lastSelectedChat = localStorage.getItem("lastSelectedChat");

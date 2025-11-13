@@ -2,6 +2,7 @@ import { createStore } from "/js/AlpineStore.js";
 import { updateChatInput, sendMessage } from "/index.js";
 import { sleep } from "/js/sleep.js";
 import { store as microphoneSettingStore } from "/components/settings/speech/microphone-setting-store.js";
+import * as shortcuts from "/js/shortcuts.js";
 
 const Status = {
   INACTIVE: "inactive",
@@ -94,7 +95,9 @@ const model = {
   async init() {
     // Guard against multiple initializations
     if (this._initialized) {
-      console.log('[Speech Store] Already initialized, skipping duplicate init()');
+      console.log(
+        "[Speech Store] Already initialized, skipping duplicate init()"
+      );
       return;
     }
 
@@ -368,11 +371,13 @@ const model = {
 
   // Show a prompt to user to enable audio
   showAudioPermissionPrompt() {
-    if (window.toast) {
-      window.toast("Click anywhere to enable audio playback", "info", 5000);
-    } else {
-      console.log("Please click anywhere on the page to enable audio playback");
-    }
+    shortcuts.frontendNotification({
+      type: "info",
+      message: "Click anywhere to enable audio playback",
+      displayTime: 5000,
+      frontendOnly: true,
+    });
+    console.log("Please click anywhere on the page to enable audio playback");
   },
 
   // Browser TTS

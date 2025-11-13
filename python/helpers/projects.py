@@ -1,7 +1,7 @@
 import os
 from typing import Literal, TypedDict, TYPE_CHECKING
 
-from python.helpers import files, dirty_json, persist_chat
+from python.helpers import files, dirty_json, persist_chat, file_tree
 from python.helpers.print_style import PrintStyle
 
 
@@ -17,6 +17,15 @@ PROJECT_HEADER_FILE = "project.json"
 CONTEXT_DATA_KEY_PROJECT = "project"
 
 
+class FileStructureInjectionSettings(TypedDict):
+    enabled: bool
+    max_depth: int
+    max_files: int
+    max_folders: int
+    max_lines: int
+    gitignore: str
+
+
 class BasicProjectData(TypedDict):
     title: str
     description: str
@@ -25,6 +34,7 @@ class BasicProjectData(TypedDict):
     memory: Literal[
         "own", "global"
     ]  # in the future we can add cutom and point to another existing folder
+    file_structure: FileStructureInjectionSettings
 
 
 class EditProjectData(BasicProjectData):
@@ -73,6 +83,21 @@ def load_project_header(name: str):
     return header
 
 
+def _default_file_structure_settings():
+    try:
+        gitignore = files.read_file("conf/projects.default.gitignore")
+    except Exception:
+        gitignore = ""
+    return FileStructureInjectionSettings(
+        enabled=True,
+        max_depth=5,
+        max_files=20,
+        max_folders=20,
+        max_lines=250,
+        gitignore=gitignore,
+    )
+
+
 def _normalizeBasicData(data: BasicProjectData):
     return BasicProjectData(
         title=data.get("title", ""),
@@ -80,6 +105,10 @@ def _normalizeBasicData(data: BasicProjectData):
         instructions=data.get("instructions", ""),
         color=data.get("color", ""),
         memory=data.get("memory", "own"),
+        file_structure=data.get(
+            "file_structure",
+            _default_file_structure_settings(),
+        ),
     )
 
 
@@ -95,6 +124,10 @@ def _normalizeEditData(data: EditProjectData):
         knowledge_files_count=data.get("knowledge_files_count", 0),
         secrets=data.get("secrets", ""),
         memory=data.get("memory", "own"),
+        file_structure=data.get(
+            "file_structure",
+            _default_file_structure_settings(),
+        ),
     )
 
 
@@ -324,3 +357,26 @@ def get_knowledge_files_count(name: str):
         get_project_meta_folder(name, PROJECT_KNOWLEDGE_DIR)
     )
     return len(files.list_files_in_dir_recursively(knowledge_folder))
+
+def get_file_structure(name: str, basic_data: BasicProjectData|None=None) -> str:
+    project_folder = get_project_folder(name)
+    if basic_data is None:
+        basic_data = load_basic_project_data(name)
+    
+    tree = str(file_tree.file_tree(
+        project_folder,
+        max_depth=basic_data["file_structure"]["max_depth"],
+        max_files=basic_data["file_structure"]["max_files"],
+        max_folders=basic_data["file_structure"]["max_folders"],
+        max_lines=basic_data["file_structure"]["max_lines"],
+        ignore=basic_data["file_structure"]["gitignore"],
+        output_mode=file_tree.OUTPUT_MODE_STRING
+    ))
+
+    # empty?
+    if "\n" not in tree:
+        tree += "\n # Empty"
+
+    return tree
+
+    

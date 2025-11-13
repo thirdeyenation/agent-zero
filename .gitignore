@@ -5,10 +5,9 @@
 *.py[cod]
 **/.conda/
 
-#Ignore cursor rules
+#Ignore IDE files
 .cursor/
 .windsurf/
-.cursorindexingignore
 
 # ignore test files in root dir
 /*.test.py
@@ -43,11 +42,7 @@ instruments/**
 
 # Global rule to include .gitkeep files anywhere
 !**/.gitkeep
+
+# for browser-use
 agent_history.gif
 
-# specify, specstory extension data
-.serena
-.specify
-.specstory
-specs/*/.reviews
-specs/*/reviews
