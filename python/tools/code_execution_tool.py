@@ -3,7 +3,7 @@ from dataclasses import dataclass
 import shlex
 import time
 from python.helpers.tool import Tool, Response
-from python.helpers import files, rfc_exchange, projects
+from python.helpers import files, rfc_exchange, projects, runtime
 from python.helpers.print_style import PrintStyle
 from python.helpers.shell_local import LocalInteractiveSession
 from python.helpers.shell_ssh import SSHInteractiveSession
@@ -11,7 +11,6 @@ from python.helpers.docker import DockerContainerManager
 from python.helpers.strings import truncate_text as truncate_text_string
 from python.helpers.messages import truncate_text as truncate_text_agent
 import re
-
 
 # Timeouts for python, nodejs, and terminal runtimes.
 CODE_EXEC_TIMEOUTS: dict[str, int] = {
@@ -48,6 +47,7 @@ class CodeExecution(Tool):
         re.compile(r"\\(venv\\).+[$#] ?$"),  # (venv) ...$ or (venv) ...#
         re.compile(r"root@[^:]+:[^#]+# ?$"),  # root@container:~#
         re.compile(r"[a-zA-Z0-9_.-]+@[^:]+:[^$#]+[$#] ?$"),  # user@host:~$
+        re.compile(r"\(?.*\)?\s*PS\s+[^>]+> ?$"),  # PowerShell prompt like (base) PS C:\...>
     ]
     # potential dialog detection
     dialog_patterns = [
@@ -173,7 +173,7 @@ class CodeExecution(Tool):
     async def execute_terminal_command(
         self, session: int, command: str, reset: bool = False
     ):
-        prefix = "bash> " + self.format_command_for_output(command) + "\n\n"
+        prefix = ("bash>" if not runtime.is_windows() or self.agent.config.code_exec_ssh_enabled else "PS>") + self.format_command_for_output(command) + "\n\n"
         return await self.terminal_session(session, command, reset, prefix)
 
     async def terminal_session(
@@ -467,7 +467,7 @@ class CodeExecution(Tool):
         # remove any single byte \xXX escapes
         output = re.sub(r"(?<!\\)\\x[0-9A-Fa-f]{2}", "", output)
         # Strip every line of output before truncation
-        output = "\n".join(line.strip() for line in output.splitlines())
+        # output = "\n".join(line.strip() for line in output.splitlines())
         output = truncate_text_agent(agent=self.agent, output=output, threshold=1000000) # ~1MB, larger outputs should be dumped to file, not read from terminal
         return output
 
