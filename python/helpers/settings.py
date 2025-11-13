@@ -11,7 +11,7 @@ from python.helpers import runtime, whisper, defer, git
 from . import files, dotenv
 from python.helpers.print_style import PrintStyle
 from python.helpers.providers import get_providers
-from python.helpers.secrets import SecretsManager
+from python.helpers.secrets import get_default_secrets_manager
 from python.helpers import dirty_json
 
 
@@ -1110,7 +1110,7 @@ def convert_out(settings: Settings) -> SettingsOutput:
    # Secrets section
     secrets_fields: list[SettingsField] = []
 
-    secrets_manager = SecretsManager.get_instance()
+    secrets_manager = get_default_secrets_manager()
     try:
         secrets = secrets_manager.get_masked_secrets()
     except Exception:
@@ -1417,10 +1417,9 @@ def _write_sensitive_settings(settings: Settings):
         set_root_password(settings["root_password"])
 
     # Handle secrets separately - merge with existing preserving comments/order and support deletions
-    secrets_manager = SecretsManager.get_instance()
+    secrets_manager = get_default_secrets_manager()
     submitted_content = settings["secrets"]
     secrets_manager.save_secrets_with_merge(submitted_content)
-    secrets_manager.clear_cache()  # Clear cache to reload secrets
 
 
 
