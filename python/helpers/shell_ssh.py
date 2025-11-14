@@ -62,7 +62,8 @@ class SSHInteractiveSession:
                 # invoke interactive shell
                 self.shell = self.client.invoke_shell(width=100, height=50)
 
-                initial_command = "stty -echo"
+                # disable systemd/OSC prompt metadata and disable local echo
+                initial_command = "unset PROMPT_COMMAND PS0; stty -echo"
                 if self.cwd:
                     initial_command = f"cd {self.cwd}; {initial_command}"
                 self.shell.send(f"{initial_command}\n".encode())
