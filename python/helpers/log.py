@@ -36,9 +36,10 @@ ProgressUpdate = Literal["persistent", "temporary", "none"]
 
 
 HEADING_MAX_LEN: int = 120
-CONTENT_MAX_LEN: int = 10000
+CONTENT_MAX_LEN: int = 15_000
+RESPONSE_CONTENT_MAX_LEN: int = 250_000
 KEY_MAX_LEN: int = 60
-VALUE_MAX_LEN: int = 3000
+VALUE_MAX_LEN: int = 5000
 PROGRESS_MAX_LEN: int = 120
 
 
@@ -93,18 +94,21 @@ def _truncate_value(val: T) -> T:
     return truncated
 
 
-def _truncate_content(text: str | None) -> str:
+def _truncate_content(text: str | None, type: Type) -> str:
+
+    max_len = CONTENT_MAX_LEN if type != "response" else RESPONSE_CONTENT_MAX_LEN
+
     if text is None:
         return ""
     raw = str(text)
-    if len(raw) <= CONTENT_MAX_LEN:
+    if len(raw) <= max_len:
         return raw
 
     # Same dynamic replacement logic as value truncation
-    removed = len(raw) - CONTENT_MAX_LEN
+    removed = len(raw) - max_len
     while True:
         replacement = f"\n\n<< {removed} Characters hidden >>\n\n"
-        truncated = truncate_text_by_ratio(raw, CONTENT_MAX_LEN, replacement, ratio=0.3)
+        truncated = truncate_text_by_ratio(raw, max_len, replacement, ratio=0.3)
         new_removed = len(raw) - (len(truncated) - len(replacement))
         if new_removed == removed:
             break
@@ -119,7 +123,7 @@ def _truncate_content(text: str | None) -> str:
 class LogItem:
     log: "Log"
     no: int
-    type: str
+    type: Type
     heading: str = ""
     content: str = ""
     temp: bool = False
@@ -197,7 +201,7 @@ class Log:
         kvps: dict | None = None,
         temp: bool | None = None,
         update_progress: ProgressUpdate | None = None,
-        id: Optional[str] = None,  # Add id parameter
+        id: Optional[str] = None,
         **kwargs,
     ) -> LogItem:
 
@@ -226,16 +230,29 @@ class Log:
     def _update_item(
         self,
         no: int,
-        type: str | None = None,
+        type: Type | None = None,
         heading: str | None = None,
         content: str | None = None,
         kvps: dict | None = None,
         temp: bool | None = None,
         update_progress: ProgressUpdate | None = None,
-        id: Optional[str] = None,  # Add id parameter
+        id: Optional[str] = None,
         **kwargs,
     ):
         item = self.logs[no]
+
+        if id is not None:
+            item.id = id
+
+        if type is not None:
+            item.type = type
+
+        if temp is not None:
+            item.temp = temp
+
+        if update_progress is not None:
+            item.update_progress = update_progress
+
 
         # adjust all content before processing
         if heading is not None:
@@ -244,7 +261,7 @@ class Log:
             item.heading = heading
         if content is not None:
             content = self._mask_recursive(content)
-            content = _truncate_content(content)
+            content = _truncate_content(content, item.type)
             item.content = content
         if kvps is not None:
             kvps = OrderedDict(copy.deepcopy(kvps))
@@ -257,18 +274,6 @@ class Log:
             kwargs = copy.deepcopy(kwargs)
             kwargs = self._mask_recursive(kwargs)
             item.kvps.update(kwargs)
-
-        if type is not None:
-            item.type = type
-
-        if update_progress is not None:
-            item.update_progress = update_progress
-
-        if temp is not None:
-            item.temp = temp
-
-        if id is not None:
-            item.id = id
 
         self.updates += [item.no]
         self._update_progress_from_item(item)
