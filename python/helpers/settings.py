@@ -111,6 +111,8 @@ class Settings(TypedDict):
     # LiteLLM global kwargs applied to all model calls
     litellm_global_kwargs: dict[str, Any]
 
+    update_check_enabled: bool
+
 class PartialSettings(Settings, total=False):
     pass
 
@@ -1217,6 +1219,27 @@ def convert_out(settings: Settings) -> SettingsOutput:
         "tab": "external",
     }
 
+    # update checker section
+    update_checker_fields: list[SettingsField] = []
+
+    update_checker_fields.append(
+        {
+            "id": "update_check_enabled",
+            "title": "Enable Update Checker",
+            "description": "Enable update checker to notify about newer versions of Agent Zero.",
+            "type": "switch",
+            "value": settings["update_check_enabled"],
+        }
+    )
+
+    update_checker_section: SettingsSection = {
+        "id": "update_checker",
+        "title": "Update Checker",
+        "description": "Update checker periodically checks for new releases of Agent Zero and will notify when an update is recommended.<br>No personal data is sent to the update server, only randomized+anonymized unique ID and current version number, which help us evaluate the importance of the update in case of critical bug fixes etc.",
+        "fields": update_checker_fields,
+        "tab": "external",
+    }
+
     # Backup & Restore section
     backup_fields: list[SettingsField] = []
 
@@ -1269,6 +1292,7 @@ def convert_out(settings: Settings) -> SettingsOutput:
             mcp_server_section,
             a2a_section,
             external_api_section,
+            update_checker_section,
             backup_section,
             dev_section,
             # code_exec_section,
@@ -1502,6 +1526,7 @@ def get_default_settings() -> Settings:
         variables="",
         secrets="",
         litellm_global_kwargs={},
+        update_check_enabled=True,
     )
 
 
@@ -1706,8 +1731,4 @@ def create_auth_token() -> str:
 
 
 def _get_version():
-    try:
-        git_info = git.get_git_info()
-        return str(git_info.get("short_tag", "")).strip() or "unknown"
-    except Exception:
-        return "unknown"
+    return git.get_version()
