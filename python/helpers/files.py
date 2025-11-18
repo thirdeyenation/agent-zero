@@ -19,12 +19,12 @@ import mimetypes
 
 class VariablesPlugin(ABC):
     @abstractmethod
-    def get_variables(self, file: str, backup_dirs: list[str] | None = None) -> dict[str, Any]:  # type: ignore
+    def get_variables(self, file: str, backup_dirs: list[str] | None = None, **kwargs) -> dict[str, Any]:  # type: ignore
         pass
 
 
 def load_plugin_variables(
-    file: str, backup_dirs: list[str] | None = None
+    file: str, backup_dirs: list[str] | None = None, **kwargs
 ) -> dict[str, Any]:
     if not file.endswith(".md"):
         return {}
@@ -48,7 +48,7 @@ def load_plugin_variables(
             plugin_file, VariablesPlugin, one_per_file=False
         )
         for cls in classes:
-            return cls().get_variables(file, backup_dirs)  # type: ignore < abstract class here is ok, it is always a subclass
+            return cls().get_variables(file, backup_dirs, **kwargs)  # type: ignore < abstract class here is ok, it is always a subclass
 
         # load python code and extract variables variables from it
         # module = None
@@ -96,7 +96,7 @@ def parse_file(
 
     is_json = is_full_json_template(content)
     content = remove_code_fences(content)
-    variables = load_plugin_variables(absolute_path, _directories) or {}  # type: ignore
+    variables = load_plugin_variables(absolute_path, _directories, **kwargs) or {}  # type: ignore
     variables.update(kwargs)
     if is_json:
         content = replace_placeholders_json(content, **variables)
@@ -135,7 +135,7 @@ def read_prompt_file(
         # content = remove_code_fences(f.read())
         content = f.read()
 
-    variables = load_plugin_variables(_file, _directories) or {}  # type: ignore
+    variables = load_plugin_variables(_file, _directories, **kwargs) or {}  # type: ignore
     variables.update(kwargs)
 
     # Replace placeholders with values from kwargs
