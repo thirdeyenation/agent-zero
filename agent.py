@@ -365,6 +365,7 @@ class Agent:
         asyncio.run(self.call_extensions("agent_init"))
 
     async def monologue(self):
+        error_retries = 0  # counter for critical error retries
         while True:
             try:
                 # loop data dictionary to pass to extensions
@@ -470,6 +471,7 @@ class Agent:
 
                     # exceptions inside message loop:
                     except InterventionException as e:
+                        error_retries = 0  # reset retry counter on user intervention
                         pass  # intervention message has been handled in handle_intervention(), proceed with conversation loop
                     except RepairableException as e:
                         # Forward repairable errors to the LLM, maybe it can fix them
@@ -479,8 +481,10 @@ class Agent:
                         PrintStyle(font_color="red", padding=True).print(msg["message"])
                         self.context.log.log(type="error", content=msg["message"])
                     except Exception as e:
-                        # Other exception kill the loop
-                        self.handle_critical_exception(e)
+                        # Retry critical exceptions before failing
+                        error_retries = await self.retry_critical_exception(
+                            e, error_retries
+                        )
 
                     finally:
                         # call message_loop_end extensions
@@ -490,9 +494,13 @@ class Agent:
 
             # exceptions outside message loop:
             except InterventionException as e:
+                error_retries = 0  # reset retry counter on user intervention
                 pass  # just start over
             except Exception as e:
-                self.handle_critical_exception(e)
+                # Retry critical exceptions before failing
+                error_retries = await self.retry_critical_exception(
+                    e, error_retries
+                )
             finally:
                 self.context.streaming_agent = None  # unset current streamer
                 # call monologue_end extensions
@@ -548,6 +556,30 @@ class Agent:
         )
 
         return full_prompt
+
+    async def retry_critical_exception(
+        self, e: Exception, error_retries: int, delay: int = 3, max_retries: int = 1
+    ) -> int:
+        if error_retries >= max_retries:
+            self.handle_critical_exception(e)
+
+        error_message = errors.format_error(e)
+        
+        self.context.log.log(
+            type="warning", content="Critical error occurred, retrying..."
+        )
+        PrintStyle(font_color="orange", padding=True).print(
+            "Critical error occurred, retrying..."
+        )
+        await asyncio.sleep(delay)
+        agent_facing_error = self.read_prompt(
+            "fw.msg_critical_error.md", error_message=error_message
+        )
+        self.hist_add_warning(message=agent_facing_error)
+        PrintStyle(font_color="orange", padding=True).print(
+            agent_facing_error
+        )
+        return error_retries + 1
 
     def handle_critical_exception(self, exception: Exception):
         if isinstance(exception, HandledException):
