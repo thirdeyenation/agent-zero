@@ -27,6 +27,9 @@ chat:
   anthropic:
     name: Anthropic
     litellm_provider: anthropic
+  cometapi:
+    name: CometAPI
+    litellm_provider: cometapi
   deepseek:
     name: DeepSeek
     litellm_provider: deepseek
@@ -35,8 +38,8 @@ chat:
     litellm_provider: github_copilot
     kwargs:
       extra_headers:
-          "Editor-Version": "vscode/1.85.1"
-          "Copilot-Integration-Id": "vscode-chat"
+        "Editor-Version": "vscode/1.85.1"
+        "Copilot-Integration-Id": "vscode-chat"
   google:
     name: Google
     litellm_provider: gemini
