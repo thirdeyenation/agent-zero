@@ -38,7 +38,7 @@ def get_default_value(name: str, value: T) -> T:
         if isinstance(value, bool):
             return env_value.strip().lower() in ('true', '1', 'yes', 'on')  # type: ignore
         elif isinstance(value, dict):
-            return json.loads(env_value)  # type: ignore
+            return json.loads(env_value.strip())  # type: ignore
         elif isinstance(value, str):
             return str(env_value).strip()  # type: ignore
         else:
