@@ -3,7 +3,7 @@ import os
 from datetime import datetime, timedelta
 from agent import AgentContext, UserMessage, AgentContextType
 from python.helpers.api import ApiHandler, Request, Response
-from python.helpers import files
+from python.helpers import files, projects
 from python.helpers.print_style import PrintStyle
 from werkzeug.utils import secure_filename
 from initialize import initialize_agent
@@ -33,6 +33,7 @@ class ApiMessage(ApiHandler):
         message = input.get("message", "")
         attachments = input.get("attachments", [])
         lifetime_hours = input.get("lifetime_hours", 24)  # Default 24 hours
+        project = input.get("project", None)  # Optional project name
 
         if not message:
             return Response('{"error": "Message is required"}', status=400, mimetype="application/json")
@@ -71,11 +72,23 @@ class ApiMessage(ApiHandler):
             context = AgentContext.use(context_id)
             if not context:
                 return Response('{"error": "Context not found"}', status=404, mimetype="application/json")
+
+            # Validation: if project is provided but context already has different project
+            existing_project = context.get_data(projects.CONTEXT_DATA_KEY_PROJECT)
+            if project and existing_project and existing_project != project:
+                return Response('{"error": "Project can only be set on first message"}', status=400, mimetype="application/json")
         else:
             config = initialize_agent()
             context = AgentContext(config=config, type=AgentContextType.USER)
             AgentContext.use(context.id)
             context_id = context.id
+
+            # Activate project if provided
+            if project:
+                try:
+                    projects.activate_project(context_id, project)
+                except Exception as e:
+                    return Response(f'{{"error": "Failed to activate project: {str(e)}"}}', status=400, mimetype="application/json")
 
         # Update chat lifetime
         with self._cleanup_lock:

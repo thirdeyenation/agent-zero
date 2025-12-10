@@ -5,8 +5,9 @@ import atexit
 from typing import Any, List
 import contextlib
 import threading
+import contextvars
 
-from python.helpers import settings
+from python.helpers import settings, projects
 from starlette.requests import Request
 
 # Local imports
@@ -60,6 +61,9 @@ except ImportError:  # pragma: no cover – library not installed
 
 _PRINTER = PrintStyle(italic=True, font_color="purple", padding=False)
 
+# Context variable to store project name from URL
+_a2a_project_name: contextvars.ContextVar[str | None] = contextvars.ContextVar('a2a_project_name', default=None)
+
 
 class AgentZeroWorker(Worker):  # type: ignore[misc]
     """Agent Zero implementation of FastA2A Worker."""
@@ -83,6 +87,16 @@ class AgentZeroWorker(Worker):  # type: ignore[misc]
             # Always create new temporary context for this A2A conversation
             cfg = initialize_agent()
             context = AgentContext(cfg, type=AgentContextType.BACKGROUND)
+
+            # Activate project if specified in URL
+            project_name = _a2a_project_name.get()
+            if project_name:
+                try:
+                    projects.activate_project(context.id, project_name)
+                    _PRINTER.print(f"[A2A] Activated project: {project_name}")
+                except Exception as e:
+                    _PRINTER.print(f"[A2A] Failed to activate project: {e}")
+                    raise Exception(f"Failed to activate project: {str(e)}")
 
             # Log user message so it appears instantly in UI chat window
             context.log.log(
@@ -424,6 +438,9 @@ class DynamicA2AProxy:
         if path.startswith('/a2a'):
             path = path[4:]  # Remove '/a2a' prefix
 
+        # Initialize project name
+        project_name = None
+
         # Check if path matches token pattern /t-{token}/
         if path.startswith('/t-'):
             # Extract token from path
@@ -431,6 +448,14 @@ class DynamicA2AProxy:
                 path_parts = path[3:].split('/', 1)  # Remove '/t-' prefix
                 request_token = path_parts[0]
                 remaining_path = '/' + path_parts[1] if len(path_parts) > 1 else '/'
+
+                # Check for project pattern /p-{project}/
+                if remaining_path.startswith('/p-'):
+                    project_parts = remaining_path[3:].split('/', 1)
+                    if project_parts[0]:
+                        project_name = project_parts[0]
+                        remaining_path = '/' + project_parts[1] if len(project_parts) > 1 else '/'
+                        _PRINTER.print(f"[A2A] Extracted project from URL: {project_name}")
             else:
                 request_token = path[3:]
                 remaining_path = '/'
@@ -451,6 +476,9 @@ class DynamicA2AProxy:
                     'body': b'Unauthorized',
                 })
                 return
+
+            # Set project name in context variable for use by worker
+            _a2a_project_name.set(project_name)
 
             # Update scope with cleaned path
             scope = dict(scope)
