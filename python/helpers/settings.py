@@ -36,7 +36,7 @@ def get_default_value(name: str, value: T) -> T:
     # Normalize type to match value param type
     try:
         if isinstance(value, bool):
-            return env_value.lower() in ('true', '1', 'yes', 'on')  # type: ignore
+            return env_value.strip().lower() in ('true', '1', 'yes', 'on')  # type: ignore
         elif isinstance(value, dict):
             return json.loads(env_value)  # type: ignore
         elif isinstance(value, str):
