@@ -138,7 +138,7 @@ docker run -p 50080:80 \
 - Dictionaries must be valid JSON (e.g., `{"temperature": "0"}`)
 
 **Notes:**
-- These override default values in settings.json
+- These provide initial default values when settings.json doesn't exist or when new settings are added to the application. Once a value is saved in settings.json, it takes precedence over these environment variables.
 - Sensitive settings (API keys, passwords) use their existing environment variables
 - Container/process restart required for changes to take effect
 
