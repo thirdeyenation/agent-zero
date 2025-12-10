@@ -42,7 +42,7 @@ def get_default_value(name: str, value: T) -> T:
         elif isinstance(value, str):
             return str(env_value).strip()  # type: ignore
         else:
-            return type(value)(env_value)  # type: ignore
+            return type(value)(env_value.strip())  # type: ignore
     except (ValueError, TypeError, json.JSONDecodeError) as e:
         PrintStyle(background_color="yellow", font_color="black").print(
             f"Warning: Invalid value for A0_SET_{name}='{env_value}': {e}. Using default: {value}"
