@@ -1,0 +1,50 @@
+<html>
+  <head>
+    <title>MCP/A2A</title>
+  </head>
+
+  <body>
+    <div x-data>
+      <template x-if="$store.settingsStore">
+        <div>
+          <nav>
+            <ul>
+              <template
+                x-for="(section, index) in $store.settingsStore.filteredSections"
+                :key="section.id"
+              >
+                <li>
+                  <a :href="'#section' + (index + 1)">
+                    <img
+                      :src="'/public/' + section.id + '.svg'"
+                      :alt="section.title"
+                    />
+                    <span x-text="section.title"></span>
+                  </a>
+                </li>
+              </template>
+            </ul>
+          </nav>
+
+          <template
+            x-for="(section, index) in $store.settingsStore.filteredSections"
+            :key="section.id"
+          >
+            <div :id="'section' + (index + 1)" class="section">
+              <template x-if="section.id === 'mcp_client'">
+                <x-component path="settings/mcp/mcp_client.html"></x-component>
+              </template>
+              <template x-if="section.id === 'mcp_server'">
+                <x-component path="settings/mcp/mcp_server.html"></x-component>
+              </template>
+              <template x-if="section.id === 'a2a_server'">
+                <x-component path="settings/mcp/a2a_server.html"></x-component>
+              </template>
+            </div>
+          </template>
+        </div>
+      </template>
+    </div>
+  </body>
+</html>
+

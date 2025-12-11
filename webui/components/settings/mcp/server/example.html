@@ -33,10 +33,26 @@
 
         <div id="mcp-server-example"></div>
 
-        <script>
+        <script type="module">
+            import * as API from "/js/api.js";
+
             setTimeout(async () => {
                 const url = window.location.origin;
-                const token = settingsModalProxy.settings.sections.filter(x => x.id == "mcp_server")[0].fields.filter(x => x.id == "mcp_server_token")[0].value;
+
+                // Fetch token from settings API
+                let token = "";
+                try {
+                    const response = await API.callJsonApi("settings_get", null);
+                    if (response && response.settings && response.settings.sections) {
+                        const mcpSection = response.settings.sections.find(s => s.id === "mcp_server");
+                        if (mcpSection) {
+                            const tokenField = (mcpSection.fields || []).find(f => f.id === "mcp_server_token");
+                            if (tokenField) token = tokenField.value || "";
+                        }
+                    }
+                } catch (e) {
+                    console.error("Failed to fetch token:", e);
+                }
 
                 // Fetch and populate projects
                 const projectSelect = document.getElementById('mcp-project-select');

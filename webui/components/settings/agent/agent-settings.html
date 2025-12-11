@@ -1,0 +1,62 @@
+<html>
+  <head>
+    <title>Agent Settings</title>
+  </head>
+
+  <body>
+    <div x-data>
+      <template x-if="$store.settingsStore">
+        <div>
+          <nav>
+            <ul>
+              <template
+                x-for="(section, index) in $store.settingsStore.filteredSections"
+                :key="section.id"
+              >
+                <li>
+                  <a :href="'#section' + (index + 1)">
+                    <img
+                      :src="'/public/' + section.id + '.svg'"
+                      :alt="section.title"
+                    />
+                    <span x-text="section.title"></span>
+                  </a>
+                </li>
+              </template>
+            </ul>
+          </nav>
+
+          <template
+            x-for="(section, index) in $store.settingsStore.filteredSections"
+            :key="section.id"
+          >
+            <div :id="'section' + (index + 1)" class="section">
+              <template x-if="section.id === 'agent'">
+                <x-component path="settings/agent/agent.html"></x-component>
+              </template>
+              <template x-if="section.id === 'chat_model'">
+                <x-component path="settings/agent/chat_model.html"></x-component>
+              </template>
+              <template x-if="section.id === 'util_model'">
+                <x-component path="settings/agent/util_model.html"></x-component>
+              </template>
+              <template x-if="section.id === 'browser_model'">
+                <x-component path="settings/agent/browser_model.html"></x-component>
+              </template>
+              <template x-if="section.id === 'embed_model'">
+                <x-component path="settings/agent/embed_model.html"></x-component>
+              </template>
+              <template x-if="section.id === 'memory'">
+                <x-component path="settings/agent/memory.html"></x-component>
+              </template>
+              <template x-if="section.id === 'speech'">
+                <x-component path="settings/agent/speech.html"></x-component>
+              </template>
+            </div>
+          </template>
+        </div>
+      </template>
+    </div>
+  </body>
+</html>
+

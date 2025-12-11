@@ -1,0 +1,74 @@
+<html>
+  <head>
+    <title>External Services</title>
+  </head>
+
+  <body>
+    <div x-data>
+      <template x-if="$store.settingsStore">
+        <div>
+          <nav>
+            <ul>
+              <template
+                x-for="(section, index) in $store.settingsStore.filteredSections"
+                :key="section.id"
+              >
+                <li>
+                  <a :href="'#section' + (index + 1)">
+                    <img
+                      :src="'/public/' + section.id + '.svg'"
+                      :alt="section.title"
+                    />
+                    <span x-text="section.title"></span>
+                  </a>
+                </li>
+              </template>
+
+              <!-- Tunnel navigation entry -->
+              <li>
+                <a href="#section-tunnel">
+                  <img src="/public/tunnel.svg" alt="Tunnel" />
+                  <span>Flare Tunnel</span>
+                </a>
+              </li>
+            </ul>
+          </nav>
+
+          <template
+            x-for="(section, index) in $store.settingsStore.filteredSections"
+            :key="section.id"
+          >
+            <div :id="'section' + (index + 1)" class="section">
+              <template x-if="section.id === 'api_keys'">
+                <x-component path="settings/external/api_keys.html"></x-component>
+              </template>
+              <template x-if="section.id === 'litellm'">
+                <x-component path="settings/external/litellm.html"></x-component>
+              </template>
+              <template x-if="section.id === 'secrets'">
+                <x-component path="settings/external/secrets.html"></x-component>
+              </template>
+              <template x-if="section.id === 'auth'">
+                <x-component path="settings/external/auth.html"></x-component>
+              </template>
+              <template x-if="section.id === 'external_api'">
+                <x-component path="settings/external/external_api.html"></x-component>
+              </template>
+              <template x-if="section.id === 'update_checker'">
+                <x-component
+                  path="settings/external/update_checker.html"
+                ></x-component>
+              </template>
+            </div>
+          </template>
+
+          <!-- Tunnel section content -->
+          <div id="section-tunnel" class="section">
+            <x-component path="settings/tunnel/tunnel-section.html"></x-component>
+          </div>
+        </div>
+      </template>
+    </div>
+  </body>
+</html>
+

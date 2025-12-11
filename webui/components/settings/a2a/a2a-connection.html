@@ -34,16 +34,25 @@
 
         <div id="a2a-connection-example"></div>
 
-        <script>
+        <script type="module">
+            import * as API from "/js/api.js";
+
             setTimeout(async () => {
                 const url = window.location.origin;
-                // Try to get a2a_token first, fallback to mcp_server_token
-                let tokenField = null;
+                
+                // Fetch token from settings API - try a2a_token first, fallback to mcp_server_token
+                let token = "";
                 try {
-                    const allFields = settingsModalProxy.settings.sections.flatMap(s => s.fields);
-                    tokenField = allFields.find(f => f.id === 'a2a_token') || allFields.find(f => f.id === 'mcp_server_token');
-                } catch (e) { }
-                const token = tokenField ? tokenField.value : '';
+                    const response = await API.callJsonApi("settings_get", null);
+                    if (response && response.settings && response.settings.sections) {
+                        const allFields = response.settings.sections.flatMap(s => s.fields || []);
+                        const tokenField = allFields.find(f => f.id === "a2a_token") || 
+                                          allFields.find(f => f.id === "mcp_server_token");
+                        if (tokenField) token = tokenField.value || "";
+                    }
+                } catch (e) {
+                    console.error("Failed to fetch token:", e);
+                }
 
                 // Fetch and populate projects
                 const projectSelect = document.getElementById('a2a-project-select');
