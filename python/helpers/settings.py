@@ -28,7 +28,7 @@ def get_default_value(name: str, value: T) -> T:
     Returns:
         Environment variable value (type-normalized) or default value
     """
-    env_value = dotenv.get_dotenv_value(f"A0_SET_{name}")
+    env_value = dotenv.get_dotenv_value(f"A0_SET_{name}", dotenv.get_dotenv_value(f"A0_SET_{name.upper()}", None))
 
     if env_value is None:
         return value
