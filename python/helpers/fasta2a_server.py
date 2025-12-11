@@ -5,7 +5,7 @@ import atexit
 from typing import Any, List
 import contextlib
 import threading
-import contextvars
+from collections import deque
 
 from python.helpers import settings, projects
 from starlette.requests import Request
@@ -61,8 +61,10 @@ except ImportError:  # pragma: no cover – library not installed
 
 _PRINTER = PrintStyle(italic=True, font_color="purple", padding=False)
 
-# Context variable to store project name from URL
-_a2a_project_name: contextvars.ContextVar[str | None] = contextvars.ContextVar('a2a_project_name', default=None)
+# FIFO queue to pass project names from request context to worker context
+# Each request appends project (or None), worker pops in same order
+_a2a_project_queue: deque[str | None] = deque()
+_a2a_project_lock = threading.Lock()
 
 
 class AgentZeroWorker(Worker):  # type: ignore[misc]
@@ -88,8 +90,14 @@ class AgentZeroWorker(Worker):  # type: ignore[misc]
             cfg = initialize_agent()
             context = AgentContext(cfg, type=AgentContextType.BACKGROUND)
 
-            # Activate project if specified in URL
-            project_name = _a2a_project_name.get()
+            # Retrieve project from queue (FIFO matches task processing order)
+            project_name = None
+            with _a2a_project_lock:
+                if _a2a_project_queue:
+                    project_name = _a2a_project_queue.popleft()
+                    _PRINTER.print(f"[A2A] Retrieved project from queue: {project_name}")
+
+            # Activate project if specified
             if project_name:
                 try:
                     projects.activate_project(context.id, project_name)
@@ -477,8 +485,10 @@ class DynamicA2AProxy:
                 })
                 return
 
-            # Set project name in context variable for use by worker
-            _a2a_project_name.set(project_name)
+            # Store project in queue for worker to retrieve (maintains FIFO order)
+            with _a2a_project_lock:
+                _a2a_project_queue.append(project_name)  # None is valid (no project)
+                _PRINTER.print(f"[A2A] Appended project to queue: {project_name}")
 
             # Update scope with cleaned path
             scope = dict(scope)

@@ -24,11 +24,6 @@ _PRINTER = PrintStyle(italic=True, font_color="green", padding=False)
 # Context variable to store project name from URL (per-request)
 _mcp_project_name: contextvars.ContextVar[str | None] = contextvars.ContextVar('mcp_project_name', default=None)
 
-# Session storage for project names (persists across SSE tool calls)
-# Key: connection identifier, Value: project name
-_mcp_project_sessions: dict[str, str | None] = {}
-_mcp_session_lock = threading.Lock()
-
 mcp_server: FastMCP = FastMCP(
     name="Agent Zero integrated MCP Server",
     instructions="""
@@ -135,24 +130,10 @@ async def send_message(
         description="The response from the remote Agent Zero Instance", title="response"
     ),
 ]:
-    # Get project name from session storage (persists across SSE connection)
-    # First try context variable (for HTTP requests), then session storage (for SSE tool calls)
+    # Get project name from context variable (set in proxy __call__)
     project_name = _mcp_project_name.get()
-
-    # If not in context variable, try session storage using current token
-    if not project_name:
-        cfg = settings.get_settings()
-        current_token = cfg.get("mcp_server_token")
-        _PRINTER.print(f"[MCP] send_message - Looking for project. Token: '{current_token}' (type: {type(current_token).__name__})")
-        if current_token:
-            with _mcp_session_lock:
-                _PRINTER.print(f"[MCP] Session storage keys: {list(_mcp_project_sessions.keys())}")
-                _PRINTER.print(f"[MCP] Session storage: {_mcp_project_sessions}")
-                project_name = _mcp_project_sessions.get(current_token)
-                if project_name:
-                    _PRINTER.print(f"[MCP] Retrieved project from session: {project_name}")
-                else:
-                    _PRINTER.print(f"[MCP] No project found in session for token: {current_token}")
+    if project_name:
+        _PRINTER.print(f"[MCP] send_message using project: {project_name}")
 
     context: AgentContext | None = None
     if chat_id:
@@ -456,7 +437,7 @@ class DynamicMcpProxy:
         # Patterns: /t-{token}/sse, /t-{token}/p-{project}/sse, etc.
         has_token = f"/t-{self.token}/" in path or f"t-{self.token}/" in path
 
-        # Extract project from path BEFORE cleaning (for session storage)
+        # Extract project from path BEFORE cleaning and set in context variable
         project_name = None
         if "/p-" in path:
             try:
@@ -469,11 +450,10 @@ class DynamicMcpProxy:
             except Exception as e:
                 _PRINTER.print(f"[MCP] Failed to extract project in proxy: {e}")
 
-        # Store project in session (persists across SSE connection)
-        if self.token and project_name:
-            with _mcp_session_lock:
-                _mcp_project_sessions[self.token] = project_name
-                _PRINTER.print(f"[MCP] Stored project '{project_name}' for token '{self.token}' (type: {type(self.token).__name__}) in proxy")
+        # Store project in context variable (will be available in send_message)
+        _mcp_project_name.set(project_name)
+        if project_name:
+            _PRINTER.print(f"[MCP] Set project in context variable: {project_name}")
 
         # Strip project segment from path if present (e.g., /p-project_name/)
         # This is needed because the underlying MCP apps were configured without project paths
@@ -500,7 +480,7 @@ class DynamicMcpProxy:
 
 
 async def mcp_middleware(request: Request, call_next):
-
+    """Middleware to check if MCP server is enabled."""
     # check if MCP server is enabled
     cfg = settings.get_settings()
     if not cfg["mcp_server_enabled"]:
@@ -508,41 +488,5 @@ async def mcp_middleware(request: Request, call_next):
         raise StarletteHTTPException(
             status_code=403, detail="MCP server is disabled in settings."
         )
-
-    # Extract project from URL path if present (pattern: /mcp/t-{token}/p-{project}/...)
-    path = request.url.path
-    project_name = None
-    token = None
-
-    # Extract token from path
-    if "/t-" in path:
-        token_parts = path.split("/t-")
-        if len(token_parts) > 1:
-            token = token_parts[1].split("/")[0]
-
-    # Extract project if present
-    if "/p-" in path:
-        try:
-            parts = path.split("/p-")
-            if len(parts) > 1:
-                project_part = parts[1].split("/")[0]
-                if project_part:
-                    project_name = project_part
-                    _PRINTER.print(f"[MCP] Extracted project from URL: {project_name}")
-        except Exception as e:
-            _PRINTER.print(f"[MCP] Failed to extract project from URL: {e}")
-
-    # Debug logging
-    _PRINTER.print(f"[MCP] Middleware - Path: {path}, Token: {token}, Project: {project_name}")
-
-    # Store project in session dict ONLY if we found one (don't overwrite with None)
-    # The proxy already handles project extraction before path cleaning
-    if token and project_name:
-        with _mcp_session_lock:
-            _mcp_project_sessions[token] = project_name
-            _PRINTER.print(f"[MCP] Middleware stored project '{project_name}' for token session")
-
-    # Also set in context variable for backwards compatibility
-    _mcp_project_name.set(project_name)
 
     return await call_next(request)
