@@ -13,13 +13,13 @@ def migrate_user_data() -> None:
     # Move directories from tmp/ or other source locations to usr/
     
     _move_dir("tmp/chats", "usr/chats")
-    _move_dir("tmp/scheduler", "usr/scheduler")
+    _move_dir("tmp/scheduler", "usr/scheduler", overwrite=True)
     _move_dir("tmp/uploads", "usr/uploads")
     _move_dir("tmp/upload", "usr/upload")
     _move_dir("tmp/downloads", "usr/downloads")
     _move_dir("tmp/email", "usr/email")
-    _move_dir("knowledge/custom", "usr/knowledge")
-    _move_dir("instruments/custom", "usr/instruments")
+    _move_dir("knowledge/custom", "usr/knowledge", overwrite=True)
+    _move_dir("instruments/custom", "usr/instruments", overwrite=True)
 
     # --- Migrate Files -------------------------------------------------------------
     # Move specific configuration files to usr/
