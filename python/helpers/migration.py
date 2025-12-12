@@ -26,7 +26,7 @@ def migrate_user_data() -> None:
     
     _move_file("tmp/settings.json", "usr/settings.json")
     _move_file("tmp/secrets.env", "usr/secrets.env")
-    _move_file(".env", "usr/.env")
+    _move_file(".env", "usr/.env", overwrite=True)
 
     # --- Special Migration Cases ---------------------------------------------------
     
@@ -48,19 +48,21 @@ def migrate_user_data() -> None:
 
 # --- Helper Functions ----------------------------------------------------------
 
-def _move_dir(src: str, dst: str) -> None:
+def _move_dir(src: str, dst: str, overwrite: bool = False) -> None:
     """
     Move a directory from src to dst if src exists and dst does not.
     """
-    if files.exists(src) and not files.exists(dst):
+    if files.exists(src) and (not files.exists(dst) or overwrite):
         PrintStyle().print(f"Migrating {src} to {dst}...")
+        if overwrite and files.exists(dst):
+            files.delete_dir(dst)
         files.move_dir(src, dst)
 
-def _move_file(src: str, dst: str) -> None:
+def _move_file(src: str, dst: str, overwrite: bool = False) -> None:
     """
     Move a file from src to dst if src exists and dst does not.
     """
-    if files.exists(src) and not files.exists(dst):
+    if files.exists(src) and (not files.exists(dst) or overwrite):
         PrintStyle().print(f"Migrating {src} to {dst}...")
         files.move_file(src, dst)
 
