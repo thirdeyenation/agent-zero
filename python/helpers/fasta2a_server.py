@@ -5,7 +5,6 @@ import atexit
 from typing import Any, List
 import contextlib
 import threading
-from collections import deque
 
 from python.helpers import settings, projects
 from starlette.requests import Request
@@ -61,9 +60,9 @@ except ImportError:  # pragma: no cover – library not installed
 
 _PRINTER = PrintStyle(italic=True, font_color="purple", padding=False)
 
-# FIFO queue to pass project names from request context to worker context
-# Each request appends project (or None), worker pops in same order
-_a2a_project_queue: deque[str | None] = deque()
+# Map message_id to project name (thread-safe, no race conditions)
+# Each message has unique ID that correlates request to worker
+_a2a_message_projects: dict[str, str] = {}
 _a2a_project_lock = threading.Lock()
 
 
@@ -90,12 +89,15 @@ class AgentZeroWorker(Worker):  # type: ignore[misc]
             cfg = initialize_agent()
             context = AgentContext(cfg, type=AgentContextType.BACKGROUND)
 
-            # Retrieve project from queue (FIFO matches task processing order)
+            # Retrieve project by message_id (direct lookup, no race conditions)
+            # Note: Request has messageId (camelCase), but FastA2A converts it to message_id (snake_case)
             project_name = None
-            with _a2a_project_lock:
-                if _a2a_project_queue:
-                    project_name = _a2a_project_queue.popleft()
-                    _PRINTER.print(f"[A2A] Retrieved project from queue: {project_name}")
+            message_id = message.get('message_id')  # FastA2A converts camelCase to snake_case
+            if message_id:
+                with _a2a_project_lock:
+                    project_name = _a2a_message_projects.pop(message_id, None)
+                    if project_name:
+                        _PRINTER.print(f"[A2A] Retrieved project for message {message_id}: {project_name}")
 
             # Activate project if specified
             if project_name:
@@ -485,10 +487,55 @@ class DynamicA2AProxy:
                 })
                 return
 
-            # Store project in queue for worker to retrieve (maintains FIFO order)
-            with _a2a_project_lock:
-                _a2a_project_queue.append(project_name)  # None is valid (no project)
-                _PRINTER.print(f"[A2A] Appended project to queue: {project_name}")
+            # If project specified, we need to extract message_id from request body
+            # to correlate project with the specific message (no race conditions)
+            if project_name:
+                # Buffer all messages for replay
+                received_messages = []
+                replay_index = 0
+                message_id_extracted = False
+                original_receive = receive
+
+                async def receive_wrapper():
+                    nonlocal replay_index, message_id_extracted
+
+                    # If replaying buffered messages, return them in order
+                    if replay_index < len(received_messages):
+                        msg = received_messages[replay_index]
+                        replay_index += 1
+                        return msg
+
+                    # Otherwise, receive and buffer the next message
+                    message = await original_receive()
+                    received_messages.append(message)
+
+                    # Parse message_id when we get the complete body
+                    if message['type'] == 'http.request':
+                        # If this is the last chunk, parse the full body
+                        if not message.get('more_body', False) and not message_id_extracted:
+                            message_id_extracted = True
+                            try:
+                                import json
+                                # Reconstruct full body from all buffered messages
+                                body_parts = [msg.get('body', b'') for msg in received_messages if msg['type'] == 'http.request']
+                                full_body = b''.join(body_parts)
+                                data = json.loads(full_body)
+                                # Handle JSON-RPC format: params.message.messageId (camelCase!)
+                                if 'params' in data and 'message' in data['params']:
+                                    msg = data['params']['message']
+                                    message_id = msg.get('messageId')  # camelCase in raw JSON
+                                    if message_id:
+                                        with _a2a_project_lock:
+                                            _a2a_message_projects[message_id] = project_name
+                                            _PRINTER.print(f"[A2A] Stored project '{project_name}' for message {message_id}")
+                                # Reset replay index so FastA2A can replay from start
+                                replay_index = 0
+                            except Exception as e:
+                                _PRINTER.print(f"[A2A] Failed to parse message_id: {e}")
+
+                    return message
+
+                receive = receive_wrapper
 
             # Update scope with cleaned path
             scope = dict(scope)
