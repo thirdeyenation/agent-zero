@@ -60,11 +60,6 @@ except ImportError:  # pragma: no cover – library not installed
 
 _PRINTER = PrintStyle(italic=True, font_color="purple", padding=False)
 
-# Map message_id to project name (thread-safe, no race conditions)
-# Each message has unique ID that correlates request to worker
-_a2a_message_projects: dict[str, str] = {}
-_a2a_project_lock = threading.Lock()
-
 
 class AgentZeroWorker(Worker):  # type: ignore[misc]
     """Agent Zero implementation of FastA2A Worker."""
@@ -89,15 +84,11 @@ class AgentZeroWorker(Worker):  # type: ignore[misc]
             cfg = initialize_agent()
             context = AgentContext(cfg, type=AgentContextType.BACKGROUND)
 
-            # Retrieve project by message_id (direct lookup, no race conditions)
-            # Note: Request has messageId (camelCase), but FastA2A converts it to message_id (snake_case)
-            project_name = None
-            message_id = message.get('message_id')  # FastA2A converts camelCase to snake_case
-            if message_id:
-                with _a2a_project_lock:
-                    project_name = _a2a_message_projects.pop(message_id, None)
-                    if project_name:
-                        _PRINTER.print(f"[A2A] Retrieved project for message {message_id}: {project_name}")
+            # Retrieve project from message.metadata (standard A2A pattern)
+            metadata = message.get('metadata', {}) or {}
+            project_name = metadata.get('project')
+            if project_name:
+                _PRINTER.print(f"[A2A] Retrieved project from message.metadata: {project_name}")
 
             # Activate project if specified
             if project_name:
@@ -487,51 +478,50 @@ class DynamicA2AProxy:
                 })
                 return
 
-            # If project specified, we need to extract message_id from request body
-            # to correlate project with the specific message (no race conditions)
+            # If project specified, inject it into the request payload
             if project_name:
-                # Buffer all messages for replay
+                # Buffer messages and modify before returning the complete body
                 received_messages = []
-                replay_index = 0
-                message_id_extracted = False
+                body_modified = False
                 original_receive = receive
 
                 async def receive_wrapper():
-                    nonlocal replay_index, message_id_extracted
+                    nonlocal body_modified
 
-                    # If replaying buffered messages, return them in order
-                    if replay_index < len(received_messages):
-                        msg = received_messages[replay_index]
-                        replay_index += 1
-                        return msg
-
-                    # Otherwise, receive and buffer the next message
+                    # Receive and buffer the next message
                     message = await original_receive()
                     received_messages.append(message)
 
-                    # Parse message_id when we get the complete body
-                    if message['type'] == 'http.request':
-                        # If this is the last chunk, parse the full body
-                        if not message.get('more_body', False) and not message_id_extracted:
-                            message_id_extracted = True
-                            try:
-                                import json
-                                # Reconstruct full body from all buffered messages
-                                body_parts = [msg.get('body', b'') for msg in received_messages if msg['type'] == 'http.request']
-                                full_body = b''.join(body_parts)
-                                data = json.loads(full_body)
-                                # Handle JSON-RPC format: params.message.messageId (camelCase!)
-                                if 'params' in data and 'message' in data['params']:
-                                    msg = data['params']['message']
-                                    message_id = msg.get('messageId')  # camelCase in raw JSON
-                                    if message_id:
-                                        with _a2a_project_lock:
-                                            _a2a_message_projects[message_id] = project_name
-                                            _PRINTER.print(f"[A2A] Stored project '{project_name}' for message {message_id}")
-                                # Reset replay index so FastA2A can replay from start
-                                replay_index = 0
-                            except Exception as e:
-                                _PRINTER.print(f"[A2A] Failed to parse message_id: {e}")
+                    # When we get the complete body, inject project into JSON
+                    if message['type'] == 'http.request' and not message.get('more_body', False) and not body_modified:
+                        body_modified = True
+                        try:
+                            import json
+                            # Reconstruct full body from all buffered messages
+                            body_parts = [msg.get('body', b'') for msg in received_messages if msg['type'] == 'http.request']
+                            full_body = b''.join(body_parts)
+                            data = json.loads(full_body)
+
+                            # INJECT project into message.metadata (standard A2A pattern)
+                            if 'params' in data and 'message' in data['params']:
+                                msg_data = data['params']['message']
+                                # Initialize metadata if it doesn't exist
+                                if 'metadata' not in msg_data or msg_data['metadata'] is None:
+                                    msg_data['metadata'] = {}
+                                msg_data['metadata']['project'] = project_name
+                                _PRINTER.print(f"[A2A] Injected project '{project_name}' into message.metadata")
+
+                            # Serialize back to JSON
+                            modified_body = json.dumps(data).encode('utf-8')
+
+                            # Return modified message IMMEDIATELY (before FastA2A processes it)
+                            return {
+                                'type': 'http.request',
+                                'body': modified_body,
+                                'more_body': False
+                            }
+                        except Exception as e:
+                            _PRINTER.print(f"[A2A] Failed to inject project into payload: {e}")
 
                     return message
 
