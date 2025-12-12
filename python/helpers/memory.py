@@ -493,6 +493,8 @@ class Memory:
 def get_custom_knowledge_subdir_abs(agent: Agent) -> str:
     for dir in agent.config.knowledge_subdirs:
         if dir != "default":
+            if dir == "custom":
+                return files.get_abs_path("usr/knowledge")
             return files.get_abs_path("usr/knowledge", dir)
     raise Exception("No custom knowledge subdir set")
 
@@ -523,6 +525,8 @@ def abs_knowledge_dir(knowledge_subdir: str, *sub_dirs: str) -> str:
     # standard subdirs
     if knowledge_subdir == "default":
         return files.get_abs_path("knowledge", *sub_dirs)
+    if knowledge_subdir == "custom":
+        return files.get_abs_path("usr/knowledge", *sub_dirs)
     return files.get_abs_path("usr/knowledge", knowledge_subdir, *sub_dirs)
 
 
