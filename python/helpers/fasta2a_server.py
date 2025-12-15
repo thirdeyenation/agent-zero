@@ -87,17 +87,10 @@ class AgentZeroWorker(Worker):  # type: ignore[misc]
             # Retrieve project from message.metadata (standard A2A pattern)
             metadata = message.get('metadata', {}) or {}
             project_name = metadata.get('project')
-            if project_name:
-                _PRINTER.print(f"[A2A] Retrieved project from message.metadata: {project_name}")
-
+         
             # Activate project if specified
             if project_name:
-                try:
-                    projects.activate_project(context.id, project_name)
-                    _PRINTER.print(f"[A2A] Activated project: {project_name}")
-                except Exception as e:
-                    _PRINTER.print(f"[A2A] Failed to activate project: {e}")
-                    raise Exception(f"Failed to activate project: {str(e)}")
+                projects.activate_project(context.id, project_name)
 
             # Log user message so it appears instantly in UI chat window
             context.log.log(
@@ -509,7 +502,6 @@ class DynamicA2AProxy:
                                 if 'metadata' not in msg_data or msg_data['metadata'] is None:
                                     msg_data['metadata'] = {}
                                 msg_data['metadata']['project'] = project_name
-                                _PRINTER.print(f"[A2A] Injected project '{project_name}' into message.metadata")
 
                             # Serialize back to JSON
                             modified_body = json.dumps(data).encode('utf-8')

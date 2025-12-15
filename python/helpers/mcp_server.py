@@ -132,8 +132,6 @@ async def send_message(
 ]:
     # Get project name from context variable (set in proxy __call__)
     project_name = _mcp_project_name.get()
-    if project_name:
-        _PRINTER.print(f"[MCP] send_message using project: {project_name}")
 
     context: AgentContext | None = None
     if chat_id:
@@ -162,7 +160,6 @@ async def send_message(
         if project_name:
             try:
                 projects.activate_project(context.id, project_name)
-                _PRINTER.print(f"[MCP] Activated project: {project_name}")
             except Exception as e:
                 return ToolError(error=f"Failed to activate project: {str(e)}", chat_id="")
 
@@ -452,8 +449,6 @@ class DynamicMcpProxy:
 
         # Store project in context variable (will be available in send_message)
         _mcp_project_name.set(project_name)
-        if project_name:
-            _PRINTER.print(f"[MCP] Set project in context variable: {project_name}")
 
         # Strip project segment from path if present (e.g., /p-project_name/)
         # This is needed because the underlying MCP apps were configured without project paths
