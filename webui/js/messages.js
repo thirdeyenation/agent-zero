@@ -13,9 +13,9 @@ let messageGroup = null;
 let currentProcessGroup = null; // Track current process group for collapsible UI
 
 // Process types that should be grouped into collapsible sections
-const PROCESS_TYPES = ['agent', 'tool', 'code_exe', 'browser', 'info', 'hint', 'util'];
+const PROCESS_TYPES = ['agent', 'tool', 'code_exe', 'browser', 'info', 'hint', 'util', 'warning'];
 // Main types that should always be visible (not collapsed)
-const MAIN_TYPES = ['user', 'response', 'warning', 'error', 'rate_limit'];
+const MAIN_TYPES = ['user', 'response', 'error', 'rate_limit'];
 
 /**
  * Check if a response is from the main agent (A0)
@@ -29,7 +29,7 @@ function isMainAgentResponse(heading) {
   return match[1] === "0"; // Only A0 is the main agent
 }
 
-export function setMessage(id, type, heading, content, temp, kvps = null, timestamp = null) {
+export function setMessage(id, type, heading, content, temp, kvps = null, timestamp = null, durationMs = null, tokensIn = 0, tokensOut = 0) {
   // Check if this is a process type message
   const isProcessType = PROCESS_TYPES.includes(type);
   const isMainType = MAIN_TYPES.includes(type);
@@ -48,7 +48,7 @@ export function setMessage(id, type, heading, content, temp, kvps = null, timest
   if (isProcessType) {
     if (processStepElement) {
       // Update existing process step
-      updateProcessStep(processStepElement, id, type, heading, content, kvps);
+      updateProcessStep(processStepElement, id, type, heading, content, kvps, durationMs, tokensIn, tokensOut);
       return processStepElement;
     }
     
@@ -59,14 +59,14 @@ export function setMessage(id, type, heading, content, temp, kvps = null, timest
     }
     
     // Add step to current process group
-    processStepElement = addProcessStep(currentProcessGroup, id, type, heading, content, kvps, timestamp);
+    processStepElement = addProcessStep(currentProcessGroup, id, type, heading, content, kvps, timestamp, durationMs, tokensIn, tokensOut);
     return processStepElement;
   }
 
   // For subordinate agent responses (A1, A2, ...), treat as a process step instead of main response
   if (type === "response" && !isMainAgentResponse(heading)) {
     if (processStepElement) {
-      updateProcessStep(processStepElement, id, "agent", heading, content, kvps);
+      updateProcessStep(processStepElement, id, "agent", heading, content, kvps, durationMs, tokensIn, tokensOut);
       return processStepElement;
     }
     
@@ -77,14 +77,17 @@ export function setMessage(id, type, heading, content, temp, kvps = null, timest
     }
     
     // Add subordinate response as a step (type "agent" for appropriate styling)
-    processStepElement = addProcessStep(currentProcessGroup, id, "agent", heading, content, kvps, timestamp);
+    processStepElement = addProcessStep(currentProcessGroup, id, "agent", heading, content, kvps, timestamp, durationMs, tokensIn, tokensOut);
     return processStepElement;
   }
 
-  // For main agent (A0) response, embed the current process group
+  // For main agent (A0) response, embed the current process group and mark as complete
   if (type === "response" && currentProcessGroup) {
     const processGroupToEmbed = currentProcessGroup;
     // Keep currentProcessGroup reference - subsequent process messages go to same group
+    
+    // Mark process group as complete (END state)
+    markProcessGroupComplete(processGroupToEmbed, heading);
     
     if (!messageContainer) {
       // Create new container with embedded process group
@@ -494,14 +497,11 @@ export function drawMessageUser(
     messageDiv.className = "message message-user";
   }
 
-  // Handle heading
+  // Remove heading element if it exists (user messages no longer show label per target design)
   let headingElement = messageDiv.querySelector(".msg-heading");
-  if (!headingElement) {
-    headingElement = document.createElement("h4");
-    headingElement.classList.add("msg-heading");
-    messageDiv.insertBefore(headingElement, messageDiv.firstChild);
+  if (headingElement) {
+    headingElement.remove();
   }
-  headingElement.innerHTML = `${heading} <span class='icon material-symbols-outlined'>person</span>`;
 
   // Handle content
   let textDiv = messageDiv.querySelector(".message-text");
@@ -1161,11 +1161,15 @@ function createProcessGroup(id) {
   const header = document.createElement("div");
   header.classList.add("process-group-header");
   header.innerHTML = `
-    <span class="material-symbols-outlined expand-icon">chevron_right</span>
-    <span class="material-symbols-outlined group-icon">neurology</span>
+    <span class="expand-icon"></span>
+    <span class="status-badge status-gen status-active group-status"><span class="badge-icon material-symbols-outlined">public</span>GEN</span>
     <span class="group-title">Processing...</span>
-    <span class="step-count">0 steps</span>
-    <span class="group-timestamp"></span>
+    <span class="group-metrics">
+      <span class="metric-time" title="Start time"><span class="metric-value">--:--</span></span>
+      <span class="metric-steps" title="Steps"><span class="metric-value">0</span></span>
+      <span class="metric-duration" title="Duration"><span class="metric-value">0s</span></span>
+      <span class="metric-tokens" title="Tokens"><span class="metric-value">--</span></span>
+    </span>
   `;
   
   // Add click handler for expansion
@@ -1194,7 +1198,7 @@ function createProcessGroup(id) {
 /**
  * Add a step to a process group
  */
-function addProcessStep(group, id, type, heading, content, kvps, timestamp = null) {
+function addProcessStep(group, id, type, heading, content, kvps, timestamp = null, durationMs = null, tokensIn = 0, tokensOut = 0) {
   const groupId = group.getAttribute("data-group-id");
   const stepsContainer = group.querySelector(".process-steps");
   
@@ -1204,6 +1208,8 @@ function addProcessStep(group, id, type, heading, content, kvps, timestamp = nul
   step.classList.add("process-step");
   step.setAttribute("data-type", type);
   step.setAttribute("data-step-id", id);
+  step.setAttribute("data-tokens-in", tokensIn || 0);
+  step.setAttribute("data-tokens-out", tokensOut || 0);
   
   // Store timestamp for duration calculation
   if (timestamp) {
@@ -1244,22 +1250,17 @@ function addProcessStep(group, id, type, heading, content, kvps, timestamp = nul
   const stepHeader = document.createElement("div");
   stepHeader.classList.add("process-step-header");
   
-  // Calculate relative time from group start
-  let relativeTimeStr = "";
-  if (timestamp) {
-    const groupStartTime = parseFloat(group.getAttribute("data-start-timestamp") || "0");
-    if (groupStartTime > 0) {
-      const relativeMs = (timestamp - groupStartTime) * 1000;
-      relativeTimeStr = formatRelativeTime(relativeMs);
-    }
-  }
+  // Get 3-letter status code and color class
+  const statusCode = processGroupStore.getStepCode(type);
+  const statusColorClass = processGroupStore.getStatusColorClass(type);
+  
+  // Get icon for step type
+  const stepIcon = processGroupStore.getStepBadgeIcon(type);
   
   stepHeader.innerHTML = `
-    <span class="material-symbols-outlined step-icon">${icon}</span>
-    <span class="step-type">${label}</span>
+    <span class="step-expand-icon"></span>
+    <span class="status-badge ${statusColorClass} status-active"><span class="badge-icon material-symbols-outlined">${stepIcon}</span>${statusCode}</span>
     <span class="step-title">${escapeHTML(title)}</span>
-    ${relativeTimeStr ? `<span class="step-time">${relativeTimeStr}</span>` : ""}
-    <span class="material-symbols-outlined step-expand-icon">expand_more</span>
   `;
   
   // Add click handler for step expansion
@@ -1279,10 +1280,14 @@ function addProcessStep(group, id, type, heading, content, kvps, timestamp = nul
   detailContent.classList.add("process-step-detail-content");
   
   // Add content to detail
-  renderStepDetailContent(detailContent, content, kvps);
+  renderStepDetailContent(detailContent, content, kvps, type);
   
   detail.appendChild(detailContent);
   step.appendChild(detail);
+  
+  // Remove status-active from all previous steps (only the current step is active)
+  const prevSteps = stepsContainer.querySelectorAll(".process-step .status-badge.status-active");
+  prevSteps.forEach(badge => badge.classList.remove("status-active"));
   
   stepsContainer.appendChild(step);
   
@@ -1295,7 +1300,7 @@ function addProcessStep(group, id, type, heading, content, kvps, timestamp = nul
 /**
  * Update an existing process step
  */
-function updateProcessStep(stepElement, id, type, heading, content, kvps) {
+function updateProcessStep(stepElement, id, type, heading, content, kvps, durationMs = null, tokensIn = 0, tokensOut = 0) {
   // Update title
   const titleEl = stepElement.querySelector(".step-title");
   if (titleEl) {
@@ -1303,10 +1308,18 @@ function updateProcessStep(stepElement, id, type, heading, content, kvps) {
     titleEl.textContent = title;
   }
   
+  // Update token data (use the latest values)
+  if (tokensIn > 0) {
+    stepElement.setAttribute("data-tokens-in", tokensIn);
+  }
+  if (tokensOut > 0) {
+    stepElement.setAttribute("data-tokens-out", tokensOut);
+  }
+  
   // Update detail content
   const detailContent = stepElement.querySelector(".process-step-detail-content");
   if (detailContent) {
-    renderStepDetailContent(detailContent, content, kvps);
+    renderStepDetailContent(detailContent, content, kvps, type);
   }
   
   // Update parent group header
@@ -1369,8 +1382,47 @@ function cleanStepTitle(text, maxLength) {
 /**
  * Render content for step detail panel
  */
-function renderStepDetailContent(container, content, kvps) {
+function renderStepDetailContent(container, content, kvps, type = null) {
   container.innerHTML = "";
+  
+  // Special handling for code_exe type - render as terminal-style output
+  if (type === "code_exe" && kvps) {
+    const runtime = kvps.runtime || kvps.Runtime || "bash";
+    const code = kvps.code || kvps.Code || "";
+    const output = content || "";
+    
+    if (code || output) {
+      const terminalDiv = document.createElement("div");
+      terminalDiv.classList.add("step-terminal");
+      
+      // Show command line
+      if (code) {
+        const cmdLine = document.createElement("div");
+        cmdLine.classList.add("terminal-cmd");
+        cmdLine.innerHTML = `<span class="terminal-prompt">${escapeHTML(runtime)}></span> <span class="terminal-code">${escapeHTML(code)}</span>`;
+        terminalDiv.appendChild(cmdLine);
+      }
+      
+      // Show output if present
+      if (output && output.trim()) {
+        const outputPre = document.createElement("pre");
+        outputPre.classList.add("terminal-output");
+        outputPre.textContent = truncateText(output, 1000);
+        terminalDiv.appendChild(outputPre);
+      }
+      
+      container.appendChild(terminalDiv);
+    }
+    
+    // Still render thoughts if present
+    if (kvps.thoughts || kvps.thinking || kvps.reasoning) {
+      const thoughtKey = kvps.thoughts ? "thoughts" : (kvps.thinking ? "thinking" : "reasoning");
+      const thoughtValue = kvps[thoughtKey];
+      renderThoughts(container, thoughtValue);
+    }
+    
+    return;
+  }
   
   // Add KVPs if present
   if (kvps && Object.keys(kvps).length > 0) {
@@ -1381,19 +1433,78 @@ function renderStepDetailContent(container, content, kvps) {
       // Skip internal/display keys
       if (key === "finished" || key === "attachments") continue;
       
-      const kvpDiv = document.createElement("div");
-      kvpDiv.classList.add("step-kvp");
+      // Skip code_exe specific keys that we handle specially above
+      if (type === "code_exe" && (key.toLowerCase() === "runtime" || key.toLowerCase() === "session" || key.toLowerCase() === "code")) {
+        continue;
+      }
       
-      // Add msg-thoughts class for thoughts-related keys (controlled by showThoughts preference)
       const lowerKey = key.toLowerCase();
       
-      if (lowerKey === "thoughts" || lowerKey === "thinking" || lowerKey === "reflection") {
-        kvpDiv.classList.add("msg-thoughts");
+      // Special handling for thoughts/reasoning - render with single lightbulb icon
+      if (lowerKey === "thoughts" || lowerKey === "thinking" || lowerKey === "reflection" || lowerKey === "reasoning") {
+        const thoughtsDiv = document.createElement("div");
+        thoughtsDiv.classList.add("step-thoughts", "msg-thoughts");
+        
         // Apply current preference state - hide if showThoughts is false
         if (!preferencesStore.showThoughts) {
-          kvpDiv.classList.add("hide-thoughts");
+          thoughtsDiv.classList.add("hide-thoughts");
         }
+        
+        let thoughtText = value;
+        if (typeof value === "object") {
+          // Handle array of thoughts
+          if (Array.isArray(value)) {
+            thoughtText = value.filter(t => t && String(t).trim() && String(t).trim() !== "[" && String(t).trim() !== "]").join("\n");
+          } else {
+            thoughtText = JSON.stringify(value, null, 2);
+          }
+        }
+        
+        // Clean up the text - remove standalone brackets
+        thoughtText = String(thoughtText).replace(/^\s*[\[\]]\s*$/gm, "").trim();
+        
+        if (thoughtText) {
+          // Single icon + text block
+          thoughtsDiv.innerHTML = `<span class="thought-icon material-symbols-outlined">lightbulb</span><span class="thought-text">${escapeHTML(thoughtText)}</span>`;
+        }
+        
+        kvpsDiv.appendChild(thoughtsDiv);
+        continue;
       }
+      
+      // Special handling for tool_args - render as structured labeled parameters
+      if (lowerKey === "tool_args" && typeof value === "object" && value !== null) {
+        const argsDiv = document.createElement("div");
+        argsDiv.classList.add("step-tool-args");
+        
+        for (const [argKey, argValue] of Object.entries(value)) {
+          const argRow = document.createElement("div");
+          argRow.classList.add("tool-arg-row");
+          
+          const argLabel = document.createElement("span");
+          argLabel.classList.add("tool-arg-label");
+          argLabel.textContent = convertToTitleCase(argKey) + ":";
+          
+          const argVal = document.createElement("span");
+          argVal.classList.add("tool-arg-value");
+          
+          let argText = argValue;
+          if (typeof argValue === "object") {
+            argText = JSON.stringify(argValue, null, 2);
+          }
+          argVal.textContent = truncateText(String(argText), 300);
+          
+          argRow.appendChild(argLabel);
+          argRow.appendChild(argVal);
+          argsDiv.appendChild(argRow);
+        }
+        
+        kvpsDiv.appendChild(argsDiv);
+        continue;
+      }
+      
+      const kvpDiv = document.createElement("div");
+      kvpDiv.classList.add("step-kvp");
       
       const keySpan = document.createElement("span");
       keySpan.classList.add("step-kvp-key");
@@ -1431,39 +1542,124 @@ function renderStepDetailContent(container, content, kvps) {
 }
 
 /**
- * Update process group header with step count and status
+ * Helper to render thoughts/reasoning with lightbulb icon
+ */
+function renderThoughts(container, value) {
+  const thoughtsDiv = document.createElement("div");
+  thoughtsDiv.classList.add("step-thoughts", "msg-thoughts");
+  
+  // Apply current preference state - hide if showThoughts is false
+  if (!preferencesStore.showThoughts) {
+    thoughtsDiv.classList.add("hide-thoughts");
+  }
+  
+  let thoughtText = value;
+  if (typeof value === "object") {
+    if (Array.isArray(value)) {
+      thoughtText = value.filter(t => t && String(t).trim() && String(t).trim() !== "[" && String(t).trim() !== "]").join("\n");
+    } else {
+      thoughtText = JSON.stringify(value, null, 2);
+    }
+  }
+  
+  thoughtText = String(thoughtText).replace(/^\s*[\[\]]\s*$/gm, "").trim();
+  
+  if (thoughtText) {
+    thoughtsDiv.innerHTML = `<span class="thought-icon material-symbols-outlined">lightbulb</span><span class="thought-text">${escapeHTML(thoughtText)}</span>`;
+    container.appendChild(thoughtsDiv);
+  }
+}
+
+/**
+ * Update process group header with step count, status, and metrics
  */
 function updateProcessGroupHeader(group) {
   const steps = group.querySelectorAll(".process-step");
-  const countEl = group.querySelector(".step-count");
   const titleEl = group.querySelector(".group-title");
+  const statusEl = group.querySelector(".group-status");
+  const metricsEl = group.querySelector(".group-metrics");
   
-  if (countEl) {
-    const count = steps.length;
-    countEl.textContent = `${count} step${count !== 1 ? "s" : ""}`;
+  // Update step count in metrics
+  const stepsMetricEl = metricsEl?.querySelector(".metric-steps .metric-value");
+  if (stepsMetricEl) {
+    stepsMetricEl.textContent = steps.length.toString();
   }
   
-  if (titleEl && steps.length > 0) {
-    // Get the last step's type for the title
+  // Update time metric
+  const timeMetricEl = metricsEl?.querySelector(".metric-time .metric-value");
+  const startTimestamp = group.getAttribute("data-start-timestamp");
+  if (timeMetricEl && startTimestamp) {
+    const date = new Date(parseFloat(startTimestamp) * 1000);
+    const hours = String(date.getHours()).padStart(2, "0");
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+    timeMetricEl.textContent = `${hours}:${minutes}`;
+  }
+  
+  // Update duration metric (elapsed time since start)
+  const durationMetricEl = metricsEl?.querySelector(".metric-duration .metric-value");
+  if (durationMetricEl && startTimestamp) {
+    const startMs = parseFloat(startTimestamp) * 1000;
+    const elapsedMs = Date.now() - startMs;
+    if (elapsedMs < 60000) {
+      durationMetricEl.textContent = `${Math.round(elapsedMs / 1000)}s`;
+    } else {
+      const mins = Math.floor(elapsedMs / 60000);
+      const secs = Math.round((elapsedMs % 60000) / 1000);
+      durationMetricEl.textContent = `${mins}m${secs}s`;
+    }
+  }
+  
+  // Update tokens metric (aggregate from all steps)
+  const tokensMetricEl = metricsEl?.querySelector(".metric-tokens .metric-value");
+  if (tokensMetricEl) {
+    let totalTokensIn = 0;
+    let totalTokensOut = 0;
+    steps.forEach(step => {
+      totalTokensIn += parseInt(step.getAttribute("data-tokens-in") || 0, 10);
+      totalTokensOut += parseInt(step.getAttribute("data-tokens-out") || 0, 10);
+    });
+    const totalTokens = totalTokensIn + totalTokensOut;
+    if (totalTokens > 0) {
+      // Format as compact notation (e.g., 20k/3k for input/output)
+      tokensMetricEl.textContent = formatTokenCount(totalTokensIn, totalTokensOut);
+    } else {
+      tokensMetricEl.textContent = "--";
+    }
+  }
+  
+  if (steps.length > 0) {
+    // Get the last step's type for status
     const lastStep = steps[steps.length - 1];
     const lastType = lastStep.getAttribute("data-type");
     const lastTitle = lastStep.querySelector(".step-title")?.textContent || "";
     
-    // Prefer agent type steps for the group title as they contain thinking/planning info
-    if (lastType === "agent" && lastTitle) {
-      titleEl.textContent = cleanStepTitle(lastTitle, 50);
-    } else {
-      // Try to find the most recent agent step for a better title
-      const agentSteps = group.querySelectorAll('.process-step[data-type="agent"]');
-      if (agentSteps.length > 0) {
-        const lastAgentStep = agentSteps[agentSteps.length - 1];
-        const agentTitle = lastAgentStep.querySelector(".step-title")?.textContent || "";
-        if (agentTitle) {
-          titleEl.textContent = cleanStepTitle(agentTitle, 50);
-          return;
+    // Update status badge with icon (keep status-active during execution)
+    if (statusEl) {
+      const statusCode = processGroupStore.getStepCode(lastType);
+      const statusColorClass = processGroupStore.getStatusColorClass(lastType);
+      const badgeIcon = processGroupStore.getStepBadgeIcon(lastType);
+      statusEl.innerHTML = `<span class="badge-icon material-symbols-outlined">${badgeIcon}</span>${statusCode}`;
+      statusEl.className = `status-badge ${statusColorClass} status-active group-status`;
+    }
+    
+    // Update title
+    if (titleEl) {
+      // Prefer agent type steps for the group title as they contain thinking/planning info
+      if (lastType === "agent" && lastTitle) {
+        titleEl.textContent = cleanStepTitle(lastTitle, 50);
+      } else {
+        // Try to find the most recent agent step for a better title
+        const agentSteps = group.querySelectorAll('.process-step[data-type="agent"]');
+        if (agentSteps.length > 0) {
+          const lastAgentStep = agentSteps[agentSteps.length - 1];
+          const agentTitle = lastAgentStep.querySelector(".step-title")?.textContent || "";
+          if (agentTitle) {
+            titleEl.textContent = cleanStepTitle(agentTitle, 50);
+            return;
+          }
         }
+        titleEl.textContent = cleanStepTitle(lastTitle, 50) || `Processing...`;
       }
-      titleEl.textContent = `Processing (${processGroupStore.getStepLabel(lastType)})`;
     }
   }
 }
@@ -1479,11 +1675,77 @@ function truncateText(text, maxLength) {
 }
 
 /**
+ * Mark a process group as complete (END state)
+ */
+function markProcessGroupComplete(group, responseTitle) {
+  if (!group) return;
+  
+  // Update status badge to END (remove status-active)
+  const statusEl = group.querySelector(".group-status");
+  if (statusEl) {
+    statusEl.textContent = "END";
+    statusEl.className = "status-badge status-end group-status"; // No status-active
+  }
+  
+  // Remove status-active from all step badges (stop spinners)
+  const stepBadges = group.querySelectorAll(".process-step .status-badge.status-active");
+  stepBadges.forEach(badge => badge.classList.remove("status-active"));
+  
+  // Update title if response title is available
+  const titleEl = group.querySelector(".group-title");
+  if (titleEl && responseTitle) {
+    const cleanTitle = cleanStepTitle(responseTitle, 50);
+    if (cleanTitle) {
+      titleEl.textContent = cleanTitle;
+    }
+  }
+  
+  // Add completed class to group
+  group.classList.add("process-group-completed");
+  
+  // Update duration to final value
+  const metricsEl = group.querySelector(".group-metrics");
+  const durationMetricEl = metricsEl?.querySelector(".metric-duration .metric-value");
+  const startTimestamp = group.getAttribute("data-start-timestamp");
+  if (durationMetricEl && startTimestamp) {
+    const startMs = parseFloat(startTimestamp) * 1000;
+    const elapsedMs = Date.now() - startMs;
+    if (elapsedMs < 60000) {
+      durationMetricEl.textContent = `${Math.round(elapsedMs / 1000)}s`;
+    } else {
+      const mins = Math.floor(elapsedMs / 60000);
+      const secs = Math.round((elapsedMs % 60000) / 1000);
+      durationMetricEl.textContent = `${mins}m${secs}s`;
+    }
+  }
+}
+
+/**
  * Reset process group state (called on context switch)
  */
 export function resetProcessGroups() {
   currentProcessGroup = null;
   messageGroup = null;
+}
+
+/**
+ * Format token counts in compact notation (e.g., "12k/3k" for input/output)
+ */
+function formatTokenCount(tokensIn, tokensOut) {
+  const formatCompact = (n) => {
+    if (n >= 1000000) return `${(n / 1000000).toFixed(1)}m`;
+    if (n >= 1000) return `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k`;
+    return n.toString();
+  };
+  
+  if (tokensIn > 0 && tokensOut > 0) {
+    return `${formatCompact(tokensIn)}/${formatCompact(tokensOut)}`;
+  } else if (tokensIn > 0) {
+    return `${formatCompact(tokensIn)}↓`;
+  } else if (tokensOut > 0) {
+    return `${formatCompact(tokensOut)}↑`;
+  }
+  return "--";
 }
 
 /**
@@ -1500,18 +1762,3 @@ function formatDateTime(timestamp) {
   return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 }
 
-/**
- * Format relative time for steps (e.g., +0.5s, +2.3s)
- */
-function formatRelativeTime(ms) {
-  if (ms < 100) {
-    return "+0s";
-  }
-  const seconds = ms / 1000;
-  if (seconds < 60) {
-    return `+${seconds.toFixed(1)}s`;
-  }
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = Math.round(seconds % 60);
-  return `+${minutes}m${remainingSeconds}s`;
-}

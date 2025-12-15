@@ -133,6 +133,9 @@ class LogItem:
     id: Optional[str] = None  # Add id field
     guid: str = ""
     timestamp: float = 0.0  # Unix timestamp in seconds
+    duration_ms: Optional[int] = None  # Duration until next step (set by Log.log)
+    tokens_in: int = 0  # Input tokens consumed
+    tokens_out: int = 0  # Output tokens generated
 
     def __post_init__(self):
         self.guid = self.log.guid
@@ -146,6 +149,8 @@ class LogItem:
         kvps: dict | None = None,
         temp: bool | None = None,
         update_progress: ProgressUpdate | None = None,
+        tokens_in: int | None = None,
+        tokens_out: int | None = None,
         **kwargs,
     ):
         if self.guid == self.log.guid:
@@ -157,8 +162,17 @@ class LogItem:
                 kvps=kvps,
                 temp=temp,
                 update_progress=update_progress,
+                tokens_in=tokens_in,
+                tokens_out=tokens_out,
                 **kwargs,
             )
+
+    def add_tokens(self, tokens_in: int = 0, tokens_out: int = 0):
+        """Add tokens to this log item (accumulative)."""
+        if self.guid == self.log.guid:
+            self.tokens_in += tokens_in
+            self.tokens_out += tokens_out
+            self.log.updates += [self.no]
 
     def stream(
         self,
@@ -185,6 +199,9 @@ class LogItem:
             "temp": self.temp,
             "kvps": self.kvps,
             "timestamp": self.timestamp,  # Unix timestamp in seconds
+            "duration_ms": self.duration_ms,  # Duration until next step
+            "tokens_in": self.tokens_in,  # Input tokens
+            "tokens_out": self.tokens_out,  # Output tokens
         }
 
 
@@ -215,6 +232,11 @@ class Log:
             no=len(self.logs),
             type=type,
         )
+        # Set duration on previous item and mark it as updated
+        if self.logs:
+            prev = self.logs[-1]
+            prev.duration_ms = int((item.timestamp - prev.timestamp) * 1000)
+            self.updates += [prev.no]
         self.logs.append(item)
 
         # and update it (to have just one implementation)
@@ -241,6 +263,8 @@ class Log:
         temp: bool | None = None,
         update_progress: ProgressUpdate | None = None,
         id: Optional[str] = None,
+        tokens_in: int | None = None,
+        tokens_out: int | None = None,
         **kwargs,
     ):
         item = self.logs[no]
@@ -256,6 +280,12 @@ class Log:
 
         if update_progress is not None:
             item.update_progress = update_progress
+
+        if tokens_in is not None:
+            item.tokens_in = tokens_in
+
+        if tokens_out is not None:
+            item.tokens_out = tokens_out
 
 
         # adjust all content before processing
