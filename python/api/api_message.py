@@ -5,6 +5,7 @@ from agent import AgentContext, UserMessage, AgentContextType
 from python.helpers.api import ApiHandler, Request, Response
 from python.helpers import files
 from python.helpers.print_style import PrintStyle
+from python.helpers.projects import activate_project
 from werkzeug.utils import secure_filename
 from initialize import initialize_agent
 import threading
@@ -33,6 +34,13 @@ class ApiMessage(ApiHandler):
         message = input.get("message", "")
         attachments = input.get("attachments", [])
         lifetime_hours = input.get("lifetime_hours", 24)  # Default 24 hours
+        project_name = input.get("project_name", None)
+        agent_profile = input.get("agent_profile", None)
+        
+        # Initialize agent if profile provided
+        override_settings = {}
+        if agent_profile:
+            override_settings["agent_profile"] = agent_profile
 
         if not message:
             return Response('{"error": "Message is required"}', status=400, mimetype="application/json")
@@ -72,10 +80,13 @@ class ApiMessage(ApiHandler):
             if not context:
                 return Response('{"error": "Context not found"}', status=404, mimetype="application/json")
         else:
-            config = initialize_agent()
+            config = initialize_agent(override_settings=override_settings)
             context = AgentContext(config=config, type=AgentContextType.USER)
             AgentContext.use(context.id)
             context_id = context.id
+
+        if project_name:
+            activate_project(context_id, project_name)
 
         # Update chat lifetime
         with self._cleanup_lock:
