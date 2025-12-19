@@ -10,7 +10,7 @@ class LoadProfileSettings(Extension):
         if not self.agent or not self.agent.config.profile:
             return
 
-        config_files = subagents.get_agent_paths_chain(self.agent, "settings.json", include_default=False)
+        config_files = subagents.get_paths(self.agent, "settings.json", include_default=False)
 
         settings_override = {}
         for settings_path in config_files:
