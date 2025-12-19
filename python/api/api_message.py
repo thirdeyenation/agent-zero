@@ -76,7 +76,9 @@ class ApiMessage(ApiHandler):
 
         # Get or create context
         if context_id:
-            context = AgentContext.use(context_id)
+            if agent_profile:
+                return Response('{"error": "Cannot override agent profile on existing context"}', status=400, mimetype="application/json")
+            context = AgentContext.use(context_id)            
             if not context:
                 return Response('{"error": "Context not found"}', status=404, mimetype="application/json")
         else:
