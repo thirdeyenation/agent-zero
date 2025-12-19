@@ -37,7 +37,7 @@ class ApiMessage(ApiHandler):
         project_name = input.get("project_name", None)
         agent_profile = input.get("agent_profile", None)
         
-        # Initialize agent if profile provided
+        # Set an agent if profile provided
         override_settings = {}
         if agent_profile:
             override_settings["agent_profile"] = agent_profile
@@ -85,6 +85,7 @@ class ApiMessage(ApiHandler):
             AgentContext.use(context.id)
             context_id = context.id
 
+        # Activate project if provided
         if project_name:
             activate_project(context_id, project_name)
 
