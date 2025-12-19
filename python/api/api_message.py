@@ -86,10 +86,26 @@ class ApiMessage(ApiHandler):
             context = AgentContext(config=config, type=AgentContextType.USER)
             AgentContext.use(context.id)
             context_id = context.id
-
-        # Activate project if provided
-        if project_name:
-            activate_project(context_id, project_name)
+            # Activate project if provided
+            if project_name:
+                try:
+                    activate_project(context_id, project_name)
+                except Exception as e:
+                    # Handle non-existent project or context errors more gracefully
+                    error_msg = str(e)
+                    PrintStyle.error(f"Failed to activate project '{project_name}' for context '{context_id}': {error_msg}")
+                    # If the error message suggests a missing resource, return 404; otherwise, 500
+                    if "not found" in error_msg.lower() or "does not exist" in error_msg.lower():
+                        return Response(
+                            f'{{"error": "Project \\"{project_name}\\" not found"}}',
+                            status=404,
+                            mimetype="application/json",
+                        )
+                    return Response(
+                        f'{{"error": "Failed to activate project \\"{project_name}\\""}}',
+                        status=500,
+                        mimetype="application/json",
+                    )
 
         # Update chat lifetime
         with self._cleanup_lock:
