@@ -78,7 +78,7 @@ class ApiMessage(ApiHandler):
         if context_id:
             if agent_profile:
                 return Response('{"error": "Cannot override agent profile on existing context"}', status=400, mimetype="application/json")
-            context = AgentContext.use(context_id)            
+            context = AgentContext.use(context_id)
             if not context:
                 return Response('{"error": "Context not found"}', status=404, mimetype="application/json")
         else:
@@ -91,16 +91,9 @@ class ApiMessage(ApiHandler):
                 try:
                     activate_project(context_id, project_name)
                 except Exception as e:
-                    # Handle non-existent project or context errors more gracefully
+                    # Handle project or context errors more gracefully
                     error_msg = str(e)
                     PrintStyle.error(f"Failed to activate project '{project_name}' for context '{context_id}': {error_msg}")
-                    # If the error message suggests a missing resource, return 404; otherwise, 500
-                    if "not found" in error_msg.lower() or "does not exist" in error_msg.lower():
-                        return Response(
-                            f'{{"error": "Project \\"{project_name}\\" not found"}}',
-                            status=404,
-                            mimetype="application/json",
-                        )
                     return Response(
                         f'{{"error": "Failed to activate project \\"{project_name}\\""}}',
                         status=500,
