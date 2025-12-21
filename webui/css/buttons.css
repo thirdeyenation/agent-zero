@@ -104,8 +104,3 @@
   background-color: rgba(19, 26, 32, 0.56);
   color: rgba(253, 253, 253, 0.35);
 }
-
-.btn-icon-action.danger:hover {
-  border-color: #e57373;
-  color: #e57373;
-}
