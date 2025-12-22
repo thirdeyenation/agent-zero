@@ -549,11 +549,12 @@ const schedulerStoreModel = {
   startPolling() {
     if (this.pollingInterval) return;
     this.fetchTasks();
+    // Poll every 5 seconds - balances responsiveness with performance
     this.pollingInterval = setInterval(() => {
       if (this.pollingActive) {
         this.fetchTasks();
       }
-    }, 2000);
+    }, 5000);
   },
 
   stopPolling() {
@@ -576,7 +577,11 @@ const schedulerStoreModel = {
         this.hasNoTasks = true;
         return;
       }
-      this.tasks = tasks;
+      // Only update if data actually changed - prevents DOM thrashing during polling
+      const newJson = JSON.stringify(tasks);
+      if (newJson !== JSON.stringify(this.tasks)) {
+        this.tasks = tasks;
+      }
       this.hasNoTasks = tasks.length === 0;
     } catch (error) {
       if (manual) this.notifyError(`Failed to fetch tasks: ${error.message}`);
