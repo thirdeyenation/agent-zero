@@ -549,12 +549,11 @@ const schedulerStoreModel = {
   startPolling() {
     if (this.pollingInterval) return;
     this.fetchTasks();
-    // Poll every 5 seconds - balances responsiveness with performance
     this.pollingInterval = setInterval(() => {
       if (this.pollingActive) {
         this.fetchTasks();
       }
-    }, 5000);
+    }, 2000);
   },
 
   stopPolling() {
@@ -568,7 +567,8 @@ const schedulerStoreModel = {
   // Data fetching -------------------------------------------------------------
   async fetchTasks({ manual = false } = {}) {
     if (this.isCreating || this.isEditing) return;
-    this.isLoading = true;
+    if (manual) this.isLoading = true;
+
     try {
       const { ok, error, tasks } = await schedulerApi.listTasks();
       if (!ok) {
@@ -577,12 +577,22 @@ const schedulerStoreModel = {
         this.hasNoTasks = true;
         return;
       }
-      // Only update if data actually changed - prevents DOM thrashing during polling
-      const newJson = JSON.stringify(tasks);
-      if (newJson !== JSON.stringify(this.tasks)) {
-        this.tasks = tasks;
-      }
-      this.hasNoTasks = tasks.length === 0;
+
+      // Smart merge: preserve object references to prevent UI flickering
+      const taskMap = new Map(this.tasks.map((t) => [t.uuid, t]));
+      this.tasks = tasks.map((newTask) => {
+        const existing = taskMap.get(newTask.uuid);
+        if (existing) {
+          // Update existing object in-place if different
+          if (JSON.stringify(existing) !== JSON.stringify(newTask)) {
+            Object.assign(existing, newTask);
+          }
+          return existing; // Return the SAME object reference
+        }
+        return newTask; // New object
+      });
+
+      this.hasNoTasks = this.tasks.length === 0;
     } catch (error) {
       if (manual) this.notifyError(`Failed to fetch tasks: ${error.message}`);
       this.tasks = [];
