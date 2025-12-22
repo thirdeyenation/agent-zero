@@ -17,6 +17,10 @@
   box-sizing: border-box;
 }
 
+.material-symbols-outlined{
+  word-spacing: -1.35em;
+}
+
 .button.confirm {
   background: var(--color-highlight);
   color: #fff;
@@ -64,8 +68,8 @@
 
 /* Inline Confirmation State */
 .confirming {
-  border-color: var(--color-highlight) !important;
-  background-color: var(--color-highlight) !important;
+  border-color: var(--color-accent) !important;
+  background-color: var(--color-accent) !important;
   color: #fff !important;
 }
 
