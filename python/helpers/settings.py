@@ -10,7 +10,7 @@ import models
 from python.helpers import runtime, whisper, defer, git
 from . import files, dotenv
 from python.helpers.print_style import PrintStyle
-from python.helpers.providers import get_providers
+from python.helpers.providers import get_providers, FieldOption as ProvidersFO
 from python.helpers.secrets import get_default_secrets_manager
 from python.helpers import dirty_json
 
@@ -156,7 +156,6 @@ class FieldOption(TypedDict):
     value: str
     label: str
 
-
 class SettingsField(TypedDict, total=False):
     id: str
     title: str
@@ -188,9 +187,20 @@ class SettingsSection(TypedDict, total=False):
     fields: list[SettingsField]
     tab: str  # Indicates which tab this section belongs to
 
+class ModelProvider(ProvidersFO):
+    pass
+
+class SettingsOutputAdditional(TypedDict):
+    chat_providers: list[ModelProvider]
+    embedding_providers: list[ModelProvider]
+    shell_interfaces: list[FieldOption]
+    agent_subdirs: list[FieldOption]
+    stt_models: list[FieldOption]
+    is_dockerized: bool
 
 class SettingsOutput(TypedDict):
-    sections: list[SettingsSection]
+    settings: Settings
+    additional: SettingsOutputAdditional
 
 
 PASSWORD_PLACEHOLDER = "****PSWD****"
@@ -199,8 +209,55 @@ API_KEY_PLACEHOLDER = "************"
 SETTINGS_FILE = files.get_abs_path("tmp/settings.json")
 _settings: Settings | None = None
 
-
 def convert_out(settings: Settings) -> SettingsOutput:
+    out = SettingsOutput(
+        settings = settings.copy(),
+        additional = SettingsOutputAdditional(
+            chat_providers=get_providers("chat"),
+            embedding_providers=get_providers("embedding"),
+            shell_interfaces=[{"value": "local", "label": "Local Python TTY"}, {"value": "ssh", "label": "SSH"}],
+            is_dockerized=runtime.is_dockerized(),
+            agent_subdirs=[{"value": subdir, "label": subdir}
+                for subdir in files.get_subdirectories("agents")
+                if subdir != "_example"],
+            stt_models=[
+                {"value": "tiny", "label": "Tiny (39M, English)"},
+                {"value": "base", "label": "Base (74M, English)"},
+                {"value": "small", "label": "Small (244M, English)"},
+                {"value": "medium", "label": "Medium (769M, English)"},
+                {"value": "large", "label": "Large (1.5B, Multilingual)"},
+                {"value": "turbo", "label": "Turbo (Multilingual)"},
+            ]
+
+        )
+    )
+
+    # load auth from dotenv
+    out["settings"]["auth_login"] = dotenv.get_dotenv_value(dotenv.KEY_AUTH_LOGIN) or ""
+    out["settings"]["auth_password"] = (
+        PASSWORD_PLACEHOLDER if dotenv.get_dotenv_value(dotenv.KEY_AUTH_PASSWORD) else ""
+    )
+    out["settings"]["rfc_password"] = (
+        PASSWORD_PLACEHOLDER if dotenv.get_dotenv_value(dotenv.KEY_RFC_PASSWORD) else ""
+    )
+
+    #secrets
+    secrets_manager = get_default_secrets_manager()
+    try:
+        out["settings"]["secrets"] = secrets_manager.get_masked_secrets()
+    except Exception:
+        out["settings"]["secrets"] = ""
+
+    # normalize certain fields
+    for key, value in list(out["settings"].items()):
+        # convert kwargs dicts to .env format
+        if (key.endswith("_kwargs") or key=="browser_http_headers") and isinstance(value, dict):
+            out["settings"][key] = _dict_to_env(value)
+    return out
+
+
+#TODO just for reference, remove
+def _convert_out_old(settings: Settings) -> SettingsOutput:
     default_settings = get_default_settings()
 
     # main model section
@@ -1347,7 +1404,34 @@ def _get_api_key_field(settings: Settings, provider: str, title: str) -> Setting
     }
 
 
-def convert_in(settings: dict) -> Settings:
+def convert_in(settings: Settings) -> Settings:
+    current = get_settings()
+
+    # api keys
+    if "api_keys" in settings and isinstance(settings["api_keys"], dict):
+        for provider, value in settings["api_keys"].items():
+            if value != API_KEY_PLACEHOLDER:
+                current["api_keys"][provider] = value
+
+    # all other fields
+    for key, value in settings.items():
+        if key == "api_keys":
+            continue
+
+        # Skip saving if value is a placeholder
+        if value == PASSWORD_PLACEHOLDER or value == API_KEY_PLACEHOLDER:
+            continue
+
+        # Special handling for browser_http_headers and *_kwargs (stored as .env text)
+        if (key == "browser_http_headers" or key.endswith("_kwargs")) and isinstance(value, str):
+            current[key] = _env_to_dict(value)
+            continue
+
+        current[key] = value
+    return current
+
+#TODO just for reference, remove
+def _convert_in_old(settings: dict) -> Settings:
     current = get_settings()
     for section in settings["sections"]:
         if "fields" in section:
@@ -1368,6 +1452,7 @@ def convert_in(settings: dict) -> Settings:
                         current[field["id"]] = field["value"]
     return current
 
+
 def get_settings() -> Settings:
     global _settings
     if not _settings:
@@ -1385,12 +1470,13 @@ def set_settings(settings: Settings, apply: bool = True):
     _write_settings_file(_settings)
     if apply:
         _apply_settings(previous)
+    return _settings
 
 
 def set_settings_delta(delta: dict, apply: bool = True):
     current = get_settings()
     new = {**current, **delta}
-    set_settings(new, apply)  # type: ignore
+    return set_settings(new, apply)  # type: ignore
 
 
 def merge_settings(original: Settings, delta: dict) -> Settings:
