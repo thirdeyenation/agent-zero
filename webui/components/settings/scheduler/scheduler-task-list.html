@@ -53,57 +53,46 @@
                    x-effect="$el.style.display = (!$store.schedulerStore.isLoading && $store.schedulerStore.filteredTasks.length > 0) ? '' : 'none'">
                 <thead>
                 <tr>
-                    <th @click="$store.schedulerStore.changeSort('name')">
+                    <th class="col-name" @click="$store.schedulerStore.changeSort('name')">
                         Name
                         <span class="scheduler-sort-indicator"
                               x-show="$store.schedulerStore.sortField === 'name'"
                               :class="{'scheduler-sort-desc': $store.schedulerStore.sortDirection === 'desc'}">↑</span>
                     </th>
-                    <th @click="$store.schedulerStore.changeSort('state')">
+                    <th class="col-state" @click="$store.schedulerStore.changeSort('state')">
                         State
                         <span class="scheduler-sort-indicator"
                               x-show="$store.schedulerStore.sortField === 'state'"
                               :class="{'scheduler-sort-desc': $store.schedulerStore.sortDirection === 'desc'}">↑</span>
                     </th>
-                    <th>Type</th>
-                    <th>Project</th>
-                    <th>Schedule</th>
-                    <th @click="$store.schedulerStore.changeSort('last_run')">
+                    <th class="col-project">Project</th>
+                    <th class="col-lastrun" @click="$store.schedulerStore.changeSort('last_run')">
                         Last Run
                         <span class="scheduler-sort-indicator"
                               x-show="$store.schedulerStore.sortField === 'last_run'"
                               :class="{'scheduler-sort-desc': $store.schedulerStore.sortDirection === 'desc'}">↑</span>
                     </th>
-                    <th>Actions</th>
+                    <th class="col-actions">Actions</th>
                 </tr>
                 </thead>
                 <tbody>
                 <template x-for="task in $store.schedulerStore.filteredTasks" :key="task.uuid">
                     <tr @click="$store.schedulerStore.showTaskDetail(task.uuid)">
-                        <td>
+                        <td class="col-name">
                             <span x-text="task.name"></span>
                         </td>
-                        <td>
+                        <td class="col-state">
                             <span class="scheduler-status-badge"
                                   :class="$store.schedulerStore.getStateBadgeClass(task.state)"
                                   x-text="task.state"></span>
                         </td>
-                        <td x-text="task.type"></td>
-                        <td>
+                        <td class="col-project">
                             <span class="project-color-ball"
                                   :style="$store.schedulerStore.extractTaskProject(task)?.color ? { backgroundColor: $store.schedulerStore.extractTaskProject(task).color } : { border: '1px solid var(--color-border)' }"></span>
                             <span x-text="$store.schedulerStore.formatTaskProject(task)"></span>
                         </td>
-                        <td>
-                            <span x-show="task.type === 'scheduled'"
-                                  x-text="$store.schedulerStore.formatSchedule(task)"></span>
-                            <span x-show="task.type === 'adhoc'"
-                                  class="scheduler-no-schedule">—</span>
-                            <span x-show="task.type === 'planned'"
-                                  x-html="$store.schedulerStore.formatPlan(task).replace(/\n/g, '<br>')"></span>
-                        </td>
-                        <td x-text="$store.schedulerStore.formatDate(task.last_run)"></td>
-                        <td @click.stop>
+                        <td class="col-lastrun" x-text="$store.schedulerStore.formatDate(task.last_run)"></td>
+                        <td class="col-actions" @click.stop>
                             <div class="scheduler-task-actions">
                                 <button class="scheduler-task-action"
                                         @click="$store.schedulerStore.runTask(task.uuid)" title="Run Task">

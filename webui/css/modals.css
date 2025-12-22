@@ -124,7 +124,6 @@ some classes like modal-header are shared between the old and the new system */
 .modal-content {
   padding: 0.5rem 1.5rem 0 1.5rem;
   overflow-y: auto;
-  overflow-x: hidden;
   height: calc(90vh);
   flex-grow: 1;
   background-clip: border-box;

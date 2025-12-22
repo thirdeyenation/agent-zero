@@ -915,6 +915,19 @@ const schedulerStoreModel = {
     window.closeModal();
   },
 
+  editFromDetail() {
+    const taskId = this.selectedTaskForDetail?.uuid;
+    if (!taskId) return;
+    this.closeTaskDetail();
+    this.startEditTask(taskId);
+  },
+
+  async deleteFromDetail() {
+    const taskId = this.selectedTaskForDetail?.uuid;
+    if (!taskId) return;
+    await this.deleteTask(taskId);
+  },
+
   async startCreateTask() {
     this.isCreating = true;
     this.isEditing = false;

@@ -382,7 +382,7 @@ nav ul li a img {
   border-spacing: 0;
   white-space: nowrap;
   padding-bottom: 8px;
-  table-layout: auto;
+  table-layout: fixed;
 }
 
 .scheduler-task-list th,
@@ -393,40 +393,50 @@ nav ul li a img {
   border-bottom: 1px solid var(--color-border);
 }
 
-/* Ensure columns have proper min-width */
-.scheduler-task-list th:nth-child(1),
-.scheduler-task-list td:nth-child(1) {
-  min-width: 150px;
-  max-width: 200px;
+/* Column styles */
+.scheduler-task-list .col-name {
+  width: 30%;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.scheduler-task-list th:nth-child(2),
-.scheduler-task-list td:nth-child(2) {
-  min-width: 100px;
+.scheduler-task-list .col-state {
+  width: 12%;
 }
 
-.scheduler-task-list th:nth-child(3),
-.scheduler-task-list td:nth-child(3) {
-  min-width: 100px;
+.scheduler-task-list .col-project {
+  width: 20%;
 }
 
-.scheduler-task-list th:nth-child(4),
-.scheduler-task-list td:nth-child(4) {
-  min-width: 150px;
+.scheduler-task-list .col-lastrun {
+  width: 20%;
 }
 
-.scheduler-task-list th:nth-child(5),
-.scheduler-task-list td:nth-child(5) {
-  min-width: 180px;
+.scheduler-task-list .col-actions {
+  width: 18%;
+  text-align: right;
 }
 
-.scheduler-task-list th:nth-child(6),
-.scheduler-task-list td:nth-child(6) {
-  min-width: 160px;
-  white-space: nowrap;
+/* Mobile: hide less important columns */
+@media (max-width: 768px) {
+  .scheduler-task-list .col-project,
+  .scheduler-task-list .col-lastrun {
+    display: none;
+  }
+  
+  .scheduler-task-list .col-name {
+    width: 50%;
+  }
+  
+  .scheduler-task-list .col-state {
+    width: 25%;
+  }
+  
+  .scheduler-task-list .col-actions {
+    width: 25%;
+  }
 }
+
 
 /* Task actions container */
 .scheduler-task-actions {
@@ -551,17 +561,6 @@ nav ul li a img {
   background-color: var(--color-secondary);
 }
 
-/* Adjust media queries to handle small screens */
-@media (max-width: 768px) {
-  .scheduler-task-list {
-    min-width: 700px;
-  }
-
-  .scheduler-detail-view {
-    min-width: 650px;
-  }
-}
-
 /* Scrollbar styling for better visibility */
 .section::-webkit-scrollbar {
   height: 10px; /* Taller scrollbar for better usability */
@@ -579,14 +578,6 @@ nav ul li a img {
 
 /* Mobile styles for scheduler sections */
 @media (max-width: 1280px) {
-  .scheduler-container {
-    min-width: max-content; /* Allow expansion based on content */
-  }
-
-  .scheduler-task-list {
-    min-width: max-content; /* Expand to fit content if needed */
-  }
-
   /* Scrollbar styling for mobile view */
   .section::-webkit-scrollbar {
     height: 10px;
@@ -634,15 +625,53 @@ nav ul li a img {
 /* Scheduler detail header styling */
 .scheduler-detail-header {
   display: flex;
-  justify-content: flex-start;
+  justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
   gap: 10px;
   width: 100%;
 }
 
-.scheduler-detail-header .scheduler-detail-title {
-  margin-right: auto;
+.scheduler-detail-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.scheduler-detail-header-left .scheduler-detail-title {
+  margin: 0;
+}
+
+.scheduler-detail-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.scheduler-detail-header .btn-action-header {
+  padding: 0.4rem 0.6rem;
+  display: flex;
+  align-items: center;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  border-radius: var(--border-radius);
+  cursor: pointer;
+}
+
+.scheduler-detail-header .btn-action-header:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.scheduler-detail-header .btn-action-header.danger:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.scheduler-detail-header .btn-action-header .material-symbols-outlined {
+  font-size: 18px;
 }
 
 /* Responsive adjustments for headers */
@@ -658,14 +687,14 @@ nav ul li a img {
   }
 
   .scheduler-detail-header {
-    flex-direction: row; /* Keep in row even on mobile */
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 0.5rem;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
   }
 
-  .scheduler-detail-header .btn {
-    margin-left: auto; /* Push to right edge */
+  .scheduler-detail-header-actions {
+    width: 100%;
+    justify-content: flex-end;
   }
 
   .scheduler-form-field {

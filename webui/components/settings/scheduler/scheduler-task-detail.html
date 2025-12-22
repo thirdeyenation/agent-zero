@@ -11,12 +11,31 @@
         <div class="scheduler-detail-view"
              x-show="$store.schedulerStore.selectedTaskForDetail">
             <div class="scheduler-detail-header">
-                <h2 class="scheduler-detail-title"
-                    x-text="$store.schedulerStore.selectedTaskForDetail ? $store.schedulerStore.selectedTaskForDetail.name : ''"></h2>
-                <div class="scheduler-status-badge"
-                     :class="$store.schedulerStore.selectedTaskForDetail ? $store.schedulerStore.getStateBadgeClass($store.schedulerStore.selectedTaskForDetail.state) : ''"
-                     x-text="$store.schedulerStore.selectedTaskForDetail ? $store.schedulerStore.selectedTaskForDetail.state : ''"></div>
-                <button class="btn btn-cancel" @click="$store.schedulerStore.closeTaskDetail()">Close</button>
+                <div class="scheduler-detail-header-left">
+                    <h2 class="scheduler-detail-title"
+                        x-text="$store.schedulerStore.selectedTaskForDetail ? $store.schedulerStore.selectedTaskForDetail.name : ''"></h2>
+                    <div class="scheduler-status-badge"
+                         :class="$store.schedulerStore.selectedTaskForDetail ? $store.schedulerStore.getStateBadgeClass($store.schedulerStore.selectedTaskForDetail.state) : ''"
+                         x-text="$store.schedulerStore.selectedTaskForDetail ? $store.schedulerStore.selectedTaskForDetail.state : ''"></div>
+                </div>
+                <div class="scheduler-detail-header-actions">
+                    <button class="btn btn-action-header" 
+                            @click="$store.schedulerStore.runTask($store.schedulerStore.selectedTaskForDetail.uuid)"
+                            title="Run Task">
+                        <span class="material-symbols-outlined">play_arrow</span>
+                    </button>
+                    <button class="btn btn-action-header" 
+                            @click="$store.schedulerStore.editFromDetail()"
+                            title="Edit Task">
+                        <span class="material-symbols-outlined">edit</span>
+                    </button>
+                    <button class="btn btn-action-header danger" 
+                            @click="$store.schedulerStore.deleteFromDetail()"
+                            title="Delete Task">
+                        <span class="material-symbols-outlined">delete</span>
+                    </button>
+                    <button class="btn btn-cancel" @click="$store.schedulerStore.closeTaskDetail()">Close</button>
+                </div>
             </div>
 
             <div class="scheduler-detail-content">

@@ -1210,7 +1210,6 @@ nav ul li a img {
   border-collapse: collapse;
   margin: 1rem 0;
   font-size: 0.9rem;
-  overflow-x: auto;
   table-layout: fixed;
 }
 
@@ -1223,37 +1222,6 @@ nav ul li a img {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.scheduler-task-list th:nth-child(1), /* Name */
-.scheduler-task-list td:nth-child(1) {
-  width: 25%;
-}
-
-.scheduler-task-list th:nth-child(2), /* State */
-.scheduler-task-list td:nth-child(2) {
-  width: 10%;
-}
-
-.scheduler-task-list th:nth-child(3), /* Type */
-.scheduler-task-list td:nth-child(3) {
-  width: 10%;
-}
-
-.scheduler-task-list th:nth-child(4), /* Schedule */
-.scheduler-task-list td:nth-child(4) {
-  width: 20%;
-}
-
-.scheduler-task-list th:nth-child(5), /* Last Run */
-.scheduler-task-list td:nth-child(5) {
-  width: 20%;
-}
-
-.scheduler-task-list th:nth-child(6), /* Actions */
-.scheduler-task-list td:nth-child(6) {
-  width: 15%;
-  text-align: right;
 }
 
 .scheduler-task-list th {
