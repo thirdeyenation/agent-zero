@@ -619,14 +619,14 @@ class Agent:
         return system_prompt
 
     def parse_prompt(self, _prompt_file: str, **kwargs):
-        dirs = subagents.get_agent_paths_chain(self, "prompts")
+        dirs = subagents.get_paths(self, "prompts")
         prompt = files.parse_file(
             _prompt_file, _directories=dirs, _agent=self, **kwargs
         )
         return prompt
 
     def read_prompt(self, file: str, **kwargs) -> str:
-        dirs = subagents.get_agent_paths_chain(self, "prompts")
+        dirs = subagents.get_paths(self, "prompts")
         prompt = files.read_prompt_file(file, _directories=dirs, _agent=self, **kwargs)
         prompt = files.remove_code_fences(prompt)
         return prompt
@@ -958,7 +958,7 @@ class Agent:
         classes = []
 
         # search for tools in agent's folder hierarchy
-        paths = subagents.get_agent_paths_chain(self, "tools", name + ".py", default_root="python")
+        paths = subagents.get_paths(self, "tools", name + ".py", default_root="python")
         for path in paths:
             try:
                 classes = extract_tools.load_classes_from_file(path, Tool)  # type: ignore[arg-type]

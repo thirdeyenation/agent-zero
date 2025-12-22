@@ -246,84 +246,63 @@ def get_available_agents_dict(
     return filtered_agents
 
 
-def get_agent_paths(
-    agent: "Agent", *subpaths, must_exist_completely: bool = True
-) -> list[str]:
-    """Returns list of possible paths for the given agent and subpaths. Order is from lowest priority (global)."""
-
-    if not agent or not agent.config.profile:
-        return []
-    from python.helpers import projects
-
-    project_name = projects.get_context_project_name(agent.context)
-    return get_agent_profile_paths(
-        agent.config.profile,
-        project_name,
-        *subpaths,
-        must_exist_completely=must_exist_completely,
-    )
-
-
-def get_agent_paths_chain(
+def get_paths(
     agent: "Agent|None",
     *subpaths,
-    must_exist_completely: bool = True,
+    must_exist_completely: bool = True, 
     include_project: bool = True,
     include_user: bool = True,
     include_default: bool = True,
     default_root: str = "",
 ) -> list[str]:
     """Returns list of file paths for the given agent and subpaths, searched in order of priority:
-    project/agents/, usr/agents/, agents/, project/, usr/, default."""
-    from python.helpers import projects
+    project/agents/, project/, usr/agents/, agents/, usr/, default."""
+    paths: list[str] = []
+    check_subpaths = subpaths if must_exist_completely else []
+    profile_name = agent.config.profile if agent and agent.config.profile else ""
+    project_name = ""
 
-    if agent and agent.config.profile:
-        project_name = projects.get_context_project_name(agent.context)
-        paths = get_agent_profile_paths(
-            agent.config.profile,
-            project_name,
-            *subpaths,
-            must_exist_completely=must_exist_completely,
-        )
-        list.reverse(paths)  # reverse for proper priority
-    else:
-        paths = []
-        project_name = ""
+    if include_project and agent:
+        from python.helpers import projects
 
-    if include_project and project_name:
-        path = projects.get_project_meta_folder(project_name, *subpaths)
-        if (not must_exist_completely) or files.exists(path):
+        project_name = projects.get_context_project_name(agent.context) or ""
+
+        if project_name and profile_name:
+            # project/agents/<profile>/...
+            project_agent_dir = projects.get_project_meta_folder(
+                project_name, "agents", profile_name
+            )
+            if files.exists(files.get_abs_path(project_agent_dir, *check_subpaths)):
+                paths.append(files.get_abs_path(project_agent_dir, *subpaths))
+
+        if project_name:
+            # project/.a0proj/...
+            path = projects.get_project_meta_folder(project_name, *subpaths)
+            if (not must_exist_completely) or files.exists(path):
+                paths.append(path)
+
+    if profile_name:
+
+        # usr/agents/<profile>/...
+        path = files.get_abs_path(USER_AGENTS_DIR, profile_name, *subpaths)
+        if (not must_exist_completely) or files.exists(files.get_abs_path(USER_AGENTS_DIR, profile_name, *check_subpaths)):
             paths.append(path)
+
+        # agents/<profile>/...
+        path = files.get_abs_path(DEFAULT_AGENTS_DIR, profile_name, *subpaths)
+        if (not must_exist_completely) or files.exists(files.get_abs_path(DEFAULT_AGENTS_DIR, profile_name, *check_subpaths)):
+            paths.append(path)
+
     if include_user:
+        # usr/...
         path = files.get_abs_path(USER_DIR, *subpaths)
         if (not must_exist_completely) or files.exists(path):
             paths.append(path)
+
     if include_default:
+        # default_root/...
         path = files.get_abs_path(default_root, *subpaths)
         if (not must_exist_completely) or files.exists(path):
             paths.append(path)
+
     return paths
-
-
-def get_agent_profile_paths(
-    name: str,
-    project_name: str | None = None,
-    *subpaths,
-    must_exist_completely: bool = True,
-) -> list[str]:
-    result = []
-    check_subpaths = subpaths if must_exist_completely else []
-
-    if files.exists(files.get_abs_path(DEFAULT_AGENTS_DIR, name, *check_subpaths)):
-        result.append(files.get_abs_path(DEFAULT_AGENTS_DIR, name, *subpaths))
-    if files.exists(files.get_abs_path(USER_AGENTS_DIR, name, *check_subpaths)):
-        result.append(files.get_abs_path(USER_AGENTS_DIR, name, *subpaths))
-    if project_name:
-        from python.helpers import projects
-
-        project_agent_dir = projects.get_project_meta_folder(
-            project_name, "agents", name
-        )
-        if files.exists(files.get_abs_path(project_agent_dir, *check_subpaths)):
-            result.append(files.get_abs_path(project_agent_dir, *subpaths))
-    return result
