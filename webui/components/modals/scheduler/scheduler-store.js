@@ -462,6 +462,10 @@ const schedulerStoreModel = {
   viewMode: readPersistedViewMode(),
   selectedTaskForDetail: null,
 
+  // Pagination ---------------------------------------------------------------
+  currentPage: 1,
+  pageSize: 10,
+
   // Editor state -------------------------------------------------------------
   isCreating: false,
   isEditing: false,
@@ -491,6 +495,23 @@ const schedulerStoreModel = {
     }
 
     return this.sortTasks(filtered);
+  },
+
+  get totalPages() {
+    if (!Array.isArray(this.filteredTasks) || this.filteredTasks.length === 0) return 1;
+    return Math.ceil(this.filteredTasks.length / this.pageSize);
+  },
+
+  get paginatedTasks() {
+    if (!Array.isArray(this.filteredTasks)) return [];
+    // Ensure currentPage is within valid range
+    const maxPage = this.totalPages;
+    if (this.currentPage > maxPage) {
+      this.currentPage = Math.max(1, maxPage);
+    }
+    const start = (this.currentPage - 1) * this.pageSize;
+    const end = start + this.pageSize;
+    return this.filteredTasks.slice(start, end);
   },
 
   get attachmentsText() {
@@ -802,6 +823,33 @@ const schedulerStoreModel = {
     } else {
       this.sortField = field;
       this.sortDirection = "asc";
+    }
+    // Reset to first page when sorting changes
+    this.currentPage = 1;
+  },
+
+  // Pagination methods --------------------------------------------------------
+  nextPage() {
+    if (this.currentPage < this.totalPages) {
+      this.currentPage++;
+    }
+  },
+
+  prevPage() {
+    if (this.currentPage > 1) {
+      this.currentPage--;
+    }
+  },
+
+  goToPage(page) {
+    const pageNum = parseInt(page, 10);
+    if (Number.isNaN(pageNum)) return;
+    if (pageNum < 1) {
+      this.currentPage = 1;
+    } else if (pageNum > this.totalPages) {
+      this.currentPage = this.totalPages;
+    } else {
+      this.currentPage = pageNum;
     }
   },
 

@@ -653,11 +653,15 @@ nav ul li a img {
   padding: 0.4rem 0.6rem;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   background: var(--color-bg-secondary);
   border: 1px solid var(--color-border);
   color: var(--color-text);
-  border-radius: var(--border-radius);
   cursor: pointer;
+}
+
+.scheduler-detail-header .btn-action-header .btn-cancel {
+  margin-left: var(--spacing-sm);
 }
 
 .scheduler-detail-header .btn-action-header:hover {

@@ -7,21 +7,14 @@
 <body>
 <div x-data>
     <template x-if="$store.schedulerStore">
-        <div class="scheduler-container"
+        <div class="scheduler-list-container"
              x-show="!$store.schedulerStore.isCreating && !$store.schedulerStore.isEditing">
-            <div class="scheduler-header">
-                <h2>Task Management</h2>
-                <div class="scheduler-actions">
-                    <button class="btn btn-ok" @click="$store.schedulerStore.startCreateTask()">
-                        New Task
-                    </button>
-                </div>
-            </div>
 
-            <div class="scheduler-filters">
-                <div class="scheduler-filter-group">
-                    <span class="scheduler-filter-label">Type:</span>
-                    <select class="scheduler-filter-select" x-model="$store.schedulerStore.filterType">
+            <!-- Filter Header -->
+            <div class="scheduler-filters-header">
+                <div class="filter-group-inline filter-type">
+                    <label>Type</label>
+                    <select x-model="$store.schedulerStore.filterType">
                         <option value="all">All Types</option>
                         <option value="scheduled">Scheduled</option>
                         <option value="adhoc">Ad-hoc</option>
@@ -29,9 +22,9 @@
                     </select>
                 </div>
 
-                <div class="scheduler-filter-group">
-                    <span class="scheduler-filter-label">State:</span>
-                    <select class="scheduler-filter-select" x-model="$store.schedulerStore.filterState">
+                <div class="filter-group-inline filter-state">
+                    <label>State</label>
+                    <select x-model="$store.schedulerStore.filterState">
                         <option value="all">All States</option>
                         <option value="idle">Idle</option>
                         <option value="running">Running</option>
@@ -39,98 +32,481 @@
                         <option value="error">Error</option>
                     </select>
                 </div>
+
+                <button class="btn btn-ok btn-new-task" @click="$store.schedulerStore.startCreateTask()">
+                    <span class="material-symbols-outlined">add</span>
+                    New Task
+                </button>
             </div>
 
+            <!-- Status Bar -->
+            <div class="scheduler-status-bar" x-show="!$store.schedulerStore.isLoading">
+                <div class="status-info">
+                    <span class="status-item">
+                        <span class="material-symbols-outlined">schedule</span>
+                        Total: <strong x-text="$store.schedulerStore.tasks.length"></strong>
+                    </span>
+                    <span class="status-separator">•</span>
+                    <span class="status-item">
+                        Filtered: <strong x-text="$store.schedulerStore.filteredTasks.length"></strong>
+                    </span>
+                </div>
+
+                <!-- Pagination -->
+                <div class="status-pagination" x-show="$store.schedulerStore.totalPages > 1">
+                    <button class="btn btn-icon" @click="$store.schedulerStore.prevPage()"
+                        :disabled="$store.schedulerStore.currentPage === 1" title="Previous Page">
+                        <span class="material-symbols-outlined">chevron_left</span>
+                    </button>
+                    <div class="page-input-group">
+                        <label>Page</label>
+                        <input type="number" class="page-input"
+                            x-model.number="$store.schedulerStore.currentPage"
+                            @change="$store.schedulerStore.goToPage($store.schedulerStore.currentPage)"
+                            @keyup.enter="$store.schedulerStore.goToPage($store.schedulerStore.currentPage)"
+                            :min="1" :max="$store.schedulerStore.totalPages" />
+                        <span class="page-total">of <strong
+                                x-text="$store.schedulerStore.totalPages"></strong></span>
+                    </div>
+                    <button class="btn btn-icon" @click="$store.schedulerStore.nextPage()"
+                        :disabled="$store.schedulerStore.currentPage === $store.schedulerStore.totalPages"
+                        title="Next Page">
+                        <span class="material-symbols-outlined">chevron_right</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Empty State -->
             <div class="scheduler-empty"
-                 x-show="!$store.schedulerStore.isLoading && $store.schedulerStore.filteredTasks.length === 0"
-                 x-effect="$el.style.display = (!$store.schedulerStore.isLoading && $store.schedulerStore.filteredTasks.length === 0) ? '' : 'none'">
+                 x-show="!$store.schedulerStore.isLoading && $store.schedulerStore.filteredTasks.length === 0">
                 <div class="scheduler-empty-text">No tasks found</div>
-                <button class="btn btn-ok" @click="$store.schedulerStore.startCreateTask()">Create your first task</button>
+                <button class="btn btn-ok" @click="$store.schedulerStore.startCreateTask()">
+                    <span class="material-symbols-outlined">add</span>
+                    Create your first task
+                </button>
             </div>
 
-            <table class="scheduler-task-list"
-                   x-show="!$store.schedulerStore.isLoading && $store.schedulerStore.filteredTasks.length > 0"
-                   x-effect="$el.style.display = (!$store.schedulerStore.isLoading && $store.schedulerStore.filteredTasks.length > 0) ? '' : 'none'">
-                <thead>
-                <tr>
-                    <th class="col-name" @click="$store.schedulerStore.changeSort('name')">
-                        Name
-                        <span class="scheduler-sort-indicator"
-                              x-show="$store.schedulerStore.sortField === 'name'"
-                              :class="{'scheduler-sort-desc': $store.schedulerStore.sortDirection === 'desc'}">↑</span>
-                    </th>
-                    <th class="col-state" @click="$store.schedulerStore.changeSort('state')">
-                        State
-                        <span class="scheduler-sort-indicator"
-                              x-show="$store.schedulerStore.sortField === 'state'"
-                              :class="{'scheduler-sort-desc': $store.schedulerStore.sortDirection === 'desc'}">↑</span>
-                    </th>
-                    <th class="col-project">Project</th>
-                    <th class="col-lastrun" @click="$store.schedulerStore.changeSort('last_run')">
-                        Last Run
-                        <span class="scheduler-sort-indicator"
-                              x-show="$store.schedulerStore.sortField === 'last_run'"
-                              :class="{'scheduler-sort-desc': $store.schedulerStore.sortDirection === 'desc'}">↑</span>
-                    </th>
-                    <th class="col-actions">Actions</th>
-                </tr>
-                </thead>
-                <tbody>
-                <template x-for="task in $store.schedulerStore.filteredTasks" :key="task.uuid">
-                    <tr @click="$store.schedulerStore.showTaskDetail(task.uuid)">
-                        <td class="col-name">
-                            <span x-text="task.name"></span>
-                        </td>
-                        <td class="col-state">
-                            <span class="scheduler-status-badge"
-                                  :class="$store.schedulerStore.getStateBadgeClass(task.state)"
-                                  x-text="task.state"></span>
-                        </td>
-                        <td class="col-project">
-                            <span class="project-color-ball"
-                                  :style="$store.schedulerStore.extractTaskProject(task)?.color ? { backgroundColor: $store.schedulerStore.extractTaskProject(task).color } : { border: '1px solid var(--color-border)' }"></span>
-                            <span x-text="$store.schedulerStore.formatTaskProject(task)"></span>
-                        </td>
-                        <td class="col-lastrun" x-text="$store.schedulerStore.formatDate(task.last_run)"></td>
-                        <td class="col-actions" @click.stop>
-                            <div class="scheduler-task-actions">
-                                <button class="scheduler-task-action"
-                                        @click="$store.schedulerStore.runTask(task.uuid)" title="Run Task">
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="16"
-                                         height="16">
-                                        <path d="M8 5v14l11-7z"/>
-                                    </svg>
-                                </button>
-                                <button class="scheduler-task-action"
-                                        @click="$store.schedulerStore.resetTaskState(task.uuid)" title="Reset State">
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="16"
-                                         height="16">
-                                        <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
-                                    </svg>
-                                </button>
-                                <button class="scheduler-task-action"
-                                        @click="$store.schedulerStore.startEditTask(task.uuid)" title="Edit Task">
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="16"
-                                         height="16">
-                                        <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
-                                    </svg>
-                                </button>
-                                <button class="scheduler-task-action"
-                                        @click="$store.schedulerStore.deleteTask(task.uuid)" title="Delete Task">
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="16"
-                                         height="16">
-                                        <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-                                    </svg>
-                                </button>
-                            </div>
-                        </td>
+            <!-- Task Table -->
+            <div class="scheduler-table-container"
+                 x-show="!$store.schedulerStore.isLoading && $store.schedulerStore.paginatedTasks.length > 0">
+                <table class="scheduler-task-table">
+                    <thead>
+                    <tr>
+                        <th class="col-name" @click="$store.schedulerStore.changeSort('name')">
+                            Name
+                            <span class="scheduler-sort-indicator"
+                                  x-show="$store.schedulerStore.sortField === 'name'"
+                                  :class="{'scheduler-sort-desc': $store.schedulerStore.sortDirection === 'desc'}">↑</span>
+                        </th>
+                        <th class="col-state" @click="$store.schedulerStore.changeSort('state')">
+                            State
+                            <span class="scheduler-sort-indicator"
+                                  x-show="$store.schedulerStore.sortField === 'state'"
+                                  :class="{'scheduler-sort-desc': $store.schedulerStore.sortDirection === 'desc'}">↑</span>
+                        </th>
+                        <th class="col-project">Project</th>
+                        <th class="col-lastrun" @click="$store.schedulerStore.changeSort('last_run')">
+                            Last Run
+                            <span class="scheduler-sort-indicator"
+                                  x-show="$store.schedulerStore.sortField === 'last_run'"
+                                  :class="{'scheduler-sort-desc': $store.schedulerStore.sortDirection === 'desc'}">↑</span>
+                        </th>
+                        <th class="col-actions">Actions</th>
                     </tr>
-                </template>
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                    <template x-for="task in $store.schedulerStore.paginatedTasks" :key="task.uuid">
+                        <tr @click="$store.schedulerStore.showTaskDetail(task.uuid)">
+                            <td class="col-name">
+                                <span x-text="task.name"></span>
+                            </td>
+                            <td class="col-state">
+                                <span class="scheduler-status-badge"
+                                      :class="$store.schedulerStore.getStateBadgeClass(task.state)"
+                                      x-text="task.state"></span>
+                            </td>
+                            <td class="col-project">
+                                <span class="project-color-ball"
+                                      :style="$store.schedulerStore.extractTaskProject(task)?.color ? { backgroundColor: $store.schedulerStore.extractTaskProject(task).color } : { border: '1px solid var(--color-border)' }"></span>
+                                <span x-text="$store.schedulerStore.formatTaskProject(task)"></span>
+                            </td>
+                            <td class="col-lastrun" x-text="$store.schedulerStore.formatDate(task.last_run)"></td>
+                            <td class="col-actions" @click.stop>
+                                <div class="actions-wrapper">
+                                    <button class="btn btn-action"
+                                            @click="$store.schedulerStore.runTask(task.uuid)" title="Run Task">
+                                        <span class="material-symbols-outlined">play_arrow</span>
+                                    </button>
+                                    <button class="btn btn-action"
+                                            @click="$store.schedulerStore.resetTaskState(task.uuid)" title="Reset State">
+                                        <span class="material-symbols-outlined">refresh</span>
+                                    </button>
+                                    <button class="btn btn-action"
+                                            @click="$store.schedulerStore.startEditTask(task.uuid)" title="Edit Task">
+                                        <span class="material-symbols-outlined">edit</span>
+                                    </button>
+                                    <button class="btn btn-action delete"
+                                            @click="$store.schedulerStore.deleteTask(task.uuid)" title="Delete Task">
+                                        <span class="material-symbols-outlined">delete</span>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </template>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Bottom Status Bar (for pagination when table is long) -->
+            <div class="scheduler-status-bar scheduler-status-bar-bottom"
+                 x-show="!$store.schedulerStore.isLoading && $store.schedulerStore.paginatedTasks.length > 5 && $store.schedulerStore.totalPages > 1">
+                <div class="status-info">
+                    <span class="status-item">
+                        <span class="material-symbols-outlined">schedule</span>
+                        Total: <strong x-text="$store.schedulerStore.tasks.length"></strong>
+                    </span>
+                    <span class="status-separator">•</span>
+                    <span class="status-item">
+                        Filtered: <strong x-text="$store.schedulerStore.filteredTasks.length"></strong>
+                    </span>
+                </div>
+
+                <div class="status-pagination">
+                    <button class="btn btn-icon" @click="$store.schedulerStore.prevPage()"
+                        :disabled="$store.schedulerStore.currentPage === 1" title="Previous Page">
+                        <span class="material-symbols-outlined">chevron_left</span>
+                    </button>
+                    <div class="page-input-group">
+                        <label>Page</label>
+                        <input type="number" class="page-input"
+                            x-model.number="$store.schedulerStore.currentPage"
+                            @change="$store.schedulerStore.goToPage($store.schedulerStore.currentPage)"
+                            @keyup.enter="$store.schedulerStore.goToPage($store.schedulerStore.currentPage)"
+                            :min="1" :max="$store.schedulerStore.totalPages" />
+                        <span class="page-total">of <strong
+                                x-text="$store.schedulerStore.totalPages"></strong></span>
+                    </div>
+                    <button class="btn btn-icon" @click="$store.schedulerStore.nextPage()"
+                        :disabled="$store.schedulerStore.currentPage === $store.schedulerStore.totalPages"
+                        title="Next Page">
+                        <span class="material-symbols-outlined">chevron_right</span>
+                    </button>
+                </div>
+            </div>
         </div>
     </template>
 </div>
+
+<style>
+    .scheduler-list-container {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+    }
+
+    /* Filter Header - matches memory-dashboard pattern */
+    .scheduler-filters-header {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        align-items: center;
+        padding: 1rem;
+        background: var(--color-panel);
+        border: 1px solid var(--color-border);
+        border-radius: 8px;
+        margin-bottom: 0;
+    }
+
+    .filter-group-inline {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .filter-group-inline label {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--color-text);
+        opacity: 0.8;
+        white-space: nowrap;
+    }
+
+    .filter-group-inline select {
+        border: 1px solid var(--color-border);
+        min-width: 120px;
+    }
+
+    .filter-group-inline select:focus {
+        outline: none;
+        border-color: var(--color-primary);
+        background: var(--color-input-focus);
+    }
+
+    .btn-new-task {
+        margin-left: auto;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .btn-new-task .material-symbols-outlined {
+        font-size: 20px;
+    }
+
+    /* Status Bar - matches memory-dashboard pattern */
+    .scheduler-status-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 1rem;
+        background: var(--color-panel);
+        border: 1px solid var(--color-border);
+        border-top: none;
+        font-size: 0.9rem;
+    }
+
+    .scheduler-status-bar-bottom {
+        border-top: 1px solid var(--color-border);
+        border-radius: 0 0 8px 8px;
+    }
+
+    .status-info {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .status-item {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    .status-item strong {
+        color: var(--color-primary);
+        font-weight: 600;
+    }
+
+    .status-item .material-symbols-outlined {
+        font-size: 18px;
+        opacity: 0.6;
+    }
+
+    .status-separator {
+        color: var(--color-border);
+        margin: 0 0.25rem;
+    }
+
+    .status-pagination {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .page-input-group {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .page-input-group label {
+        opacity: 0.8;
+    }
+
+    .page-total {
+        color: var(--color-text);
+        opacity: 0.8;
+        font-size: 0.85rem;
+        white-space: nowrap;
+    }
+
+    .page-total strong {
+        color: var(--color-primary);
+        font-weight: 600;
+    }
+
+    .page-input {
+        width: 60px;
+        padding: 0.25rem 0.5rem;
+        text-align: center;
+        border: 1px solid var(--color-border);
+        background: var(--color-input);
+        color: var(--color-text);
+        border-radius: 4px;
+        font-size: 0.85rem;
+        height: 28px;
+    }
+
+    .page-input:focus {
+        outline: none;
+        border-color: var(--color-primary);
+        background: var(--color-input-focus);
+    }
+
+    .page-input::-webkit-inner-spin-button,
+    .page-input::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+
+    .page-input[type=number] {
+        -moz-appearance: textfield;
+        appearance: textfield;
+    }
+
+    /* Table Container */
+    .scheduler-table-container {
+        border: 1px solid var(--color-border);
+        border-top: none;
+        border-radius: 0 0 8px 8px;
+        overflow: hidden;
+    }
+
+    .scheduler-task-table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: auto;
+        font-size: 0.9rem;
+    }
+
+    .scheduler-task-table th,
+    .scheduler-task-table td {
+        padding: 0.75rem;
+        text-align: left;
+        border-bottom: 1px solid var(--color-border);
+        vertical-align: middle;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .scheduler-task-table th {
+        background: var(--color-panel);
+        font-weight: 600;
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .scheduler-task-table th:hover {
+        background: var(--color-bg-tertiary);
+    }
+
+    .scheduler-task-table tbody tr {
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+    }
+
+    .scheduler-task-table tbody tr:hover {
+        background-color: rgba(255, 255, 255, 0.03);
+    }
+
+    .light-mode .scheduler-task-table tbody tr:hover {
+        background-color: rgba(0, 0, 0, 0.02);
+    }
+
+    .scheduler-task-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    /* Column widths */
+    .col-name { width: 25%; }
+    .col-state { width: 12%; }
+    .col-project { width: 20%; }
+    .col-lastrun { width: 23%; }
+    .col-actions { width: 20%; }
+
+    /* Empty state */
+    .scheduler-empty {
+        text-align: center;
+        padding: 3rem 1rem;
+        color: var(--color-text);
+        opacity: 0.8;
+        background: var(--color-panel);
+        border: 1px solid var(--color-border);
+        border-top: none;
+        border-radius: 0 0 8px 8px;
+    }
+
+    .scheduler-empty-text {
+        margin-bottom: 1rem;
+        font-size: 1rem;
+    }
+
+    .scheduler-empty .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    /* Sort indicator */
+    .scheduler-sort-indicator {
+        display: inline-block;
+        margin-left: 4px;
+        transition: transform 0.2s ease;
+    }
+
+    .scheduler-sort-desc {
+        transform: rotate(180deg);
+    }
+
+    /* Project color ball */
+    .project-color-ball {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        margin-right: 6px;
+        vertical-align: middle;
+    }
+
+    /* Responsive */
+    @media (max-width: 870px) {
+        .scheduler-filters-header {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .filter-group-inline {
+            width: 100%;
+        }
+
+        .filter-group-inline select {
+            flex: 1;
+        }
+
+        .btn-new-task {
+            margin-left: 0;
+            justify-content: center;
+        }
+
+        .scheduler-status-bar {
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .status-info {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .status-pagination {
+            width: 100%;
+            justify-content: center;
+            padding-top: 0.5rem;
+            border-top: 1px solid var(--color-border);
+        }
+
+        .col-project,
+        .col-lastrun {
+            display: none;
+        }
+
+        .col-name { width: 45%; }
+        .col-state { width: 20%; }
+        .col-actions { width: 35%; }
+    }
+</style>
 </body>
 </html>
 
