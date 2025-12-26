@@ -251,7 +251,8 @@ function buildPayloadFromEditingTask(editingTask, { isCreating = false } = {}) {
     payload.token = editingTask.token;
   }
 
-  if (editingTask.project && editingTask.project.name) {
+  // Only send project fields when creating a new task (project changes are not allowed for existing tasks)
+  if (isCreating && editingTask.project && editingTask.project.name) {
     payload.project_name = editingTask.project.name;
     if (editingTask.project.color) {
       payload.project_color = editingTask.project.color;
