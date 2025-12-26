@@ -9,22 +9,42 @@
         <div>
           <nav>
             <ul>
-              <template
-                x-for="(section, index) in $store.settingsStore.filteredSections"
-                :key="section.id"
-              >
-                <li>
-                  <a :href="'#section' + (index + 1)">
-                    <img
-                      :src="'/public/' + section.id + '.svg'"
-                      :alt="section.title"
-                    />
-                    <span x-text="section.title"></span>
-                  </a>
-                </li>
-              </template>
-
-              <!-- Tunnel navigation entry -->
+              <li>
+                <a href="#section-api-keys">
+                  <img src="/public/api_keys.svg" alt="API Keys" />
+                  <span>API Keys</span>
+                </a>
+              </li>
+              <li>
+                <a href="#section-litellm">
+                  <img src="/public/litellm.svg" alt="LiteLLM Global Settings" />
+                  <span>LiteLLM Global Settings</span>
+                </a>
+              </li>
+              <li>
+                <a href="#section-secrets">
+                  <img src="/public/secrets.svg" alt="Secrets Management" />
+                  <span>Secrets Management</span>
+                </a>
+              </li>
+              <li>
+                <a href="#section-auth">
+                  <img src="/public/auth.svg" alt="Authentication" />
+                  <span>Authentication</span>
+                </a>
+              </li>
+              <li>
+                <a href="#section-external-api">
+                  <img src="/public/external_api.svg" alt="External API" />
+                  <span>External API</span>
+                </a>
+              </li>
+              <li>
+                <a href="#section-update-checker">
+                  <img src="/public/update_checker.svg" alt="Update Checker" />
+                  <span>Update Checker</span>
+                </a>
+              </li>
               <li>
                 <a href="#section-tunnel">
                   <img src="/public/tunnel.svg" alt="Tunnel" />
@@ -34,33 +54,24 @@
             </ul>
           </nav>
 
-          <template
-            x-for="(section, index) in $store.settingsStore.filteredSections"
-            :key="section.id"
-          >
-            <div :id="'section' + (index + 1)" class="section">
-              <template x-if="section.id === 'api_keys'">
-                <x-component path="settings/external/api_keys.html"></x-component>
-              </template>
-              <template x-if="section.id === 'litellm'">
-                <x-component path="settings/external/litellm.html"></x-component>
-              </template>
-              <template x-if="section.id === 'secrets'">
-                <x-component path="settings/external/secrets.html"></x-component>
-              </template>
-              <template x-if="section.id === 'auth'">
-                <x-component path="settings/external/auth.html"></x-component>
-              </template>
-              <template x-if="section.id === 'external_api'">
-                <x-component path="settings/external/external_api.html"></x-component>
-              </template>
-              <template x-if="section.id === 'update_checker'">
-                <x-component
-                  path="settings/external/update_checker.html"
-                ></x-component>
-              </template>
-            </div>
-          </template>
+          <div id="section-api-keys" class="section">
+            <x-component path="settings/external/api_keys.html"></x-component>
+          </div>
+          <div id="section-litellm" class="section">
+            <x-component path="settings/external/litellm.html"></x-component>
+          </div>
+          <div id="section-secrets" class="section">
+            <x-component path="settings/external/secrets.html"></x-component>
+          </div>
+          <div id="section-auth" class="section">
+            <x-component path="settings/external/auth.html"></x-component>
+          </div>
+          <div id="section-external-api" class="section">
+            <x-component path="settings/external/external_api.html"></x-component>
+          </div>
+          <div id="section-update-checker" class="section">
+            <x-component path="settings/external/update_checker.html"></x-component>
+          </div>
 
           <!-- Tunnel section content -->
           <div id="section-tunnel" class="section">
@@ -71,4 +82,3 @@
     </div>
   </body>
 </html>
-

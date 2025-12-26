@@ -4,137 +4,26 @@
   </head>
 
   <body>
-    <div
-      x-data="{
-        get section() {
-          const store = $store.settingsStore;
-          if (!store) return null;
-          return store.getSectionById('api_keys');
-        },
-      }"
-    >
-      <template x-if="section">
+    <div x-data>
+      <template x-if="$store.settingsStore.settings">
         <div>
-          <div class="section-title" x-text="section.title"></div>
-          <div class="section-description" x-html="section.description"></div>
+          <div class="section-title">API Keys</div>
+          <div class="section-description">
+            API keys for model providers and services used by Agent Zero. You can set multiple API keys separated by a comma (,). They will be used in round-robin fashion.<br>
+            For more information about Agent Zero Venice provider, see <a href="http://agent-zero.ai/?community/api-dashboard/about" target="_blank">Agent Zero Venice</a>.
+          </div>
 
-          <template
-            x-for="(field, fieldIndex) in (section.fields || []).filter((f) => !f.hidden)"
-            :key="fieldIndex"
-          >
-            <div :class="{ field: true, 'field-full': field.type === 'textarea' }">
-              <div class="field-label" x-show="field.title || field.description">
-                <div class="field-title" x-text="field.title" x-show="field.title"></div>
-                <div
-                  class="field-description"
-                  x-html="field.description || ''"
-                  x-show="field.description"
-                ></div>
+          <template x-for="provider in $store.settingsStore.apiKeyProviders" :key="provider.value">
+            <div class="field">
+              <div class="field-label">
+                <div class="field-title" x-text="provider.label"></div>
               </div>
-
               <div class="field-control">
-                <template x-if="field.type === 'text'">
-                  <input
-                    type="text"
-                    :class="field.classes"
-                    :value="field.value"
-                    :readonly="field.readonly === true"
-                    @input="field.value = $event.target.value"
-                  />
-                </template>
-
-                <template x-if="field.type === 'number'">
-                  <input
-                    type="number"
-                    :class="field.classes"
-                    :value="field.value"
-                    :readonly="field.readonly === true"
-                    @input="field.value = $event.target.value"
-                    :min="field.min"
-                    :max="field.max"
-                    :step="field.step"
-                  />
-                </template>
-
-                <template x-if="field.type === 'password'">
-                  <input
-                    type="password"
-                    :class="field.classes"
-                    :value="field.value"
-                    :readonly="field.readonly === true"
-                    :id="field.id"
-                    autocomplete="off"
-                    @input="field.value = $event.target.value"
-                  />
-                </template>
-
-                <template x-if="field.type === 'textarea'">
-                  <textarea
-                    :class="field.classes"
-                    :value="field.value"
-                    :readonly="field.readonly === true"
-                    @input="field.value = $event.target.value"
-                    :style="field.style"
-                  ></textarea>
-                </template>
-
-                <template x-if="field.type === 'switch'">
-                  <label class="toggle">
-                    <input
-                      type="checkbox"
-                      :checked="field.value"
-                      :disabled="field.readonly === true"
-                      @change="field.value = $event.target.checked"
-                    />
-                    <span class="toggler"></span>
-                  </label>
-                </template>
-
-                <template x-if="field.type === 'range'">
-                  <div class="field-control">
-                    <input
-                      type="range"
-                      :min="field.min"
-                      :max="field.max"
-                      :step="field.step"
-                      :value="field.value"
-                      :disabled="field.readonly === true"
-                      @input="field.value = $event.target.value"
-                      :class="field.classes"
-                    />
-                    <span class="range-value" x-text="field.value"></span>
-                  </div>
-                </template>
-
-                <template x-if="field.type === 'button'">
-                  <button
-                    class="btn btn-field"
-                    :class="field.classes"
-                    :disabled="field.readonly === true"
-                    @click="$store.settingsStore.handleFieldButton(field)"
-                    x-text="field.value"
-                  ></button>
-                </template>
-
-                <template x-if="field.type === 'select'">
-                  <select
-                    :class="field.classes"
-                    x-model="field.value"
-                    :disabled="field.readonly === true"
-                  >
-                    <template x-for="option in field.options" :key="option.value">
-                      <option
-                        :value="option.value"
-                        x-text="option.label"
-                        :selected="option.value === field.value"
-                      ></option>
-                    </template>
-                  </select>
-                </template>
-
-                <template x-if="field.type === 'html'">
-                  <div :class="field.classes" x-html="field.value"></div>
-                </template>
+                <input
+                  type="text"
+                  x-model="$store.settingsStore.settings.api_keys[provider.value]"
+                  autocomplete="off"
+                />
               </div>
             </div>
           </template>
@@ -143,4 +32,3 @@
     </div>
   </body>
 </html>
-

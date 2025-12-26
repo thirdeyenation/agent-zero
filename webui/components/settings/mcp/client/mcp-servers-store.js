@@ -60,14 +60,16 @@ const model = {
   },
 
   getSettingsFieldConfigJson() {
-    // Use the new settings modal store to access the field
-    return settingsStore.getField("mcp_client", "mcp_servers");
+    return settingsStore.settings?.mcp_servers
+      ?? settingsStore.settings?.mcpServers
+      ?? "{\n    \"mcpServers\": {}\n}";
   },
 
   onClose() {
     const val = this.getEditorValue();
-    // Update the field value in the settings modal store
-    settingsStore.setFieldValue("mcp_client", "mcp_servers", val);
+    if (settingsStore.settings) {
+      settingsStore.settings.mcp_servers = val;
+    }
     this.stopStatusCheck();
   },
 

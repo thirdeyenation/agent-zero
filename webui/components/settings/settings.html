@@ -87,7 +87,7 @@
       <!-- Footer -->
       <div class="modal-footer" data-modal-footer x-show="$store.settingsStore.settings">
         <button class="btn btn-ok" 
-            @click="$store.settingsStore.saveSettings()"
+            @click="$store.settingsStore.saveAndClose()"
             :disabled="$store.settingsStore?.isLoading">
         Save
         </button>

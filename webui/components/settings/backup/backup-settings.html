@@ -9,36 +9,20 @@
         <div>
           <nav>
             <ul>
-              <template
-                x-for="(section, index) in $store.settingsStore.filteredSections"
-                :key="section.id"
-              >
-                <li>
-                  <a :href="'#section' + (index + 1)">
-                    <img
-                      :src="'/public/' + section.id + '.svg'"
-                      :alt="section.title"
-                    />
-                    <span x-text="section.title"></span>
-                  </a>
-                </li>
-              </template>
+              <li>
+                <a href="#section-backup-restore">
+                  <img src="/public/backup_restore.svg" alt="Backup & Restore" />
+                  <span>Backup & Restore</span>
+                </a>
+              </li>
             </ul>
           </nav>
 
-          <template
-            x-for="(section, index) in $store.settingsStore.filteredSections"
-            :key="section.id"
-          >
-            <div :id="'section' + (index + 1)" class="section">
-              <template x-if="section.id === 'backup_restore'">
-                <x-component path="settings/backup/backup_restore.html"></x-component>
-              </template>
-            </div>
-          </template>
+          <div id="section-backup-restore" class="section">
+            <x-component path="settings/backup/backup_restore.html"></x-component>
+          </div>
         </div>
       </template>
     </div>
   </body>
 </html>
-

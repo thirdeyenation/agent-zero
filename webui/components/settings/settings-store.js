@@ -18,7 +18,7 @@ const model = {
   isLoading: false,
   error: null,
   settings: null,
-  sectionsById: {},
+  additional: null,
   
   // Tab state
   _activeTab: DEFAULT_TAB,
@@ -48,7 +48,7 @@ const model = {
       const response = await API.callJsonApi("settings_get", null);
       if (response && response.settings) {
         this.settings = response.settings;
-        this.rebuildSectionsIndex();
+        this.additional = response.additional || null;
       } else {
         throw new Error("Invalid settings response");
       }
@@ -72,7 +72,7 @@ const model = {
     schedulerStore.onModalClosed?.();
     
     this.settings = null;
-    this.sectionsById = {};
+    this.additional = null;
     this.error = null;
     this.isLoading = false;
   },
@@ -97,30 +97,22 @@ const model = {
     this.activeTab = tabName;
   },
 
-  // Computed: sections for current tab
-  get filteredSections() {
-    if (!this.settings || !this.settings.sections) return [];
-    const sections = this.settings.sections.filter(
-      (section) => section.tab === this._activeTab
-    );
-    return sections;
-  },
 
-  rebuildSectionsIndex() {
-    const map = {};
-    if (this.settings && Array.isArray(this.settings.sections)) {
-      for (const section of this.settings.sections) {
-        if (section && section.id) {
-          map[section.id] = section;
-        }
-      }
-    }
-    this.sectionsById = map;
-  },
 
-  getSectionById(sectionId) {
-    if (!sectionId) return null;
-    return this.sectionsById[sectionId] || null;
+  get apiKeyProviders() {
+    const seen = new Set();
+    const options = [];
+    const addProvider = (prov) => {
+      if (!prov?.value) return;
+      const key = prov.value.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      options.push({ value: prov.value, label: prov.label || prov.value });
+    };
+    (this.additional?.chat_providers || []).forEach(addProvider);
+    (this.additional?.embedding_providers || []).forEach(addProvider);
+    options.sort((a, b) => a.label.localeCompare(b.label));
+    return options;
   },
 
   // Save settings
@@ -132,10 +124,10 @@ const model = {
 
     this.isLoading = true;
     try {
-      const response = await API.callJsonApi("settings_set", this.settings);
+      const response = await API.callJsonApi("settings_set", { settings: this.settings });
       if (response && response.settings) {
         this.settings = response.settings;
-        this.rebuildSectionsIndex();
+        this.additional = response.additional || this.additional;
         toast("Settings saved successfully", "success");
         document.dispatchEvent(
           new CustomEvent("settings-updated", { detail: response.settings })
@@ -167,41 +159,6 @@ const model = {
   },
 
   // Field helpers for external components
-  getField(sectionId, fieldId) {
-    if (!this.settings || !this.settings.sections) return null;
-    for (const section of this.settings.sections) {
-      if (section.id === sectionId) {
-        for (const field of section.fields) {
-          if (field.id === fieldId) {
-            return field;
-          }
-        }
-      }
-    }
-    return null;
-  },
-
-  setFieldValue(sectionId, fieldId, value) {
-    const field = this.getField(sectionId, fieldId);
-    if (field) {
-      field.value = value;
-      return true;
-    }
-    return false;
-  },
-
-  findFieldValue(fieldId) {
-    if (!this.settings || !this.settings.sections) return null;
-    for (const section of this.settings.sections) {
-      for (const field of section.fields) {
-        if (field.id === fieldId) {
-          return field.value;
-        }
-      }
-    }
-    return null;
-  },
-
   // Handle button field clicks (opens sub-modals)
   async handleFieldButton(field) {
     if (field.id === "mcp_servers_config") {

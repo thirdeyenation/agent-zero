@@ -200,13 +200,7 @@
                 let token = "";
                 try {
                     const response = await API.callJsonApi("settings_get", null);
-                    if (response && response.settings && response.settings.sections) {
-                        const mcpSection = response.settings.sections.find(s => s.id === "mcp_server");
-                        if (mcpSection) {
-                            const tokenField = (mcpSection.fields || []).find(f => f.id === "mcp_server_token");
-                            if (tokenField) token = tokenField.value || "";
-                        }
-                    }
+                    token = response?.settings?.mcp_server_token || "";
                 } catch (e) {
                     console.error("Failed to fetch token:", e);
                 }
