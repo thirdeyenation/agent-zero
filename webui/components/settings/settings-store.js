@@ -1,7 +1,6 @@
 import { createStore } from "/js/AlpineStore.js";
 import * as API from "/js/api.js";
 import { store as notificationStore } from "/components/notifications/notification-store.js";
-import { store as schedulerStore } from "/components/settings/scheduler/scheduler-store.js";
 
 // Constants
 const VIEW_MODE_STORAGE_KEY = "settingsActiveTab";
@@ -65,12 +64,6 @@ const model = {
   },
 
   cleanup() {
-    // Notify scheduler if it was active
-    if (this._activeTab === "scheduler") {
-      schedulerStore.onTabDeactivated?.();
-    }
-    schedulerStore.onModalClosed?.();
-    
     this.settings = null;
     this.additional = null;
     this.error = null;
@@ -83,14 +76,6 @@ const model = {
     try {
       localStorage.setItem(VIEW_MODE_STORAGE_KEY, current);
     } catch {}
-
-    // Scheduler lifecycle
-    if (previous === "scheduler" && current !== "scheduler") {
-      schedulerStore.onTabDeactivated?.();
-    }
-    if (current === "scheduler" && previous !== "scheduler") {
-      schedulerStore.onTabActivated?.();
-    }
   },
 
   switchTab(tabName) {
@@ -182,27 +167,6 @@ const model = {
       this._activeTab = initialTab;
     }
     await window.openModal("settings/settings.html");
-  },
-
-  // Scheduler integration: open Settings modal, switch to scheduler tab, show task detail
-  async openSchedulerTaskDetail(taskId) {
-    // Set tab to scheduler before opening
-    this._activeTab = "scheduler";
-    
-    // Open the modal (do NOT await - openModal resolves on close)
-    window.openModal("settings/settings.html");
-
-    // Ensure scheduler tasks are loaded, then show the detail modal
-    setTimeout(async () => {
-      try {
-        if (typeof schedulerStore.fetchTasks === "function") {
-          await schedulerStore.fetchTasks({ manual: true });
-        }
-        schedulerStore.showTaskDetail?.(taskId);
-      } catch (error) {
-        console.warn("[settings-store] openSchedulerTaskDetail failed", error);
-      }
-    }, 200);
   },
 };
 

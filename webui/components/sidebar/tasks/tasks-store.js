@@ -1,7 +1,6 @@
 import { createStore } from "/js/AlpineStore.js";
 import { store as chatsStore } from "/components/sidebar/chats/chats-store.js";
-import { store as schedulerStore } from "/components/settings/scheduler/scheduler-store.js";
-import { store as settingsStore } from "/components/settings/settings-store.js";
+import { store as schedulerStore } from "/components/modals/scheduler/scheduler-store.js";
 
 // Tasks sidebar store: tasks list and selected task id
 const model = {
@@ -52,9 +51,9 @@ const model = {
   },
 
   openDetail(taskId) {
-    // Use the new settings modal store to open scheduler task detail
-    if (settingsStore?.openSchedulerTaskDetail) {
-      settingsStore.openSchedulerTaskDetail(taskId);
+    // Open lightweight task detail popup directly
+    if (schedulerStore?.showTaskDetail) {
+      schedulerStore.showTaskDetail(taskId);
     }
   },
 

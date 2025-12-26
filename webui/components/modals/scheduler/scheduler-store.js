@@ -900,7 +900,7 @@ const schedulerStoreModel = {
     }
 
     this.selectedTaskForDetail = snapshot;
-    const closePromise = window.openModal("settings/scheduler/scheduler-task-detail.html");
+    const closePromise = window.openModal("modals/scheduler/scheduler-task-detail.html");
     if (closePromise && typeof closePromise.then === "function") {
       closePromise.then(() => {
         if (this.selectedTaskForDetail?.uuid === snapshot.uuid) {

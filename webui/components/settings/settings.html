@@ -47,10 +47,6 @@
                  @click="$store.settingsStore.switchTab('developer')" 
                  title="Developer">Developer</div>
             <div class="settings-tab" 
-                 :class="{'active': $store.settingsStore.activeTab === 'scheduler'}"
-                 @click="$store.settingsStore.switchTab('scheduler')" 
-                 title="Task Scheduler">Task Scheduler</div>
-            <div class="settings-tab" 
                  :class="{'active': $store.settingsStore.activeTab === 'backup'}"
                  @click="$store.settingsStore.switchTab('backup')" 
                  title="Backup & Restore">Backup & Restore</div>
@@ -58,7 +54,7 @@
         </div>
 
         <!-- Settings sections for agent, external, developer, mcp, backup tabs -->
-        <div id="settings-sections" x-show="$store.settingsStore.activeTab !== 'scheduler'">
+        <div id="settings-sections">
           <template x-if="$store.settingsStore.activeTab === 'agent'">
             <x-component path="settings/agent/agent-settings.html"></x-component>
           </template>
@@ -75,13 +71,6 @@
             <x-component path="settings/backup/backup-settings.html"></x-component>
           </template>
         </div>
-
-        <!-- Task Scheduler Tab Content -->
-        <template x-if="$store.settingsStore.activeTab === 'scheduler'">
-          <div id="scheduler-tab-content">
-            <x-component path="settings/scheduler/scheduler-settings.html"></x-component>
-          </div>
-        </template>
       </div>
 
       <!-- Footer -->
