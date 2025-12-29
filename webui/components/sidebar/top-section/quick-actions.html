@@ -3,11 +3,6 @@
 <head>
   <script type="module">
     import { store } from "/components/sidebar/chats/chats-store.js";
-    import { store as settingsStore } from "/components/settings/settings-store.js";
-    import { store as schedulerModalStore } from "/components/modals/scheduler/scheduler-modal-store.js";
-    // Expose for Alpine template access
-    globalThis.openSettingsModal = () => settingsStore.open();
-    globalThis.openSchedulerModal = () => schedulerModalStore.open();
   </script>
 </head>
 
@@ -18,7 +13,7 @@
     <button class="config-button" id="loadChats" @click="$store.chats.loadChats()">Load Chat</button>
     <button class="config-button" id="loadChat" @click="$store.chats.saveChat()">Save Chat</button>
     <button class="config-button" id="restart" @click="$store.chats.restart()">Restart</button>
-    <button class="config-button" id="settings" @click="openSettingsModal()"><svg
+    <button class="config-button" id="settings" @click="openModal('settings/settings.html')"><svg
         xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="-5.0 -17.0 110.0 135.0" fill="currentColor" width="24"
         height="24">
         <path
@@ -28,7 +23,7 @@
           d="m50.301 66.5c-9 0-16.398-7.3008-16.398-16.398 0-9.1016 7.3008-16.398 16.398-16.398 9.1016 0 16.398 7.3008 16.398 16.398 0 9.0977-7.3984 16.398-16.398 16.398zm0-25.5c-5 0-9.1016 4.1016-9.1016 9.1016s4.1016 9.1016 9.1016 9.1016 9.1016-4.1016 9.1016-9.1016c-0.003906-5-4.1016-9.1016-9.1016-9.1016z">
         </path>
       </svg>Settings</button>
-    <button class="config-button" id="scheduler" @click="openSchedulerModal()">
+    <button class="config-button" id="scheduler" @click="openModal('modals/scheduler/scheduler-modal.html')">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
         <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z"/>
       </svg>Scheduler</button>

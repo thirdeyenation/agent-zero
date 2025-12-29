@@ -964,11 +964,13 @@ const schedulerStoreModel = {
     window.closeModal();
   },
 
-  editFromDetail() {
+  async editFromDetail() {
     const taskId = this.selectedTaskForDetail?.uuid;
     if (!taskId) return;
     this.closeTaskDetail();
-    this.startEditTask(taskId);
+    await this.startEditTask(taskId);
+    // Open main scheduler modal to show the editor
+    window.openModal("modals/scheduler/scheduler-modal.html");
   },
 
   async deleteFromDetail() {
