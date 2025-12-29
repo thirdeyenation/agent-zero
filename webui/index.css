@@ -1254,3 +1254,118 @@ nav ul li a img {
   box-sizing: border-box;
   flex-shrink: 0;
 }
+
+/* ========================================
+   Global Dropdown Component Styles
+   ======================================== */
+
+/* Dropdown container - position relative for absolute menu */
+.dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+/* Dropdown trigger button */
+.dropdown-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  color: var(--color-text);
+  padding: var(--spacing-xs);
+  transition: all var(--transition-speed) ease;
+}
+
+.dropdown-trigger:hover {
+  opacity: 1;
+}
+
+.dropdown-trigger:active {
+  opacity: 0.5;
+}
+
+/* Dropdown menu */
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  min-width: 180px;
+  max-height: 400px;
+  overflow-y: auto;
+  background-color: var(--color-panel);
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  z-index: 1010;
+  padding: var(--spacing-xs) 0;
+  margin-top: var(--spacing-xs);
+}
+
+.dropdown-menu.left {
+  left: 0;
+  right: auto;
+}
+
+/* Dropdown menu items */
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: transparent;
+  border: none;
+  color: var(--color-text);
+  font-family: var(--font-family-main);
+  font-size: var(--font-size-small);
+  text-align: left;
+  opacity: 0.8;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  white-space: nowrap;
+}
+
+.dropdown-item:hover {
+  background-color: var(--color-background-hover);
+  opacity: 1;
+  transform: translateX(-2px);
+}
+
+.dropdown-item:active {
+  opacity: 0.7;
+}
+
+.dropdown-item svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  opacity: 0.8;
+}
+
+/* Dropdown separator */
+.dropdown-separator {
+  height: 1px;
+  background-color: var(--color-border);
+  margin: var(--spacing-xs) 0;
+}
+
+/* Dropdown header/label */
+.dropdown-header {
+  padding: var(--spacing-xs) var(--spacing-md);
+  font-size: 0.7rem;
+  color: var(--color-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.8;
+}
+
+/* Light mode adjustments */
+.light-mode .dropdown-menu {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+.light-mode .dropdown-item:hover {
+  background-color: var(--color-secondary);
+}

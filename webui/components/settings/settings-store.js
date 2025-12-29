@@ -6,6 +6,15 @@ import { store as notificationStore } from "/components/notifications/notificati
 const VIEW_MODE_STORAGE_KEY = "settingsActiveTab";
 const DEFAULT_TAB = "agent";
 
+// Field button actions (field id -> modal path)
+const FIELD_BUTTON_MODAL_BY_ID = Object.freeze({
+  mcp_servers_config: "settings/mcp/client/mcp-servers.html",
+  backup_create: "settings/backup/backup.html",
+  backup_restore: "settings/backup/restore.html",
+  show_a2a_connection: "settings/a2a/a2a-connection.html",
+  external_api_examples: "settings/external/api-examples.html",
+});
+
 // Helper for toasts
 function toast(text, type = "info", timeout = 5000) {
   notificationStore.addFrontendToastOnly(type, text, "", timeout / 1000);
@@ -146,19 +155,8 @@ const model = {
   // Field helpers for external components
   // Handle button field clicks (opens sub-modals)
   async handleFieldButton(field) {
-    if (field.id === "mcp_servers_config") {
-      window.openModal("settings/mcp/client/mcp-servers.html");
-    } else if (field.id === "backup_create") {
-      window.openModal("settings/backup/backup.html");
-    } else if (field.id === "backup_restore") {
-      window.openModal("settings/backup/restore.html");
-    } else if (field.id === "show_a2a_connection") {
-      window.openModal("settings/a2a/a2a-connection.html");
-    } else if (field.id === "external_api_examples") {
-      window.openModal("settings/external/api-examples.html");
-    } else if (field.id === "memory_dashboard") {
-      window.openModal("settings/memory/memory-dashboard.html");
-    }
+    const modalPath = FIELD_BUTTON_MODAL_BY_ID[field?.id];
+    if (modalPath) window.openModal(modalPath);
   },
 
   // Open settings modal from external callers
