@@ -34,7 +34,7 @@ Located beneath the chat input box, Agent Zero provides a set of action buttons 
 #### Knowledge and File Management
 * **Import Knowledge:** Import external files into the agent's knowledge base
   - Supports `.txt`, `.pdf`, `.csv`, `.html`, `.json`, and `.md` formats
-  - Files are stored in `\knowledge\custom\main`
+  - Files are stored in `/a0/knowledge/custom/main`
   - Success message confirms successful import
   - See [knowledge](architecture.md#knowledge) for more details
 
@@ -58,6 +58,7 @@ Located beneath the chat input box, Agent Zero provides a set of action buttons 
 Access the chat history in JSON format
   - View the conversation as processed by the LLM
   - Useful for debugging and understanding agent behavior
+  - Files are stored under `/a0/tmp/chats/` inside the container
 
 ![History](res/ui-history.png)
 
@@ -102,17 +103,23 @@ Agent Zero's power comes from its ability to use [tools](architecture.md#tools).
 
 - **Understand Tools:** Agent Zero includes default tools like knowledge (powered by SearXNG), code execution, and communication. Understand the capabilities of these tools and how to invoke them.
 
-### Real-Time WebSocket Features
-- Use WebSockets when you need bidirectional, low-latency updates. The [WebSocket Infrastructure guide](websocket-infrastructure.md) explains the backend handler framework, client API, filtering semantics, and common producer/consumer patterns.
+### Browser Agent Status & MCP Alternatives
+The built-in browser agent currently has dependency issues on some systems. If web automation is critical, prefer MCP-based browser tools instead:
+
+- **Browser OS MCP**
+- **Chrome DevTools MCP**
+- **Playwright MCP**
+
+See [MCP Setup](mcp_setup.md) for configuration guidance and recommended servers.
 
 ## Example of Tools Usage: Web Search and Code Execution
 Let's say you want Agent Zero to perform some financial analysis tasks. Here's a possible prompt:
 
-> Please be a professional financial analyst. Find last month Bitcoin/ USD price trend and make a chart in your environment. The chart must  have highlighted key points corresponding with dates of major news  about cryptocurrency. Use the 'search_engine' and 'document_query_tool' to find the price and  the news, and the 'code_execution_tool' to perform the rest of the job.
+> Please be a professional financial analyst. Find last month Bitcoin/ USD price trend and make a chart in your environment. The chart must have highlighted key points corresponding with dates of major news about cryptocurrency. Use the `search_engine` and `document_query` tools to find the price and the news, and the `code_execution_tool` to perform the rest of the job.
 
 Agent Zero might then:
 
-1. Use the `search_engine` and `document_query_tool` to query a reliable source for the Bitcoin price and for the news about cryptocurrency as prompted.
+1. Use the `search_engine` and `document_query` tools to query a reliable source for the Bitcoin price and for the news about cryptocurrency as prompted.
 2. Extract the price from the search results and save the news, extracting their dates and possible impact on the price.
 3. Use the `code_execution_tool` to execute a Python script that performs the graph creation and key points highlighting, using the extracted data and the news dates as inputs.
 4. Save the final chart on disk inside the container and provide a link to it with the `response_tool`.
@@ -132,6 +139,25 @@ One of Agent Zero's unique features is multi-agent cooperation.
 ![](res/physics.png)
 ![](res/physics-2.png)
 
+## Projects
+Projects create isolated workspaces with their own context, instructions, memory, and secrets. This prevents context bleed between unrelated tasks or clients.
+
+- Project files live under `/a0/usr/projects/<project_name>/`
+- Project instructions are automatically injected from `.a0proj/instructions/`
+- Project memory and knowledge are stored separately from global memory
+
+See [Projects in Extensibility](extensibility.md#projects) for structure details and file locations.
+
+## Tasks & Scheduling
+Tasks allow Agent Zero to spawn scheduled or on-demand work in separate contexts.
+
+- **Schedule from UI:** Settings → Tasks Scheduler can run a task at a specified time.
+- **Schedule from chat:** ask the agent to create a task for a future time.
+- **Dedicated context:** each task runs in its own chat context, which pairs well with Projects.
+
+> [!TIP]
+> Combine **Projects + Tasks + Notifications** for recurring, scoped workflows (e.g., daily inbox summaries). See [Notifications](notifications.md) for alerts.
+
 ## Prompt Engineering
 Effective prompt engineering is crucial for getting the most out of Agent Zero. Here are some tips and techniques:
 
@@ -139,6 +165,20 @@ Effective prompt engineering is crucial for getting the most out of Agent Zero. 
 * **Provide Context:** If necessary, provide background information or context to help the agent understand the task better. This might include relevant details, constraints, or desired format for the response.
 * **Break Down Complex Tasks:**  For complex tasks, break them down into smaller, more manageable sub-tasks.  This makes it easier for the agent to reason through the problem and generate a solution.
 * **Iterative Refinement:** Don't expect perfect results on the first try.  Experiment with different prompts, refine your instructions based on the agent's responses, and iterate until you achieve the desired outcome. To achieve a full-stack, web-app development task, for example, you might need to iterate for a few hours for 100% success.
+
+## Secrets & Variables
+Use the Settings → **Secrets** and **Variables** fields to store credentials and non-sensitive configuration values.
+
+- **Secrets** (sensitive): API keys, passwords, tokens
+- **Variables** (non-sensitive): URLs, usernames, flags
+
+You can reference these values in prompts by name. For example, store `MY_GMAIL` as a secret and instruct the agent to use it when prompted.
+
+> [!IMPORTANT]
+> Secrets are stored in `/a0/tmp/secrets.env`. Keep a manual copy if you rely on backups, as secrets are not always preserved by Backup & Restore.
+
+> [!NOTE]
+> Project-scoped secrets and variables (when using Projects) live under `/a0/usr/projects/<project_name>/.a0proj/` (`secrets.env`, `variables.env`).
 
 ## Voice Interface
 Agent Zero provides both Text-to-Speech (TTS) and Speech-to-Text (STT) capabilities for natural voice interaction:
@@ -192,7 +232,7 @@ Configure STT settings in the Settings page:
 > ensuring that no data is transmitted to external servers or OpenAI APIs. This
 > enhances user privacy while maintaining functionality.
 
-
+## Mathematical Expressions
 * **Complex Mathematics:** Supports full KaTeX syntax for:
   - Fractions, exponents, and roots
   - Matrices and arrays
@@ -227,7 +267,7 @@ Agent Zero provides a powerful file browser interface for managing your workspac
   - Current path always visible for context
 
 > [!NOTE]
-> The files browser allows the user to go in the Agent Zero root folder if you click the `Up` button, but the working directory of Agents will always be `/work_dir`
+> The file browser lets you navigate the Agent Zero filesystem. For file-based work, keep your working files in `/a0/work_dir` (or inside a Project workspace).
 >
 - **File Operations**:
   - Create new files and directories
@@ -252,7 +292,7 @@ Agent Zero provides a comprehensive backup and restore system to protect your da
 Access the backup functionality through the Settings interface:
 
 1. Click the **Settings** button in the sidebar
-2. Navigate to the **Backup** tab
+2. Navigate to the **Backup & Restore** tab
 3. Click **Create Backup** to start the backup process
 
 #### What Gets Backed Up
@@ -264,6 +304,9 @@ By default, Agent Zero backs up your most important data:
 * **Configuration Files**: Settings, API keys, and system preferences
 * **Custom Skills**: Any skills you've added or modified (SKILL.md format)
 * **Uploaded Files**: Documents and files you've worked with
+
+> [!NOTE]
+> Chat history is stored at `/a0/tmp/chats/` inside the container.
 
 #### Customizing Backup Content
 Before creating a backup, you can customize what to include:
@@ -284,12 +327,13 @@ Before creating a backup, you can customize what to include:
 
 > [!NOTE]
 > Backup creation may take a few minutes depending on the amount of data. You'll see progress updates during the process.
+> Secrets stored in `/a0/tmp/secrets.env` are not always included in backup archives. Keep a manual copy if you rely on secrets.
 
 ### Restoring from Backup
 The restore process allows you to recover your Agent Zero setup from a previous backup:
 
 #### Starting a Restore
-1. Navigate to **Settings** → **Backup** tab
+1. Navigate to **Settings** → **Backup & Restore** tab
 2. Click **Restore from Backup**
 3. Upload your backup ZIP file
 
@@ -330,7 +374,7 @@ Optionally clean up existing files before restoring:
 * **Test Restores**: Occasionally test restoring backups to ensure they work
 
 #### Security Considerations
-* **API Keys**: Backups include your API keys and sensitive configuration
+* **Secrets**: Backups do **not** reliably include `/a0/tmp/secrets.env`. Copy it manually when migrating.
 * **Secure Storage**: Store backup files securely and don't share them
 * **Clean Systems**: When restoring on new systems, verify all configurations
 

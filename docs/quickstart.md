@@ -1,13 +1,11 @@
 # Quick Start
-This guide provides a quick introduction to using Agent Zero. We'll cover launching the web UI, starting a new chat, and running a simple task.
+This guide provides a quick introduction to using Agent Zero. We'll cover launching the Web UI, starting a new chat, and running a simple task.
 
-## Launching the Web UI
-1. Make sure you have Agent Zero installed and your environment set up correctly (refer to the [Installation guide](installation.md) if needed).
-2. Open a terminal in the Agent Zero directory and activate your conda environment (if you're using one).
-3. Run one of the following commands:
+## Launching the Web UI (Docker)
+1. Pull the latest image:
 
 ```bash
-python run_ui.py
+docker pull agent0ai/agent-zero:latest
 ```
 
 Notes:
@@ -15,7 +13,9 @@ Notes:
 
 4. A message similar to this will appear in your terminal, indicating the Web UI is running:
 
-![](res/flask_link.png)
+```bash
+docker run -p 0:80 agent0ai/agent-zero:latest
+```
 
 5. Open your web browser and navigate to the URL shown in the terminal (usually `http://127.0.0.1:5000`). You should see the Agent Zero Web UI.
 
@@ -32,14 +32,13 @@ Notes:
 ## Running a Simple Task
 Let's ask Agent Zero to download a YouTube video. Here's how:
 
-1.  Type "Download a YouTube video for me" in the chat input field and press Enter or click the send button.
-
-2. Agent Zero will process your request.  You'll see its "thoughts" and the actions it takes displayed in the UI. It will find a default already existing solution, that implies using the `code_execution_tool` to run a simple Python script to perform the task.
-
-3. The agent will then ask you for the URL of the YouTube video you want to download.
+1. Type "Download a YouTube video for me" in the chat input field and press Enter or click the send button.
+2. Agent Zero will process your request. You'll see its thoughts and tool calls in the UI.
+3. The agent will ask you for the URL of the YouTube video you want to download.
 
 ## Example Interaction
 Here's an example of what you might see in the Web UI at step 3:
+
 ![1](res/image-24.png)
 
 ## Next Steps
@@ -52,6 +51,4 @@ Now that you've run a simple task, you can experiment with more complex requests
 * Create or modify files
 
 > [!TIP]
-> The [Usage Guide](usage.md) provides more in-depth information on using Agent
-> Zero's various features, including prompt engineering, tool usage, and multi-agent
-> cooperation.
+> The [Usage Guide](usage.md) provides more in-depth information on tools, projects, tasks, and backup/restore.
