@@ -119,25 +119,25 @@ Security:
 ### 4. execute skill script
 
 Executes bundled scripts from skill with arguments
-Scripts run in sandbox with injected arguments
+Scripts receive arguments via standard CLI conventions (sys.argv, process.argv)
 Use when: skill provides script for deterministic operation or automation
 
 ~~~json
 {
     "thoughts": [
-        "Need to extract PDF form fields programmatically",
-        "Skill provides extract_fields.py script",
-        "Executing with target PDF path"
+        "Need to convert PDF to images",
+        "Skill provides convert_pdf_to_images.py script",
+        "Script expects positional args: input_pdf output_dir"
     ],
-    "headline": "Executing PDF field extraction script",
+    "headline": "Converting PDF to images",
     "tool_name": "skills_tool",
     "tool_args": {
         "method": "execute_script",
         "skill_name": "pdf_editing",
-        "script_path": "scripts/extract_fields.py",
+        "script_path": "scripts/convert_pdf_to_images.py",
         "script_args": {
-            "pdf_path": "/path/to/form.pdf",
-            "output_format": "json"
+            "input_pdf": "/path/to/document.pdf",
+            "output_dir": "/tmp/images"
         }
     }
 }
@@ -148,16 +148,48 @@ Required args:
 - script_path: relative path to script file
 - script_args: dictionary of arguments passed to script
 
-Supported script types:
-- .py (Python): args injected as _skill_args dictionary
-- .js (Node.js): args injected as _skill_args constant
-- .sh (Shell): args exported as environment variables
+Optional args:
+- arg_style: how to pass arguments to script (default: "positional")
+  - "positional": values as positional args → sys.argv = ['script.py', 'value1', 'value2']
+  - "named": as --key value pairs → sys.argv = ['script.py', '--key1', 'value1', '--key2', 'value2']
+  - "env": only environment variables, no CLI args
+
+How scripts receive arguments:
+- .py (Python): sys.argv[1], sys.argv[2], etc. (standard argparse/CLI compatible)
+- .js (Node.js): process.argv[2], process.argv[3], etc. (standard CLI compatible)
+- .sh (Shell): $1, $2, etc. as positional parameters
+
+Environment variables (always available as fallback):
+- SKILL_ARG_KEY1=value1, SKILL_ARG_KEY2=value2, etc.
+- Scripts can use os.environ.get('SKILL_ARG_INPUT_PDF') if needed
 
 Script execution:
 - Runs in Docker container sandbox
 - Has access to installed packages
 - Returns stdout/stderr output
 - Secure and isolated execution
+
+Example with argparse script (use arg_style="named"):
+~~~json
+{
+    "thoughts": [
+        "Script uses argparse with --input and --output flags",
+        "Need to use named arg_style"
+    ],
+    "headline": "Running argparse-based script",
+    "tool_name": "skills_tool",
+    "tool_args": {
+        "method": "execute_script",
+        "skill_name": "data_processor",
+        "script_path": "scripts/process.py",
+        "script_args": {
+            "input": "/path/to/data.csv",
+            "output": "/tmp/result.json"
+        },
+        "arg_style": "named"
+    }
+}
+~~~
 
 ### 5. search skills by query
 
@@ -264,34 +296,38 @@ When script execution fails:
 
 ## Examples
 
-Example 1: PDF form field extraction
+Example 1: Simple script with positional args (default)
+Script expects: python script.py /path/to/file.pdf
 ~~~json
 {
     "thoughts": [
-        "User has PDF form to analyze",
-        "pdf_editing skill has extraction capabilities",
-        "Will load skill and execute extraction script"
+        "User has PDF to convert to images",
+        "Script uses sys.argv[1] for input, sys.argv[2] for output",
+        "Using default positional arg_style"
     ],
-    "headline": "Extracting PDF form fields",
+    "headline": "Converting PDF to images",
     "tool_name": "skills_tool",
     "tool_args": {
         "method": "execute_script",
         "skill_name": "pdf_editing",
-        "script_path": "scripts/extract_fields.py",
+        "script_path": "scripts/convert_pdf_to_images.py",
         "script_args": {
-            "pdf_path": "/workspace/application.pdf"
+            "input_pdf": "/workspace/document.pdf",
+            "output_dir": "/tmp/images"
         }
     }
 }
 ~~~
+Result: sys.argv = ['script.py', '/workspace/document.pdf', '/tmp/images']
 
-Example 2: Web scraping with custom selector
+Example 2: Argparse script with named args
+Script expects: python script.py --url https://... --selector .price
 ~~~json
 {
     "thoughts": [
         "Need to scrape product prices from website",
-        "web_scraping skill provides fetch script",
-        "Using CSS selector to target price elements"
+        "Script uses argparse with --url and --selector flags",
+        "Using arg_style='named' for argparse compatibility"
     ],
     "headline": "Scraping product prices from webpage",
     "tool_name": "skills_tool",
@@ -302,12 +338,38 @@ Example 2: Web scraping with custom selector
         "script_args": {
             "url": "https://example.com/products",
             "selector": ".price"
-        }
+        },
+        "arg_style": "named"
     }
 }
 ~~~
+Result: sys.argv = ['script.py', '--url', 'https://...', '--selector', '.price']
 
-Example 3: Data analysis workflow
+Example 3: Environment-only script
+Script reads from os.environ only
+~~~json
+{
+    "thoughts": [
+        "Script reads configuration from environment variables",
+        "Using arg_style='env' to only set env vars"
+    ],
+    "headline": "Running config-based processor",
+    "tool_name": "skills_tool",
+    "tool_args": {
+        "method": "execute_script",
+        "skill_name": "data_processor",
+        "script_path": "scripts/process.py",
+        "script_args": {
+            "input_file": "/data/input.csv",
+            "mode": "production"
+        },
+        "arg_style": "env"
+    }
+}
+~~~
+Result: SKILL_ARG_INPUT_FILE=/data/input.csv, SKILL_ARG_MODE=production
+
+Example 4: Data analysis workflow
 ~~~json
 {
     "thoughts": [
@@ -324,12 +386,12 @@ Example 3: Data analysis workflow
 }
 ~~~
 
-Then follow up with script:
+Then follow up with script (positional args):
 ~~~json
 {
     "thoughts": [
-        "Skill loaded, now analyzing CSV with grouping",
-        "Using analyze_csv script with group_by parameter"
+        "Skill loaded, now analyzing CSV",
+        "Script takes csv_path as first arg, group_by as second"
     ],
     "headline": "Analyzing sales data grouped by category",
     "tool_name": "skills_tool",
@@ -350,7 +412,8 @@ Then follow up with script:
 - Skills metadata already loaded in your system prompt
 - Skills cache after first load for efficiency
 - Referenced files listed in load response
-- Scripts inject arguments as _skill_args variable
+- Scripts receive arguments via sys.argv (positional by default) + SKILL_ARG_* env vars
+- Use arg_style parameter to control argument passing: "positional", "named", or "env"
 - All operations return formatted text responses
 - Skills follow the open SKILL.md standard (cross-platform compatible)
 - Use skills for structured procedures and contextual expertise

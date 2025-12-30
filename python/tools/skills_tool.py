@@ -20,7 +20,16 @@ class SkillsTool(Tool):
       - search (query)
       - load (skill_name)
       - read_file (skill_name, file_path)
-      - execute_script (skill_name, script_path, script_args)
+      - execute_script (skill_name, script_path, script_args, arg_style)
+
+    arg_style options for execute_script:
+      - "positional" (default): Pass values as positional args (sys.argv[1], sys.argv[2])
+        Example: {"input": "file.pdf", "output": "/tmp"} → sys.argv = ['script.py', 'file.pdf', '/tmp']
+      - "named": Pass as --key value pairs (for argparse/click scripts)
+        Example: {"input": "file.pdf", "output": "/tmp"} → sys.argv = ['script.py', '--input', 'file.pdf', '--output', '/tmp']
+      - "env": Only use environment variables (SKILL_ARG_INPUT, SKILL_ARG_OUTPUT)
+
+    Environment variables (SKILL_ARG_*) are always set regardless of arg_style.
     """
 
     async def execute(self, **kwargs) -> Response:
@@ -49,7 +58,9 @@ class SkillsTool(Tool):
                 script_args = kwargs.get("script_args") or {}
                 if not isinstance(script_args, dict):
                     script_args = {}
-                return await self._execute_script(skill_name, script_path, script_args)
+                # arg_style: "positional" (default), "named" (--key value), or "env" (env vars only)
+                arg_style = str(kwargs.get("arg_style") or "positional").strip().lower()
+                return await self._execute_script(skill_name, script_path, script_args, arg_style)
 
             return Response(
                 message=(
@@ -176,7 +187,8 @@ class SkillsTool(Tool):
         return f"File: {file_path}\n\n{text}"
 
     async def _execute_script(
-        self, skill_name: str, script_path: str, script_args: Dict[str, Any]
+        self, skill_name: str, script_path: str, script_args: Dict[str, Any],
+        arg_style: str = "positional"
     ) -> Response:
         if not skill_name:
             return Response(message="Error: 'skill_name' is required for method=execute_script.", break_loop=False)
@@ -207,39 +219,64 @@ class SkillsTool(Tool):
             script_runtime_path = str(script_abs)
             script_runtime_dir = str(script_abs.parent)
 
-        # Normalize args once for injection
-        args_json = json.dumps(script_args, ensure_ascii=False)
+        # Build environment variables (SKILL_ARG_*) - always set as fallback
+        env_vars: Dict[str, str] = {}
+        for k, v in (script_args or {}).items():
+            env_key = f"SKILL_ARG_{re.sub(r'[^A-Za-z0-9_]', '_', str(k).upper())}"
+            env_vars[env_key] = str(v)
+
+        # Build CLI args based on arg_style:
+        # - "positional": ['value1', 'value2'] - for scripts using sys.argv[1], sys.argv[2]
+        # - "named": ['--key1', 'value1', '--key2', 'value2'] - for argparse/click scripts
+        # - "env": [] - only use environment variables, no CLI args
+        cli_args: List[str] = []
+        if arg_style == "positional":
+            cli_args = [str(v) for v in (script_args or {}).values()]
+        elif arg_style == "named":
+            for k, v in (script_args or {}).items():
+                cli_args.append(f"--{k}")
+                cli_args.append(str(v))
+        # "env" style: cli_args stays empty, only env vars are used
 
         if ext == ".py":
             runtime = "python"
+            # Set env vars (always available as fallback)
+            env_lines = [f"os.environ[{json.dumps(k)}] = {json.dumps(v)}" for k, v in env_vars.items()]
+            env_setup = "\n".join(env_lines) if env_lines else "pass"
+            # Set sys.argv: ['script.py', ...cli_args]
+            argv_list = [script_runtime_path] + cli_args
+            argv_setup = f"sys.argv = {json.dumps(argv_list)}"
             code = (
-                "import json, os, runpy\n"
+                "import os, sys, runpy\n"
                 f"os.chdir({json.dumps(script_runtime_dir)})\n"
-                f"_skill_args = json.loads({json.dumps(args_json)})\n"
-                f"runpy.run_path({json.dumps(script_runtime_path)}, run_name='__main__', init_globals={{'_skill_args': _skill_args}})\n"
+                f"{env_setup}\n"
+                f"{argv_setup}\n"
+                f"runpy.run_path({json.dumps(script_runtime_path)}, run_name='__main__')\n"
             )
         elif ext == ".js":
             runtime = "nodejs"
+            # Set process.env (always available as fallback)
+            env_lines = [f"process.env[{json.dumps(k)}] = {json.dumps(v)};" for k, v in env_vars.items()]
+            env_setup = "\n".join(env_lines) if env_lines else ""
+            # Node.js argv: ['node', 'script.js', ...cli_args]
+            argv_list = ["node", script_runtime_path] + cli_args
             code = (
-                "const fs = require('fs');\n"
-                "const path = require('path');\n"
                 f"process.chdir({json.dumps(script_runtime_dir)});\n"
-                f"const _skill_args = JSON.parse({json.dumps(args_json)});\n"
-                f"const __skill_script = fs.readFileSync({json.dumps(script_runtime_path)}, 'utf8');\n"
-                "eval(__skill_script);\n"
+                f"{env_setup}\n"
+                f"process.argv = {json.dumps(argv_list)};\n"
+                f"require({json.dumps(script_runtime_path)});\n"
             )
         elif ext == ".sh":
             runtime = "terminal"
-            env_parts: List[str] = []
-            for k, v in (script_args or {}).items():
-                key = re.sub(r"[^A-Za-z0-9_]", "_", str(k).upper())
-                if not key:
-                    continue
-                env_key = f"SKILL_ARG_{key}"
-                env_parts.append(f"{env_key}={shlex.quote(str(v))}")
+            # Environment variables (always available as fallback)
+            env_parts = [f"{k}={shlex.quote(v)}" for k, v in env_vars.items()]
             env_prefix = " ".join(env_parts)
+            # Pass CLI args to script
+            cli_args_str = " ".join(shlex.quote(a) for a in cli_args)
             cd_cmd = f"cd {shlex.quote(script_runtime_dir)}"
             run_cmd = f"bash {shlex.quote(script_runtime_path)}"
+            if cli_args_str:
+                run_cmd = f"{run_cmd} {cli_args_str}"
             if env_prefix:
                 code = f"{cd_cmd} && {env_prefix} {run_cmd}"
             else:
@@ -266,6 +303,8 @@ class SkillsTool(Tool):
             loop_data=self.loop_data,
         )
 
+        # Must call before_execution to initialize self.log before execute()
+        await cet.before_execution(**cet.args)
         resp = await cet.execute(**cet.args)
         # Wrap result to make it clear it was a skill script
         wrapped = (
