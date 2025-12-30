@@ -628,8 +628,6 @@ class Agent:
     def read_prompt(self, file: str, **kwargs) -> str:
         dirs = subagents.get_paths(self, "prompts")
         prompt = files.read_prompt_file(file, _directories=dirs, _agent=self, **kwargs)
-        # Only strip code fences when the *entire* prompt is a JSON template (e.g. fw.initial_message.md),
-        # so embedded fenced examples in markdown prompts remain intact.
         if files.is_full_json_template(prompt):
             prompt = files.remove_code_fences(prompt)
         return prompt
