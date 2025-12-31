@@ -7,7 +7,7 @@ class MissingApiKeyCheck(Extension):
     """Check if API keys are configured for selected model providers."""
 
     LOCAL_PROVIDERS = ["ollama", "lm_studio"]
-    HUGGINGFACE_LOCAL_FOR_EMBEDDING = ["huggingface"]
+    LOCAL_EMBEDDING = ["huggingface"]
     MODEL_TYPE_NAMES = {
         "chat": "Chat Model",
         "utility": "Utility Model", 
@@ -15,7 +15,7 @@ class MissingApiKeyCheck(Extension):
         "embedding": "Embedding Model",
     }
 
-    async def execute(self, context: dict = {}, **kwargs) -> dict | None:
+    async def execute(self, banners: list = [], context: dict = {}, **kwargs):
         current_settings = settings_helper.get_settings()
         model_providers = {
             "chat": current_settings.get("chat_model_provider", ""),
@@ -33,7 +33,7 @@ class MissingApiKeyCheck(Extension):
             provider_lower = provider.lower()
             if provider_lower in self.LOCAL_PROVIDERS:
                 continue
-            if model_type == "embedding" and provider_lower in self.HUGGINGFACE_LOCAL_FOR_EMBEDDING:
+            if model_type == "embedding" and provider_lower in self.LOCAL_EMBEDDING:
                 continue
             
             api_key = models.get_api_key(provider_lower)
@@ -44,13 +44,13 @@ class MissingApiKeyCheck(Extension):
                 })
         
         if not missing_providers:
-            return None
+            return
         
         model_list = ", ".join(
             f"{p['model_type']} ({p['provider']})" for p in missing_providers
         )
         
-        return {
+        banners.append({
             "id": "missing-api-key",
             "type": "error",
             "priority": 100,
@@ -61,4 +61,4 @@ class MissingApiKeyCheck(Extension):
                      Add your API key</a> in Settings → External Services → API Keys.""",
             "dismissible": False,
             "source": "backend"
-        }
+        })

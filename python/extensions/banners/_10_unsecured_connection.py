@@ -6,8 +6,7 @@ import re
 class UnsecuredConnectionCheck(Extension):
     """Check: non-local without credentials, or credentials over non-HTTPS."""
 
-    async def execute(self, context: dict = {}, **kwargs) -> dict | list | None:
-        banners = []
+    async def execute(self, banners: list = [], context: dict = {}, **kwargs):
         hostname = context.get("hostname", "")
         protocol = context.get("protocol", "")
         
@@ -42,8 +41,6 @@ class UnsecuredConnectionCheck(Extension):
                 "dismissible": True,
                 "source": "backend"
             })
-        
-        return banners if banners else None
 
     def _is_localhost(self, hostname: str) -> bool:
         local_patterns = ["localhost", "127.0.0.1", "::1", "0.0.0.0"]
