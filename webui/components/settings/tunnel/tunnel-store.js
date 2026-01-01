@@ -11,6 +11,7 @@ const model = {
   provider: "cloudflared",
   microsoftLoginCode: "",
   microsoftLoginUrl: "",
+  codeCopied: false,
   notificationPollInterval: null,
   hasError: false,
 
@@ -21,12 +22,18 @@ const model = {
   clearMicrosoftLogin() {
     this.microsoftLoginCode = "";
     this.microsoftLoginUrl = "";
+    this.codeCopied = false;
   },
 
   copyLoginCode() {
     if (!this.microsoftLoginCode) return;
     navigator.clipboard.writeText(this.microsoftLoginCode).then(() => {
+      this.codeCopied = true;
       window.toastFrontendInfo("Login code copied to clipboard!", "Clipboard");
+      // Reset after 3 seconds
+      setTimeout(() => {
+        this.codeCopied = false;
+      }, 3000);
     }).catch((err) => {
       console.error("Failed to copy code: ", err);
       window.toastFrontendError("Failed to copy login code", "Clipboard Error");
@@ -52,6 +59,7 @@ const model = {
           this.loadingText = n.message;
           break;
         case "creating_tunnel":
+          this.clearMicrosoftLogin();
           this.loadingText = n.message;
           break;
         case "info":
