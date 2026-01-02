@@ -40,15 +40,15 @@
                               x-text="task.state || 'idle'"></span>
                         <div class="task-actions">
                           <button class="btn-icon-action"
-                                  @click.stop="$store.tasks.openDetail(task.id)"
+                                  @click.stop="$store.tooltips.hideAll(); $store.tasks.openDetail(task.id)"
                                   title="View task details">
                             <span class="material-symbols-outlined">Info</span>
                           </button>
                           <button class="btn-icon-action" title="Clear task chat"
-                                  @click.stop="$store.tasks.reset(task.id)">
+                                  @click.stop="$store.tooltips.hideAll(); $store.tasks.reset(task.id)">
                             <span class="material-symbols-outlined">Refresh</span>
                           </button>
-                          <button class="btn-icon-action" title="Delete task" @click.stop="$confirmClick($event, () => $store.tasks.deleteTask(task.id))">
+                          <button class="btn-icon-action" title="Delete task" @click.stop="$store.tooltips.hideAll(); $confirmClick($event, () => $store.tasks.deleteTask(task.id))">
                             <span class="material-symbols-outlined">Close</span>
                           </button>
                         </div>
