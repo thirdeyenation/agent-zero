@@ -426,7 +426,7 @@ input[type="range"]::-moz-range-thumb {
     flex-grow: 1;
   }
   .modal-footer {
-    padding: var(--spacing-sm) 0 var(--spacing-sm) 0 !important;
+    padding: var(--spacing-sm) !important;
   }
   .section {
     margin-bottom: 1.5rem;

@@ -904,6 +904,15 @@ const schedulerStoreModel = {
     } ${task.schedule.month || "*"} ${task.schedule.weekday || "*"}`;
   },
 
+  formatTaskType(type) {
+    const typeMap = {
+      scheduled: "Scheduled",
+      adhoc: "Ad-hoc",
+      planned: "Planned",
+    };
+    return typeMap[type] || type;
+  },
+
   getStateBadgeClass(state) {
     switch (state) {
       case "idle":

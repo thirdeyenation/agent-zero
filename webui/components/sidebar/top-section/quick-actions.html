@@ -2,7 +2,8 @@
 
 <head>
   <script type="module">
-    import { store } from "/components/sidebar/chats/chats-store.js";
+    import { store as chatsStore } from "/components/sidebar/chats/chats-store.js";
+    import { store as projectsStore } from "/components/projects/projects-store.js";
   </script>
 </head>
 
@@ -11,7 +12,7 @@
     <div id="quick-actions">
       <!-- Dashboard -->
       <button class="config-button" id="dashboard" @click="deselectChat()" title="Dashboard">
-        <span class="material-symbols-outlined">dashboard</span>
+        <span class="material-symbols-outlined">home</span>
       </button>
 
       <!-- Memory -->
@@ -42,8 +43,13 @@
       <div class="dropdown-header">Navigation</div>
       
       <button class="dropdown-item" @click="deselectChat(); dropdownOpen = false">
-        <span class="material-symbols-outlined">dashboard</span>
+        <span class="material-symbols-outlined">home</span>
         <span>Dashboard</span>
+      </button>
+
+      <button class="dropdown-item" @click="$store.projects.openProjectsModal(); dropdownOpen = false">
+        <span class="material-symbols-outlined">snippet_folder</span>
+        <span>Projects</span>
       </button>
       
       <button class="dropdown-item" @click="openModal('modals/memory/memory-dashboard.html'); dropdownOpen = false">
@@ -78,6 +84,11 @@
         <span class="material-symbols-outlined">save</span>
         <span>Save Chat</span>
       </button>
+
+      <button class="dropdown-item" @click="$store.chats.resetChat(); dropdownOpen = false">
+        <span class="material-symbols-outlined">delete_sweep</span>
+        <span>Clear Chat</span>
+      </button>
       
       <div class="dropdown-separator"></div>
       
@@ -94,9 +105,7 @@
   /* Wrapper container for icon toolbar */
   .wrapper {
     position: relative;
-    padding: 0.2rem;
     border-radius: 0.6rem;
-    background-color: var(--color-background);
   }
 
   /* Icon toolbar layout */
@@ -180,6 +189,22 @@
   .dropdown-item .material-symbols-outlined {
     font-size: 18px;
   }
+
+  /* New Chat Button */
+  #newChat {
+  display: flex;
+  flex-wrap: nowrap;
+  background-color: transparent;
+  border: none;
+  align-items: center;
+  opacity: 0.6;
+  cursor: pointer;
+  -webkit-transition: all 0.1s ease-in-out, left var(--transition-speed) ease-in-out;
+  transition: all 0.1s ease-in-out, left var(--transition-speed) ease-in-out;
+  }
+  #newChat:hover { opacity: 0.85; transform: scale(1.04); }
+  #newChat:active { opacity: 0.5; transform: scale(0.98); }
+  #newChat svg { color: var(--color-text); }
 
   /* Light mode */
   .light-mode .config-button {

@@ -18,23 +18,18 @@
                          :class="$store.schedulerStore.selectedTaskForDetail ? $store.schedulerStore.getStateBadgeClass($store.schedulerStore.selectedTaskForDetail.state) : ''"
                          x-text="$store.schedulerStore.selectedTaskForDetail ? $store.schedulerStore.selectedTaskForDetail.state : ''"></div>
                 </div>
-                <div class="scheduler-detail-header-actions">
-                    <button class="btn btn-action-header" 
-                            @click="$store.schedulerStore.runTask($store.schedulerStore.selectedTaskForDetail.uuid)"
-                            title="Run Task">
-                        <span class="material-symbols-outlined">play_arrow</span>
-                    </button>
-                    <button class="btn btn-action-header" 
-                            @click="$store.schedulerStore.editFromDetail()"
-                            title="Edit Task">
-                        <span class="material-symbols-outlined">edit</span>
-                    </button>
-                    <button class="btn btn-action-header danger" 
-                            @click="$store.schedulerStore.deleteFromDetail()"
-                            title="Delete Task">
-                        <span class="material-symbols-outlined">delete</span>
-                    </button>
-                    <button class="btn btn-cancel" @click="$store.schedulerStore.closeTaskDetail()">Close</button>
+                <div class="buttons-container scheduler-detail-actions">
+                    <div class="buttons-left">
+                        <button type="button" class="button cancel"
+                                @click="$store.schedulerStore.deleteFromDetail()">Delete</button>
+                    </div>
+                    <div class="buttons-right">
+                        <button type="button" class="button confirm"
+                                @click="$store.schedulerStore.editFromDetail()">Edit</button>
+                        <button type="button" class="button"
+                                @click="$store.schedulerStore.runTask($store.schedulerStore.selectedTaskForDetail.uuid)">Run</button>
+                        
+                    </div>
                 </div>
             </div>
 
@@ -42,7 +37,7 @@
                 <div class="scheduler-details-grid">
                     <div class="scheduler-details-label">Type:</div>
                     <div class="scheduler-details-value"
-                         x-text="$store.schedulerStore.selectedTaskForDetail ? $store.schedulerStore.selectedTaskForDetail.type : ''"></div>
+                         x-text="$store.schedulerStore.selectedTaskForDetail ? $store.schedulerStore.formatTaskType($store.schedulerStore.selectedTaskForDetail.type) : ''"></div>
 
                     <div class="scheduler-details-label">Project:</div>
                     <div class="scheduler-details-value">
@@ -143,11 +138,37 @@
             </div>
         </div>
     </template>
+
+    <!-- Modal Footer (exists immediately so modals.js can move it) -->
+    <template x-if="$store.schedulerStore">
+        <div class="modal-footer scheduler-detail-footer" data-modal-footer>
+            <div class="buttons-container scheduler-detail-footer-actions">
+                <div class="buttons-left">
+                    <button type="button" class="button cancel"
+                            @click="$store.schedulerStore.deleteFromDetail()">Delete</button>
+                </div>
+                <div class="buttons-right">
+                    <button type="button" class="button confirm"
+                            @click="$store.schedulerStore.editFromDetail()">Edit</button>
+                    <button type="button" class="button"
+                            @click="$store.schedulerStore.runTask($store.schedulerStore.selectedTaskForDetail.uuid)">Run</button>
+                </div>
+            </div>
+        </div>
+    </template>
 </div>
 
 <style>
-    .scheduler-detail-header-actions .btn-cancel {
-        margin-left: var(--spacing-sm);
+    .scheduler-detail-actions {
+        width: 100%;
+    }
+
+    .scheduler-detail-footer {
+        padding: 0.6rem 1rem;
+    }
+
+    .scheduler-detail-footer-actions {
+        width: 100%;
     }
 </style>
 

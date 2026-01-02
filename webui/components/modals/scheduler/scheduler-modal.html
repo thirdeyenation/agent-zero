@@ -16,6 +16,26 @@
         </div>
       </div>
     </template>
+
+    <!-- Modal Footer (exists immediately so modals.js can move it) -->
+    <template x-if="$store.schedulerStore">
+      <div class="modal-footer scheduler-modal-footer" data-modal-footer
+           x-show="$store.schedulerStore.isCreating || $store.schedulerStore.isEditing">
+        <div class="buttons-container scheduler-modal-footer-actions">
+          <div class="buttons-left">
+            <button type="button" class="button cancel"
+                    x-show="$store.schedulerStore.isEditing"
+                    @click="$store.schedulerStore.deleteTask($store.schedulerStore.editingTask.uuid)">Delete</button>
+          </div>
+          <div class="buttons-right">
+            <button type="button" class="button cancel"
+                    @click="$store.schedulerStore.cancelEdit()">Cancel</button>
+            <button type="button" class="button confirm"
+                    @click="$store.schedulerStore.saveTask()">Save</button>
+          </div>
+        </div>
+      </div>
+    </template>
   </div>
 
   <style>
@@ -29,7 +49,15 @@
       padding: 0;
     }
     .scheduler-dashboard-description {
-      padding: 1rem 1rem;
+      padding: 1rem 0;
+    }
+
+    .scheduler-modal-footer {
+      padding: 0.6rem 1rem;
+    }
+
+    .scheduler-modal-footer-actions {
+      width: 100%;
     }
   </style>
 </body>
