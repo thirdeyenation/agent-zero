@@ -84,8 +84,9 @@
   <style>
         .text-buttons-row { width: 100%; display: flex; padding-top: var(--spacing-xs); margin-left: var(--spacing-xs); }
         .text-button { background-color: transparent; border: none; border-radius: 5px; color: var(--color-text); font-family: "Rubik", Arial, Helvetica, sans-serif; font-size: 0.6rem; padding: 6px var(--spacing-sm); cursor: pointer; opacity: 0.8; -webkit-transition: all 0.3s; transition: all 0.3s; display: flex; align-items: center; gap: var(--spacing-xs); }
-        .text-button:hover { opacity: 1; background-color: var(--color-secondary); border-radius: 4px; }
-        .text-button:active { opacity: 0.5; }
+        .text-button:hover:not(:disabled) { opacity: 1; background-color: var(--color-secondary); border-radius: 4px; }
+        .text-button:active:not(:disabled) { opacity: 0.5; }
+        .text-button:disabled { opacity: 0.4; cursor: not-allowed; }
         .text-button svg { width: 14px; height: 14px; flex-shrink: 0; }
         .text-button p { margin-block: 0; }
 
