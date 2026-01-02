@@ -80,7 +80,7 @@
         <span>Load Chat</span>
       </button>
       
-      <button class="dropdown-item" @click="$store.chats.saveChat(); dropdownOpen = false">
+      <button class="dropdown-item" @click="$store.chats.saveChat(); dropdownOpen = false" :disabled="!$store.chats.selected">
         <span class="material-symbols-outlined">save</span>
         <span>Save Chat</span>
       </button>
