@@ -7,6 +7,7 @@ from flaredantic import (
 import threading
 from collections import deque
 
+from python.helpers.print_style import PrintStyle
 
 # Singleton to manage the tunnel instance
 class TunnelManager:
@@ -83,7 +84,7 @@ class TunnelManager:
                     self.is_running = True
                 except Exception as e:
                     error_msg = str(e)
-                    print(f"Error in tunnel thread: {error_msg}")
+                    PrintStyle.error(f"Error in tunnel thread: {error_msg}")
                     self.notifications.append({
                         "event": NotifyEvent.ERROR.value,
                         "message": error_msg,
@@ -109,7 +110,7 @@ class TunnelManager:
 
             return self.tunnel_url
         except Exception as e:
-            print(f"Error starting tunnel: {str(e)}")
+            PrintStyle.error(f"Error starting tunnel: {str(e)}")
             return None
 
     def stop_tunnel(self):
