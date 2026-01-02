@@ -34,10 +34,9 @@
 
         <div id="a2a-connection-example"></div>
 
-        <script type="module">
-            import * as API from "/js/api.js";
-
-            setTimeout(async () => {
+        <script>
+            (async () => {
+                const API = await import("/js/api.js");
                 const url = window.location.origin;
                 
                 // Fetch token from settings API - try a2a_token first, fallback to mcp_server_token
@@ -91,7 +90,7 @@
 
                 // Update URL when project selection changes
                 projectSelect.addEventListener('change', updateConnectionUrl);
-            }, 0);
+            })();
         </script>
     </div>
 

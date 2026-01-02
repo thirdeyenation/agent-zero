@@ -24,8 +24,7 @@ const model = {
       }
 
       editor.session.setMode("ace/mode/json");
-      const field = this.getSettingsFieldConfigJson();
-      const json = field ? field.value : "{}";
+      const json = this.getSettingsFieldConfigJson();
       editor.setValue(json);
       editor.clearSelection();
       this.editor = editor;
