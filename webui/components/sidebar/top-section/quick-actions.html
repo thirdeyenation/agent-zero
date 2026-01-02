@@ -31,7 +31,7 @@
       </button>
 
       <!-- Dropdown Toggle -->
-      <button class="config-button dropdown-toggle" @click="dropdownOpen = !dropdownOpen" title="More options">
+      <button class="config-button dropdown-toggle" @click="$store.tooltips.hideAll(); dropdownOpen = !dropdownOpen" title="More options">
         <span class="material-symbols-outlined" :class="dropdownOpen ? 'rotated' : ''">expand_more</span>
       </button>
     </div>

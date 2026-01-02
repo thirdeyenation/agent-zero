@@ -280,12 +280,10 @@ nav ul li a img {
 
 .settings-tabs::before {
   left: 0;
-  background: linear-gradient(to right, var(--color-panel), transparent);
 }
 
 .settings-tabs::after {
   right: 0;
-  background: linear-gradient(to left, var(--color-panel), transparent);
 }
 
 .settings-tab {

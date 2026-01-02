@@ -1,5 +1,6 @@
 // Import the component loader and page utilities
 import { importComponent } from "/js/components.js";
+import { store as tooltipsStore } from "/components/tooltips/tooltip-store.js";
 
 // Modal functionality
 const modalStack = [];
@@ -106,6 +107,8 @@ function createModalElement(path) {
 export function openModal(modalPath) {
   return new Promise((resolve) => {
     try {
+      tooltipsStore.hideAll();
+
       // Create new modal instance
       const modal = createModalElement(modalPath);
 
