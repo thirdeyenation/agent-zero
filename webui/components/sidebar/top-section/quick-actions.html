@@ -185,6 +185,28 @@
     margin-top: var(--spacing-xs);
   }
 
+  /* Unified scrollbar styling for dropdown */
+  .quick-actions-dropdown::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .quick-actions-dropdown::-webkit-scrollbar-track {
+    background: transparent;
+    margin: 4px 0;
+    border-radius: 6px;
+  }
+
+  .quick-actions-dropdown::-webkit-scrollbar-thumb {
+    background-color: rgba(155, 155, 155, 0.5);
+    border-radius: 6px;
+    transition: background-color 0.2s ease;
+  }
+
+  .quick-actions-dropdown::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(155, 155, 155, 0.7);
+  }
+
   /* Dropdown item icon sizing */
   .dropdown-item .material-symbols-outlined {
     font-size: 18px;
