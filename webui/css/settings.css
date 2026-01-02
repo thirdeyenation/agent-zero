@@ -302,7 +302,6 @@ nav ul li a img {
   z-index: 1;
   min-width: min-content;
   width: auto;
-  max-width: 100px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -323,6 +322,8 @@ nav ul li a img {
     -4px 0 8px -2px var(--color-border); */
   font-weight: bold;
   background-color: var(--color-panel);
+  min-width: min-content;
+  max-width: 150px;
 }
 
 /* Light mode overrides */
@@ -367,8 +368,12 @@ nav ul li a img {
   .settings-tab {
     flex: 0 0 auto;
     text-align: center;
-    min-width: 60px;
-    max-width: 80px;
+    min-width: min-content;
+    max-width: 150px;
+  }
+  .settings-tab.active {
+    min-width: min-content;
+    max-width: 150px;
   }
 }
 

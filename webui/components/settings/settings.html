@@ -55,21 +55,21 @@
 
         <!-- Settings sections for agent, external, developer, mcp, backup tabs -->
         <div id="settings-sections">
-          <template x-if="$store.settingsStore.activeTab === 'agent'">
+          <div x-show="$store.settingsStore.activeTab === 'agent'">
             <x-component path="settings/agent/agent-settings.html"></x-component>
-          </template>
-          <template x-if="$store.settingsStore.activeTab === 'external'">
+          </div>
+          <div x-show="$store.settingsStore.activeTab === 'external'">
             <x-component path="settings/external/external-settings.html"></x-component>
-          </template>
-          <template x-if="$store.settingsStore.activeTab === 'mcp'">
+          </div>
+          <div x-show="$store.settingsStore.activeTab === 'mcp'">
             <x-component path="settings/mcp/mcp-settings.html"></x-component>
-          </template>
-          <template x-if="$store.settingsStore.activeTab === 'developer'">
+          </div>
+          <div x-show="$store.settingsStore.activeTab === 'developer'">
             <x-component path="settings/developer/developer-settings.html"></x-component>
-          </template>
-          <template x-if="$store.settingsStore.activeTab === 'backup'">
+          </div>
+          <div x-show="$store.settingsStore.activeTab === 'backup'">
             <x-component path="settings/backup/backup-settings.html"></x-component>
-          </template>
+          </div>
         </div>
       </div>
 

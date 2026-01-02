@@ -162,7 +162,7 @@ some classes like modal-header are shared between the old and the new system */
   margin: 4px 0;
   border-radius: 6px;
 }
-.modal-content::-webkit-scrollbar-thumb, .modal-scroll::webkit-scrollbar-thumb {
+.modal-content::-webkit-scrollbar-thumb, .modal-scroll::-webkit-scrollbar-thumb {
   background-color: rgba(155, 155, 155, 0.5);
   border-radius: 6px;
   transition: background-color 0.2s ease;
