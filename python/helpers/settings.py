@@ -264,6 +264,13 @@ def convert_out(settings: Settings) -> SettingsOutput:
     additional["knowledge_subdirs"] = _ensure_option_present(additional.get("knowledge_subdirs"), current.get("agent_knowledge_subdir"))
     additional["stt_models"] = _ensure_option_present(additional.get("stt_models"), current.get("stt_model_size"))
 
+    # masked api keys
+    providers = get_providers("chat") + get_providers("embedding")
+    for provider in providers:
+        provider_name = provider["value"]
+        api_key = settings["api_keys"].get(provider_name, models.get_api_key(provider_name))
+        settings["api_keys"][provider_name] = API_KEY_PLACEHOLDER if api_key and api_key != "None" else ""
+
     # load auth from dotenv
     out["settings"]["auth_login"] = dotenv.get_dotenv_value(dotenv.KEY_AUTH_LOGIN) or ""
     out["settings"]["auth_password"] = (
@@ -311,21 +318,7 @@ def _get_api_key_field(settings: Settings, provider: str, title: str) -> Setting
 def convert_in(settings: Settings) -> Settings:
     current = get_settings()
 
-    # api keys
-    if "api_keys" in settings and isinstance(settings["api_keys"], dict):
-        for provider, value in settings["api_keys"].items():
-            if value != API_KEY_PLACEHOLDER:
-                current["api_keys"][provider] = value
-
-    # all other fields
     for key, value in settings.items():
-        if key == "api_keys":
-            continue
-
-        # Skip saving if value is a placeholder
-        if value == PASSWORD_PLACEHOLDER or value == API_KEY_PLACEHOLDER:
-            continue
-
         # Special handling for browser_http_headers and *_kwargs (stored as .env text)
         if (key == "browser_http_headers" or key.endswith("_kwargs")) and isinstance(value, str):
             current[key] = _env_to_dict(value)
@@ -436,17 +429,16 @@ def _remove_sensitive_settings(settings: Settings):
 
 def _write_sensitive_settings(settings: Settings):
     for key, val in settings["api_keys"].items():
-        dotenv.save_dotenv_value(key.upper(), val)
+        if val != API_KEY_PLACEHOLDER:
+            dotenv.save_dotenv_value(key.upper(), val)
 
     dotenv.save_dotenv_value(dotenv.KEY_AUTH_LOGIN, settings["auth_login"])
-    if settings["auth_password"]:
+    if settings["auth_password"] != PASSWORD_PLACEHOLDER:
         dotenv.save_dotenv_value(dotenv.KEY_AUTH_PASSWORD, settings["auth_password"])
-    if settings["rfc_password"]:
+    if settings["rfc_password"] != PASSWORD_PLACEHOLDER:
         dotenv.save_dotenv_value(dotenv.KEY_RFC_PASSWORD, settings["rfc_password"])
-
-    if settings["root_password"]:
+    if settings["root_password"] != PASSWORD_PLACEHOLDER:
         dotenv.save_dotenv_value(dotenv.KEY_ROOT_PASSWORD, settings["root_password"])
-    if settings["root_password"]:
         set_root_password(settings["root_password"])
 
     # Handle secrets separately - merge with existing preserving comments/order and support deletions
