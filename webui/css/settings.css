@@ -47,18 +47,13 @@ textarea,
 select {
   width: 100%;
   padding: 0.5rem;
-  border: 1px solid var(--color-secondary);
+  border: 1px solid var(--color-border);
   border-radius: 0.25rem;
   background-color: var(--color-background);
   color: var(--color-text);
   font-family: "Rubik", Arial, Helvetica, sans-serif;
   outline: none;
   transition: all 0.3s ease;
-}
-
-input[type="text"]:focus,
-input[type="password"]:focus {
-  opacity: 1;
 }
 
 textarea {
@@ -69,8 +64,19 @@ textarea {
   background-clip: border-box;
 }
 
+input[type="text"]:focus,
+input[type="number"]:focus,
+input[type="password"]:focus,
 textarea:focus {
-  background-color: #151515;
+  background-color: var(--color-background);
+  filter: brightness(1.2);
+}
+
+.light-mode input[type="text"]:focus,
+.light-mode input[type="number"]:focus,
+.light-mode input[type="password"]:focus, 
+.light-mode textarea:focus {
+  filter: brightness(1.1);
 }
 
 /* Button Disabled State */
@@ -324,26 +330,6 @@ nav ul li a img {
   max-width: 150px;
 }
 
-/* Light mode overrides */
-.light-mode .settings-tab.active {
-  /* color: var(--color-border); */
-  /* box-shadow:
-    0 -4px 8px -2px var(--color-border),
-    4px 0 8px -2px var(--color-border),
-    -4px 0 8px -2px var(--color-border); */
-}
-
-.light-mode .settings-tab:not(.active) {
-  background-color: rgba(0, 0, 0, 0.03);
-}
-
-.light-mode .settings-tabs::before {
-  background: linear-gradient(to right, var(--color-panel-light), transparent);
-}
-
-.light-mode .settings-tabs::after {
-  background: linear-gradient(to left, var(--color-panel-light), transparent);
-}
 
 /* Responsive Design for Settings Tabs */
 @media (max-width: 640px) {

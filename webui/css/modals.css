@@ -381,27 +381,40 @@ input[type="range"] {
   background: var(--color-border);
   border-radius: 2px;
   outline: none;
+  transition: all 0.2s ease;
 }
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
   width: 16px;
   height: 16px;
-  background: var(--color-text);
+  background: var(--color-primary);
   border-radius: 50%;
   cursor: pointer;
+  transition: all 0.2s ease;
 }
+
 input[type="range"]::-moz-range-thumb {
   width: 16px;
   height: 16px;
-  background: var(--color-text);
+  background: var(--color-primary);
   border-radius: 50%;
   cursor: pointer;
   border: none;
+  transition: all 0.2s ease;
 }
+
 .range-value {
   min-width: 3em;
   text-align: right;
+}
+
+/* Light mode overrides */
+.light-mode input[type="range"]::-webkit-slider-thumb {
+  background: #777;
+}
+.light-mode input[type="range"]::-moz-range-thumb {
+  background: #777;
 }
 
 /* Responsive Design */

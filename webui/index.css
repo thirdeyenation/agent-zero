@@ -23,7 +23,7 @@
   --color-input-focus-dark: #101010;
 
   /* Light mode */
-  --color-background-light: #dbdbdb;
+  --color-background-light: #fafafa;
   --color-text-light: #333333;
   --color-primary-light: #384653;
   --color-secondary-light: #e8eaf6;
@@ -32,7 +32,7 @@
   --color-highlight-light: #2563eb;
   --color-message-text-light: #333333;
   --color-panel-light: #f0f0f0;
-  --color-border-light: #e0e0e0c7;
+  --color-border-light: #bdbdbdcf;
   --color-input-light: #e4e4e4;
   --color-input-focus-light: #dadada;
 
@@ -1397,7 +1397,7 @@ nav ul li a img {
   top: 100%;
   right: 0;
   min-width: 180px;
-  max-height: 400px;
+  max-height: 70vh;
   overflow-y: auto;
   background-color: var(--color-panel);
   border: 1px solid var(--color-border);
@@ -1435,7 +1435,6 @@ nav ul li a img {
 .dropdown-item:hover {
   background-color: var(--color-background-hover);
   opacity: 1;
-  transform: translateX(-2px);
 }
 
 .dropdown-item:active {
@@ -1451,6 +1450,12 @@ nav ul li a img {
 .dropdown-item svg {
   width: 18px;
   height: 18px;
+  flex-shrink: 0;
+  opacity: 0.8;
+}
+
+.dropdown-item .material-symbols-outlined {
+  font-size: 18px;
   flex-shrink: 0;
   opacity: 0.8;
 }
@@ -1477,6 +1482,4 @@ nav ul li a img {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
 }
 
-.light-mode .dropdown-item:hover {
-  background-color: var(--color-secondary);
-}
+.light-mode .dropdown-item:hover { background-color: var(--color-background-hover); }

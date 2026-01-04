@@ -3,7 +3,7 @@
   background: var(--color-panel);
   font-weight: 500;
   padding: 0.5rem 1.5rem;
-  border-radius: 0.25rem;
+  border-radius: 6px;
   cursor: pointer;
   border: 1px solid var(--color-border);
   color: var(--color-text);
@@ -213,12 +213,12 @@
 
 .btn-icon-action:hover {
   border-color: var(--color-primary);
-  background-color: rgba(50, 69, 86, 0.56);
+  background-color: var(--color-background-hover);
 }
 
 .btn-icon-action:active {
-  background-color: rgba(19, 26, 32, 0.56);
-  color: rgba(253, 253, 253, 0.35);
+  background-color: var(--color-background-hover);
+  color: var(--color-primary);
 }
 
 .btn-icon-action.danger:hover {

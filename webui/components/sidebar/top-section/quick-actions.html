@@ -165,7 +165,7 @@
   }
 
   .config-button:hover {
-    background-color: var(--color-secondary);
+    background-color: var(--color-background-hover);
     opacity: 1;
     z-index: 1;
     position: relative;
@@ -234,13 +234,8 @@
     color: #333333;
   }
 
-  .light-mode .config-button:hover {
-    background-color: #d6dae8;
-  }
-
-  .light-mode .config-button:active {
-    background-color: #bdc0cb;
-  }
+  .light-mode .config-button:hover { background-color: var(--color-background-hover); }
+  .light-mode .config-button:active { background-color: var(--color-background-hover); }
 
   /* Transition helpers */
   .-translate-y-1 { transform: translateY(-0.25rem); }
