@@ -41,19 +41,11 @@ function resolveToolName(type, kvps, stepElement) {
 }
 
 /**
- * Update status badge text content while preserving the icon
+ * Update status badge text content
  */
 function updateBadgeText(badge, newCode) {
   if (!badge) return;
-  
-  // Find and update text node, or append new one
-  for (const node of badge.childNodes) {
-    if (node.nodeType === Node.TEXT_NODE && node.textContent.trim()) {
-      node.textContent = newCode;
-      return;
-    }
-  }
-  badge.appendChild(document.createTextNode(newCode));
+  badge.textContent = newCode;
 }
 
 // Process types that should be grouped into collapsible sections
@@ -1179,7 +1171,7 @@ function createProcessGroup(id) {
   header.innerHTML = `
     <span class="expand-icon"></span>
     <span class="group-title">Processing...</span>
-    <span class="status-badge status-gen status-active group-status"><span class="badge-icon material-symbols-outlined">public</span>GEN</span>
+    <span class="status-badge status-gen status-active group-status">GEN</span>
     <span class="group-metrics">
       <span class="metric-time" title="Start time"><span class="material-symbols-outlined">schedule</span><span class="metric-value">--:--</span></span>
       <span class="metric-steps" title="Steps"><span class="material-symbols-outlined">list_alt</span><span class="metric-value">0</span></span>
@@ -1284,15 +1276,15 @@ function addProcessStep(group, id, type, heading, content, kvps, timestamp = nul
   
   // Status code and color class from store (maps backend types)
   const statusCode = processGroupStore.getStepCode(type, toolNameToUse);
-  const statusColorClass = processGroupStore.getStatusColorClass(type);
+  const statusColorClass = processGroupStore.getStatusColorClass(type, toolNameToUse);
   
-  // Icon extracted from heading (backend sends icon://xxx), fallback to type-based
-  const stepIcon = extractIconFromHeading(heading) || processGroupStore.getStepIcon(type);
+  // Add status color class to step for cascading --step-accent to internal icons
+  step.classList.add(statusColorClass);
   
   const activeClass = isGroupCompleted ? "" : " status-active";
   stepHeader.innerHTML = `
     <span class="step-expand-icon"></span>
-    <span class="status-badge ${statusColorClass}${activeClass}"><span class="badge-icon material-symbols-outlined">${stepIcon}</span>${statusCode}</span>
+    <span class="status-badge ${statusColorClass}${activeClass}">${statusCode}</span>
     <span class="step-title">${escapeHTML(title)}</span>
   `;
   
@@ -1711,15 +1703,13 @@ function updateProcessGroupHeader(group) {
     const lastToolName = lastStep.getAttribute("data-tool-name");
     const lastTitle = lastStep.querySelector(".step-title")?.textContent || "";
     
-    // Update status badge with icon (keep status-active during execution)
+    // Update status badge (keep status-active during execution)
     if (statusEl) {
       // Status code and color class from store (maps backend types)
       const statusCode = processGroupStore.getStepCode(lastType, lastToolName);
-      const statusColorClass = processGroupStore.getStatusColorClass(lastType);
-      // Get icon from the last step's badge, fallback to type-based
-      const lastStepBadge = lastStep.querySelector(".badge-icon");
-      const badgeIcon = lastStepBadge?.textContent || processGroupStore.getStepIcon(lastType);
-      statusEl.innerHTML = `<span class="badge-icon material-symbols-outlined">${badgeIcon}</span>${statusCode}`;
+      const statusColorClass = processGroupStore.getStatusColorClass(lastType, lastToolName);
+      
+      statusEl.textContent = statusCode;
       statusEl.className = `status-badge ${statusColorClass} status-active group-status`;
     }
     
@@ -1764,7 +1754,7 @@ function markProcessGroupComplete(group, responseTitle) {
   // Update status badge to END (remove status-active)
   const statusEl = group.querySelector(".group-status");
   if (statusEl) {
-    statusEl.innerHTML = '<span class="badge-icon material-symbols-outlined">check_circle</span>END';
+    statusEl.innerHTML = '<span class="badge-icon material-symbols-outlined">check</span>END';
     statusEl.className = "status-badge status-end group-status"; // No status-active
   }
   

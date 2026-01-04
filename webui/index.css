@@ -1299,47 +1299,35 @@ nav ul li a img {
 }
 
 .scheduler-status-idle {
-  background-color: rgba(0, 100, 0, 0.2);
   color: #2a9d8f; /* Dark green that works with both light and dark themes */
-  border: 1px solid rgba(42, 157, 143, 0.3);
 }
 
 .scheduler-status-running {
-  background-color: rgba(0, 60, 120, 0.2);
   color: #4361ee; /* Dark blue that works with both light and dark themes */
-  border: 1px solid rgba(67, 97, 238, 0.3);
 }
 
 .scheduler-status-disabled {
-  background-color: rgba(70, 70, 70, 0.2);
   color: #6c757d; /* Dark grey that works with both light and dark themes */
-  border: 1px solid rgba(108, 117, 125, 0.3);
 }
 
 .scheduler-status-error {
-  background-color: rgba(120, 0, 0, 0.2);
   color: #e63946; /* Dark red that works with both light and dark themes */
-  border: 1px solid rgba(230, 57, 70, 0.3);
 }
 
 /* Light mode adjustments */
 .light-mode .scheduler-status-idle {
-  background-color: rgba(42, 157, 143, 0.1);
   color: #1a6f65; /* Darker green for light mode */
 }
 
 .light-mode .scheduler-status-running {
-  background-color: rgba(67, 97, 238, 0.1);
   color: #2540b3; /* Darker blue for light mode */
 }
 
 .light-mode .scheduler-status-disabled {
-  background-color: rgba(108, 117, 125, 0.1);
   color: #495057; /* Darker grey for light mode */
 }
 
 .light-mode .scheduler-status-error {
-  background-color: rgba(230, 57, 70, 0.1);
   color: #c5283d; /* Darker red for light mode */
 }
 

@@ -9,7 +9,7 @@
   overflow-y: scroll;
   overflow-x: hidden;
   scroll-behavior: auto !important; /* avoid infinite scrolling! */
-  padding: var(--spacing-md) var(--spacing-sm) 0;
+  padding: var(--spacing-md) 10em 0 !important;  
   -webkit-transition: all 0.3s ease;
   transition: all 0.3s ease;
   scrollbar-width: thin;
@@ -79,6 +79,7 @@
 
 .message-user {
   text-align: end;
+  margin-bottom: var(--spacing-md);
 }
 
 .message-user > div {
@@ -152,6 +153,7 @@
 .message-agent-response {
   min-width: 255px;
   background-color: transparent;
+  opacity: 0.85;
 }
 
 .message-agent-delegation {
@@ -438,6 +440,12 @@
 }
 
 /* Media Queries */
+@media (max-width: 1024px) {
+  #chat-history {
+    padding: var(--spacing-md) var(--spacing-sm) 0 !important;
+  }
+}
+
 @media (max-width: 640px) {
   /* New styles for mobile messages */
 
@@ -602,10 +610,9 @@
   margin-top: 0.5em;
   margin-bottom: 0.5em;
   display: inline-grid;
-  grid-template-columns: minmax(0, max-content);
+  grid-template-columns: minmax(0, 100%);
   grid-auto-rows: auto;
   max-width: 100%;
-  width: fit-content;
   gap: var(--spacing-xs);
 }
 
@@ -620,23 +627,6 @@
 
 .message-group-mid {
   margin-left: 2em;
-}
-
-/* 1. FIRST child’s .message – clear ONLY bottom corners          */
-.message-group > *:first-child:not(:last-child) > .message-user {
-  border-bottom-left-radius: var(--spacing-xxs);
-  border-bottom-right-radius: var(--spacing-xxs);
-}
-
-/* 2. MIDDLE children’s .message – clear ALL corners              */
-.message-group > *:not(:first-child):not(:last-child) > .message-user {
-  border-radius: var(--spacing-xxs);
-}
-
-/* 3. LAST child’s .message – clear ONLY top corners              */
-.message-group > *:last-child:not(:first-child) > .message-user {
-  border-top-left-radius: var(--spacing-xxs);
-  border-top-right-radius: var(--spacing-xxs);
 }
 
 .message-container {

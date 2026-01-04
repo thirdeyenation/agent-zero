@@ -90,6 +90,7 @@
   font-size: var(--font-size-smaller);
   font-weight: 500;
   color: var(--color-text);
+  opacity: 0.9;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -140,103 +141,90 @@
 }
 
 /* Status colors - mapped from backend types via store */
+/* Each status defines --step-accent for cascading to internal icons */
 
 /* GEN - agent type (blue/cyan) */
 .status-gen {
-  background-color: rgba(56, 189, 248, 0.15);
-  color: #38bdf8;
-  border: 1px solid rgba(56, 189, 248, 0.3);
+  --step-accent: #38bdf8;
+  color: var(--step-accent);
 }
 
 /* END - response/done type (green) */
 .status-end {
-  background-color: rgba(34, 197, 94, 0.15);
-  color: #22c55e;
-  border: 1px solid rgba(34, 197, 94, 0.3);
+  --step-accent: #22c55e;
+  color: var(--step-accent);
 }
 
 /* USE - tool usage (amber/yellow) */
 .status-tool {
-  background-color: rgba(251, 191, 36, 0.15);
-  color: #fbbf24;
-  border: 1px solid rgba(251, 191, 36, 0.3);
+  --step-accent: #fbbf24;
+  color: var(--step-accent);
 }
 
 /* MCP - mcp type (amber/yellow) */
 .status-mcp {
-  background-color: rgba(251, 191, 36, 0.15);
-  color: #fbbf24;
-  border: 1px solid rgba(251, 191, 36, 0.3);
+  --step-accent: #fbbf24;
+  color: var(--step-accent);
 }
 
 /* SUB - subagent type (teal) */
 .status-sub {
-  background-color: rgba(20, 184, 166, 0.15);
-  color: #14b8a6;
-  border: 1px solid rgba(20, 184, 166, 0.3);
+  --step-accent: #14b8a6;
+  color: var(--step-accent);
 }
 
 /* EXE - code_exe type (magenta/purple) */
 .status-exe {
-  background-color: rgba(186, 104, 200, 0.15);
-  color: #ba68c8;
-  border: 1px solid rgba(186, 104, 200, 0.3);
+  --step-accent: #ba68c8;
+  color: var(--step-accent);
 }
 
 /* BRW - browser type (indigo) */
 .status-brw {
-  background-color: rgba(129, 140, 248, 0.15);
-  color: #818cf8;
-  border: 1px solid rgba(129, 140, 248, 0.3);
+  --step-accent: #818cf8;
+  color: var(--step-accent);
 }
 
 /* WAIT - progress type (slate) */
 .status-wait {
-  background-color: rgba(148, 163, 184, 0.15);
-  color: #94a3b8;
-  border: 1px solid rgba(148, 163, 184, 0.3);
+  --step-accent: #94a3b8;
+  color: var(--step-accent);
 }
 
 /* INF - info type (gray) */
 .status-inf {
-  background-color: rgba(148, 163, 184, 0.15);
-  color: #94a3b8;
-  border: 1px solid rgba(148, 163, 184, 0.3);
+  --step-accent: #94a3b8;
+  color: var(--step-accent);
 }
 
 /* HNT - hint type (yellow-green) */
 .status-hnt {
-  background-color: rgba(163, 230, 53, 0.15);
-  color: #a3e635;
-  border: 1px solid rgba(163, 230, 53, 0.3);
+  --step-accent: #a3e635;
+  color: var(--step-accent);
 }
 
 /* WRN - warning type (orange) */
 .status-wrn {
-  background-color: rgba(249, 115, 22, 0.15);
-  color: #f97316;
-  border: 1px solid rgba(249, 115, 22, 0.3);
+  --step-accent: #f97316;
+  color: var(--step-accent);
 }
 
 /* ERR - error type (red) */
 .status-err {
-  background-color: rgba(239, 68, 68, 0.15);
-  color: #ef4444;
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  --step-accent: #ef4444;
+  color: var(--step-accent);
 }
 
 /* UTL - util type (gray-blue) */
 .status-utl {
-  background-color: rgba(100, 116, 139, 0.15);
-  color: #64748b;
-  border: 1px solid rgba(100, 116, 139, 0.3);
+  --step-accent: #64748b;
+  color: var(--step-accent);
 }
 
 /* USR - user type (sky) */
 .status-usr {
-  background-color: rgba(56, 189, 248, 0.15);
-  color: #38bdf8;
-  border: 1px solid rgba(56, 189, 248, 0.3);
+  --step-accent: #38bdf8;
+  color: var(--step-accent);
 }
 
 /* Animated spinner for active status (CSS-only, no Material Icons) */
@@ -367,9 +355,12 @@
 .process-step {
   display: flex;
   flex-direction: column;
-  padding: 1px var(--spacing-xs);
-  border-radius: 4px;
+  padding: 4px 0;
   transition: background-color 0.15s ease;
+}
+
+.step-expanded {
+  padding: var(--spacing-xs) 0;
 }
 
 /* Utility/Info/Hint steps have subtle background tint */
@@ -415,7 +406,7 @@
 /* Step title */
 .process-step-header .step-title {
   flex: 1;
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   color: var(--color-text);
   white-space: nowrap;
   overflow: hidden;
@@ -480,12 +471,13 @@
   grid-template-rows: 1fr;
   opacity: 1;
   overflow: visible;
+  margin-top: var(--spacing-xs);
 }
 
 .process-step-detail-content {
   padding: var(--spacing-xs) 0;
   margin-top: var(--spacing-xxs);
-  margin-left: 20px; /* Align with icon */
+  margin-left: 28px; /* Align with icon */
   background-color: transparent;
   font-size: 0.7rem;
   line-height: 1.5;
@@ -508,40 +500,38 @@
   opacity: 0.8;
 }
 
-/* KVPs in step detail */
+/* KVPs in step detail - CSS Grid for aligned columns */
 .process-step-detail-content .step-kvps {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-sm);
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--spacing-xs) var(--spacing-sm);
+  align-items: start;
 }
 
 .process-step-detail-content .step-kvp {
-  display: flex;
-  gap: var(--spacing-xs);
-  align-items: flex-start;
+  display: contents; /* Children participate in parent grid */
 }
 
 .process-step-detail-content .step-kvp-key {
-  color: var(--color-primary);
+  color: var(--step-accent, var(--color-primary));
   font-weight: 500;
   opacity: 0.8;
   display: flex;
   align-items: center;
-  flex-shrink: 0;
-  min-width: fit-content;
+  justify-content: end;
 }
 
 .process-step-detail-content .step-kvp-key .material-symbols-outlined {
   font-size: 0.9rem;
+  color: var(--step-accent, var(--color-primary)) !important;
 }
 
 .process-step-detail-content .step-kvp-value {
-  flex: 1;
   color: var(--color-text);
-  opacity: 0.75;
+  opacity: 0.85;
   word-break: break-word;
   white-space: pre-wrap;
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   line-height: 1.5;
 }
 
@@ -549,19 +539,20 @@
 .process-step-detail-content .step-thoughts {
   display: flex;
   align-items: flex-start;
-  gap: 6px;
+  gap: var(--spacing-sm);
   margin: var(--spacing-xs) 0;
 }
 
 .process-step-detail-content .thought-icon {
   font-size: 0.85rem;
-  color: #fbbf24;
+  color: var(--step-accent, #38bdf8);
   flex-shrink: 0;
   margin-top: 2px;
 }
 
 .process-step-detail-content .thought-text {
-  font-size: 0.72rem;
+  font-size: 0.7rem;
+  font-weight: 300;
   color: var(--color-text);
   opacity: 0.65;
   line-height: 1.5;
@@ -569,41 +560,37 @@
   word-break: break-word;
 }
 
-/* Light mode thoughts */
+/* Light mode thoughts - uses step accent if available */
 .light-mode .process-step-detail-content .thought-icon {
-  color: #b45309;
+  color: var(--step-accent, #b45309);
 }
 
-/* Tool arguments structured display - clean label:value format without boxes */
+/* Tool arguments - CSS Grid for aligned columns */
 .process-step-detail-content .step-tool-args {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 8px;
   margin: var(--spacing-xs) 0;
-  padding: 0;
-  background: transparent;
-  border-radius: 0;
-  border-left: none;
+  align-items: baseline;
 }
 
 .process-step-detail-content .tool-arg-row {
-  display: flex;
-  gap: 8px;
-  align-items: baseline;
+  display: contents; /* Children participate in parent grid */
 }
 
 .process-step-detail-content .tool-arg-label {
   font-size: 0.68rem;
   font-weight: 600;
-  color: var(--color-primary);
-  flex-shrink: 0;
+  color: var(--step-accent, var(--color-primary));
   display: flex;
   align-items: center;
+  justify-content: end;
 }
 
 .process-step-detail-content .tool-arg-label .material-symbols-outlined {
   font-size: 0.9rem;
   opacity: 0.85;
+  color: var(--step-accent, var(--color-primary));
 }
 
 .process-step-detail-content .tool-arg-value {
@@ -622,14 +609,14 @@
 
 .process-step-detail-content .step-tool-header .tool-icon {
   font-size: 0.85rem;
-  color: var(--color-warning);
+  color: var(--step-accent, var(--color-warning));
   opacity: 0.85;
 }
 
 .process-step-detail-content .step-tool-header .tool-label {
   font-size: 0.68rem;
   font-weight: 600;
-  color: var(--color-warning);
+  color: var(--step-accent, var(--color-warning));
   opacity: 0.85;
 }
 
@@ -691,88 +678,75 @@
 }
 
 /* Light mode status badge adjustments for better contrast */
+/* Override --step-accent for cascading to internal icons */
 .light-mode .status-gen {
-  background-color: rgba(14, 165, 233, 0.12);
-  color: #0284c7;
-  border-color: rgba(14, 165, 233, 0.25);
+  --step-accent: #0284c7;
+  color: var(--step-accent);
 }
 
 .light-mode .status-end {
-  background-color: rgba(22, 163, 74, 0.12);
-  color: #15803d;
-  border-color: rgba(22, 163, 74, 0.25);
+  --step-accent: #15803d;
+  color: var(--step-accent);
 }
 
 .light-mode .status-tool {
-  background-color: rgba(217, 119, 6, 0.12);
-  color: #b45309;
-  border-color: rgba(217, 119, 6, 0.25);
+  --step-accent: #b45309;
+  color: var(--step-accent);
 }
 
 .light-mode .status-mcp {
-  background-color: rgba(217, 119, 6, 0.12);
-  color: #b45309;
-  border-color: rgba(217, 119, 6, 0.25);
+  --step-accent: #b45309;
+  color: var(--step-accent);
 }
 
 .light-mode .status-sub {
-  background-color: rgba(13, 148, 136, 0.12);
-  color: #0f766e;
-  border-color: rgba(13, 148, 136, 0.25);
+  --step-accent: #0f766e;
+  color: var(--step-accent);
 }
 
 .light-mode .status-exe {
-  background-color: rgba(147, 51, 234, 0.12);
-  color: #7c3aed;
-  border-color: rgba(147, 51, 234, 0.25);
+  --step-accent: #7c3aed;
+  color: var(--step-accent);
 }
 
 .light-mode .status-brw {
-  background-color: rgba(99, 102, 241, 0.12);
-  color: #4f46e5;
-  border-color: rgba(99, 102, 241, 0.25);
+  --step-accent: #4f46e5;
+  color: var(--step-accent);
 }
 
 .light-mode .status-wait {
-  background-color: rgba(100, 116, 139, 0.12);
-  color: #475569;
-  border-color: rgba(100, 116, 139, 0.25);
+  --step-accent: #475569;
+  color: var(--step-accent);
 }
 
 .light-mode .status-inf {
-  background-color: rgba(100, 116, 139, 0.12);
-  color: #475569;
-  border-color: rgba(100, 116, 139, 0.25);
+  --step-accent: #475569;
+  color: var(--step-accent);
 }
 
 .light-mode .status-hnt {
-  background-color: rgba(132, 204, 22, 0.12);
-  color: #65a30d;
-  border-color: rgba(132, 204, 22, 0.25);
+  --step-accent: #65a30d;
+  color: var(--step-accent);
 }
 
 .light-mode .status-wrn {
-  background-color: rgba(234, 88, 12, 0.12);
-  color: #c2410c;
-  border-color: rgba(234, 88, 12, 0.25);
+  --step-accent: #c2410c;
+  color: var(--step-accent);
 }
 
 .light-mode .status-err {
-  background-color: rgba(220, 38, 38, 0.12);
-  color: #b91c1c;
-  border-color: rgba(220, 38, 38, 0.25);
+  --step-accent: #b91c1c;
+  color: var(--step-accent);
 }
 
 .light-mode .status-utl {
-  background-color: rgba(71, 85, 105, 0.12);
-  color: #334155;
-  border-color: rgba(71, 85, 105, 0.25);
+  --step-accent: #334155;
+  color: var(--step-accent);
 }
 
 .light-mode .status-usr {
-  background-color: rgba(14, 165, 233, 0.12);
-  color: #0284c7;
-  border-color: rgba(14, 165, 233, 0.25);
+  --step-accent: #0284c7;
+  color: var(--step-accent);
 }
 
 /* Animation for loading state */

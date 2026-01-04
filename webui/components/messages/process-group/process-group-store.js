@@ -115,28 +115,6 @@ const model = {
     this._persist();
   },
 
-  // Fallback icon for step type when backend doesn't provide one (Material Symbols)
-  // Maps backend log types to appropriate icons
-  getStepIcon(type) {
-    const icons = {
-      'agent': 'network_intelligence',
-      'response': 'chat',
-      'tool': 'construction',
-      'mcp': 'api',
-      'subagent': 'communication',
-      'code_exe': 'terminal',
-      'browser': 'captive_portal',
-      'progress': 'timer',
-      'info': 'info',
-      'hint': 'lightbulb',
-      'warning': 'warning',
-      'error': 'error',
-      'util': 'memory',
-      'done': 'done_all'
-    };
-    return icons[type] || 'circle';
-  },
-
   // Status code (3-4 letter) for backend log types
   // Looks up tool name first (specific), then falls back to type (generic)
   getStepCode(type, toolName = null) {
@@ -151,7 +129,17 @@ const model = {
   },
 
   // CSS color class for backend log types
-  getStatusColorClass(type) {
+  // Looks up tool name first (specific), then falls back to type (generic)
+  getStatusColorClass(type, toolName = null) {
+    // Specific tool name mappings for 'tool' steps
+    if (type === 'tool' && toolName) {
+      // call_subordinate gets teal (SUB color)
+      if (toolName === 'call_subordinate') {
+        return 'status-sub';
+      }
+      // Add other specific tool mappings here if needed in the future
+    }
+    
     const colors = {
       'agent': 'status-gen',
       'response': 'status-end',
