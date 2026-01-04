@@ -177,6 +177,9 @@ export function openModal(modalPath) {
 export function closeModal(modalPath = null) {
   if (modalStack.length === 0) return;
 
+  // Ensure any visible tooltips are hidden before removing modal DOM.
+  tooltipsStore.hideAll();
+
   let modalIndex = modalStack.length - 1; // Default to last modal
   let modal;
 

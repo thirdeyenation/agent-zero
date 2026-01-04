@@ -132,7 +132,8 @@ body,
 /* Bootstrap-like tooltips */
 .tooltip {
   position: absolute;
-  z-index: 1080;
+  /* Above custom modals (base z-index: 3000 in `webui/js/modals.js`) */
+  z-index: 5000;
   display: block;
   margin: 0;
   font-family: var(--font-family-main);
