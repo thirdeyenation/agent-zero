@@ -1404,6 +1404,19 @@ function updateProcessStep(stepElement, id, type, heading, content, kvps, durati
   // Update detail content
   const detailContent = stepElement.querySelector(".process-step-detail-content");
   if (detailContent) {
+    // For browser, update image src incrementally to avoid flashing
+    if (type === "browser" && kvps?.screenshot) {
+      const existingImg = detailContent.querySelector(".screenshot-img");
+      const newSrc = kvps.screenshot.replace("img://", "/image_get?path=");
+      if (existingImg) {
+        // Only update if src actually changed
+        if (!existingImg.src.endsWith(newSrc.split("?path=")[1])) {
+          existingImg.src = newSrc;
+        }
+        // Skip full re-render to avoid flashing
+        return;
+      }
+    }
     renderStepDetailContent(detailContent, content, kvps, type);
   }
   
