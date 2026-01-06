@@ -9,7 +9,6 @@
   max-width: 100%;
   box-sizing: border-box;
   flex-shrink: 0;
-  width: fit-content;
 }
 
 /* Embedded Process Group inside Response */
@@ -433,7 +432,8 @@
   opacity: 0.7;
 }
 
-.process-step.step-expanded .step-expand-icon {
+/* Use direct child selector to prevent affecting nested steps */
+.process-step.step-expanded > .process-step-header > .step-expand-icon {
   transform: rotate(90deg);
 }
 
@@ -467,7 +467,8 @@
   min-height: 0;
 }
 
-.process-step.step-expanded .process-step-detail {
+/* Use direct child selector (>) to prevent cascading to nested steps */
+.process-step.step-expanded > .process-step-detail {
   grid-template-rows: 1fr;
   opacity: 1;
   overflow: visible;
@@ -809,4 +810,94 @@
 .process-step-detail-content pre.msg-json.show-json {
   display: block;
   margin-top: var(--spacing-xs);
+}
+
+/* Nested Process Steps (Subordinate Agents) */
+
+.process-nested-container {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  overflow: hidden;
+  transition: grid-template-rows 0.25s ease-out, opacity 0.2s ease-out;
+  gap: 2px;
+}
+
+/* Only show nested container when parent step is expanded */
+.process-step.step-expanded > .process-nested-container {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  margin-top: 2px;
+  /* Keep overflow hidden to allow nested steps to control their own expansion */
+}
+
+/* Inner wrapper to handle grid transition content */
+.process-nested-inner {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* All nested containers have same indentation (no cascading) */
+.nested-step .process-nested-container {
+  margin-left: 0;
+}
+
+/* Response content in process steps */
+.process-step-detail-content .step-response-content {
+  font-size: 0.75rem;
+  line-height: 1.6;
+  color: var(--color-text);
+  opacity: 0.9;
+  margin: var(--spacing-xs) 0;
+}
+
+.process-step-detail-content .step-response-content p {
+  margin: 0.5em 0;
+}
+
+.process-step-detail-content .step-response-content ul,
+.process-step-detail-content .step-response-content ol {
+  margin: 0.5em 0;
+  padding-left: 1.5em;
+}
+
+/* Warning/error content in process steps */
+.process-step-detail-content .step-warning-content {
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: var(--color-warning);
+  opacity: 0.9;
+  margin: var(--spacing-xs) 0;
+  padding: var(--spacing-xs);
+  background: rgba(255, 165, 0, 0.08);
+  border-left: 2px solid var(--color-warning);
+  border-radius: 3px;
+}
+
+/* Browser screenshot content in process steps */
+.process-step-detail-content .screenshot-img {
+  max-width: 100%;
+  max-height: 400px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  object-fit: contain;
+}
+
+.process-step-detail-content .screenshot-img:hover {
+  transform: scale(1.02);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Light mode screenshot border */
+.light-mode .process-step-detail-content .screenshot-img {
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.light-mode .process-step-detail-content .screenshot-img:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }

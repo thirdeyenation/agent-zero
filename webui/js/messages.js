@@ -12,6 +12,7 @@ const chatHistory = document.getElementById("chat-history");
 
 let messageGroup = null;
 let currentProcessGroup = null; // Track current process group for collapsible UI
+let currentDelegationSteps = {}; // Track delegation steps by agent number for nesting
 
 /**
  * Resolve tool name from kvps, existing attribute, or previous siblings
@@ -66,13 +67,14 @@ export function setMessage(id, type, heading, content, temp, kvps = null, timest
   // For user messages, close current process group FIRST (start fresh for next interaction)
   if (type === "user") {
     currentProcessGroup = null;
+    currentDelegationSteps = {}; // Clear delegation tracking
   }
 
   // For process types, check if we should add to process group
   if (isProcessType) {
     if (processStepElement) {
       // Update existing process step
-      updateProcessStep(processStepElement, id, type, heading, content, kvps, durationMs);
+      updateProcessStep(processStepElement, id, type, heading, content, kvps, durationMs, agentNumber);
       return processStepElement;
     }
     
@@ -83,15 +85,16 @@ export function setMessage(id, type, heading, content, temp, kvps = null, timest
     }
     
     // Add step to current process group
-    processStepElement = addProcessStep(currentProcessGroup, id, type, heading, content, kvps, timestamp, durationMs);
+    processStepElement = addProcessStep(currentProcessGroup, id, type, heading, content, kvps, timestamp, durationMs, agentNumber);
     return processStepElement;
   }
 
   // For subordinate agent responses (A1, A2, ...), treat as a process step instead of main response
   // agentNumber: 0 = main agent, 1+ = subordinate agents
+  // Note: subordinate "response" is a completion marker with content
   if (type === "response" && agentNumber !== 0) {
     if (processStepElement) {
-      updateProcessStep(processStepElement, id, "agent", heading, content, kvps, durationMs);
+      updateProcessStep(processStepElement, id, "response", heading, content, kvps, durationMs, agentNumber);
       return processStepElement;
     }
     
@@ -101,8 +104,8 @@ export function setMessage(id, type, heading, content, temp, kvps = null, timest
       chatHistory.appendChild(currentProcessGroup);
     }
     
-    // Add subordinate response as a step (type "agent" for appropriate styling)
-    processStepElement = addProcessStep(currentProcessGroup, id, "agent", heading, content, kvps, timestamp, durationMs);
+    // Add subordinate response as a response step (special type to show content)
+    processStepElement = addProcessStep(currentProcessGroup, id, "response", heading, content, kvps, timestamp, durationMs, agentNumber);
     return processStepElement;
   }
 
@@ -1203,11 +1206,36 @@ function createProcessGroup(id) {
 }
 
 /**
+ * Create or get nested container within a parent step
+ */
+function getNestedContainer(parentStep) {
+  let nestedContainer = parentStep.querySelector(".process-nested-container");
+  
+  if (!nestedContainer) {
+    // Create new container
+    nestedContainer = document.createElement("div");
+    nestedContainer.classList.add("process-nested-container");
+    
+    // Create inner wrapper for animation support
+    const innerWrapper = document.createElement("div");
+    innerWrapper.classList.add("process-nested-inner");
+    nestedContainer.appendChild(innerWrapper);
+    
+    parentStep.appendChild(nestedContainer);
+    parentStep.classList.add("has-nested-steps");
+  }
+  
+  // Return the inner wrapper for appending steps
+  const innerWrapper = nestedContainer.querySelector(".process-nested-inner");
+  return innerWrapper || nestedContainer; // Fallback to container if wrapper missing
+}
+
+/**
  * Add a step to a process group
  */
-function addProcessStep(group, id, type, heading, content, kvps, timestamp = null, durationMs = null) {
+function addProcessStep(group, id, type, heading, content, kvps, timestamp = null, durationMs = null, agentNumber = 0) {
   const groupId = group.getAttribute("data-group-id");
-  const stepsContainer = group.querySelector(".process-steps");
+  let stepsContainer = group.querySelector(".process-steps");
   const isGroupCompleted = group.classList.contains("process-group-completed");
   
   // Create step element
@@ -1216,6 +1244,7 @@ function addProcessStep(group, id, type, heading, content, kvps, timestamp = nul
   step.classList.add("process-step");
   step.setAttribute("data-type", type);
   step.setAttribute("data-step-id", id);
+  step.setAttribute("data-agent-number", agentNumber);
   
   // Resolve tool name (direct, inherited, or null)
   // For new steps, pass null as stepElement - inheritance uses stepsContainer query
@@ -1263,9 +1292,9 @@ function addProcessStep(group, id, type, heading, content, kvps, timestamp = nul
   const title = getStepTitle(heading, kvps, type);
   
   // Check if step should be expanded
-  // Agent (GEN) steps expand based on showThoughts preference
+  // Warning/error steps auto-expand to show content
   const isStepExpanded = processGroupStore.isStepExpanded(groupId, id) || 
-                         (type === "agent" && preferencesStore.showThoughts);
+                         (type === "warning" || type === "error");
   if (isStepExpanded) {
     step.classList.add("step-expanded");
   }
@@ -1292,7 +1321,13 @@ function addProcessStep(group, id, type, heading, content, kvps, timestamp = nul
   stepHeader.addEventListener("click", (e) => {
     e.stopPropagation();
     processGroupStore.toggleStep(groupId, id);
-    step.classList.toggle("step-expanded", processGroupStore.isStepExpanded(groupId, id));
+    const newState = processGroupStore.isStepExpanded(groupId, id);
+    // Explicitly add or remove the class based on state
+    if (newState) {
+      step.classList.add("step-expanded");
+    } else {
+      step.classList.remove("step-expanded");
+    }
   });
   
   step.appendChild(stepHeader);
@@ -1310,11 +1345,26 @@ function addProcessStep(group, id, type, heading, content, kvps, timestamp = nul
   detail.appendChild(detailContent);
   step.appendChild(detail);
   
+  // Track delegation steps for nesting
+  if (toolNameToUse === "call_subordinate") {
+    currentDelegationSteps[agentNumber] = step;
+  }
+  
+  // Determine where to append the step (main list or nested in parent)
+  let appendTarget = stepsContainer;
+  
+  // Check if this step belongs to a subordinate agent
+  if (agentNumber > 0 && currentDelegationSteps[agentNumber - 1]) {
+    const parentStep = currentDelegationSteps[agentNumber - 1];
+    appendTarget = getNestedContainer(parentStep);
+    step.classList.add("nested-step");
+  }
+  
   // Remove status-active from all previous steps (only the current step is active)
   const prevSteps = stepsContainer.querySelectorAll(".process-step .status-badge.status-active");
   prevSteps.forEach(badge => badge.classList.remove("status-active"));
   
-  stepsContainer.appendChild(step);
+  appendTarget.appendChild(step);
   
   // Update group header
   updateProcessGroupHeader(group);
@@ -1325,7 +1375,7 @@ function addProcessStep(group, id, type, heading, content, kvps, timestamp = nul
 /**
  * Update an existing process step
  */
-function updateProcessStep(stepElement, id, type, heading, content, kvps, durationMs = null) {
+function updateProcessStep(stepElement, id, type, heading, content, kvps, durationMs = null, agentNumber = 0) {
   // Update title
   const titleEl = stepElement.querySelector(".step-title");
   if (titleEl) {
@@ -1336,6 +1386,11 @@ function updateProcessStep(stepElement, id, type, heading, content, kvps, durati
   // Update duration from backend
   if (durationMs != null) {
     stepElement.setAttribute("data-duration-ms", durationMs);
+  }
+  
+  // Update agent number if provided
+  if (agentNumber !== undefined) {
+    stepElement.setAttribute("data-agent-number", agentNumber);
   }
   
   // Resolve and update tool name + badge
@@ -1366,6 +1421,12 @@ function getStepTitle(heading, kvps, type) {
   // Try to get a meaningful title from heading or kvps
   if (heading && heading.trim()) {
     return cleanStepTitle(heading, 80);
+  }
+  
+  // For warnings/errors without heading, use content preview as title
+  if ((type === "warning" || type === "error")) {
+    // We'll show full content in detail, so just use type as title
+    return type === "warning" ? "Warning" : "Error";
   }
   
   if (kvps) {
@@ -1421,6 +1482,33 @@ function cleanStepTitle(text, maxLength) {
  */
 function renderStepDetailContent(container, content, kvps, type = null) {
   container.innerHTML = "";
+  
+  // Special handling for response type - show content as markdown (for subordinate responses)
+  if (type === "response" && content && content.trim()) {
+    const responseDiv = document.createElement("div");
+    responseDiv.classList.add("step-response-content");
+    
+    // Parse markdown
+    let processedContent = content;
+    processedContent = convertImageTags(processedContent);
+    processedContent = convertImgFilePaths(processedContent);
+    processedContent = marked.parse(processedContent, { breaks: true });
+    processedContent = convertPathsToLinks(processedContent);
+    processedContent = addBlankTargetsToLinks(processedContent);
+    
+    responseDiv.innerHTML = processedContent;
+    container.appendChild(responseDiv);
+    return;
+  }
+  
+  // Special handling for warning/error types - always show content prominently
+  if ((type === "warning" || type === "error") && content && content.trim()) {
+    const warningDiv = document.createElement("div");
+    warningDiv.classList.add("step-warning-content");
+    warningDiv.textContent = content;
+    container.appendChild(warningDiv);
+    // Don't return - also show kvps if present
+  }
   
   // Special handling for code_exe type - render as terminal-style output
   if (type === "code_exe" && kvps) {
@@ -1565,7 +1653,8 @@ function renderStepDetailContent(container, content, kvps, type = null) {
         'progress': 'pending',
         'document': 'description',
         'documents': 'folder_open',
-        'queries': 'search'
+        'queries': 'search',
+        'screenshot': 'image'
       };
       
       // lowerKey already defined above
@@ -1575,12 +1664,29 @@ function renderStepDetailContent(container, content, kvps, type = null) {
         keySpan.textContent = convertToTitleCase(key) + ":";
       }
       
-      const valueSpan = document.createElement("span");
+      const valueSpan = document.createElement("div");
       valueSpan.classList.add("step-kvp-value");
       
-      const valueText = cleanTextValue(value);
-      
-      valueSpan.textContent = truncateText(valueText, 1000);
+      if (typeof value === "string" && value.startsWith("img://")) {
+        const imgElement = document.createElement("img");
+        imgElement.classList.add("screenshot-img");
+        imgElement.src = value.replace("img://", "/image_get?path=");
+        imgElement.alt = "Image Attachment";
+        imgElement.style.cursor = "pointer";
+        imgElement.style.maxWidth = "100%";
+        imgElement.style.display = "block";
+        imgElement.style.marginTop = "4px";
+        
+        // Add click handler and cursor change
+        imgElement.addEventListener("click", () => {
+          imageViewerStore.open(imgElement.src, { name: "Image Attachment" });
+        });
+        
+        valueSpan.appendChild(imgElement);
+      } else {
+        const valueText = cleanTextValue(value);
+        valueSpan.textContent = truncateText(valueText, 1000);
+      }
       
       kvpDiv.appendChild(keySpan);
       kvpDiv.appendChild(valueSpan);
@@ -1795,6 +1901,7 @@ function markProcessGroupComplete(group, responseTitle) {
  */
 export function resetProcessGroups() {
   currentProcessGroup = null;
+  currentDelegationSteps = {};
   messageGroup = null;
 }
 
@@ -1811,4 +1918,3 @@ function formatDateTime(timestamp) {
   const seconds = String(date.getSeconds()).padStart(2, "0");
   return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 }
-

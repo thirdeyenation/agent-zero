@@ -111,7 +111,8 @@ const model = {
   // Toggle step expansion
   toggleStep(groupId, stepId) {
     const key = `${groupId}:${stepId}`;
-    this.expandedSteps[key] = !this.expandedSteps[key];
+    const currentState = this.expandedSteps[key] || false;
+    this.expandedSteps[key] = !currentState;
     this._persist();
   },
 
