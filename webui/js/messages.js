@@ -791,7 +791,9 @@ function drawKvps(container, kvps, latex) {
     for (let [key, value] of Object.entries(kvps)) {
       const row = table.insertRow();
       row.classList.add("kvps-row");
-      if (key === "thoughts" || key === "reasoning")
+      // Skip reasoning
+      if (key === "reasoning") continue;
+      if (key === "thoughts")
         // TODO: find a better way to determine special class assignment
         row.classList.add("msg-thoughts");
 
@@ -869,7 +871,8 @@ function drawKvpsIncremental(container, kvps, latex) {
 
     // Get all current rows for comparison
     let existingRows = table.querySelectorAll(".kvps-row");
-    const kvpEntries = Object.entries(kvps);
+    // Filter out reasoning
+    const kvpEntries = Object.entries(kvps).filter(([key]) => key !== "reasoning");
 
     // Update or create rows as needed
     kvpEntries.forEach(([key, value], index) => {
@@ -883,7 +886,7 @@ function drawKvpsIncremental(container, kvps, latex) {
 
       // Update row classes
       row.className = "kvps-row";
-      if (key === "thoughts" || key === "reasoning") {
+      if (key === "thoughts") {
         row.classList.add("msg-thoughts");
       }
 
@@ -1577,9 +1580,9 @@ function renderStepDetailContent(container, content, kvps, type = null) {
       container.appendChild(terminalDiv);
     }
     
-    // Still render thoughts if present
-    if (kvps.thoughts || kvps.thinking || kvps.reasoning) {
-      const thoughtKey = kvps.thoughts ? "thoughts" : (kvps.thinking ? "thinking" : "reasoning");
+    // Still render thoughts if present (but not reasoning - that's native model thinking, not structured output)
+    if (kvps.thoughts || kvps.thinking) {
+      const thoughtKey = kvps.thoughts ? "thoughts" : "thinking";
       const thoughtValue = kvps[thoughtKey];
       renderThoughts(container, thoughtValue);
     }
@@ -1609,8 +1612,10 @@ function renderStepDetailContent(container, content, kvps, type = null) {
       // Skip query in agent steps - it's shown in the tool call step
       if (type === "agent" && lowerKey === "query") continue;
       
-      // Special handling for thoughts/reasoning - render with single lightbulb icon
-      if (lowerKey === "thoughts" || lowerKey === "thinking" || lowerKey === "reflection" || lowerKey === "reasoning") {
+      // Special handling for thoughts - render with single lightbulb icon
+      // Skip reasoning
+      if (lowerKey === "reasoning") continue;
+      if (lowerKey === "thoughts" || lowerKey === "thinking" || lowerKey === "reflection") {
         renderThoughts(kvpsDiv, value);
         continue;
       }
