@@ -937,7 +937,36 @@ const schedulerStoreModel = {
     return this.formatProjectName(this.extractTaskProject(task));
   },
 
+  syncTasksFromSidebar(sidebarTasks) {
+    // Sync scheduler store with sidebar's poll data for instant access
+    if (!Array.isArray(sidebarTasks) || sidebarTasks.length === 0) return;
+    
+    // Smart merge: preserve object references to prevent UI flickering
+    const taskMap = new Map(this.tasks.map((t) => [t.uuid, t]));
+    this.tasks = sidebarTasks.map((sidebarTask) => {
+      const taskId = sidebarTask.uuid || sidebarTask.id;
+      const existing = taskMap.get(taskId);
+      if (existing) {
+        // Update existing object in-place if different
+        if (JSON.stringify(existing) !== JSON.stringify(sidebarTask)) {
+          Object.assign(existing, sidebarTask);
+        }
+        return existing;
+      }
+      return sidebarTask;
+    });
+    this.hasNoTasks = this.tasks.length === 0;
+  },
+
   showTaskDetail(taskId) {
+    // Sync with sidebar data if our array is empty (e.g., on page load before modal opened)
+    if (this.tasks.length === 0) {
+      const tasksStore = globalThis.Alpine?.store?.('tasks');
+      if (tasksStore?.tasks?.length > 0) {
+        this.syncTasksFromSidebar(tasksStore.tasks);
+      }
+    }
+    
     const task = this.tasks.find((t) => t.uuid === taskId);
     if (!task) {
       this.notifyError("Task not found");
