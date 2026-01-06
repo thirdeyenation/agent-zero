@@ -214,10 +214,16 @@ class Log:
     ) -> LogItem:
 
         # add a minimal item to the log
+        # Determine agent number from streaming agent
+        agent_number = 0
+        if self.context and self.context.streaming_agent:
+            agent_number = self.context.streaming_agent.number
+        
         item = LogItem(
             log=self,
             no=len(self.logs),
             type=type,
+            agent_number=agent_number,
         )
         # Set duration on previous item and mark it as updated
         if self.logs:
