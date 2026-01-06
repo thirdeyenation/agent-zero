@@ -78,11 +78,14 @@ export function getUserTimezone() {
 export function formatDuration(durationMs) {
   if (durationMs == null || durationMs < 0) return '0s';
 
-  if (durationMs < 60000) {
-    return `${Math.round(durationMs / 1000)}s`;
+  // Round total seconds first to avoid "1m60s" when seconds round up to 60
+  const totalSecs = Math.round(durationMs / 1000);
+
+  if (totalSecs < 60) {
+    return `${totalSecs}s`;
   }
 
-  const mins = Math.floor(durationMs / 60000);
-  const secs = Math.round((durationMs % 60000) / 1000);
+  const mins = Math.floor(totalSecs / 60);
+  const secs = totalSecs % 60;
   return `${mins}m${secs}s`;
 }
