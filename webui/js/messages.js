@@ -1381,6 +1381,11 @@ function addProcessStep(group, id, type, heading, content, kvps, timestamp = nul
     const parentStep = currentDelegationSteps[agentNumber - 1];
     appendTarget = getNestedContainer(parentStep);
     step.classList.add("nested-step");
+    
+    // Auto-expand parent if this nested step is a warning/error
+    if (type === "warning" || type === "error") {
+      parentStep.classList.add("step-expanded");
+    }
   }
   
   // Remove status-active from all previous steps (only the current step is active)
