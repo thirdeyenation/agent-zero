@@ -85,7 +85,7 @@
         <span>Save Chat</span>
       </button>
 
-      <button class="dropdown-item" @click="$store.chats.resetChat(); dropdownOpen = false" :disabled="!$store.chats.selected">
+      <button class="dropdown-item" @click="$confirmClick($event, () => { $store.chats.resetChat(); dropdownOpen = false })" :disabled="!$store.chats.selected">
         <span class="material-symbols-outlined">delete_sweep</span>
         <span>Clear Chat</span>
       </button>
