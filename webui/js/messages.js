@@ -1431,6 +1431,8 @@ function updateProcessStep(stepElement, id, type, heading, content, kvps, durati
   
   // Update detail content
   const detailContent = stepElement.querySelector(".process-step-detail-content");
+  let skipFullRender = false;
+  
   if (detailContent) {
     // For browser, update image src incrementally to avoid flashing
     if (type === "browser" && kvps?.screenshot) {
@@ -1441,11 +1443,14 @@ function updateProcessStep(stepElement, id, type, heading, content, kvps, durati
         if (!existingImg.src.endsWith(newSrc.split("?path=")[1])) {
           existingImg.src = newSrc;
         }
-        // Skip full re-render to avoid flashing
-        return;
+        // Skip full re-render to avoid flashing, but still update group header
+        skipFullRender = true;
       }
     }
-    renderStepDetailContent(detailContent, content, kvps, type);
+    
+    if (!skipFullRender) {
+      renderStepDetailContent(detailContent, content, kvps, type);
+    }
   }
   
   // Update parent group header
