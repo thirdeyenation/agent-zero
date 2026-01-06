@@ -1696,14 +1696,10 @@ function renderStepDetailContent(container, content, kvps, type = null) {
     container.appendChild(kvpsDiv);
   }
   
-  // Add main content if present (JSON content - controlled by showJson preference)
+  // Add main content if present (JSON content)
   if (content && content.trim()) {
     const pre = document.createElement("pre");
     pre.classList.add("msg-json");
-    // Apply current preference state
-    if (preferencesStore.showJson) {
-      pre.classList.add("show-json");
-    }
     pre.textContent = truncateText(content, 1000);
     container.appendChild(pre);
   }
@@ -1715,11 +1711,6 @@ function renderStepDetailContent(container, content, kvps, type = null) {
 function renderThoughts(container, value) {
   const thoughtsDiv = document.createElement("div");
   thoughtsDiv.classList.add("step-thoughts", "msg-thoughts");
-  
-  // Apply current preference state - hide if showThoughts is false
-  if (!preferencesStore.showThoughts) {
-    thoughtsDiv.classList.add("hide-thoughts");
-  }
   
   const thoughtText = cleanTextValue(value);
   

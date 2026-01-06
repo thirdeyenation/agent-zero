@@ -793,23 +793,14 @@
   display: flex;
 }
 
-/* Thoughts KVP row - default visible (controlled by showThoughts) */
+/* Thoughts KVP row */
 .step-kvp.msg-thoughts {
-  display: flex;
-}
-
-.step-kvp.msg-thoughts.hide-thoughts {
   display: none;
 }
 
-/* JSON pre content - default hidden (controlled by showJson) */
+/* JSON pre content - default hidden */
 .process-step-detail-content pre.msg-json {
   display: none;
-}
-
-.process-step-detail-content pre.msg-json.show-json {
-  display: block;
-  margin-top: var(--spacing-xs);
 }
 
 /* Nested Process Steps (Subordinate Agents) */

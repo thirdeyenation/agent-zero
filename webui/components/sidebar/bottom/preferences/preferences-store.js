@@ -32,24 +32,6 @@ const model = {
   },
   _speech: false,
 
-  get showThoughts() {
-    return this._showThoughts;
-  },
-  set showThoughts(value) {
-    this._showThoughts = value;
-    this._applyShowThoughts(value);
-  },
-  _showThoughts: true,
-
-  get showJson() {
-    return this._showJson;
-  },
-  set showJson(value) {
-    this._showJson = value;
-    this._applyShowJson(value);
-  },
-  _showJson: false,
-
   get showUtils() {
     return this._showUtils;
   },
@@ -95,20 +77,10 @@ const model = {
         this._collapseProcessGroups = true;
       }
 
-      // Load show thoughts preference
-      try {
-        const storedShowThoughts = localStorage.getItem("showThoughts");
-        this._showThoughts = storedShowThoughts !== "false"; // Default true
-      } catch {
-        this._showThoughts = true;
-      }
-
       // Apply all preferences
       this._applyDarkMode(this._darkMode);
       this._applyAutoScroll(this._autoScroll);
       this._applySpeech(this._speech);
-      this._applyShowThoughts(this._showThoughts);
-      this._applyShowJson(this._showJson);
       this._applyShowUtils(this._showUtils);
       this._applyCollapseProcessGroups(this._collapseProcessGroups);
     } catch (e) {
@@ -136,34 +108,6 @@ const model = {
     if (!value) speechStore.stopAudio();
   },
 
-  _applyShowThoughts(value) {
-    localStorage.setItem("showThoughts", value);
-    
-    // For original messages
-    css.toggleCssProperty(
-      ".msg-thoughts",
-      "display",
-      value ? undefined : "none"
-    );
-    // For process steps - toggle class on all existing elements
-    document.querySelectorAll(".step-kvp.msg-thoughts").forEach((el) => {
-      el.classList.toggle("hide-thoughts", !value);
-    });
-    
-    // Toggle collapse/expand state for all GEN steps (agent type steps with thoughts)
-    document.querySelectorAll('.process-step[data-type="agent"]').forEach((el) => {
-      el.classList.toggle("step-expanded", value);
-    });
-  },
-
-  _applyShowJson(value) {
-    // For original messages
-    css.toggleCssProperty(".msg-json", "display", value ? "block" : "none");
-    // For process steps - toggle class on pre elements with msg-json
-    document.querySelectorAll(".process-step-detail-content pre.msg-json").forEach((el) => {
-      el.classList.toggle("show-json", value);
-    });
-  },
 
   _applyShowUtils(value) {
     // For original messages
