@@ -132,9 +132,9 @@ class LogItem:
     kvps: Optional[OrderedDict] = None  # Use OrderedDict for kvps
     id: Optional[str] = None  # Add id field
     guid: str = ""
-    timestamp: float = 0.0  # Unix timestamp in seconds
-    duration_ms: Optional[int] = None  # Duration until next step (set by Log.log)
-    agent_number: int = 0  # Agent number (0 = main agent, 1+ = subordinate agents)
+    timestamp: float = 0.0
+    duration_ms: Optional[int] = None
+    agent_number: int = 0
 
     def __post_init__(self):
         self.guid = self.guid or self.log.guid
@@ -186,9 +186,9 @@ class LogItem:
             "content": self.content,
             "temp": self.temp,
             "kvps": self.kvps,
-            "timestamp": self.timestamp,  # Unix timestamp in seconds
-            "duration_ms": self.duration_ms,  # Duration until next step
-            "agent_number": self.agent_number,  # Agent number for identifying main/subordinate agents
+            "timestamp": self.timestamp,
+            "duration_ms": self.duration_ms,
+            "agent_number": self.agent_number,
         }
 
 
