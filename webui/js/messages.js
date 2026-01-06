@@ -246,6 +246,29 @@ export function _drawMessage(
   // Update message classes
   messageDiv.className = `message ${mainClass} ${messageClasses.join(" ")}`;
 
+  // Handle heading (important for error/rate_limit messages that show context)
+  if (heading) {
+    let headingElement = messageDiv.querySelector(".msg-heading");
+    if (!headingElement) {
+      headingElement = document.createElement("div");
+      headingElement.classList.add("msg-heading");
+      messageDiv.insertBefore(headingElement, messageDiv.firstChild);
+    }
+
+    let headingH4 = headingElement.querySelector("h4");
+    if (!headingH4) {
+      headingH4 = document.createElement("h4");
+      headingElement.appendChild(headingH4);
+    }
+    headingH4.innerHTML = convertIcons(escapeHTML(heading));
+
+    // Remove heading if it exists but heading is null
+    const existingHeading = messageDiv.querySelector(".msg-heading");
+    if (existingHeading) {
+      existingHeading.remove();
+    }
+  }
+
   // Find existing body div or create new one
   let bodyDiv = messageDiv.querySelector(".message-body");
   if (!bodyDiv) {
