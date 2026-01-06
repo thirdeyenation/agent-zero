@@ -1,6 +1,5 @@
 // Import the component loader and page utilities
 import { importComponent } from "/js/components.js";
-import { store as tooltipsStore } from "/components/tooltips/tooltip-store.js";
 
 // Modal functionality
 const modalStack = [];
@@ -107,8 +106,6 @@ function createModalElement(path) {
 export function openModal(modalPath) {
   return new Promise((resolve) => {
     try {
-      tooltipsStore.hideAll();
-
       // Create new modal instance
       const modal = createModalElement(modalPath);
 
@@ -176,9 +173,6 @@ export function openModal(modalPath) {
 // Function to close modal
 export function closeModal(modalPath = null) {
   if (modalStack.length === 0) return;
-
-  // Ensure any visible tooltips are hidden before removing modal DOM.
-  tooltipsStore.hideAll();
 
   let modalIndex = modalStack.length - 1; // Default to last modal
   let modal;

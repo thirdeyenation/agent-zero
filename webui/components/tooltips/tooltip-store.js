@@ -28,10 +28,11 @@ function ensureBootstrapTooltip(element) {
   }
 
   element.setAttribute("data-bs-toggle", "tooltip");
+  element.setAttribute("data-bs-trigger", "hover");
   element.setAttribute("data-bs-tooltip-initialized", "true");
   new bs.Tooltip(element, {
     delay: { show: 0, hide: 0 },
-    trigger: "hover focus",
+    trigger: "hover",
   });
 }
 
@@ -57,6 +58,18 @@ function observeBootstrapTooltips() {
       }
 
       if (mutation.type === "childList") {
+        // Check removed nodes for tooltip cleanup
+        mutation.removedNodes.forEach((node) => {
+          if (!(node instanceof Element)) return;
+          const tooltipElements = node.matches?.('[data-bs-tooltip-initialized]') ? [node] : Array.from(node.querySelectorAll?.('[data-bs-tooltip-initialized]') || []);
+          tooltipElements.forEach((el) => {
+            const instance = globalThis.bootstrap?.Tooltip?.getInstance(el);
+            if (instance) {
+              instance.dispose();
+            }
+          });
+        });
+        
         mutation.addedNodes.forEach((node) => {
           if (!(node instanceof Element)) return;
           if (node.matches("[title]") || node.querySelector("[title]")) {
@@ -82,27 +95,7 @@ function cleanupTooltipObserver() {
   }
 }
 
-function hideAllTooltips() {
-  const Tooltip = globalThis.bootstrap?.Tooltip;
-  if (!Tooltip) return;
-
-  document
-    .querySelectorAll('[data-bs-tooltip-initialized="true"]')
-    .forEach((element) => {
-      try {
-        const instance = Tooltip.getInstance(element);
-        if (instance) {
-          instance.hide();
-        }
-      } catch (error) {
-        console.warn("Error hiding tooltip:", error);
-      }
-    });
-}
-
 export const store = createStore("tooltips", {
-  hideAll: hideAllTooltips,
-  
   init() {
     initBootstrapTooltips();
     observeBootstrapTooltips();

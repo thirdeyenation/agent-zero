@@ -31,7 +31,7 @@
       </button>
 
       <!-- Dropdown Toggle -->
-      <button class="config-button dropdown-toggle" @click="$store.tooltips.hideAll(); dropdownOpen = !dropdownOpen" title="More options">
+      <button class="config-button dropdown-toggle" @click="dropdownOpen = !dropdownOpen" title="More options">
         <span class="material-symbols-outlined" :class="dropdownOpen ? 'rotated' : ''">expand_more</span>
       </button>
     </div>
@@ -226,7 +226,10 @@
   }
   #newChat:hover { opacity: 0.85; transform: scale(1.04); }
   #newChat:active { opacity: 0.5; transform: scale(0.98); }
-  #newChat svg { color: var(--color-text); }
+  #newChat .material-symbols-outlined { 
+    color: var(--color-text); 
+    font-size: 24px;
+  }
 
   /* Light mode */
   .light-mode .config-button {

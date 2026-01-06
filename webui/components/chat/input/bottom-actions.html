@@ -26,16 +26,12 @@
         </button>
 
         <button class="text-button" @click="$store.chats.resetChat()" :disabled="!$store.chats.selected">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24" width="14" height="14">
-                <path d="M19.36 2.72l1.42 1.42-5.72 5.71c1.07 1.54 1.22 3.39.32 4.59L9.06 8.12c1.2-.9 3.05-.75 4.59.32l5.71-5.72M5.93 17.57c-2.01-2.01-3.24-4.41-3.58-6.65l4.88-2.09 7.44 7.44-2.09 4.88c-2.24-.34-4.64-1.57-6.65-3.58z"/>
-            </svg>
+            <span class="material-symbols-outlined">delete_sweep</span>
             <p>Clear Chat</p>
         </button>
 
         <button class="text-button" @click="$store.chats.saveChat()" :disabled="!$store.chats.selected">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24" width="14" height="14">
-                <path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/>
-            </svg>
+            <span class="material-symbols-outlined">save</span>
             <p>Save Chat</p>
         </button>
 
@@ -88,9 +84,10 @@
         .text-button:active:not(:disabled) { opacity: 0.5; }
         .text-button:disabled { opacity: 0.4; cursor: not-allowed; }
         .text-button svg { width: 14px; height: 14px; flex-shrink: 0; }
+        .text-button .material-symbols-outlined { font-size: 14px; flex-shrink: 0; }
         .text-button p { margin-block: 0; }
 
-        @media (max-width: 768px) { .text-buttons-row { width: 90%; display: flex; padding-top: var(--spacing-xs); gap: var(--spacing-xs); white-space: pre-wrap; } .text-button { font-size: 0.6rem; } .text-button svg { width: 18px; height: 18px; flex-shrink: 0; } }
+        @media (max-width: 768px) { .text-buttons-row { width: 90%; display: flex; padding-top: var(--spacing-xs); gap: var(--spacing-xs); white-space: pre-wrap; } .text-button { font-size: 0.6rem; } .text-button svg { width: 18px; height: 18px; flex-shrink: 0; } .text-button .material-symbols-outlined { font-size: 18px; } }
         @media (max-width: 640px) { .text-buttons-row { display: flex; width: 90%; padding-top: var(--spacing-xs); gap: var(--spacing-xs); white-space: pre-wrap; } .text-button { max-height: 25px; } .text-button p { display: none; } }
     </style>
 </body>
