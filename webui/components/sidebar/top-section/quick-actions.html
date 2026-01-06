@@ -4,11 +4,12 @@
   <script type="module">
     import { store as chatsStore } from "/components/sidebar/chats/chats-store.js";
     import { store as projectsStore } from "/components/projects/projects-store.js";
+    import { store as sidebarStore } from "/components/sidebar/sidebar-store.js";
   </script>
 </head>
 
 <body>
-  <div class="wrapper" x-data="{ dropdownOpen: false }" @click.outside="dropdownOpen = false" @keydown.escape.window="dropdownOpen = false">
+  <div class="wrapper" x-data="{ dropdownOpen: false }" @click.outside="dropdownOpen = false" @keydown.escape.window="dropdownOpen = false" x-init="$watch('dropdownOpen', v => v && $store.sidebar.updateDropdownPosition($el))">
     <div id="quick-actions">
       <!-- Dashboard -->
       <button class="config-button" id="dashboard" @click="deselectChat()" title="Dashboard">
@@ -38,7 +39,8 @@
 
     <!-- Dropdown Menu -->
     <div class="dropdown-menu quick-actions-dropdown" 
-         x-show="dropdownOpen">
+         x-show="dropdownOpen"
+         :style="$store.sidebar.dropdownStyle">
       
       <div class="dropdown-header">Navigation</div>
       
@@ -106,6 +108,8 @@
   .wrapper {
     position: relative;
     border-radius: 0.6rem;
+    z-index: 100;
+    /* Ensure dropdown appears above all sidebar content */
   }
 
   /* Icon toolbar layout */
@@ -176,13 +180,10 @@
     transform: scale(0.95);
   }
 
-  /* Dropdown specific positioning */
+  /* Dropdown specific positioning - fixed to escape overflow:hidden */
   .quick-actions-dropdown {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
-    margin-top: var(--spacing-xs);
+    position: fixed;
+    z-index: 9999;
   }
 
   /* Unified scrollbar styling for dropdown */
