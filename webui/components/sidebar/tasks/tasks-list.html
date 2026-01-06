@@ -45,7 +45,7 @@
                             <span class="material-symbols-outlined">Info</span>
                           </button>
                           <button class="btn-icon-action" title="Clear task chat"
-                                  @click.stop="$store.tasks.reset(task.id)">
+                                  @click.stop="$confirmClick($event, () => $store.tasks.reset(task.id))">
                             <span class="material-symbols-outlined">delete_sweep</span>
                           </button>
                           <button class="btn-icon-action" title="Delete task" @click.stop="$confirmClick($event, () => $store.tasks.deleteTask(task.id))">
