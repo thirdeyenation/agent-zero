@@ -137,7 +137,7 @@ class LogItem:
     agent_number: int = 0
 
     def __post_init__(self):
-        self.guid = self.guid or self.log.guid
+        self.guid = self.log.guid
         self.timestamp = self.timestamp or time.time()
 
     def update(
