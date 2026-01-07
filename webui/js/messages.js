@@ -1203,7 +1203,7 @@ function createProcessGroup(id) {
     <span class="status-badge status-gen status-active group-status">GEN</span>
     <span class="group-metrics">
       <span class="metric-time" title="Start time"><span class="material-symbols-outlined">schedule</span><span class="metric-value">--:--</span></span>
-      <span class="metric-steps" title="Steps"><span class="material-symbols-outlined">list_alt</span><span class="metric-value">0</span></span>
+      <span class="metric-steps" title="Steps"><span class="material-symbols-outlined">footprint</span><span class="metric-value">0</span></span>
       <span class="metric-duration" title="Duration"><span class="material-symbols-outlined">timer</span><span class="metric-value">0s</span></span>
     </span>
   `;

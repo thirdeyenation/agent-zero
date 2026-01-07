@@ -10,7 +10,8 @@
 :root {
   /* Dark mode */
   --color-background-dark: #131313;
-  --color-text-dark: #d4d4d4;
+  --color-text-dark: #ffffff;
+  --color-text-muted-dark: #d4d4d4e4;
   --color-primary-dark: #737a81;
   --color-secondary-dark: #656565;
   --color-accent-dark: #cf6679;
@@ -21,10 +22,12 @@
   --color-border-dark: #444444a8;
   --color-input-dark: #131313;
   --color-input-focus-dark: #101010;
+  --color-chat-background-dark: #212121;
 
   /* Light mode */
   --color-background-light: #fafafa;
   --color-text-light: #333333;
+  --color-text-muted-light: #333333e4;
   --color-primary-light: #384653;
   --color-secondary-light: #e8eaf6;
   --color-accent-light: #b00020;
@@ -35,10 +38,12 @@
   --color-border-light: #bdbdbdcf;
   --color-input-light: #e4e4e4;
   --color-input-focus-light: #dadada;
+  --color-chat-background-light: #fafafaf3;
 
   /* Default to dark mode */
   --color-background: var(--color-background-dark);
   --color-text: var(--color-text-dark);
+  --color-text-muted: var(--color-text-muted-dark);
   --color-primary: var(--color-primary-dark);
   --color-secondary: var(--color-secondary-dark);
   --color-accent: var(--color-accent-dark);
@@ -50,6 +55,7 @@
   --color-input: var(--color-input-dark);
   --color-input-focus: var(--color-input-focus-dark);
   --color-background-hover: color-mix(in srgb, var(--color-border) 50%, transparent);
+  --color-chat-background: var(--color-chat-background-dark);
 
   /* Spacing variables */
   --spacing-xxs: 0.15rem;
@@ -80,6 +86,7 @@
 .light-mode {
   --color-background: var(--color-background-light);
   --color-text: var(--color-text-light);
+  --color-text-muted: var(--color-text-muted-light);
   --color-primary: var(--color-primary-light);
   --color-secondary: var(--color-secondary-light);
   --color-accent: var(--color-accent-light);
@@ -90,7 +97,9 @@
   --color-input: var(--color-input-light);
   --color-input-focus: var(--color-input-focus-light);
   --color-background-hover: color-mix(in srgb, var(--color-border) 50%, transparent);
-}
+  --color-chat-background: var(--color-chat-background-light);
+  } 
+
 
 /* Reset and Base Styles */
 body,
@@ -608,7 +617,7 @@ h4 {
 
 .config-list li {
   align-items: center;
-  border-top: 1px solid var(--color-border);
+  /* border-top: 1px solid var(--color-border); */
   display: -webkit-flex;
   display: flex;
   justify-content: space-between;

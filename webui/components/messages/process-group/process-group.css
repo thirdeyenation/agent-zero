@@ -18,7 +18,7 @@
   width: 100%;
   margin: 0;
   border-radius: var(--border-radius) var(--border-radius) 0 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  /* border-bottom: 1px solid rgba(255, 255, 255, 0.08); */
   background: transparent;
 }
 
@@ -86,7 +86,7 @@
 /* Group title - prominent display */
 .process-group-header .group-title {
   flex: 0 1 auto;
-  font-size: var(--font-size-smaller);
+  font-size: var(--font-size-medium);
   font-weight: 500;
   color: var(--color-text);
   opacity: 0.9;
@@ -339,7 +339,7 @@
   opacity: 1;
   margin-top: var(--spacing-xs);
   padding-top: var(--spacing-xs);
-  border-top-color: rgba(255, 255, 255, 0.06);
+  /* border-top-color: var(--color-border); */
 }
 
 /* Process Steps List */
@@ -354,7 +354,7 @@
 .process-step {
   display: flex;
   flex-direction: column;
-  padding: 4px 0;
+  padding: 0.1em;
   transition: background-color 0.15s ease;
 }
 
@@ -442,13 +442,25 @@
   display: grid;
   grid-template-rows: 0fr;
   opacity: 0;
-  transition: grid-template-rows 0.2s ease-out, opacity 0.15s ease-out;
+  margin-top: 0;
+  transition: grid-template-rows 0.2s ease-out, opacity 0.15s ease-out, margin-top 0.2s ease-out;
   overflow: hidden;
   -webkit-overflow-scrolling: touch; /* smooth scrolling on iOS */
   scroll-behavior: smooth;
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* IE/Edge */
   overscroll-behavior: contain; /* avoid scroll chaining */
+}
+
+.process-step:not(.step-expanded) > .process-step-detail {
+  margin-top: 0;
+}
+
+.process-step:not(.step-expanded) > .process-step-detail > .process-step-detail-content {
+  padding: 0;
+  margin-top: 0;
+  max-height: 0;
+  overflow: hidden;
 }
   /* Hide scrollbar for Chrome/Safari/Webkit */
 .process-step-detail::-webkit-scrollbar {
@@ -475,7 +487,13 @@
   margin-top: var(--spacing-xs);
 }
 
+.process-step.step-expanded > .process-step-detail > .process-step-detail-content {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
 .process-step-detail-content {
+  transition: max-height 0.2s ease-out, padding 0.2s ease-out, margin-top 0.2s ease-out;
   padding: var(--spacing-xs) 0;
   margin-top: var(--spacing-xxs);
   margin-left: 28px; /* Align with icon */
@@ -498,7 +516,7 @@
   font-family: var(--font-family-code);
   font-size: 0.7rem;
   color: var(--color-text);
-  opacity: 0.8;
+  /* opacity: 0.8; */
 }
 
 /* KVPs in step detail - CSS Grid for aligned columns */
@@ -637,7 +655,7 @@
 .process-step-detail-content .terminal-output {
   margin: var(--spacing-xs) 0 0 0;
   padding: var(--spacing-xs);
-  background: rgba(0, 0, 0, 0.2);
+  background: rgba(0, 0, 0, 0.8);
   border-radius: 4px;
   color: #c9d1d9;
   white-space: pre-wrap;
@@ -660,7 +678,7 @@
 /* Light mode terminal */
 .light-mode .process-step-detail-content .terminal-output {
   background: rgba(0, 0, 0, 0.05);
-  color: #24292f;
+  color: black;
 }
 
 /* Light mode adjustments */
