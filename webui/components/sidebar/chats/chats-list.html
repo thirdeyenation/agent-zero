@@ -13,8 +13,8 @@
         <div class="section-header-row">
           <h3 class="section-header">Chats</h3>
           <!-- New Chat Button -->
-          <button id="newChat" @click="$store.chats.newChat()" aria-label="New Chat" title="New Chat" data-bs-placement="top" data-bs-trigger="hover">
-            <span class="material-symbols-outlined">add_comment</span>
+          <button id="newChat" class="btn-icon-action chat-list-action-btn" @click="$store.chats.newChat()" aria-label="New Chat" title="New Chat" data-bs-placement="top" data-bs-trigger="hover">
+            <span class="material-symbols-outlined">edit_square</span>
           </button>
         </div>
 
@@ -31,7 +31,7 @@
                   <span class="chat-name" :title="context.name ? context.name : 'Chat #' + context.no"
                     x-text="context.name ? context.name : 'Chat #' + context.no"></span>
                 </div>
-                <button class="btn-icon-action" title="Close chat" @click.stop="$confirmClick($event, () => $store.chats.killChat(context.id))">
+                <button class="btn-icon-action chat-list-action-btn" title="Close chat" @click.stop="$confirmClick($event, () => $store.chats.killChat(context.id))">
                   <span class="material-symbols-outlined">close</span>
                 </button>
               </div>
@@ -129,7 +129,7 @@
       font-size: var(--font-size-small);
     }
 
-    .chat-container .btn-icon-action {
+    .chat-list-action-btn {
       flex-shrink: 0;
       margin-right: 8px;
     }
