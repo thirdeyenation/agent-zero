@@ -71,3 +71,4 @@ export function registerAlpineMagic() {
     Alpine.magic('confirmClick', () => confirmClick);
   }
 }
+

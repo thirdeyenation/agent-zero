@@ -10,7 +10,16 @@
   <div x-data>
     <template x-if="$store.chats">
       <div class="chats-list-container" x-data>
-        <h3 class="section-header">Chats</h3>
+        <div class="section-header-row">
+          <h3 class="section-header">Chats</h3>
+          <!-- New Chat Button -->
+          <button id="newChat" @click="$store.chats.newChat()" aria-label="New Chat" title="New Chat" data-bs-placement="top" data-bs-trigger="hover">
+            <span class="material-symbols-outlined">add_comment</span>
+          </button>
+        </div>
+
+
+
         <ul class="config-list chats-config-list" x-show="$store.chats.contexts.length > 0">
           <template x-for="context in $store.chats.contexts" :key="context.id">
             <li>
@@ -37,11 +46,19 @@
   </div>
 
   <style>
-    .chats-list-container .section-header {
+    .chats-list-container .section-header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
       position: sticky;
       top: 0;
       flex-shrink: 0;
+      margin-bottom: var(--spacing-xs);
       z-index: 10;
+    }
+
+    .chats-list-container .section-header {
+      margin: 0;
     }
 
     /* Chats list container and items */

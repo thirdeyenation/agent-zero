@@ -8,7 +8,6 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Awaitable, Coroutine, Dict, Literal
 from enum import Enum
-import uuid
 import models
 
 from python.helpers import (
@@ -564,7 +563,7 @@ class Agent:
             self.handle_critical_exception(e)
 
         error_message = errors.format_error(e)
-
+        
         self.context.log.log(
             type="warning", content="Critical error occurred, retrying..."
         )
