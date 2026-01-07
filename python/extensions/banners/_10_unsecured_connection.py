@@ -6,9 +6,9 @@ import re
 class UnsecuredConnectionCheck(Extension):
     """Check: non-local without credentials, or credentials over non-HTTPS."""
 
-    async def execute(self, banners: list = [], context: dict = {}, **kwargs):
-        hostname = context.get("hostname", "")
-        protocol = context.get("protocol", "")
+    async def execute(self, banners: list = [], frontend_context: dict = {}, **kwargs):
+        hostname = frontend_context.get("hostname", "")
+        protocol = frontend_context.get("protocol", "")
         
         auth_login = dotenv.get_dotenv_value(dotenv.KEY_AUTH_LOGIN, "")
         auth_password = dotenv.get_dotenv_value(dotenv.KEY_AUTH_PASSWORD, "")
