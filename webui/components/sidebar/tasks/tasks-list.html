@@ -30,7 +30,6 @@
                         <div class="task-title-line">
                           <span class="project-color-ball" :style="task.project?.color ? { backgroundColor: task.project.color } : { border: '1px solid var(--color-border)' }"></span>
                           <span class="task-name"
-                            :title="(task.task_name || `Task #${task.no}`)"
                             x-text="(task.task_name || `Task #${task.no}`)"
                             :data-task-id="task.id"></span>
                         </div>

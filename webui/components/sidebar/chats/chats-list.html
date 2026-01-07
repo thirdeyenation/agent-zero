@@ -28,7 +28,7 @@
                 <div class="chat-list-button">
                   <span class="project-color-ball"
                     :style="context.project?.color ? { backgroundColor: context.project.color } : { border: '1px solid var(--color-border)' }"></span>
-                  <span class="chat-name" :title="context.name ? context.name : 'Chat #' + context.no"
+                  <span class="chat-name" 
                     x-text="context.name ? context.name : 'Chat #' + context.no"></span>
                 </div>
                 <button class="btn-icon-action chat-list-action-btn" title="Close chat" @click.stop="$confirmClick($event, () => $store.chats.killChat(context.id))">
