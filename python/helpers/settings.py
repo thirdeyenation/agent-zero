@@ -438,8 +438,9 @@ def _write_sensitive_settings(settings: Settings):
     if settings["rfc_password"] != PASSWORD_PLACEHOLDER:
         dotenv.save_dotenv_value(dotenv.KEY_RFC_PASSWORD, settings["rfc_password"])
     if settings["root_password"] != PASSWORD_PLACEHOLDER:
-        dotenv.save_dotenv_value(dotenv.KEY_ROOT_PASSWORD, settings["root_password"])
-        set_root_password(settings["root_password"])
+        if runtime.is_dockerized():
+            dotenv.save_dotenv_value(dotenv.KEY_ROOT_PASSWORD, settings["root_password"])
+            set_root_password(settings["root_password"])
 
     # Handle secrets separately - merge with existing preserving comments/order and support deletions
     secrets_manager = get_default_secrets_manager()
