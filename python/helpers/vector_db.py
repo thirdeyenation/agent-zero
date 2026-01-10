@@ -141,7 +141,7 @@ def cosine_normalizer(val: float) -> float:
 def get_comparator(condition: str):
     def comparator(data: dict[str, Any]):
         try:
-            result = simple_eval(condition, {}, data)
+            result = simple_eval(condition, names=data)
             return result
         except Exception as e:
             # PrintStyle.error(f"Error evaluating condition: {e}")
