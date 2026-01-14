@@ -499,59 +499,33 @@ const model = {
     const codePlaceholder = SUB + "code" + SUB;
     const tablePlaceholder = SUB + "table" + SUB;
 
-    // Helper function to handle both closed and unclosed patterns
-    // replacement can be a string or null (to remove)
-    function handlePatterns(
-      inputText,
-      closedPattern,
-      unclosedPattern,
-      replacement
-    ) {
-      // Process closed patterns first
-      let processed = inputText.replace(closedPattern, replacement || "");
-
-      // If the text changed, it means we found and replaced closed patterns
-      if (processed !== inputText) {
-        return processed;
-      } else {
-        // No closed patterns found, check for unclosed ones
-        const unclosedMatch = inputText.match(unclosedPattern);
-        if (unclosedMatch) {
-          // Replace the unclosed pattern
-          return inputText.replace(unclosedPattern, replacement || "");
-        }
-      }
-
-      // No patterns found, return original
-      return inputText;
-    }
-
-    // Handle code blocks
-    text = handlePatterns(
-      text,
-      /```(?:[a-zA-Z0-9]*\n)?[\s\S]*?```/g, // closed code blocks
-      /```(?:[a-zA-Z0-9]*\n)?[\s\S]*$/g, // unclosed code blocks
-      codePlaceholder
-    );
+    // Handle code blocks BEFORE HTML parsing (markdown code blocks)
+    text = text.replace(/```(?:[a-zA-Z0-9]*\n)?[\s\S]*?```/g, codePlaceholder); // closed code blocks
+    text = text.replace(/```(?:[a-zA-Z0-9]*\n)?[\s\S]*$/g, codePlaceholder); // unclosed code blocks
 
     // Replace inline code ticks with content preserved
     text = text.replace(/`([^`]*)`/g, "$1"); // remove backticks but keep content
 
-    // Handle HTML tags
-    text = handlePatterns(
-      text,
-      /<[a-zA-Z][a-zA-Z0-9]*>.*?<\/[a-zA-Z][a-zA-Z0-9]*>/gs, // closed HTML tags
-      /<[a-zA-Z][a-zA-Z0-9]*>[\s\S]*$/g, // unclosed HTML tags
-      "" // remove HTML tags completely
-    );
+    // Parse HTML using browser's DOMParser to properly extract text content
+    try {
+      const parser = new DOMParser();
+      // Wrap in a div to handle fragments
+      const doc = parser.parseFromString(`<div>${text}</div>`, 'text/html');
 
-    // Handle self-closing HTML tags
-    text = handlePatterns(
-      text,
-      /<[a-zA-Z][a-zA-Z0-9]*(\/| [^>]*\/>)/g, // complete self-closing tags
-      /<[a-zA-Z][a-zA-Z0-9]* [^>]*$/g, // incomplete self-closing tags
-      ""
-    );
+      // Replace <pre> and <code> tags with placeholder before extracting text
+      doc.querySelectorAll('pre, code').forEach(el => {
+        el.textContent = codePlaceholder;
+      });
+
+      // Extract text content (this strips all HTML tags properly)
+      text = doc.body.textContent || "";
+    } catch (e) {
+      // Fallback: simple tag stripping if DOMParser fails
+      console.warn("[Speech Store] DOMParser failed, using fallback:", e);
+      text = text.replace(/<pre[^>]*>[\s\S]*?<\/pre>/gi, codePlaceholder);
+      text = text.replace(/<code[^>]*>[\s\S]*?<\/code>/gi, codePlaceholder);
+      text = text.replace(/<[^>]+>/g, ''); // strip remaining tags
+    }
 
     // Remove markdown links: [label](url) → label
     text = text.replace(/\[([^\]]+)\]\([^\)]+\)/g, "$1");
