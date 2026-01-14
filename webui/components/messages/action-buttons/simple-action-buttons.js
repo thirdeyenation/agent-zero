@@ -97,7 +97,8 @@ export function addActionButtonsToElement(element) {
     // Check if the button container is still fading in (opacity < 0.5)
     if (parseFloat(window.getComputedStyle(container).opacity) < 0.5) return; // Don't proceed if still fading in
 
-    const text = getTextContent(element);
+    // Get HTML content instead of plain text so cleanText() can properly handle code blocks
+    const text = getTextContent(element, true);
     const icon = speakBtn.querySelector(".material-symbols-outlined");
 
     if (!text || text.trim().length === 0) return;

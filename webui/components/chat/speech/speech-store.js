@@ -205,6 +205,7 @@ const model = {
     if (this.ttsStream.chunks.length == 0) return;
 
     // if stream was already running, just updating chunks is enough
+    // The running loop will pick up the new chunks automatically
     if (this.ttsStream.running) return;
     else this.ttsStream.running = true; // proceed to running phase
 
@@ -214,22 +215,40 @@ const model = {
 
     const spoken = [];
 
-    // loop chunks from last spoken chunk index
-    for (
-      let i = this.ttsStream.lastChunkIndex + 1;
-      i < this.ttsStream.chunks.length;
-      i++
-    ) {
+    // continuously loop until all chunks are spoken and stream is finished
+    while (true) {
+      // check if we should stop
+      if (terminator()) break;
+
+      // get the next chunk index to speak
+      const nextIndex = this.ttsStream.lastChunkIndex + 1;
+
+      // if no more chunks available, check if we should wait or exit
+      if (nextIndex >= this.ttsStream.chunks.length) {
+        // if stream is finished, we're done
+        if (this.ttsStream.finished) break;
+        // otherwise wait a bit for more chunks to arrive
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        continue;
+      }
+
       // do not speak the last chunk until finished (it is being generated)
-      if (i == this.ttsStream.chunks.length - 1 && !this.ttsStream.finished)
-        break;
+      if (
+        nextIndex == this.ttsStream.chunks.length - 1 &&
+        !this.ttsStream.finished
+      ) {
+        // wait a bit for more content or finish signal
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        continue;
+      }
 
       // set the index of last spoken chunk
-      this.ttsStream.lastChunkIndex = i;
+      this.ttsStream.lastChunkIndex = nextIndex;
 
       // speak the chunk
-      spoken.push(this.ttsStream.chunks[i]);
-      await this._speak(this.ttsStream.chunks[i], i > 0, () => terminator());
+      const chunk = this.ttsStream.chunks[nextIndex];
+      spoken.push(chunk);
+      await this._speak(chunk, nextIndex > 0, () => terminator());
     }
 
     // at the end, finish stream data
@@ -386,8 +405,8 @@ const model = {
     while (waitForPrevious && this.isSpeaking) await sleep(25);
     if (terminator && terminator()) return;
 
-    // stop previous if any
-    this.stopAudio();
+    // stop previous only if not waiting for it
+    if (!waitForPrevious) this.stopAudio();
 
     this.browserUtterance = new SpeechSynthesisUtterance(text);
     this.browserUtterance.onstart = () => {
@@ -410,8 +429,8 @@ const model = {
       while (waitForPrevious && this.isSpeaking) await sleep(25);
       if (terminator && terminator()) return;
 
-      // stop previous if any
-      this.stopAudio();
+      // stop previous only if not waiting for it
+      if (!waitForPrevious) this.stopAudio();
 
       if (response.success) {
         if (response.audio_parts) {
