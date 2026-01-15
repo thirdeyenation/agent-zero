@@ -21,13 +21,6 @@
           <ul class="config-list collapse" id="preferences-collapse"
               x-effect="(() => { const c = bootstrap.Collapse.getOrCreateInstance($el, { toggle: false }); $store.sidebar.isSectionOpen('preferences') ? c.show() : c.hide(); })()">
             <li x-data>
-              <span>Autoscroll</span>
-              <label class="switch">
-                <input id="auto-scroll-switch" type="checkbox" x-model="$store.preferences.autoScroll">
-                <span class="slider"></span>
-              </label>
-            </li>
-            <li x-data>
               <span class="switch-label">Dark mode</span>
               <label class="switch">
                 <input type="checkbox" x-model="$store.preferences.darkMode">
