@@ -662,11 +662,17 @@
 }
 
 .message-container {
-  animation: fadeIn 0.5s;
-  -webkit-animation: fadeIn 0.5s;
+  animation: fadeIn 0.2s;
+  -webkit-animation: fadeIn 0.2s;
   /* margin-bottom: var(--spacing-sm); */
   width: 100%;
   max-width: 100%;
+}
+
+/* User messages appear instantly */
+.message-container.user-container {
+  animation: none !important;
+  -webkit-animation: none !important;
 }
 
 .message {
