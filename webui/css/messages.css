@@ -667,6 +667,7 @@
   /* margin-bottom: var(--spacing-sm); */
   width: 100%;
   max-width: 100%;
+  scroll-margin-top: 60px; /* Ensure nice spacing when scrolling into view */
 }
 
 /* User messages appear instantly */
