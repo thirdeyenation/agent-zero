@@ -1830,10 +1830,11 @@ function updateProcessGroupHeader(group) {
     }
   }
   
-  // Update step count in metrics
+  // Update step count in metrics - only count GEN (agent) steps
   const stepsMetricEl = metricsEl?.querySelector(".metric-steps .metric-value");
   if (stepsMetricEl) {
-    stepsMetricEl.textContent = steps.length.toString();
+    const genSteps = Array.from(steps).filter(step => step.getAttribute("data-type") === "agent");
+    stepsMetricEl.textContent = genSteps.length.toString();
   }
   
   // Update time metric
