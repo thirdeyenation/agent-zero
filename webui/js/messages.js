@@ -1351,6 +1351,11 @@ function addProcessStep(group, id, type, heading, content, kvps, timestamp = nul
     // Explicitly add or remove the class based on state
     if (newState) {
       step.classList.add("step-expanded");
+      // Scroll terminal for newly expanded steps
+      requestAnimationFrame(() => {
+        const terminal = step.querySelector(".terminal-output");
+        if (terminal) terminal.scrollTop = terminal.scrollHeight;
+      });
     } else {
       step.classList.remove("step-expanded");
     }
@@ -1370,6 +1375,14 @@ function addProcessStep(group, id, type, heading, content, kvps, timestamp = nul
   
   detail.appendChild(detailContent);
   step.appendChild(detail);
+  
+  // Scroll terminal for already expanded steps
+  if (isStepExpanded) {
+    requestAnimationFrame(() => {
+      const terminal = step.querySelector(".terminal-output");
+      if (terminal) terminal.scrollTop = terminal.scrollHeight;
+    });
+  }
   
   // Track delegation steps for nesting
   if (toolNameToUse === "call_subordinate") {
@@ -1467,9 +1480,17 @@ function updateProcessStep(stepElement, id, type, heading, content, kvps, durati
  * Get a concise title for a process step
  */
 function getStepTitle(heading, kvps, type) {
+  // code_exe: show command when finished
+  const showCommand = type === "code_exe" && kvps?.code && 
+    /done_all|code_execution_tool/.test(heading || "");
+  if (showCommand) {
+    const s = kvps.session ?? kvps.Session;
+    return `${s != null ? `[${s}] ` : ""}${kvps.runtime || "bash"}> ${kvps.code.trim()}`;
+  }
+
   // Try to get a meaningful title from heading or kvps
   if (heading && heading.trim()) {
-    return cleanStepTitle(heading, 80);
+    return cleanStepTitle(heading, 100);
   }
   
   // For warnings/errors without heading, use content preview as title
@@ -1485,13 +1506,13 @@ function getStepTitle(heading, kvps, type) {
       return `${kvps.tool_name}${headline ? ': ' + headline : ''}`;
     }
     if (kvps.headline) {
-      return cleanStepTitle(kvps.headline, 80);
+      return cleanStepTitle(kvps.headline, 100);
     }
     if (kvps.query) {
-      return truncateText(kvps.query, 80);
+      return truncateText(kvps.query, 100);
     }
     if (kvps.thoughts) {
-      return truncateText(String(kvps.thoughts), 80);
+      return truncateText(String(kvps.thoughts), 100);
     }
   }
   
@@ -1569,12 +1590,17 @@ function renderStepDetailContent(container, content, kvps, type = null) {
       const terminalDiv = document.createElement("div");
       terminalDiv.classList.add("step-terminal");
   
-      // Show output if present
+      // Show output if present (no truncation - CSS handles max-height)
       if (output && output.trim()) {
         const outputPre = document.createElement("pre");
         outputPre.classList.add("terminal-output");
-        outputPre.textContent = truncateText(output, 1000);
+        // Escape HTML first, then convert paths to clickable links
+        let processedOutput = escapeHTML(output);
+        processedOutput = convertPathsToLinks(processedOutput);
+        outputPre.innerHTML = processedOutput;
         terminalDiv.appendChild(outputPre);
+        // Scroll terminal to bottom
+        outputPre.scrollTop = outputPre.scrollHeight;
       }
       
       container.appendChild(terminalDiv);
