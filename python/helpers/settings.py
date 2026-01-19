@@ -430,7 +430,7 @@ def _remove_sensitive_settings(settings: Settings):
 def _write_sensitive_settings(settings: Settings):
     for key, val in settings["api_keys"].items():
         if val != API_KEY_PLACEHOLDER:
-            dotenv.save_dotenv_value(key.upper(), val)
+            dotenv.save_dotenv_value(f"API_KEY_{key.upper()}", val)
 
     dotenv.save_dotenv_value(dotenv.KEY_AUTH_LOGIN, settings["auth_login"])
     if settings["auth_password"] != PASSWORD_PLACEHOLDER:
