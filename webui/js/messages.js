@@ -13,6 +13,27 @@ const chatHistory = document.getElementById("chat-history");
 let messageGroup = null;
 let currentProcessGroup = null; // Track current process group for collapsible UI
 let currentDelegationSteps = {}; // Track delegation steps by agent number for nesting
+let activeProcessGroupId = null; // Only one process group should show "running" indicators at a time
+let activeProcessGroupEl = null;
+let activeStepTitleEl = null;
+
+/**
+ * Mark current process group as active and clear active badges.
+ */
+function setActiveProcessGroup(group) {
+  if (!group || !group.id) return;
+  if (activeProcessGroupId === group.id) return;
+
+  // Clear shiny effect from the previous active step title if we moved to a new group
+  if (activeStepTitleEl && activeProcessGroupEl && activeProcessGroupEl !== group && activeProcessGroupEl.contains(activeStepTitleEl)) {
+    activeStepTitleEl.classList.remove("shiny-text");
+    activeStepTitleEl = null;
+  }
+
+  activeProcessGroupId = group.id;
+  activeProcessGroupEl = group;
+
+}
 
 /**
  * Resolve tool name from kvps, existing attribute, or previous siblings
@@ -82,6 +103,7 @@ export function setMessage(id, type, heading, content, temp, kvps = null, timest
     if (!currentProcessGroup || !document.getElementById(currentProcessGroup.id)) {
       currentProcessGroup = createProcessGroup(id);
       chatHistory.appendChild(currentProcessGroup);
+      setActiveProcessGroup(currentProcessGroup);
     }
     
     // Add step to current process group
@@ -102,6 +124,7 @@ export function setMessage(id, type, heading, content, temp, kvps = null, timest
     if (!currentProcessGroup || !document.getElementById(currentProcessGroup.id)) {
       currentProcessGroup = createProcessGroup(id);
       chatHistory.appendChild(currentProcessGroup);
+      setActiveProcessGroup(currentProcessGroup);
     }
     
     // Add subordinate response as a response step (special type to show content)
@@ -1200,7 +1223,7 @@ function createProcessGroup(id) {
   header.innerHTML = `
     <span class="expand-icon"></span>
     <span class="group-title">Processing...</span>
-    <span class="status-badge status-gen status-active group-status">GEN</span>
+    <span class="status-badge status-gen group-status">GEN</span>
     <span class="group-metrics">
       <span class="metric-time" title="Start time"><span class="material-symbols-outlined">schedule</span><span class="metric-value">--:--</span></span>
       <span class="metric-steps" title="Steps"><span class="material-symbols-outlined">footprint</span><span class="metric-value">0</span></span>
@@ -1260,6 +1283,9 @@ function getNestedContainer(parentStep) {
  * Add a step to a process group
  */
 function addProcessStep(group, id, type, heading, content, kvps, timestamp = null, durationMs = null, agentNumber = 0) {
+  // group with newest step becomes the active one
+  setActiveProcessGroup(group);
+
   const groupId = group.getAttribute("data-group-id");
   let stepsContainer = group.querySelector(".process-steps");
   const isGroupCompleted = group.classList.contains("process-group-completed");
@@ -1339,10 +1365,9 @@ function addProcessStep(group, id, type, heading, content, kvps, timestamp = nul
   // Add status color class to step for cascading --step-accent to internal icons
   step.classList.add(statusColorClass);
   
-  const activeClass = isGroupCompleted ? "" : " status-active";
   stepHeader.innerHTML = `
     <span class="step-expand-icon"></span>
-    <span class="status-badge ${statusColorClass}${activeClass}">${statusCode}</span>
+    <span class="status-badge ${statusColorClass}">${statusCode}</span>
     <span class="step-title">${escapeHTML(title)}</span>
   `;
   
@@ -1407,14 +1432,25 @@ function addProcessStep(group, id, type, heading, content, kvps, timestamp = nul
     }
   }
   
-  // Remove status-active from all previous steps (only the current step is active)
-  const prevSteps = stepsContainer.querySelectorAll(".process-step .status-badge.status-active");
-  prevSteps.forEach(badge => badge.classList.remove("status-active"));
+  // Remove shiny effect from the previously active step title (O(1))
+  if (activeStepTitleEl) {
+    activeStepTitleEl.classList.remove("shiny-text");
+    activeStepTitleEl = null;
+  }
   
   appendTarget.appendChild(step);
   
   // Update group header
   updateProcessGroupHeader(group);
+
+  // Apply shiny effect to the active step title
+  if (!isGroupCompleted && group.id === activeProcessGroupId) {
+    const titleEl = step.querySelector(".process-step-header .step-title");
+    if (titleEl) {
+      titleEl.classList.add("shiny-text");
+      activeStepTitleEl = titleEl;
+    }
+  }
   
   return step;
 }
@@ -1810,10 +1846,8 @@ function updateProcessGroupHeader(group) {
   const metricsEl = group.querySelector(".group-metrics");
   const isCompleted = group.classList.contains("process-group-completed");
   
-  // If completed, only remove active badges and exit early (don't update metrics)
+  // If completed, don't update metrics
   if (isCompleted) {
-    const activeBadges = group.querySelectorAll(".status-badge.status-active");
-    activeBadges.forEach(badge => badge.classList.remove("status-active"));
     return;
   }
   
@@ -1881,14 +1915,14 @@ function updateProcessGroupHeader(group) {
     const lastToolName = lastStep.getAttribute("data-tool-name");
     const lastTitle = lastStep.querySelector(".step-title")?.textContent || "";
     
-    // Update status badge (keep status-active during execution)
+    // Update status badge
     if (statusEl) {
       // Status code and color class from store (maps backend types)
       const statusCode = processGroupStore.getStepCode(lastType, lastToolName);
       const statusColorClass = processGroupStore.getStatusColorClass(lastType, lastToolName);
       
       statusEl.textContent = statusCode;
-      statusEl.className = `status-badge ${statusColorClass} status-active group-status`;
+      statusEl.className = `status-badge ${statusColorClass} group-status`;
     }
     
     // Update title
@@ -1929,16 +1963,12 @@ function truncateText(text, maxLength) {
 function markProcessGroupComplete(group, responseTitle) {
   if (!group) return;
   
-  // Update status badge to END (remove status-active)
+  // Update status badge to END
   const statusEl = group.querySelector(".group-status");
   if (statusEl) {
     statusEl.innerHTML = '<span class="badge-icon material-symbols-outlined">check</span>END';
-    statusEl.className = "status-badge status-end group-status"; // No status-active
+    statusEl.className = "status-badge status-end group-status";
   }
-  
-  // Remove status-active from all step badges (stop spinners)
-  const stepBadges = group.querySelectorAll(".process-step .status-badge.status-active");
-  stepBadges.forEach(badge => badge.classList.remove("status-active"));
   
   // Update title if response title is available
   const titleEl = group.querySelector(".group-title");
@@ -1975,6 +2005,12 @@ export function resetProcessGroups() {
   currentProcessGroup = null;
   currentDelegationSteps = {};
   messageGroup = null;
+  activeProcessGroupId = null;
+  activeProcessGroupEl = null;
+  if (activeStepTitleEl) {
+    activeStepTitleEl.classList.remove("shiny-text");
+  }
+  activeStepTitleEl = null;
 }
 
 /**
