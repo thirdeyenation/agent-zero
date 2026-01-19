@@ -1833,11 +1833,21 @@ function updateProcessGroupHeader(group) {
     }
   }
   
-  // Update step count in metrics - only count GEN (agent) steps
+  // Update step count in metrics - cumulative GEN steps across all process groups up to this one
   const stepsMetricEl = metricsEl?.querySelector(".metric-steps .metric-value");
   if (stepsMetricEl) {
-    const genSteps = Array.from(steps).filter(step => step.getAttribute("data-type") === "agent");
-    stepsMetricEl.textContent = genSteps.length.toString();
+    // Get all process groups in chat history
+    const allGroups = Array.from(chatHistory.querySelectorAll(".process-group"));
+    const currentGroupIndex = allGroups.indexOf(group);
+    
+    // Count GEN steps from all groups up to and including this one
+    let cumulativeGenSteps = 0;
+    for (let i = 0; i <= currentGroupIndex; i++) {
+      const groupGenSteps = allGroups[i].querySelectorAll('.process-step[data-type="agent"]');
+      cumulativeGenSteps += groupGenSteps.length;
+    }
+    
+    stepsMetricEl.textContent = cumulativeGenSteps.toString();
   }
   
   // Update time metric
