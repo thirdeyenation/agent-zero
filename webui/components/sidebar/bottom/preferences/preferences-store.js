@@ -51,6 +51,23 @@ const model = {
   },
   _collapseProcessGroups: true, // Default to collapsed
 
+  // Chat container width preference for HiDPI/large screens
+  get chatWidth() {
+    return this._chatWidth;
+  },
+  set chatWidth(value) {
+    this._chatWidth = value;
+    this._applyChatWidth(value);
+  },
+  _chatWidth: "55", // Default width in em (standard)
+
+  // Width presets: { label, value in em }
+  chatWidthOptions: [
+    { label: "STD", value: "55" },
+    { label: "X-WIDE", value: "90" },
+    { label: "FULL", value: "full" },
+  ],
+
   // Initialize preferences and apply current state
   init() {
     try {
@@ -77,12 +94,23 @@ const model = {
         this._collapseProcessGroups = true;
       }
 
+      // Load chat width preference
+      try {
+        const storedChatWidth = localStorage.getItem("chatWidth");
+        if (storedChatWidth && this.chatWidthOptions.some(opt => opt.value === storedChatWidth)) {
+          this._chatWidth = storedChatWidth;
+        }
+      } catch {
+        this._chatWidth = "55"; // Default to standard
+      }
+
       // Apply all preferences
       this._applyDarkMode(this._darkMode);
       this._applyAutoScroll(this._autoScroll);
       this._applySpeech(this._speech);
       this._applyShowUtils(this._showUtils);
       this._applyCollapseProcessGroups(this._collapseProcessGroups);
+      this._applyChatWidth(this._chatWidth);
     } catch (e) {
       console.error("Failed to initialize preferences store", e);
     }
@@ -132,6 +160,17 @@ const model = {
       }
     } catch (e) {
       // Store may not be initialized yet
+    }
+  },
+
+  _applyChatWidth(value) {
+    localStorage.setItem("chatWidth", value);
+    // Set CSS custom property for chat max-width
+    const root = document.documentElement;
+    if (value === "full") {
+      root.style.setProperty("--chat-max-width", "100%");
+    } else {
+      root.style.setProperty("--chat-max-width", `${value}em`);
     }
   },
 };

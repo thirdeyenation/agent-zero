@@ -358,10 +358,6 @@
   transition: background-color 0.15s ease;
 }
 
-.step-expanded {
-  padding: var(--spacing-xs) 0;
-}
-
 /* Utility/Info/Hint steps have subtle background tint */
 .process-step[data-type="util"],
 .process-step[data-type="info"],
