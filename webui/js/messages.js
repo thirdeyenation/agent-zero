@@ -1289,13 +1289,16 @@ function addProcessStep(group, id, type, heading, content, kvps, timestamp = nul
   if (timestamp) {
     step.setAttribute("data-timestamp", timestamp);
     
-    // Set group start time from first step
+    // Set group start time from first log item
     if (!group.getAttribute("data-start-timestamp")) {
       group.setAttribute("data-start-timestamp", timestamp);
-      // Update header with formatted datetime
-      const timestampEl = group.querySelector(".group-timestamp");
-      if (timestampEl) {
-        timestampEl.textContent = formatDateTime(timestamp);
+      // Update header time metric immediately
+      const timeMetricEl = group.querySelector(".metric-time .metric-value");
+      if (timeMetricEl) {
+        const date = new Date(parseFloat(timestamp) * 1000);
+        const hours = String(date.getHours()).padStart(2, "0");
+        const minutes = String(date.getMinutes()).padStart(2, "0");
+        timeMetricEl.textContent = `${hours}:${minutes}`;
       }
     }
   }
