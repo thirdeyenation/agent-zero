@@ -449,17 +449,11 @@
 }
 
 /* Media Queries */
-@media (min-width: 55em) {
+/* Chat width controlled by --chat-max-width CSS variable (set via preferences, default 55em) */
+@media (min-width: 1025px) {
   #chat-history {
-    padding-left: max(var(--spacing-sm), calc((100% - 55em) / 2)) !important;
-    padding-right: max(var(--spacing-sm), calc((100% - 55em) / 2)) !important;
-  }
-}
-
-@media (min-width: 1025px) and (max-width: 55em) {
-  #chat-history {
-    padding-left: var(--spacing-sm) !important;
-    padding-right: var(--spacing-sm) !important;
+    padding-left: max(var(--spacing-sm), calc((100% - var(--chat-max-width, 55em)) / 2)) !important;
+    padding-right: max(var(--spacing-sm), calc((100% - var(--chat-max-width, 55em)) / 2)) !important;
   }
 }
 
@@ -662,11 +656,18 @@
 }
 
 .message-container {
-  animation: fadeIn 0.5s;
-  -webkit-animation: fadeIn 0.5s;
+  animation: fadeIn 0.2s;
+  -webkit-animation: fadeIn 0.2s;
   /* margin-bottom: var(--spacing-sm); */
   width: 100%;
   max-width: 100%;
+  scroll-margin-top: 60px; /* Ensure nice spacing when scrolling into view */
+}
+
+/* User messages appear instantly */
+.message-container.user-container {
+  animation: none !important;
+  -webkit-animation: none !important;
 }
 
 .message {

@@ -178,8 +178,8 @@
   color: var(--step-accent);
 }
 
-/* BRW - browser type (indigo) */
-.status-brw {
+/* WWW - browser type (indigo) */
+.status-www {
   --step-accent: #818cf8;
   color: var(--step-accent);
 }
@@ -358,10 +358,6 @@
   transition: background-color 0.15s ease;
 }
 
-.step-expanded {
-  padding: var(--spacing-xs) 0;
-}
-
 /* Utility/Info/Hint steps have subtle background tint */
 .process-step[data-type="util"],
 .process-step[data-type="info"],
@@ -446,7 +442,6 @@
   transition: grid-template-rows 0.2s ease-out, opacity 0.15s ease-out, margin-top 0.2s ease-out;
   overflow: hidden;
   -webkit-overflow-scrolling: touch; /* smooth scrolling on iOS */
-  scroll-behavior: smooth;
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* IE/Edge */
   overscroll-behavior: contain; /* avoid scroll chaining */
@@ -488,7 +483,7 @@
 }
 
 .process-step.step-expanded > .process-step-detail > .process-step-detail-content {
-  max-height: 300px;
+  max-height: 350px;
   overflow-y: auto;
 }
 
@@ -500,10 +495,8 @@
   background-color: transparent;
   font-size: 0.7rem;
   line-height: 1.5;
-  max-height: 300px;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch; /* smooth scrolling on iOS */
-  scroll-behavior: smooth;
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* IE/Edge */
   overscroll-behavior: contain; /* avoid scroll chaining */
@@ -656,29 +649,49 @@
   margin: var(--spacing-xs) 0 0 0;
   padding: var(--spacing-xs);
   background: rgba(0, 0, 0, 0.8);
-  border-radius: 4px;
+  border-radius: 8px;
   color: #c9d1d9;
-  white-space: pre-wrap;
-  word-break: break-word;
-  max-height: 200px;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch; /* smooth scrolling on iOS */
-  scroll-behavior: smooth;
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE/Edge */
-  overscroll-behavior: contain; /* avoid scroll chaining */
+  white-space: pre;
+  max-width: fit-content;
+  max-height: 300px;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.2) transparent;
+  overscroll-behavior: contain;
 }
 
 .process-step-detail-content .terminal-output::-webkit-scrollbar {
-  display: none;
-  width: 0;
-  height: 0;
+  width: 4px;
+  height: 4px;
+}
+
+.process-step-detail-content .terminal-output::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.process-step-detail-content .terminal-output::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+}
+
+.process-step-detail-content .terminal-output::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.35);
 }
 
 /* Light mode terminal */
 .light-mode .process-step-detail-content .terminal-output {
   background: rgba(0, 0, 0, 0.05);
   color: black;
+  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+}
+
+.light-mode .process-step-detail-content .terminal-output::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.light-mode .process-step-detail-content .terminal-output::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
 }
 
 /* Light mode adjustments */
@@ -728,7 +741,7 @@
   color: var(--step-accent);
 }
 
-.light-mode .status-brw {
+.light-mode .status-www {
   --step-accent: #4f46e5;
   color: var(--step-accent);
 }

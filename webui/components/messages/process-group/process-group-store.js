@@ -26,7 +26,7 @@ const DISPLAY_CODES = {
   'response': 'END',
   'tool': 'USE',       // Generic fallback for tools
   'code_exe': 'EXE',
-  'browser': 'BRW',
+  'browser': 'WWW',
   'progress': 'HLD',
   'subagent': 'SUB',   // Type fallback if tool name missing
   'mcp': 'MCP',
@@ -148,7 +148,7 @@ const model = {
       'mcp': 'status-mcp',
       'subagent': 'status-sub',
       'code_exe': 'status-exe',
-      'browser': 'status-brw',
+      'browser': 'status-www',
       'progress': 'status-wait',
       'info': 'status-inf',
       'hint': 'status-hnt',

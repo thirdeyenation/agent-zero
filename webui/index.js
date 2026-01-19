@@ -46,6 +46,9 @@ export async function sendMessage() {
     const hasAttachments = attachmentsWithUrls.length > 0;
 
     if (message || hasAttachments) {
+      // Sending a message is an explicit user intent to go to the bottom
+      forceScrollChatToBottom();
+
       let response;
       const messageId = generateGUID();
 
@@ -111,6 +114,17 @@ export async function sendMessage() {
   }
 }
 globalThis.sendMessage = sendMessage;
+
+function getChatHistoryEl() {
+  return document.getElementById("chat-history");
+}
+
+function forceScrollChatToBottom() {
+  const chatHistoryEl = getChatHistoryEl();
+  if (!chatHistoryEl) return;
+  chatHistoryEl.scrollTop = chatHistoryEl.scrollHeight;
+}
+globalThis.forceScrollChatToBottom = forceScrollChatToBottom;
 
 export function toastFetchError(text, error) {
   console.error(text, error);
@@ -569,7 +583,8 @@ function scrollChanged(isAtBottom) {
 export function updateAfterScroll() {
   // const toleranceEm = 1; // Tolerance in em units
   // const tolerancePx = toleranceEm * parseFloat(getComputedStyle(document.documentElement).fontSize); // Convert em to pixels
-  const tolerancePx = 10;
+  // Larger trigger zone near bottom for autoscroll
+  const tolerancePx = 80;
   const chatHistory = document.getElementById("chat-history");
   if (!chatHistory) return;
 
@@ -580,6 +595,13 @@ export function updateAfterScroll() {
   scrollChanged(isAtBottom);
 }
 globalThis.updateAfterScroll = updateAfterScroll;
+
+import { store as _chatNavigationStore } from "/components/chat/navigation/chat-navigation-store.js";
+
+
+// Navigation logic in chat-navigation-store.js
+// forceScrollChatToBottom is kept here as it is used by system events
+
 
 // setInterval(poll, 250);
 
