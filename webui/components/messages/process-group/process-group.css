@@ -268,6 +268,14 @@
   gap: 2px;
 }
 
+.process-group-header .group-metrics .metric-notifications {
+  font-weight: 600;
+}
+
+.process-group-header .group-metrics .metric-notifications .material-symbols-outlined {
+  opacity: 0.85;
+}
+
 /* Legacy timestamp/duration (for backwards compatibility) */
 .process-group-header .group-timestamp {
   font-size: 0.65rem;

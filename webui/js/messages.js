@@ -1228,6 +1228,7 @@ function createProcessGroup(id) {
       <span class="metric-time" title="Start time"><span class="material-symbols-outlined">schedule</span><span class="metric-value">--:--</span></span>
       <span class="metric-steps" title="Steps"><span class="material-symbols-outlined">footprint</span><span class="metric-value">0</span></span>
       <span class="metric-duration" title="Duration"><span class="material-symbols-outlined">timer</span><span class="metric-value">0s</span></span>
+      <span class="metric-notifications" title="Warnings/Info/Hint" hidden><span class="material-symbols-outlined">notifications</span><span class="metric-value">0</span></span>
     </span>
   `;
   
@@ -1845,6 +1846,42 @@ function updateProcessGroupHeader(group) {
   const statusEl = group.querySelector(".group-status");
   const metricsEl = group.querySelector(".group-metrics");
   const isCompleted = group.classList.contains("process-group-completed");
+  
+  const notificationsEl = metricsEl?.querySelector(".metric-notifications");
+  if (notificationsEl) {
+    const counts = { warning: 0, info: 0, hint: 0 };
+    steps.forEach((step) => {
+      const stepType = step.getAttribute("data-type");
+      if (Object.prototype.hasOwnProperty.call(counts, stepType)) {
+        counts[stepType] += 1;
+      }
+    });
+
+    const totalNotifications = counts.warning + counts.info + counts.hint;
+    const countEl = notificationsEl.querySelector(".metric-value");
+    notificationsEl.classList.remove("status-wrn", "status-inf", "status-hnt");
+
+    if (totalNotifications > 0) {
+      if (countEl) {
+        countEl.textContent = totalNotifications.toString();
+      }
+      if (counts.warning > 0) {
+        notificationsEl.classList.add("status-wrn");
+      } else if (counts.info > 0) {
+        notificationsEl.classList.add("status-inf");
+      } else {
+        notificationsEl.classList.add("status-hnt");
+      }
+      notificationsEl.hidden = false;
+      notificationsEl.title = `Warnings: ${counts.warning}, Info: ${counts.info}, Hints: ${counts.hint}`;
+    } else {
+      if (countEl) {
+        countEl.textContent = "0";
+      }
+      notificationsEl.hidden = true;
+      notificationsEl.title = "Warnings/Info/Hint";
+    }
+  }
   
   // If completed, don't update metrics
   if (isCompleted) {
