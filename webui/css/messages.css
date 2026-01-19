@@ -70,14 +70,6 @@
   margin: 0;
 }
 
-.center-container .message {
-  /* margin-bottom: var(--spacing-sm); */
-}
-
-.message .message-body {
-  /* padding-top: 0.5em;
-  padding-bottom: 0.5em; */
-}
 
 .message-user {
   text-align: end;
@@ -111,19 +103,12 @@
   color: #2e2e2e;
 } */
 
-.message-ai {
-  /* border-bottom-left-radius: var(--spacing-xxs); */
-}
 
 .message-center {
   align-self: center;
   /* border-bottom-left-radius: unset; */
 }
 
-.message-followup {
-  /* margin-left: var(--spacing-lg); */
-  /* margin-bottom: var(--spacing-lg); */
-}
 
 .message-followup .message {
   border-radius: 0;
