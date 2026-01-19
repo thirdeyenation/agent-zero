@@ -75,15 +75,35 @@ const PROCESS_TYPES = ['agent', 'tool', 'code_exe', 'browser', 'progress', 'info
 // Main types that should always be visible (not collapsed)
 const MAIN_TYPES = ['user', 'response', 'error', 'rate_limit'];
 
+/**
+ * Helper to append a message container to the correct group in chat history
+ */
+function appendMessageToHistory(messageContainer, groupType, forceNewGroup, id) {
+  // Check if current messageGroup is still in DOM, if not, reset it (context switch)
+  if (messageGroup && !document.getElementById(messageGroup.id)) {
+    messageGroup = null;
+  }
+
+  // Create new group if needed
+  if (!messageGroup || forceNewGroup || groupType !== messageGroup.getAttribute("data-group-type")) {
+    messageGroup = document.createElement("div");
+    messageGroup.id = `message-group-${id}`;
+    messageGroup.classList.add("message-group", `message-group-${groupType}`);
+    messageGroup.setAttribute("data-group-type", groupType);
+    chatHistory.appendChild(messageGroup);
+  }
+
+  // Append message to group
+  messageGroup.appendChild(messageContainer);
+}
+
 export function setMessage(id, type, heading, content, temp, kvps = null, timestamp = null, durationMs = null, agentNumber = 0) {
   // Check if this is a process type message
   const isProcessType = PROCESS_TYPES.includes(type);
-  const isMainType = MAIN_TYPES.includes(type);
   
   // Search for the existing message container by id
   let messageContainer = document.getElementById(`message-${id}`);
   let processStepElement = document.getElementById(`process-step-${id}`);
-  let isNewMessage = false;
 
   // For user messages, close current process group FIRST (start fresh for next interaction)
   if (type === "user") {
@@ -92,7 +112,7 @@ export function setMessage(id, type, heading, content, temp, kvps = null, timest
   }
 
   // For process types, check if we should add to process group
-  if (isProcessType) {
+  if (isProcessType || (type === "response" && agentNumber !== 0)) {
     if (processStepElement) {
       // Update existing process step
       updateProcessStep(processStepElement, id, type, heading, content, kvps, durationMs, agentNumber);
@@ -101,61 +121,35 @@ export function setMessage(id, type, heading, content, temp, kvps = null, timest
     
     // Create or get process group for current interaction
     if (!currentProcessGroup || !document.getElementById(currentProcessGroup.id)) {
+      // Create response container for this process group immediately (Option B)
+      messageContainer = document.createElement("div");
+      messageContainer.id = `message-${id}`;
+      messageContainer.classList.add("message-container", "ai-container", "has-process-group");
+      
       currentProcessGroup = createProcessGroup(id);
-      chatHistory.appendChild(currentProcessGroup);
+      currentProcessGroup.classList.add("embedded");
+      messageContainer.appendChild(currentProcessGroup);
+      
+      // Handle DOM insertion immediately
+      appendMessageToHistory(messageContainer, "left", false, id);
+      
       setActiveProcessGroup(currentProcessGroup);
     }
     
     // Add step to current process group
-    processStepElement = addProcessStep(currentProcessGroup, id, type, heading, content, kvps, timestamp, durationMs, agentNumber);
+    const stepType = (type === "response" && agentNumber !== 0) ? "response" : type;
+    processStepElement = addProcessStep(currentProcessGroup, id, stepType, heading, content, kvps, timestamp, durationMs, agentNumber);
     return processStepElement;
   }
 
-  // For subordinate agent responses (A1, A2, ...), treat as a process step instead of main response
-  // agentNumber: 0 = main agent, 1+ = subordinate agents
-  // Note: subordinate "response" is a completion marker with content
-  if (type === "response" && agentNumber !== 0) {
-    if (processStepElement) {
-      updateProcessStep(processStepElement, id, "response", heading, content, kvps, durationMs, agentNumber);
-      return processStepElement;
-    }
-    
-    // Create or get process group for current interaction
-    if (!currentProcessGroup || !document.getElementById(currentProcessGroup.id)) {
-      currentProcessGroup = createProcessGroup(id);
-      chatHistory.appendChild(currentProcessGroup);
-      setActiveProcessGroup(currentProcessGroup);
-    }
-    
-    // Add subordinate response as a response step (special type to show content)
-    processStepElement = addProcessStep(currentProcessGroup, id, "response", heading, content, kvps, timestamp, durationMs, agentNumber);
-    return processStepElement;
-  }
-
-  // For main agent (A0) response, embed the current process group and mark as complete
+  // For main agent (A0) response, mark the current process group as complete
   if (type === "response" && currentProcessGroup) {
-    const processGroupToEmbed = currentProcessGroup;
-    // Keep currentProcessGroup reference - subsequent process messages go to same group
-    
     // Mark process group as complete (END state)
-    markProcessGroupComplete(processGroupToEmbed, heading);
-    
-    if (!messageContainer) {
-      // Create new container with embedded process group
-      messageContainer = createResponseContainerWithProcessGroup(id, processGroupToEmbed);
-      isNewMessage = true;
-    } else {
-      // Check if already embedded
-      const existingEmbedded = messageContainer.querySelector(".process-group");
-      if (!existingEmbedded && processGroupToEmbed) {
-        embedProcessGroup(messageContainer, processGroupToEmbed);
-      }
-    }
+    markProcessGroupComplete(currentProcessGroup, heading);
   }
 
   if (!messageContainer) {
     // Create a new container if not found
-    isNewMessage = true;
     const sender = type === "user" ? "user" : "ai";
     messageContainer = document.createElement("div");
     messageContainer.id = `message-${id}`;
@@ -165,8 +159,8 @@ export function setMessage(id, type, heading, content, temp, kvps = null, timest
   const handler = getHandler(type);
   handler(messageContainer, id, type, heading, content, temp, kvps);
 
-  // If this is a new message, handle DOM insertion
-  if (!document.getElementById(`message-${id}`)) {
+  // If this is a new message (not yet in DOM), handle DOM insertion
+  if (!messageContainer.parentNode) {
     // message type visual grouping
     const groupTypeMap = {
       user: "right",
@@ -186,26 +180,10 @@ export function setMessage(id, type, heading, content, temp, kvps = null, timest
     };
 
     const groupType = groupTypeMap[type] || "left";
+    const forceNewGroup = groupStart[type] || false;
 
-    // here check if messageGroup is still in DOM, if not, then set it to null (context switch)
-    if (messageGroup && !document.getElementById(messageGroup.id))
-      messageGroup = null;
-
-    if (
-      !messageGroup || // no group yet exists
-      groupStart[type] || // message type forces new group
-      groupType != messageGroup.getAttribute("data-group-type") // message type changes group
-    ) {
-      messageGroup = document.createElement("div");
-      messageGroup.id = `message-group-${id}`;
-      messageGroup.classList.add(`message-group`, `message-group-${groupType}`);
-      messageGroup.setAttribute("data-group-type", groupType);
-    }
-    messageGroup.appendChild(messageContainer);
-    chatHistory.appendChild(messageGroup);
+    appendMessageToHistory(messageContainer, groupType, forceNewGroup, id);
   }
-
-  // Simplified implementation - no setup needed
 
   return messageContainer;
 }
@@ -1151,52 +1129,6 @@ class Scroller {
 // Process Group Embedding Functions
 // ============================================
 
-/**
- * Create a response container with an embedded process group
- */
-function createResponseContainerWithProcessGroup(id, processGroup) {
-  const messageContainer = document.createElement("div");
-  messageContainer.id = `message-${id}`;
-  messageContainer.classList.add("message-container", "ai-container", "has-process-group");
-  
-  // Move process group from chatHistory into the container
-  if (processGroup && processGroup.parentNode) {
-    processGroup.parentNode.removeChild(processGroup);
-  }
-  
-  // Process group will be the first child
-  if (processGroup) {
-    processGroup.classList.add("embedded");
-    messageContainer.appendChild(processGroup);
-  }
-  
-  return messageContainer;
-}
-
-/**
- * Embed a process group into an existing message container
- */
-function embedProcessGroup(messageContainer, processGroup) {
-  if (!messageContainer || !processGroup) return;
-  
-  // Remove from current parent
-  if (processGroup.parentNode) {
-    processGroup.parentNode.removeChild(processGroup);
-  }
-  
-  // Add embedded class
-  processGroup.classList.add("embedded");
-  messageContainer.classList.add("has-process-group");
-  
-  // Insert at the beginning of the container
-  const firstChild = messageContainer.firstChild;
-  if (firstChild) {
-    messageContainer.insertBefore(processGroup, firstChild);
-  } else {
-    messageContainer.appendChild(processGroup);
-  }
-}
-
 // ============================================
 // Process Group Functions
 // ============================================
@@ -1380,11 +1312,6 @@ function addProcessStep(group, id, type, heading, content, kvps, timestamp = nul
     // Explicitly add or remove the class based on state
     if (newState) {
       step.classList.add("step-expanded");
-      // Scroll terminal for newly expanded steps
-      requestAnimationFrame(() => {
-        const terminal = step.querySelector(".terminal-output");
-        if (terminal) terminal.scrollTop = terminal.scrollHeight;
-      });
     } else {
       step.classList.remove("step-expanded");
     }
@@ -1404,14 +1331,6 @@ function addProcessStep(group, id, type, heading, content, kvps, timestamp = nul
   
   detail.appendChild(detailContent);
   step.appendChild(detail);
-  
-  // Scroll terminal for already expanded steps
-  if (isStepExpanded) {
-    requestAnimationFrame(() => {
-      const terminal = step.querySelector(".terminal-output");
-      if (terminal) terminal.scrollTop = terminal.scrollHeight;
-    });
-  }
   
   // Track delegation steps for nesting
   if (toolNameToUse === "call_subordinate") {
@@ -1440,6 +1359,12 @@ function addProcessStep(group, id, type, heading, content, kvps, timestamp = nul
   }
   
   appendTarget.appendChild(step);
+  
+  // Scroll terminal to bottom on initial render (including page refresh)
+  const initialTerminal = step.querySelector(".terminal-output");
+  if (initialTerminal) {
+    initialTerminal.scrollTop = initialTerminal.scrollHeight;
+  }
   
   // Update group header
   updateProcessGroupHeader(group);
@@ -1490,6 +1415,10 @@ function updateProcessStep(stepElement, id, type, heading, content, kvps, durati
   let skipFullRender = false;
   
   if (detailContent) {
+    // Capture scroll state before re-render (uses existing Scroller pattern)
+    const terminal = detailContent.querySelector(".terminal-output");
+    const scroller = terminal ? new Scroller(terminal) : null;
+    
     // For browser, update image src incrementally to avoid flashing
     if (type === "browser" && kvps?.screenshot) {
       const existingImg = detailContent.querySelector(".screenshot-img");
@@ -1506,6 +1435,12 @@ function updateProcessStep(stepElement, id, type, heading, content, kvps, durati
     
     if (!skipFullRender) {
       renderStepDetailContent(detailContent, content, kvps, type);
+      
+      // Re-apply scroll (stays at bottom if was at bottom)
+      const newTerminal = detailContent.querySelector(".terminal-output");
+      if (newTerminal && scroller?.wasAtBottom) {
+        newTerminal.scrollTop = newTerminal.scrollHeight;
+      }
     }
   }
   
@@ -1639,8 +1574,6 @@ function renderStepDetailContent(container, content, kvps, type = null) {
         processedOutput = convertPathsToLinks(processedOutput);
         outputPre.innerHTML = processedOutput;
         terminalDiv.appendChild(outputPre);
-        // Scroll terminal to bottom
-        outputPre.scrollTop = outputPre.scrollHeight;
       }
       
       container.appendChild(terminalDiv);
