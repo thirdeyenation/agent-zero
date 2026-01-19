@@ -99,10 +99,6 @@
       cursor: pointer;
     }
 
-    .chat-container:hover {
-      background-color: var(--color-background-hover);
-    }
-
     .chat-list-button {
       display: flex;
       align-items: center;
@@ -137,7 +133,7 @@
       opacity: 0;
       visibility: hidden;
       pointer-events: none;
-      transition: opacity 0.12s ease-in-out;
+      transition: opacity 0s;
     }
 
     .device-pointer .chat-container:hover .chat-list-action-btn {
@@ -168,10 +164,6 @@
     }
 
     /* Selected chat accent */
-    .chat-selected {
-      background-color: var(--color-background-hover);
-    }
-
     .chat-selected .chat-name {
       font-size: var(--font-size-normal);
       font-weight: bold;
