@@ -210,7 +210,7 @@
 
 /* ERR - error type (red) */
 .status-err {
-  --step-accent: #ef4444;
+  --step-accent: var(--color-accent);
   color: var(--step-accent);
 }
 
@@ -225,33 +225,6 @@
   --step-accent: #38bdf8;
   color: var(--step-accent);
 }
-
-/* Animated spinner for active status (CSS-only, no Material Icons) */
-.status-badge.status-active::after {
-  content: "";
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border: 1.5px solid currentColor;
-  border-top-color: transparent;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-  margin-left: 4px;
-  flex-shrink: 0;
-}
-
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-/* Don't show spinner pseudo-element on END/ERR (they have their own indicators) */
-.status-badge.status-end::after,
-.status-badge.status-err::after {
-  display: none;
-}
-
-/* END status with checkmark icon (icon added via JS, no ::before needed) */
 
 /* Completed process group styling */
 .process-group-completed {
@@ -293,6 +266,18 @@
   display: inline-flex;
   align-items: center;
   gap: 2px;
+}
+
+.process-group-header .group-metrics .metric-notifications {
+  font-weight: 600;
+}
+
+.process-group-header .group-metrics .metric-notifications[hidden] {
+  display: none;
+}
+
+.process-group-header .group-metrics .metric-notifications .material-symbols-outlined {
+  opacity: 0.85;
 }
 
 /* Legacy timestamp/duration (for backwards compatibility) */
@@ -386,16 +371,6 @@
   user-select: none;
   gap: 4px;
   min-height: 18px;
-}
-
-/* Step icon removed - using status badges instead */
-.process-step-header .step-icon {
-  display: none;
-}
-
-/* Step type label removed - using status badges instead */
-.process-step-header .step-type {
-  display: none;
 }
 
 /* Step title */
@@ -767,7 +742,7 @@
 }
 
 .light-mode .status-err {
-  --step-accent: #b91c1c;
+  --step-accent: var(--color-accent);
   color: var(--step-accent);
 }
 
@@ -787,18 +762,13 @@
   50% { opacity: 0.8; }
 }
 
-.process-step.loading .step-icon {
-  animation: pulse-step 1.2s ease-in-out infinite;
-}
+.step-title.shiny-text { color: transparent !important; -webkit-background-clip: text; background-clip: text; animation: shine 1s linear infinite; }
+    @keyframes shine { to { background-position: -100% center; } }
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .process-group {
     padding: var(--spacing-xs) var(--spacing-sm);
-  }
-  
-  .process-step-header .step-type {
-    display: none;
   }
   
   .process-step-header .step-title {
@@ -923,3 +893,17 @@
 .light-mode .process-step-detail-content .screenshot-img:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
+
+/* View Details button in step detail */
+.step-detail-actions {
+  display: flex;
+  padding-left: 18px;
+  min-height: 0; /* Required for grid collapse animation */
+}
+
+/* Hide View Details button when step is collapsed */
+.process-step:not(.step-expanded) > .process-step-detail > .step-detail-actions {
+  display: none;
+}
+
+

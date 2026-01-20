@@ -70,14 +70,6 @@
   margin: 0;
 }
 
-.center-container .message {
-  /* margin-bottom: var(--spacing-sm); */
-}
-
-.message .message-body {
-  /* padding-top: 0.5em;
-  padding-bottom: 0.5em; */
-}
 
 .message-user {
   text-align: end;
@@ -111,19 +103,12 @@
   color: #2e2e2e;
 } */
 
-.message-ai {
-  /* border-bottom-left-radius: var(--spacing-xxs); */
-}
 
 .message-center {
   align-self: center;
   /* border-bottom-left-radius: unset; */
 }
 
-.message-followup {
-  /* margin-left: var(--spacing-lg); */
-  /* margin-bottom: var(--spacing-lg); */
-}
 
 .message-followup .message {
   border-radius: 0;
@@ -287,12 +272,137 @@
   background-color: transparent;
 }
 
-.message-error {
-  background-color: rgba(180, 40, 40, 0.25);
-  border: 1px solid rgba(220, 60, 60, 0.5);
-  border-radius: 8px !important;
-  padding: 12px !important;
+/* Collapsible Error Group */
+
+.message-error-group {
+  background: transparent;
+  border: none !important;
+  padding: 0 !important;
 }
+
+.error-group {
+  display: inline-flex;
+  flex-direction: column;
+  position: relative;
+  z-index: 1;
+  margin: var(--spacing-xs) 0;
+  padding: var(--spacing-xs) 0;
+  min-width: 200px;
+  max-width: 100%;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+/* Error Group Header */
+.error-group-header {
+  display: flex;
+  align-items: center;
+  padding: 0;
+  cursor: pointer;
+  user-select: none;
+  transition: opacity 0.15s ease;
+  min-height: 22px;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.error-group-header:hover {
+  opacity: 0.85;
+}
+
+/* Expand/collapse triangle */
+.error-group-header .expand-icon {
+  display: inline-block;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 4px 0 4px 6px;
+  border-color: transparent transparent transparent #ef4444;
+  opacity: 0.7;
+  transition: transform 0.2s ease, opacity 0.15s ease;
+  flex-shrink: 0;
+  font-size: 0;
+  margin-right: 2px;
+}
+
+.error-group-header:hover .expand-icon {
+  opacity: 1;
+}
+
+.error-group.expanded .error-group-header .expand-icon {
+  transform: rotate(90deg);
+}
+
+/* Error title */
+.error-group-header .error-title {
+  flex: 0 0 auto;
+  font-size: var(--font-size-medium);
+  font-weight: 600;
+  color: var(--color-accent);
+  opacity: 0.95;
+}
+
+/* Error subtitle (short description) */
+.error-group-header .error-subtitle {
+  flex: 1 1 auto;
+  font-size: 0.75rem;
+  color: var(--color-text);
+  opacity: 0.7;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-left: var(--spacing-xs);
+  font-family: var(--font-family-code);
+}
+
+/* Error Group Content - Animated expand/collapse */
+.error-group-content {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  margin-top: 0;
+  padding-top: 0;
+  transition: grid-template-rows 0.25s ease-out, 
+              opacity 0.2s ease-out,
+              margin-top 0.25s ease-out,
+              padding-top 0.25s ease-out;
+  overflow: hidden;
+}
+
+.error-group-content > .error-content-inner {
+  min-height: 0;
+}
+
+.error-group.expanded .error-group-content {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  margin-top: var(--spacing-xs);
+  padding-top: var(--spacing-xs);
+}
+
+.error-content-inner {
+  padding: var(--spacing-md);
+  border-radius: 8px;
+  border: 1px solid var(--color-accent);
+  margin-left: var(--spacing-md);
+}
+
+/* Callstack styling */
+.error-callstack {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--font-family-code);
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: var(--color-accent);
+  opacity: 0.9;
+  max-height: 30vh;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-accent) transparent;
+}
+
 
 /* Terminal styling moved to new terminal block above */
 
@@ -512,10 +622,17 @@
   border-bottom: none;
 }
 
-.light-mode .message-error {
-  background-color: rgba(220, 60, 60, 0.15);
-  border: 1px solid rgba(180, 40, 40, 0.4);
-  color: #8f1010;
+/* Light mode error group */
+.light-mode .error-group-header .expand-icon {
+  border-color: transparent transparent transparent var(--color-accent);
+}
+
+.light-mode .error-group-header .error-title {
+  color: var(--color-accent);
+}
+
+.light-mode .error-content-inner {
+  border: 1px solid var(--color-accent);
 }
 
 .light-mode .message-user {
@@ -649,10 +766,6 @@
   justify-content: end;
   margin-top: 5em;
   margin-bottom:5em;
-}
-
-.message-group-mid {
-  margin-left: 2em;
 }
 
 .message-container {

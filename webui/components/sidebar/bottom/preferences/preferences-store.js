@@ -1,6 +1,7 @@
 import { createStore } from "/js/AlpineStore.js";
 import * as css from "/js/css.js";
 import { store as speechStore } from "/components/chat/speech/speech-store.js";
+import { store as processGroupStore } from "/components/messages/process-group/process-group-store.js";
 
 // Preferences store centralizes user preference toggles and side-effects
 const model = {
@@ -68,6 +69,23 @@ const model = {
     { label: "FULL", value: "full" },
   ],
 
+  // Detail mode for process groups/steps expansion
+  get detailMode() {
+    return this._detailMode;
+  },
+  set detailMode(value) {
+    this._detailMode = value;
+    this._applyDetailMode(value);
+  },
+  _detailMode: "current", // Default: show current step only
+
+  // Detail mode options for UI sidebar
+  detailModeOptions: [
+    { label: "MIN", value: "collapsed", icon: "unfold_less", title: "All collapsed" },
+    { label: "CUR", value: "current", icon: "step", title: "Current step only" },
+    { label: "ALL", value: "expanded", icon: "unfold_more", title: "All expanded" },
+  ],
+
   // Initialize preferences and apply current state
   init() {
     try {
@@ -104,6 +122,16 @@ const model = {
         this._chatWidth = "55"; // Default to standard
       }
 
+      // Load detail mode preference
+      try {
+        const storedDetailMode = localStorage.getItem("detailMode");
+        if (storedDetailMode && this.detailModeOptions.some(opt => opt.value === storedDetailMode)) {
+          this._detailMode = storedDetailMode;
+        }
+      } catch {
+        this._detailMode = "current"; // Default
+      }
+
       // Apply all preferences
       this._applyDarkMode(this._darkMode);
       this._applyAutoScroll(this._autoScroll);
@@ -111,6 +139,7 @@ const model = {
       this._applyShowUtils(this._showUtils);
       this._applyCollapseProcessGroups(this._collapseProcessGroups);
       this._applyChatWidth(this._chatWidth);
+      this._applyDetailMode(this._detailMode);
     } catch (e) {
       console.error("Failed to initialize preferences store", e);
     }
@@ -148,19 +177,14 @@ const model = {
     document.querySelectorAll(".process-step.message-util").forEach((el) => {
       el.classList.toggle("show-util", value);
     });
+    // Re-apply detail mode to reset current visible step
+    processGroupStore.applyModeSteps();
   },
 
   _applyCollapseProcessGroups(value) {
     localStorage.setItem("collapseProcessGroups", value);
     // Update process group store default
-    try {
-      const processGroupStore = window.Alpine?.store("processGroup");
-      if (processGroupStore) {
-        processGroupStore.defaultCollapsed = value;
-      }
-    } catch (e) {
-      // Store may not be initialized yet
-    }
+    processGroupStore.defaultCollapsed = value;
   },
 
   _applyChatWidth(value) {
@@ -172,6 +196,14 @@ const model = {
     } else {
       root.style.setProperty("--chat-max-width", `${value}em`);
     }
+  },
+
+  _applyDetailMode(value) {
+    localStorage.setItem("detailMode", value);
+    // Sync defaultCollapsed based on mode
+    processGroupStore.defaultCollapsed = value === "collapsed";
+    // Apply mode to all existing DOM elements
+    processGroupStore.applyModeSteps();
   },
 };
 

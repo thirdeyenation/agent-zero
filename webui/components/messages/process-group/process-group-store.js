@@ -175,6 +175,68 @@ const model = {
       }
     }
     this._persist();
+  },
+
+  // Get current detail mode from preferences
+  _getDetailMode() {
+    return window.Alpine?.store("preferences")?.detailMode || "current";
+  },
+
+  expandGroup(groupId, isActiveAndGenerating = false) {
+    const mode = this._getDetailMode();
+    if (mode === "collapsed") {
+      // Only expand if generating, not for completed groups
+      return isActiveAndGenerating;
+    }
+    if (mode === "current" || mode === "expanded") return true;
+    return !this.defaultCollapsed;
+  },
+
+  expandStep(groupId, stepId, isActive = false) {
+    const mode = this._getDetailMode();
+    if (mode === "collapsed") return false;
+    if (mode === "expanded") return true;
+    if (mode === "current") return isActive;
+    return this.isStepExpanded(groupId, stepId);
+  },
+
+  // Apply current mode to all existing DOM elements
+  applyModeSteps() {
+    const mode = this._getDetailMode();
+    const showUtils = window.Alpine?.store("preferences")?.showUtils || false;
+    const allGroups = document.querySelectorAll(".process-group");
+    
+    // Find the last VISIBLE step using targeted selector
+    const stepSelector = showUtils ? ".process-step" : ".process-step:not(.message-util)";
+    const visibleSteps = document.querySelectorAll(stepSelector);
+    const lastStep = visibleSteps.length > 0 ? visibleSteps[visibleSteps.length - 1] : null;
+    
+    // Get all steps for applying expansion
+    const allSteps = document.querySelectorAll(".process-step");
+    
+    // Apply to groups
+    allGroups.forEach(group => {
+      group.classList.toggle("expanded", mode !== "collapsed");
+    });
+    
+    // Apply to steps
+    allSteps.forEach(step => {
+      let shouldExpand = false;
+      if (mode === "expanded") {
+        shouldExpand = true;
+      } else if (mode === "current") {
+        // Expand the last step and any parent steps containing it (for nested subordinate steps)
+        shouldExpand = step === lastStep || step.contains(lastStep);
+      }
+      step.classList.toggle("step-expanded", shouldExpand);
+    });
+    
+    // Apply to error groups
+    const allErrorGroups = document.querySelectorAll(".error-group");
+    allErrorGroups.forEach(errorGroup => {
+      const shouldExpand = mode === "current" || mode === "expanded";
+      errorGroup.classList.toggle("expanded", shouldExpand);
+    });
   }
 };
 

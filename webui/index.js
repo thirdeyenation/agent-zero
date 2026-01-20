@@ -11,6 +11,7 @@ import { store as chatsStore } from "/components/sidebar/chats/chats-store.js";
 import { store as tasksStore } from "/components/sidebar/tasks/tasks-store.js";
 import { store as chatTopStore } from "/components/chat/top-section/chat-top-store.js";
 import { store as _tooltipsStore } from "/components/tooltips/tooltip-store.js";
+import { store as processGroupStore } from "/components/messages/process-group/process-group-store.js";
 
 globalThis.fetchApi = api.fetchApi; // TODO - backward compatibility for non-modular scripts, remove once refactored to alpine
 
@@ -414,6 +415,8 @@ function afterMessagesUpdate(logs) {
   if (localStorage.getItem("speech") == "true") {
     speakMessages(logs);
   }
+  // Apply messages expansion mode after rendering
+  processGroupStore.applyModeSteps();
 }
 
 function speakMessages(logs) {
@@ -458,16 +461,23 @@ function updateProgress(progress, active) {
   if (!progressBarEl) return;
   if (!progress) progress = "";
 
-  if (!active) {
-    removeClassFromElement(progressBarEl, "shiny-text");
-  } else {
-    addClassToElement(progressBarEl, "shiny-text");
-  }
+  setProgressBarShine(progressBarEl, active);
 
   progress = msgs.convertIcons(progress);
 
   if (progressBarEl.innerHTML != progress) {
     progressBarEl.innerHTML = progress;
+  }
+}
+
+function setProgressBarShine(progressBarEl, active) {
+  if (!progressBarEl) return;
+  if (!active) {
+    removeClassFromElement(progressBarEl, "shiny-text");
+    // clear any lingering shines in process steps
+    msgs.clearActiveStepShine();
+  } else {
+    addClassToElement(progressBarEl, "shiny-text");
   }
 }
 
