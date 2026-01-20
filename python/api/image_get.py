@@ -28,7 +28,7 @@ class ImageGet(ApiHandler):
             in_base = files.is_in_base_dir(files.fix_dev_path(path))
         else:
             in_base = files.is_in_base_dir(path)
-        if not in_base:
+        if not in_base and not files.is_in_dir(path, "/root"):
             raise ValueError("Path is outside of allowed directory")
 
         # get file extension and info

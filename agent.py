@@ -487,9 +487,10 @@ class Agent:
 
                     finally:
                         # call message_loop_end extensions
-                        await self.call_extensions(
-                            "message_loop_end", loop_data=self.loop_data
-                        )
+                        if self.context.task and self.context.task.is_alive(): # don't call extensions post mortem
+                            await self.call_extensions(
+                                "message_loop_end", loop_data=self.loop_data
+                            )
 
             # exceptions outside message loop:
             except InterventionException as e:
@@ -503,7 +504,8 @@ class Agent:
             finally:
                 self.context.streaming_agent = None  # unset current streamer
                 # call monologue_end extensions
-                await self.call_extensions("monologue_end", loop_data=self.loop_data)  # type: ignore
+                if self.context.task and self.context.task.is_alive(): # don't call extensions post mortem
+                    await self.call_extensions("monologue_end", loop_data=self.loop_data)  # type: ignore
 
     async def prepare_prompt(self, loop_data: LoopData) -> list[BaseMessage]:
         self.context.log.set_progress("Building prompt")
