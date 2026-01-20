@@ -5,6 +5,7 @@ import { store as _messageResizeStore } from "/components/messages/resize/messag
 import { store as attachmentsStore } from "/components/chat/attachments/attachmentsStore.js";
 import { addActionButtonsToElement } from "/components/messages/action-buttons/simple-action-buttons.js";
 import { store as processGroupStore } from "/components/messages/process-group/process-group-store.js";
+import { store as stepDetailStore } from "/components/modals/process-step-detail/step-detail-store.js";
 import { store as preferencesStore } from "/components/sidebar/bottom/preferences/preferences-store.js";
 import { formatDuration } from "./time-utils.js";
 
@@ -1353,6 +1354,23 @@ function addProcessStep(group, id, type, heading, content, kvps, timestamp = nul
   renderStepDetailContent(detailContent, content, kvps, type);
   
   detail.appendChild(detailContent);
+  
+  // Store step data on the element for fresh access on modal open
+  step._stepData = {
+    type,
+    heading,
+    content,
+    kvps,
+    timestamp,
+    durationMs,
+    agentNumber,
+    toolName: toolNameToUse
+  };
+  
+  // Add "View Details" button for full modal view (reads fresh data from step._stepData)
+  const viewDetailsBtn = createViewDetailsButton(step);
+  detail.appendChild(viewDetailsBtn);
+  
   step.appendChild(detail);
   
   // Track delegation steps for nesting
@@ -1461,6 +1479,19 @@ function updateProcessStep(stepElement, id, type, heading, content, kvps, durati
       }
     }
   }
+  
+  // Update stored step data for fresh access by modal
+  const timestamp = stepElement._stepData?.timestamp; // preserve original timestamp
+  stepElement._stepData = {
+    type,
+    heading,
+    content,
+    kvps,
+    timestamp,
+    durationMs,
+    agentNumber,
+    toolName: toolNameToUse
+  };
   
   // Update parent group header
   const group = stepElement.closest(".process-group");
@@ -1786,6 +1817,30 @@ function renderThoughts(container, value) {
     thoughtsDiv.innerHTML = `<span class="thought-icon material-symbols-outlined">lightbulb</span><span class="thought-text">${escapeHTML(thoughtText)}</span>`;
     container.appendChild(thoughtsDiv);
   }
+}
+
+/**
+ * Create "View Details" button for opening step detail modal
+ * @param {HTMLElement} stepElement - The step DOM element containing _stepData property
+ */
+function createViewDetailsButton(stepElement) {
+  const btnContainer = document.createElement("div");
+  btnContainer.classList.add("step-detail-actions");
+  
+  const btn = document.createElement("button");
+  btn.classList.add("btn", "text-button");
+  btn.innerHTML = '<span class="material-symbols-outlined">open_in_full</span> View Details';
+  btn.title = "Open full step details in modal";
+  
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    // Read fresh data from the step element at click time
+    const freshData = stepElement._stepData || {};
+    stepDetailStore.showStepDetail(freshData);
+  });
+  
+  btnContainer.appendChild(btn);
+  return btnContainer;
 }
 
 /**
