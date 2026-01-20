@@ -1291,9 +1291,9 @@ function addProcessStep(group, id, type, heading, content, kvps, timestamp = nul
   const title = getStepTitle(heading, kvps, type);
   
   // Check if step should be expanded
-  // Warning/error steps auto-expand to show content
+  // Warning steps auto-expand to show content (errors are external MAIN_TYPES, not in process groups)
   const isStepExpanded = processGroupStore.isStepExpanded(groupId, id) || 
-                         (type === "warning" || type === "error");
+                         type === "warning";
   if (isStepExpanded) {
     step.classList.add("step-expanded");
   }
@@ -1357,8 +1357,8 @@ function addProcessStep(group, id, type, heading, content, kvps, timestamp = nul
     appendTarget = getNestedContainer(parentStep);
     step.classList.add("nested-step");
     
-    // Auto-expand parent if this nested step is a warning/error
-    if (type === "warning" || type === "error") {
+    // Auto-expand parent if this nested step is a warning (errors are external MAIN_TYPES)
+    if (type === "warning") {
       parentStep.classList.add("step-expanded");
     }
   }
