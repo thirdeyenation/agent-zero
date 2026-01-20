@@ -35,6 +35,17 @@ function setActiveProcessGroup(group) {
 
 }
 
+export function clearActiveStepShine() {
+  if (activeStepTitleEl) {
+    activeStepTitleEl.classList.remove("shiny-text");
+    activeStepTitleEl = null;
+  }
+  // clear any lingering shine in process steps
+  document.querySelectorAll(".process-step .step-title.shiny-text").forEach((el) => {
+    el.classList.remove("shiny-text");
+  });
+}
+
 /**
  * Resolve tool name from kvps, existing attribute, or previous siblings
  * For 'tool' type steps, inherits from preceding step if not directly available

@@ -458,16 +458,23 @@ function updateProgress(progress, active) {
   if (!progressBarEl) return;
   if (!progress) progress = "";
 
-  if (!active) {
-    removeClassFromElement(progressBarEl, "shiny-text");
-  } else {
-    addClassToElement(progressBarEl, "shiny-text");
-  }
+  setProgressBarShine(progressBarEl, active);
 
   progress = msgs.convertIcons(progress);
 
   if (progressBarEl.innerHTML != progress) {
     progressBarEl.innerHTML = progress;
+  }
+}
+
+function setProgressBarShine(progressBarEl, active) {
+  if (!progressBarEl) return;
+  if (!active) {
+    removeClassFromElement(progressBarEl, "shiny-text");
+    // clear any lingering shines in process steps
+    msgs.clearActiveStepShine();
+  } else {
+    addClassToElement(progressBarEl, "shiny-text");
   }
 }
 
