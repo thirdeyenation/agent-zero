@@ -17,6 +17,9 @@ let activeProcessGroupId = null; // Only one process group should show "running"
 let activeProcessGroupEl = null;
 let activeStepTitleEl = null;
 
+// Expose activeProcessGroupId for store access
+window.activeProcessGroupId = null;
+
 /**
  * Mark current process group as active and clear active badges.
  */
@@ -32,6 +35,7 @@ function setActiveProcessGroup(group) {
 
   activeProcessGroupId = group.id;
   activeProcessGroupEl = group;
+  window.activeProcessGroupId = group.id; // Keep window copy in sync for store access
 
 }
 
@@ -1154,8 +1158,8 @@ function createProcessGroup(id) {
   group.classList.add("process-group");
   group.setAttribute("data-group-id", groupId);
   
-  // Check initial expansion state from store (respects user preference)
-  const initiallyExpanded = processGroupStore.isGroupExpanded(groupId);
+  // Check initial expansion state from store
+  const initiallyExpanded = processGroupStore.expandGroup(groupId, true); // true = is active
   if (initiallyExpanded) {
     group.classList.add('expanded');
   }
@@ -1291,9 +1295,17 @@ function addProcessStep(group, id, type, heading, content, kvps, timestamp = nul
   const title = getStepTitle(heading, kvps, type);
   
   // Check if step should be expanded
-  // Warning steps auto-expand to show content (errors are external MAIN_TYPES, not in process groups)
-  const isStepExpanded = processGroupStore.isStepExpanded(groupId, id) || 
-                         type === "warning";
+  const isActiveStep = !isGroupCompleted && group.id === activeProcessGroupId;
+  const isStepExpanded = processGroupStore.expandStep(groupId, id, isActiveStep);
+  
+  // In "current" mode, collapse all other steps
+  const detailMode = preferencesStore.detailMode;
+  if (detailMode === "current" && isStepExpanded) {
+    document.querySelectorAll(".process-step.step-expanded").forEach(s => {
+      s.classList.remove("step-expanded");
+    });
+  }
+  
   if (isStepExpanded) {
     step.classList.add("step-expanded");
   }
@@ -1356,11 +1368,6 @@ function addProcessStep(group, id, type, heading, content, kvps, timestamp = nul
     const parentStep = currentDelegationSteps[agentNumber - 1];
     appendTarget = getNestedContainer(parentStep);
     step.classList.add("nested-step");
-    
-    // Auto-expand parent if this nested step is a warning (errors are external MAIN_TYPES)
-    if (type === "warning") {
-      parentStep.classList.add("step-expanded");
-    }
   }
   
   // Remove shiny effect from the previously active step title (O(1))
@@ -1959,6 +1966,7 @@ function markProcessGroupComplete(group, responseTitle) {
   // Add completed class to group
   group.classList.add("process-group-completed");
   
+  
   // Calculate final duration from backend data (sum of all step durations)
   const steps = group.querySelectorAll(".process-step");
   let totalDurationMs = 0;
@@ -1984,6 +1992,7 @@ export function resetProcessGroups() {
   messageGroup = null;
   activeProcessGroupId = null;
   activeProcessGroupEl = null;
+  window.activeProcessGroupId = null; // Keep window copy in sync
   if (activeStepTitleEl) {
     activeStepTitleEl.classList.remove("shiny-text");
   }
