@@ -1170,8 +1170,8 @@ function createProcessGroup(id) {
     <span class="group-metrics">
       <span class="metric-time" title="Start time"><span class="material-symbols-outlined">schedule</span><span class="metric-value">--:--</span></span>
       <span class="metric-steps" title="Steps"><span class="material-symbols-outlined">footprint</span><span class="metric-value">0</span></span>
+      <span class="metric-notifications" title="Warnings/Info/Hint" hidden><span class="material-symbols-outlined">priority_high</span><span class="metric-value">0</span></span>
       <span class="metric-duration" title="Duration"><span class="material-symbols-outlined">timer</span><span class="metric-value">0s</span></span>
-      <span class="metric-notifications" title="Warnings/Info/Hint" hidden><span class="material-symbols-outlined">notifications</span><span class="metric-value">0</span></span>
     </span>
   `;
   
@@ -1819,11 +1819,7 @@ function updateProcessGroupHeader(group) {
       notificationsEl.hidden = false;
       notificationsEl.title = `Warnings: ${counts.warning}, Info: ${counts.info}, Hints: ${counts.hint}`;
     } else {
-      if (countEl) {
-        countEl.textContent = "0";
-      }
       notificationsEl.hidden = true;
-      notificationsEl.title = "Warnings/Info/Hint";
     }
   }
   

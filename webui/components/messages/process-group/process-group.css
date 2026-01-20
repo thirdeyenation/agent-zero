@@ -272,6 +272,10 @@
   font-weight: 600;
 }
 
+.process-group-header .group-metrics .metric-notifications[hidden] {
+  display: none;
+}
+
 .process-group-header .group-metrics .metric-notifications .material-symbols-outlined {
   opacity: 0.85;
 }
