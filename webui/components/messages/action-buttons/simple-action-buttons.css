@@ -101,7 +101,8 @@
 /* .kvps-row:hover .action-buttons, */
 .message-text:hover .action-buttons,
 .kvps-val:hover .action-buttons,
-.message-body:hover > .action-buttons {
+.message-body:hover > .action-buttons,
+.error-content-inner:hover .action-buttons {
   display: flex;
   animation: fadeInAfterDelay 0.3s ease-in-out;
   animation-delay: 0.3s;

@@ -789,16 +789,126 @@ export function drawMessageError(
   temp,
   kvps = null
 ) {
-  return drawMessageAgentPlain(
-    "message-error",
-    messageContainer,
-    id,
-    type,
-    heading,
-    content,
-    temp,
-    kvps
-  );
+  // Create or get the message div
+  let messageDiv = messageContainer.querySelector(".message");
+  if (!messageDiv) {
+    messageDiv = document.createElement("div");
+    messageDiv.classList.add("message", "message-error-group");
+    messageContainer.appendChild(messageDiv);
+  }
+
+  // Check if error group already exists
+  let errorGroup = messageDiv.querySelector(".error-group");
+  if (!errorGroup) {
+    errorGroup = document.createElement("div");
+    errorGroup.classList.add("error-group");
+    errorGroup.setAttribute("data-error-id", id);
+    
+    // Create header (clickable for expand/collapse)
+    const header = document.createElement("div");
+    header.classList.add("error-group-header");
+    
+    // Expand icon (triangle)
+    const expandIcon = document.createElement("span");
+    expandIcon.classList.add("expand-icon");
+    header.appendChild(expandIcon);
+    
+    // Status badge (before title)
+    const badge = document.createElement("span");
+    badge.classList.add("status-badge", "status-err");
+    badge.textContent = "ERR";
+    header.appendChild(badge);
+    
+    // Title
+    const title = document.createElement("span");
+    title.classList.add("error-title");
+    title.textContent = "Error";
+    header.appendChild(title);
+    
+    // Subtitle (short error description)
+    const subtitle = document.createElement("span");
+    subtitle.classList.add("error-subtitle");
+    header.appendChild(subtitle);
+    
+    // Click handler for expand/collapse
+    header.addEventListener("click", () => {
+      errorGroup.classList.toggle("expanded");
+    });
+    
+    errorGroup.appendChild(header);
+    
+    // Create content container (collapsible)
+    const contentWrapper = document.createElement("div");
+    contentWrapper.classList.add("error-group-content");
+    
+    const contentInner = document.createElement("div");
+    contentInner.classList.add("error-content-inner");
+    contentWrapper.appendChild(contentInner);
+    
+    errorGroup.appendChild(contentWrapper);
+    messageDiv.appendChild(errorGroup);
+    
+    // Check detail mode and expand if needed
+    const detailMode = window.Alpine?.store("preferences")?.detailMode || "current";
+    if (detailMode === "current" || detailMode === "expanded") {
+      errorGroup.classList.add("expanded");
+    }
+  }
+  
+  // Update subtitle with short error description
+  const subtitle = errorGroup.querySelector(".error-subtitle");
+  if (subtitle) {
+    // Extract short description from heading or content
+    let shortDesc = "";
+    // Skip if heading is just "Error" (redundant with title)
+    if (heading && heading.trim() && heading.trim().toLowerCase() !== "error") {
+      shortDesc = heading.trim();
+    } 
+    // If no useful heading, try to extract from content
+    if (!shortDesc && content && content.trim()) {
+      const lines = content.trim().split("\n");
+      // Look for the error line (usually last meaningful line or one matching ErrorType: pattern)
+      for (let i = lines.length - 1; i >= 0; i--) {
+        const line = lines[i].trim();
+        if (line && /^[\w\.]+Error[:\s]/.test(line)) {
+          shortDesc = line;
+          break;
+        }
+      }
+      // Fallback to first non-empty line if no error pattern found
+      if (!shortDesc) {
+        for (const line of lines) {
+          if (line.trim() && !line.startsWith("Traceback")) {
+            shortDesc = line.trim();
+            break;
+          }
+        }
+      }
+    }
+    // Truncate if too long
+    if (shortDesc.length > 100) {
+      shortDesc = shortDesc.substring(0, 97) + "...";
+    }
+    subtitle.textContent = shortDesc;
+    subtitle.title = shortDesc; // Full text on hover
+  }
+  
+  // Update content (full callstack)
+  const contentInner = errorGroup.querySelector(".error-content-inner");
+  if (contentInner && content) {
+    contentInner.innerHTML = "";
+    
+    // Create pre element for callstack/content
+    const pre = document.createElement("pre");
+    pre.classList.add("error-callstack");
+    pre.textContent = content;
+    contentInner.appendChild(pre);
+    
+    // Add action buttons for copy functionality
+    addActionButtonsToElement(contentInner);
+  }
+  
+  messageContainer.classList.add("center-container");
 }
 
 function drawKvps(container, kvps, latex) {

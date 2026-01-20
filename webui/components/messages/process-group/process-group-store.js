@@ -230,6 +230,13 @@ const model = {
       }
       step.classList.toggle("step-expanded", shouldExpand);
     });
+    
+    // Apply to error groups
+    const allErrorGroups = document.querySelectorAll(".error-group");
+    allErrorGroups.forEach(errorGroup => {
+      const shouldExpand = mode === "current" || mode === "expanded";
+      errorGroup.classList.toggle("expanded", shouldExpand);
+    });
   }
 };
 

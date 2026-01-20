@@ -210,7 +210,7 @@
 
 /* ERR - error type (red) */
 .status-err {
-  --step-accent: #ef4444;
+  --step-accent: var(--color-accent);
   color: var(--step-accent);
 }
 
@@ -742,7 +742,7 @@
 }
 
 .light-mode .status-err {
-  --step-accent: #b91c1c;
+  --step-accent: var(--color-accent);
   color: var(--step-accent);
 }
 
