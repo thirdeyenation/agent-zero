@@ -852,7 +852,7 @@ export function drawMessageError(
     messageDiv.appendChild(errorGroup);
     
     // Check detail mode and expand if needed
-    const detailMode = window.Alpine?.store("preferences")?.detailMode || "current";
+    const detailMode = preferencesStore.detailMode || "current";
     if (detailMode === "current" || detailMode === "expanded") {
       errorGroup.classList.add("expanded");
     }
@@ -1426,19 +1426,27 @@ function addProcessStep(group, id, type, heading, content, kvps, timestamp = nul
   // Get step info from heading (single source of truth: backend)
   const title = getStepTitle(heading, kvps, type);
   
-  // Check if step should be expanded
-  const isActiveStep = !isGroupCompleted && group.id === activeProcessGroupId;
-  const isStepExpanded = processGroupStore.expandStep(groupId, id, isActiveStep);
-  
-  // In "current" mode, collapse all other steps
+  // Determine if this new step should be expanded
   const detailMode = preferencesStore.detailMode;
-  if (detailMode === "current" && isStepExpanded) {
-    document.querySelectorAll(".process-step.step-expanded").forEach(s => {
-      s.classList.remove("step-expanded");
-    });
-  }
+  let shouldExpand = false;
   
-  if (isStepExpanded) {
+  if (detailMode === "expanded") {
+    shouldExpand = true;
+  } else if (detailMode === "current" && !isGroupCompleted) {
+    // In "current" mode: expand new step, delay-collapse previous
+    shouldExpand = true;
+    
+    // Find the currently expanded step (the previous one) to collapse after delay
+    const previousExpandedStep = stepsContainer.querySelector(".process-step.step-expanded");
+    if (previousExpandedStep) {
+      setTimeout(() => {
+        previousExpandedStep.classList.remove("step-expanded");
+      }, 2000);
+    }
+  }
+  // In "collapsed" mode: shouldExpand stays false
+  
+  if (shouldExpand) {
     step.classList.add("step-expanded");
   }
   
@@ -2165,6 +2173,14 @@ function markProcessGroupComplete(group, responseTitle) {
   // Add completed class to group
   group.classList.add("process-group-completed");
   
+  // Collapse the last expanded step when processing is done (in "current" mode)
+  const detailMode = preferencesStore.detailMode;
+  if (detailMode === "current") {
+    const expandedStep = group.querySelector(".process-step.step-expanded");
+    if (expandedStep) {
+      expandedStep.classList.remove("step-expanded");
+    }
+  }
   
   // Calculate final duration from backend data (sum of all step durations)
   const steps = group.querySelectorAll(".process-step");

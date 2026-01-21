@@ -415,8 +415,6 @@ function afterMessagesUpdate(logs) {
   if (localStorage.getItem("speech") == "true") {
     speakMessages(logs);
   }
-  // Apply messages expansion mode after rendering
-  processGroupStore.applyModeSteps();
 }
 
 function speakMessages(logs) {

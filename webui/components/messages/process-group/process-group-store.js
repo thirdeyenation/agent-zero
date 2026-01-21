@@ -1,4 +1,5 @@
 import { createStore } from "/js/AlpineStore.js";
+import { store as preferencesStore } from "/components/sidebar/bottom/preferences/preferences-store.js";
 
 // Process Group Store - manages collapsible process groups in chat
 
@@ -179,7 +180,7 @@ const model = {
 
   // Get current detail mode from preferences
   _getDetailMode() {
-    return window.Alpine?.store("preferences")?.detailMode || "current";
+    return preferencesStore.detailMode || "current";
   },
 
   expandGroup(groupId, isActiveAndGenerating = false) {
@@ -203,7 +204,7 @@ const model = {
   // Apply current mode to all existing DOM elements
   applyModeSteps() {
     const mode = this._getDetailMode();
-    const showUtils = window.Alpine?.store("preferences")?.showUtils || false;
+    const showUtils = preferencesStore.showUtils || false;
     const allGroups = document.querySelectorAll(".process-group");
     
     // Find the last VISIBLE step using targeted selector
