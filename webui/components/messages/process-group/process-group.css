@@ -864,7 +864,6 @@
   opacity: 0.9;
   margin: var(--spacing-xs) 0;
   padding: var(--spacing-xs);
-  background: rgba(255, 165, 0, 0.08);
   border-left: 2px solid var(--color-warning);
   border-radius: 3px;
 }
