@@ -1656,17 +1656,20 @@ function updateProcessStep(stepElement, id, type, heading, content, kvps, durati
  * Get a concise title for a process step
  */
 function getStepTitle(heading, kvps, type) {
+  // Frontend-only: hide distracting leading session index like "[0] " in titles
+  const stripSessionPrefix = (s) => String(s || "").replace(/^\s*\[\d+\]\s*/, "");
+
   // code_exe: show command when finished
   const showCommand = type === "code_exe" && kvps?.code && 
     /done_all|code_execution_tool/.test(heading || "");
   if (showCommand) {
-    const s = kvps.session ?? kvps.Session;
-    return `${s != null ? `[${s}] ` : ""}${kvps.runtime || "bash"}> ${kvps.code.trim()}`;
+    return `${kvps.runtime || "bash"}> ${kvps.code.trim()}`;
   }
 
   // Try to get a meaningful title from heading or kvps
   if (heading && heading.trim()) {
-    return cleanStepTitle(heading, 100);
+    const cleaned = cleanStepTitle(heading, 100);
+    return type === "code_exe" ? stripSessionPrefix(cleaned) : cleaned;
   }
   
   // For warnings/errors without heading, use content preview as title
