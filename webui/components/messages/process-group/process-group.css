@@ -634,7 +634,7 @@
   -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
   scrollbar-color: rgba(255,255,255,0.2) transparent;
-  overscroll-behavior: contain;
+  overscroll-behavior-x: contain;
 }
 
 .process-step-detail-content .terminal-output::-webkit-scrollbar {
@@ -777,7 +777,7 @@
   }
   
   .process-step-detail-content {
-    margin-left: 16px;
+    margin-left: 0;
   }
 }
 

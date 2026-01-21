@@ -121,9 +121,8 @@ export function setMessage(id, type, heading, content, temp, kvps = null, timest
   let messageContainer = document.getElementById(`message-${id}`);
   let processStepElement = document.getElementById(`process-step-${id}`);
 
-  // For user/info messages, close current process group FIRST (start fresh for next interaction)
-  // Info messages (like nudge) should also split groups to mark a new processing phase
-  if (type === "user" || type === "info") {
+  // For user messages, close current process group FIRST (start fresh for next interaction)
+  if (type === "user") {
     currentProcessGroup = null;
     currentDelegationSteps = {}; // Clear delegation tracking
   }
@@ -336,8 +335,8 @@ export function _drawMessage(
         });
       }
 
-      // Ensure action buttons exist - pass content directly
-      addActionButtonsToElement(bodyDiv, { contentRef: content });
+      // Ensure action buttons exist
+      // addActionButtonsToElement(bodyDiv);
       adjustMarkdownRender(contentDiv);
 
     } else {
@@ -361,8 +360,8 @@ export function _drawMessage(
 
       spanElement.innerHTML = convertHTML(content);
 
-      // Ensure action buttons exist - pass content directly
-      addActionButtonsToElement(bodyDiv, { contentRef: content });
+      // Ensure action buttons exist
+      // addActionButtonsToElement(bodyDiv);
 
     }
   } else {
@@ -531,12 +530,6 @@ export function drawMessageUser(
     messageDiv.className = "message message-user";
   }
 
-  // Remove heading element if it exists (user messages no longer show label per target design)
-  let headingElement = messageDiv.querySelector(".msg-heading");
-  if (headingElement) {
-    headingElement.remove();
-  }
-
   // Handle content
   let textDiv = messageDiv.querySelector(".message-text");
   if (content && content.trim().length > 0) {
@@ -551,6 +544,7 @@ export function drawMessageUser(
       textDiv.appendChild(spanElement);
     }
     spanElement.innerHTML = escapeHTML(content);
+    // addActionButtonsToElement(textDiv);
   } else {
     if (textDiv) textDiv.remove();
   }
@@ -614,8 +608,18 @@ export function drawMessageUser(
     if (attachmentsContainer) attachmentsContainer.remove();
   }
 
-  // Add action buttons below text and attachments (hover for pointer, always for touch - via CSS)
-  addActionButtonsToElement(messageDiv, { contentRef: content });
+  // Render heading below message, if provided
+  let headingElement = messageDiv.querySelector(".message-user-heading");
+  if (heading && heading.trim() && heading.trim() !== "User message") {
+    if (!headingElement) {
+      headingElement = document.createElement("div");
+      headingElement.className = "message-user-heading shiny-text";
+    }
+    headingElement.textContent = heading;
+    messageDiv.appendChild(headingElement);
+  } else if (headingElement) {
+    headingElement.remove();
+  }
   // The messageDiv is already appended or updated, no need to append again
 }
 
@@ -853,7 +857,7 @@ export function drawMessageError(
     messageDiv.appendChild(errorGroup);
     
     // Check detail mode and expand if needed
-    const detailMode = preferencesStore.detailMode || "current";
+    const detailMode = window.Alpine?.store("preferences")?.detailMode || "current";
     if (detailMode === "current" || detailMode === "expanded") {
       errorGroup.classList.add("expanded");
     }
@@ -1427,27 +1431,19 @@ function addProcessStep(group, id, type, heading, content, kvps, timestamp = nul
   // Get step info from heading (single source of truth: backend)
   const title = getStepTitle(heading, kvps, type);
   
-  // Determine if this new step should be expanded
+  // Check if step should be expanded
+  const isActiveStep = !isGroupCompleted && group.id === activeProcessGroupId;
+  const isStepExpanded = processGroupStore.expandStep(groupId, id, isActiveStep);
+  
+  // In "current" mode, collapse all other steps
   const detailMode = preferencesStore.detailMode;
-  let shouldExpand = false;
-  
-  if (detailMode === "expanded") {
-    shouldExpand = true;
-  } else if (detailMode === "current" && !isGroupCompleted) {
-    // In "current" mode: expand new step, delay-collapse previous
-    shouldExpand = true;
-    
-    // Find the currently expanded step (the previous one) to collapse after delay
-    const previousExpandedStep = stepsContainer.querySelector(".process-step.step-expanded");
-    if (previousExpandedStep) {
-      setTimeout(() => {
-        previousExpandedStep.classList.remove("step-expanded");
-      }, 2000);
-    }
+  if (detailMode === "current" && isStepExpanded) {
+    document.querySelectorAll(".process-step.step-expanded").forEach(s => {
+      s.classList.remove("step-expanded");
+    });
   }
-  // In "collapsed" mode: shouldExpand stays false
   
-  if (shouldExpand) {
+  if (isStepExpanded) {
     step.classList.add("step-expanded");
   }
   
@@ -1507,9 +1503,9 @@ function addProcessStep(group, id, type, heading, content, kvps, timestamp = nul
     toolName: toolNameToUse
   };
   
-  // Add step action buttons (view details, copy, speak) for full modal view
-  const stepActionBtns = createStepActionButtons(step);
-  detail.appendChild(stepActionBtns);
+  // Add "View Details" button for full modal view (reads fresh data from step._stepData)
+  const viewDetailsBtn = createViewDetailsButton(step);
+  detail.appendChild(viewDetailsBtn);
   
   step.appendChild(detail);
   
@@ -1591,15 +1587,9 @@ function updateProcessStep(stepElement, id, type, heading, content, kvps, durati
   let skipFullRender = false;
   
   if (detailContent) {
-    // Capture scroll state before re-render
+    // Capture scroll state before re-render (uses existing Scroller pattern)
     const terminal = detailContent.querySelector(".terminal-output");
-    let wasAtBottom = true; // Default to true for new terminals
-    let previousScrollTop = 0;
-    if (terminal) {
-      const distanceFromBottom = terminal.scrollHeight - terminal.clientHeight - terminal.scrollTop;
-      wasAtBottom = distanceFromBottom <= 10;
-      previousScrollTop = terminal.scrollTop;
-    }
+    const scroller = terminal ? new Scroller(terminal) : null;
     
     // For browser, update image src incrementally to avoid flashing
     if (type === "browser" && kvps?.screenshot) {
@@ -1618,17 +1608,10 @@ function updateProcessStep(stepElement, id, type, heading, content, kvps, durati
     if (!skipFullRender) {
       renderStepDetailContent(detailContent, content, kvps, type);
       
-      // Restore scroll position after re-render
+      // Re-apply scroll (stays at bottom if was at bottom)
       const newTerminal = detailContent.querySelector(".terminal-output");
-      if (newTerminal) {
-        if (wasAtBottom) {
-          // Pin to bottom if was at bottom
-          newTerminal.scrollTop = newTerminal.scrollHeight;
-        } else {
-          // Restore previous position (clamped to max)
-          const maxScroll = Math.max(newTerminal.scrollHeight - newTerminal.clientHeight, 0);
-          newTerminal.scrollTop = Math.min(previousScrollTop, maxScroll);
-        }
+      if (newTerminal && scroller?.wasAtBottom) {
+        newTerminal.scrollTop = newTerminal.scrollHeight;
       }
     }
   }
@@ -1657,20 +1640,17 @@ function updateProcessStep(stepElement, id, type, heading, content, kvps, durati
  * Get a concise title for a process step
  */
 function getStepTitle(heading, kvps, type) {
-  // Frontend-only: hide distracting leading session index like "[0] " in titles
-  const stripSessionPrefix = (s) => String(s || "").replace(/^\s*\[\d+\]\s*/, "");
-
   // code_exe: show command when finished
   const showCommand = type === "code_exe" && kvps?.code && 
     /done_all|code_execution_tool/.test(heading || "");
   if (showCommand) {
-    return `${kvps.runtime || "bash"}> ${kvps.code.trim()}`;
+    const s = kvps.session ?? kvps.Session;
+    return `${s != null ? `[${s}] ` : ""}${kvps.runtime || "bash"}> ${kvps.code.trim()}`;
   }
 
   // Try to get a meaningful title from heading or kvps
   if (heading && heading.trim()) {
-    const cleaned = cleanStepTitle(heading, 100);
-    return type === "code_exe" ? stripSessionPrefix(cleaned) : cleaned;
+    return cleanStepTitle(heading, 100);
   }
   
   // For warnings/errors without heading, use content preview as title
@@ -1977,37 +1957,26 @@ function renderThoughts(container, value) {
 }
 
 /**
- * Create step action buttons (view details, copy, speak) using unified action buttons
+ * Create "View Details" button for opening step detail modal
  * @param {HTMLElement} stepElement - The step DOM element containing _stepData property
  */
-function createStepActionButtons(stepElement) {
+function createViewDetailsButton(stepElement) {
   const btnContainer = document.createElement("div");
   btnContainer.classList.add("step-detail-actions");
   
-  // Use unified action buttons with step-specific options
-  addActionButtonsToElement(btnContainer, {
-    contentRef: () => {
-      // Get text content from step data at action time
-      const data = stepElement._stepData || {};
-      const parts = [];
-      if (data.heading) parts.push(data.heading);
-      if (data.content) parts.push(data.content);
-      if (data.kvps) {
-        for (const [key, value] of Object.entries(data.kvps)) {
-          if (key === "reasoning" || key === "finished" || key === "attachments") continue;
-          const valStr = typeof value === "object" ? JSON.stringify(value, null, 2) : String(value);
-          parts.push(`${key}: ${valStr}`);
-        }
-      }
-      return parts.join("\n\n");
-    },
-    onViewDetails: () => {
-      // Read fresh data from the step element at click time
-      const freshData = stepElement._stepData || {};
-      stepDetailStore.showStepDetail(freshData);
-    }
+  const btn = document.createElement("button");
+  btn.classList.add("btn", "text-button");
+  btn.innerHTML = '<span class="material-symbols-outlined">open_in_full</span> View Details';
+  btn.title = "Open full step details in modal";
+  
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    // Read fresh data from the step element at click time
+    const freshData = stepElement._stepData || {};
+    stepDetailStore.showStepDetail(freshData);
   });
   
+  btnContainer.appendChild(btn);
   return btnContainer;
 }
 
@@ -2190,14 +2159,6 @@ function markProcessGroupComplete(group, responseTitle) {
   // Add completed class to group
   group.classList.add("process-group-completed");
   
-  // Collapse the last expanded step when processing is done (in "current" mode)
-  const detailMode = preferencesStore.detailMode;
-  if (detailMode === "current") {
-    const expandedStep = group.querySelector(".process-step.step-expanded");
-    if (expandedStep) {
-      expandedStep.classList.remove("step-expanded");
-    }
-  }
   
   // Calculate final duration from backend data (sum of all step durations)
   const steps = group.querySelectorAll(".process-step");

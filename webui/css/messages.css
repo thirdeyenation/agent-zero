@@ -77,6 +77,12 @@
   width: 100%;
 }
 
+.message-user .message-user-heading {
+  margin-top: var(--spacing-sm);
+  font-size: var(--font-size-smaller);
+  color: var(--color-text-muted);
+}
+
 .message-user .message-text {
   display: inline-block;
   padding: var(--spacing-sm);

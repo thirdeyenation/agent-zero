@@ -63,7 +63,7 @@ export async function sendMessage() {
         const heading =
           attachmentsWithUrls.length > 0
             ? "Uploading attachments..."
-            : "User message";
+            : "";
 
         // Render user message with attachments
         setMessage(messageId, "user", heading, message, false, {
