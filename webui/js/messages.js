@@ -9,6 +9,17 @@ import { store as stepDetailStore } from "/components/modals/process-step-detail
 import { store as preferencesStore } from "/components/sidebar/bottom/preferences/preferences-store.js";
 import { formatDuration } from "./time-utils.js";
 
+// ============================================
+// Timing Constants
+// ============================================
+// Delay before collapsing previous steps when a new step is added
+const STEP_COLLAPSE_DELAY_MS = 2000;
+// Delay before collapsing the last step when processing completes
+const FINAL_STEP_COLLAPSE_DELAY_MS = 2000;
+
+// Track active collapse timeouts for steps (key: step DOM element, value: timeout ID)
+const stepCollapseTimeouts = new Map();
+
 const chatHistory = document.getElementById("chat-history");
 
 let messageGroup = null;
@@ -1295,8 +1306,8 @@ function createProcessGroup(id) {
   group.classList.add("process-group");
   group.setAttribute("data-group-id", groupId);
   
-  // Check initial expansion state from store
-  const initiallyExpanded = processGroupStore.expandGroup(groupId, true); // true = is active
+  // Determine initial expansion state from current detail mode
+  const initiallyExpanded = processGroupStore.shouldExpandGroup(groupId, true); // true = is active
   if (initiallyExpanded) {
     group.classList.add('expanded');
   }
@@ -1318,9 +1329,8 @@ function createProcessGroup(id) {
   
   // Add click handler for expansion
   header.addEventListener("click", (e) => {
+    // Toggle group (store directly modifies DOM - single source of truth)
     processGroupStore.toggleGroup(groupId);
-    const newState = processGroupStore.isGroupExpanded(groupId);
-    group.classList.toggle("expanded", newState);
   });
   
   group.appendChild(header);
@@ -1362,6 +1372,70 @@ function getNestedContainer(parentStep) {
   // Return the inner wrapper for appending steps
   const innerWrapper = nestedContainer.querySelector(".process-nested-inner");
   return innerWrapper || nestedContainer; // Fallback to container if wrapper missing
+}
+
+/**
+ * Schedule a step to collapse after a delay
+ * Automatically handles cancellation on click and reset on hover
+ */
+function scheduleStepCollapse(stepElement, delayMs) {
+  // Cancel any existing timeout for this step
+  cancelStepCollapse(stepElement);
+  
+  // Schedule the collapse
+  const timeoutId = setTimeout(() => {
+    stepElement.classList.remove("step-expanded");
+    stepCollapseTimeouts.delete(stepElement);
+    // Clear user-pinned flag when auto-collapsing
+    stepElement.removeAttribute("data-user-pinned");
+  }, delayMs);
+  
+  // Store the timeout ID
+  stepCollapseTimeouts.set(stepElement, timeoutId);
+}
+
+/**
+ * Cancel a scheduled collapse for a step
+ */
+function cancelStepCollapse(stepElement) {
+  const timeoutId = stepCollapseTimeouts.get(stepElement);
+  if (timeoutId) {
+    clearTimeout(timeoutId);
+    stepCollapseTimeouts.delete(stepElement);
+  }
+}
+
+/**
+ * Add interaction handlers to prevent fighting with user
+ * - Hover: cancels the collapse timeout (keeps step open while reading)
+ * - Leave: starts a new timeout ONLY if user hasn't clicked (no explicit interaction)
+ * - Click anywhere on step: permanently cancels auto-collapse (user wants it open)
+ */
+function addStepCollapseInteractionHandlers(stepElement) {
+  // On hover, cancel the timeout to keep it open while user is reading
+  stepElement.addEventListener("mouseenter", () => {
+    if (stepElement.classList.contains("step-expanded")) {
+      cancelStepCollapse(stepElement);
+    }
+  });
+  
+  // On leave, start a new timeout ONLY if user hasn't explicitly clicked
+  stepElement.addEventListener("mouseleave", () => {
+    // Don't restart timeout if user has explicitly interacted (clicked)
+    if (stepElement.classList.contains("step-expanded") && 
+        !stepElement.hasAttribute("data-user-pinned")) {
+      scheduleStepCollapse(stepElement, STEP_COLLAPSE_DELAY_MS);
+    }
+  });
+  
+  // On click anywhere on step, permanently cancel auto-collapse
+  stepElement.addEventListener("click", () => {
+    if (stepElement.classList.contains("step-expanded")) {
+      cancelStepCollapse(stepElement);
+      // Mark as user-pinned so mouseleave won't restart timeout
+      stepElement.setAttribute("data-user-pinned", "true");
+    }
+  });
 }
 
 /**
@@ -1431,19 +1505,28 @@ function addProcessStep(group, id, type, heading, content, kvps, timestamp = nul
   // Get step info from heading (single source of truth: backend)
   const title = getStepTitle(heading, kvps, type);
   
-  // Check if step should be expanded
-  const isActiveStep = !isGroupCompleted && group.id === activeProcessGroupId;
-  const isStepExpanded = processGroupStore.expandStep(groupId, id, isActiveStep);
-  
-  // In "current" mode, collapse all other steps
+  // Determine if this new step should be expanded
   const detailMode = preferencesStore.detailMode;
-  if (detailMode === "current" && isStepExpanded) {
-    document.querySelectorAll(".process-step.step-expanded").forEach(s => {
-      s.classList.remove("step-expanded");
+  let shouldExpand = false;
+  
+  if (detailMode === "expanded") {
+    shouldExpand = true;
+  } else if (detailMode === "current" && !isGroupCompleted) {
+    // In "current" mode: expand new step, delay-collapse all previous steps
+    shouldExpand = true;
+    
+    // Schedule collapse for ALL previously expanded steps
+    const allExpandedSteps = stepsContainer.querySelectorAll(".process-step.step-expanded");
+    allExpandedSteps.forEach(expandedStep => {
+      // Don't schedule collapse for the newly added step (the current one)
+      if (expandedStep.id !== `process-step-${id}`) {
+        scheduleStepCollapse(expandedStep, STEP_COLLAPSE_DELAY_MS);
+      }
     });
   }
+  // In "collapsed" mode: shouldExpand stays false
   
-  if (isStepExpanded) {
+  if (shouldExpand) {
     step.classList.add("step-expanded");
   }
   
@@ -1467,14 +1550,16 @@ function addProcessStep(group, id, type, heading, content, kvps, timestamp = nul
   // Add click handler for step expansion
   stepHeader.addEventListener("click", (e) => {
     e.stopPropagation();
+    
+    // Cancel any scheduled auto-collapse (user is manually toggling)
+    cancelStepCollapse(step);
+    
+    // Toggle step (store directly modifies DOM - single source of truth)
     processGroupStore.toggleStep(groupId, id);
-    const newState = processGroupStore.isStepExpanded(groupId, id);
-    // Explicitly add or remove the class based on state
-    if (newState) {
-      step.classList.add("step-expanded");
-    } else {
-      step.classList.remove("step-expanded");
-    }
+    
+    // Clear user-pinned flag when manually toggling
+    // (allows auto-collapse to work again on next expansion)
+    step.removeAttribute("data-user-pinned");
   });
   
   step.appendChild(stepHeader);
@@ -1531,6 +1616,9 @@ function addProcessStep(group, id, type, heading, content, kvps, timestamp = nul
   }
   
   appendTarget.appendChild(step);
+  
+  // Add interaction handlers to prevent fighting with user during auto-collapse
+  addStepCollapseInteractionHandlers(step);
   
   // Scroll terminal to bottom on initial render (including page refresh)
   const initialTerminal = step.querySelector(".terminal-output");
@@ -2159,6 +2247,15 @@ function markProcessGroupComplete(group, responseTitle) {
   // Add completed class to group
   group.classList.add("process-group-completed");
   
+  // Collapse all expanded steps when processing is done (in "current" mode) with delay
+  const detailMode = preferencesStore.detailMode;
+  if (detailMode === "current") {
+    // Schedule collapse for all expanded steps (deterministic)
+    const allExpandedSteps = group.querySelectorAll(".process-step.step-expanded");
+    allExpandedSteps.forEach(expandedStep => {
+      scheduleStepCollapse(expandedStep, FINAL_STEP_COLLAPSE_DELAY_MS);
+    });
+  }
   
   // Calculate final duration from backend data (sum of all step durations)
   const steps = group.querySelectorAll(".process-step");
@@ -2190,6 +2287,10 @@ export function resetProcessGroups() {
     activeStepTitleEl.classList.remove("shiny-text");
   }
   activeStepTitleEl = null;
+  
+  // Clear all pending collapse timeouts
+  stepCollapseTimeouts.forEach(timeoutId => clearTimeout(timeoutId));
+  stepCollapseTimeouts.clear();
 }
 
 /**

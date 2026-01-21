@@ -40,23 +40,15 @@ const DISPLAY_CODES = {
 };
 
 const model = {
-  // Track which process groups are expanded (by group ID)
-  expandedGroups: {},
-  
-  // Track which individual steps are expanded within a group
-  expandedSteps: {},
-  
   // Default collapsed state for new process groups
   defaultCollapsed: true,
 
   init() {
     try {
-      // Load persisted state
+      // Load persisted default collapsed state only
       const stored = localStorage.getItem("processGroupState");
       if (stored) {
         const parsed = JSON.parse(stored);
-        this.expandedGroups = parsed.expandedGroups || {};
-        this.expandedSteps = parsed.expandedSteps || {};
         this.defaultCollapsed = parsed.defaultCollapsed ?? true;
       }
     } catch (e) {
@@ -66,9 +58,9 @@ const model = {
 
   _persist() {
     try {
+      // Only persist the default collapsed preference
+      // DOM is the source of truth for actual state
       localStorage.setItem("processGroupState", JSON.stringify({
-        expandedGroups: this.expandedGroups,
-        expandedSteps: this.expandedSteps,
         defaultCollapsed: this.defaultCollapsed
       }));
     } catch (e) {
@@ -78,43 +70,54 @@ const model = {
 
   // Check if a process group is expanded
   isGroupExpanded(groupId) {
-    if (groupId in this.expandedGroups) {
-      return this.expandedGroups[groupId];
+    const groupElement = document.getElementById(groupId);
+    if (groupElement) {
+      return groupElement.classList.contains("expanded");
     }
     return !this.defaultCollapsed;
   },
 
   // Toggle process group expansion
   toggleGroup(groupId) {
-    const current = this.isGroupExpanded(groupId);
-    this.expandedGroups[groupId] = !current;
-    this._persist();
+    const groupElement = document.getElementById(groupId);
+    if (!groupElement) return;
+    
+    const currentState = groupElement.classList.contains("expanded");
+    groupElement.classList.toggle("expanded", !currentState);
   },
 
   // Expand a specific group
   expandGroup(groupId) {
-    this.expandedGroups[groupId] = true;
-    this._persist();
+    const groupElement = document.getElementById(groupId);
+    if (groupElement) {
+      groupElement.classList.add("expanded");
+    }
   },
 
   // Collapse a specific group
   collapseGroup(groupId) {
-    this.expandedGroups[groupId] = false;
-    this._persist();
+    const groupElement = document.getElementById(groupId);
+    if (groupElement) {
+      groupElement.classList.remove("expanded");
+    }
   },
 
   // Check if a step within a group is expanded
   isStepExpanded(groupId, stepId) {
-    const key = `${groupId}:${stepId}`;
-    return this.expandedSteps[key] || false;
+    const stepElement = document.getElementById(`process-step-${stepId}`);
+    if (stepElement) {
+      return stepElement.classList.contains("step-expanded");
+    }
+    return false;
   },
 
   // Toggle step expansion
   toggleStep(groupId, stepId) {
-    const key = `${groupId}:${stepId}`;
-    const currentState = this.expandedSteps[key] || false;
-    this.expandedSteps[key] = !currentState;
-    this._persist();
+    const stepElement = document.getElementById(`process-step-${stepId}`);
+    if (!stepElement) return;
+    
+    const currentState = stepElement.classList.contains("step-expanded");
+    stepElement.classList.toggle("step-expanded", !currentState);
   },
 
   // Status code (3-4 letter) for backend log types
@@ -163,19 +166,6 @@ const model = {
 
   // Clear state for a specific context (when chat is reset)
   clearContext(contextPrefix) {
-    // Clear groups matching the context
-    for (const key of Object.keys(this.expandedGroups)) {
-      if (key.startsWith(contextPrefix)) {
-        delete this.expandedGroups[key];
-      }
-    }
-    // Clear steps matching the context
-    for (const key of Object.keys(this.expandedSteps)) {
-      if (key.startsWith(contextPrefix)) {
-        delete this.expandedSteps[key];
-      }
-    }
-    this._persist();
   },
 
   // Get current detail mode from preferences
@@ -183,11 +173,10 @@ const model = {
     return preferencesStore.detailMode || "current";
   },
 
-  expandGroup(groupId, isActiveAndGenerating = false) {
+  shouldExpandGroup(groupId, isActiveAndGenerating = false) {
     const mode = this._getDetailMode();
     if (mode === "collapsed") {
-      // Only expand if generating, not for completed groups
-      return isActiveAndGenerating;
+      return false;
     }
     if (mode === "current" || mode === "expanded") return true;
     return !this.defaultCollapsed;
@@ -207,17 +196,20 @@ const model = {
     const showUtils = preferencesStore.showUtils || false;
     const allGroups = document.querySelectorAll(".process-group");
     
-    // Find the last VISIBLE step using targeted selector
-    const stepSelector = showUtils ? ".process-step" : ".process-step:not(.message-util)";
+    // Find the last visible step in an active (not completed) group only
+    const stepSelector = showUtils 
+      ? ".process-group:not(.process-group-completed) .process-step" 
+      : ".process-group:not(.process-group-completed) .process-step:not(.message-util)";
     const visibleSteps = document.querySelectorAll(stepSelector);
-    const lastStep = visibleSteps.length > 0 ? visibleSteps[visibleSteps.length - 1] : null;
+    const lastActiveStep = visibleSteps.length > 0 ? visibleSteps[visibleSteps.length - 1] : null;
     
     // Get all steps for applying expansion
     const allSteps = document.querySelectorAll(".process-step");
     
     // Apply to groups
     allGroups.forEach(group => {
-      group.classList.toggle("expanded", mode !== "collapsed");
+      const shouldExpandGroup = mode !== "collapsed";
+      group.classList.toggle("expanded", shouldExpandGroup);
     });
     
     // Apply to steps
@@ -226,10 +218,15 @@ const model = {
       if (mode === "expanded") {
         shouldExpand = true;
       } else if (mode === "current") {
-        // Expand the last step and any parent steps containing it (for nested subordinate steps)
-        shouldExpand = step === lastStep || step.contains(lastStep);
+        // Only expand the last step in an active group
+        shouldExpand = step === lastActiveStep || step.contains(lastActiveStep);
       }
       step.classList.toggle("step-expanded", shouldExpand);
+      
+      // Clear user-pinned flag when mode changes
+      if (!shouldExpand) {
+        step.removeAttribute("data-user-pinned");
+      }
     });
     
     // Apply to error groups
