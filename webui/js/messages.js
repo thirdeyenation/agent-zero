@@ -1590,9 +1590,15 @@ function updateProcessStep(stepElement, id, type, heading, content, kvps, durati
   let skipFullRender = false;
   
   if (detailContent) {
-    // Capture scroll state before re-render (uses existing Scroller pattern)
+    // Capture scroll state before re-render
     const terminal = detailContent.querySelector(".terminal-output");
-    const scroller = terminal ? new Scroller(terminal) : null;
+    let wasAtBottom = true; // Default to true for new terminals
+    let previousScrollTop = 0;
+    if (terminal) {
+      const distanceFromBottom = terminal.scrollHeight - terminal.clientHeight - terminal.scrollTop;
+      wasAtBottom = distanceFromBottom <= 10;
+      previousScrollTop = terminal.scrollTop;
+    }
     
     // For browser, update image src incrementally to avoid flashing
     if (type === "browser" && kvps?.screenshot) {
@@ -1611,10 +1617,17 @@ function updateProcessStep(stepElement, id, type, heading, content, kvps, durati
     if (!skipFullRender) {
       renderStepDetailContent(detailContent, content, kvps, type);
       
-      // Re-apply scroll (stays at bottom if was at bottom)
+      // Restore scroll position after re-render
       const newTerminal = detailContent.querySelector(".terminal-output");
-      if (newTerminal && scroller?.wasAtBottom) {
-        newTerminal.scrollTop = newTerminal.scrollHeight;
+      if (newTerminal) {
+        if (wasAtBottom) {
+          // Pin to bottom if was at bottom
+          newTerminal.scrollTop = newTerminal.scrollHeight;
+        } else {
+          // Restore previous position (clamped to max)
+          const maxScroll = Math.max(newTerminal.scrollHeight - newTerminal.clientHeight, 0);
+          newTerminal.scrollTop = Math.min(previousScrollTop, maxScroll);
+        }
       }
     }
   }
