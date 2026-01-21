@@ -121,8 +121,9 @@ export function setMessage(id, type, heading, content, temp, kvps = null, timest
   let messageContainer = document.getElementById(`message-${id}`);
   let processStepElement = document.getElementById(`process-step-${id}`);
 
-  // For user messages, close current process group FIRST (start fresh for next interaction)
-  if (type === "user") {
+  // For user/info messages, close current process group FIRST (start fresh for next interaction)
+  // Info messages (like nudge) should also split groups to mark a new processing phase
+  if (type === "user" || type === "info") {
     currentProcessGroup = null;
     currentDelegationSteps = {}; // Clear delegation tracking
   }
