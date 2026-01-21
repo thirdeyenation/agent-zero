@@ -71,10 +71,10 @@
 }
 
 
-.message-user {
+.message.message-user {
   text-align: end;
   margin-bottom: var(--spacing-md);
-
+  width: 100%;
 }
 
 .message-user .message-text {
