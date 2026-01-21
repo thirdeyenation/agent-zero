@@ -1235,6 +1235,20 @@ function adjustMarkdownRender(element) {
     el.parentNode.insertBefore(wrapper, el);
     wrapper.appendChild(el);
   });
+
+  // find all images
+  const images = element.querySelectorAll("img");
+
+  // wrap each image in <a>
+  images.forEach((img) => {
+    if (img.parentNode?.tagName === "A") return;
+    const link = document.createElement("a");
+    link.className = "message-markdown-image-wrap";
+    link.href = img.src;
+    img.parentNode.insertBefore(link, img);
+    link.appendChild(img);
+    link.onclick = (e) => (e.preventDefault(), imageViewerStore.open(img.src, { name: img.alt || "Image" }));
+  });
 }
 
 class Scroller {
