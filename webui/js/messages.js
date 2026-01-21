@@ -87,9 +87,9 @@ function updateBadgeText(badge, newCode) {
 }
 
 // Process types that should be grouped into collapsible sections
-const PROCESS_TYPES = ['agent', 'tool', 'code_exe', 'browser', 'progress', 'info', 'hint', 'util', 'warning'];
+const PROCESS_TYPES = ['agent', 'tool', 'code_exe', 'browser', 'progress', 'hint', 'util', 'warning', 'rate_limit'];
 // Main types that should always be visible (not collapsed)
-const MAIN_TYPES = ['user', 'response', 'error', 'rate_limit'];
+const MAIN_TYPES = ['user', 'response', 'error', 'info'];
 
 /**
  * Helper to append a message container to the correct group in chat history
@@ -319,6 +319,7 @@ export function _drawMessage(
       let processedContent = content;
       processedContent = convertImageTags(processedContent);
       processedContent = convertImgFilePaths(processedContent);
+      processedContent = convertFilePaths(processedContent);
       processedContent = marked.parse(processedContent, { breaks: true });
       processedContent = convertPathsToLinks(processedContent);
       processedContent = addBlankTargetsToLinks(processedContent);
@@ -335,7 +336,7 @@ export function _drawMessage(
       }
 
       // Ensure action buttons exist
-      addActionButtonsToElement(bodyDiv);
+      // addActionButtonsToElement(bodyDiv);
       adjustMarkdownRender(contentDiv);
 
     } else {
@@ -360,7 +361,7 @@ export function _drawMessage(
       spanElement.innerHTML = convertHTML(content);
 
       // Ensure action buttons exist
-      addActionButtonsToElement(bodyDiv);
+      // addActionButtonsToElement(bodyDiv);
 
     }
   } else {
@@ -549,7 +550,7 @@ export function drawMessageUser(
       textDiv.appendChild(spanElement);
     }
     spanElement.innerHTML = escapeHTML(content);
-    addActionButtonsToElement(textDiv);
+    // addActionButtonsToElement(textDiv);
   } else {
     if (textDiv) textDiv.remove();
   }
@@ -905,7 +906,7 @@ export function drawMessageError(
     contentInner.appendChild(pre);
     
     // Add action buttons for copy functionality
-    addActionButtonsToElement(contentInner);
+    // addActionButtonsToElement(contentInner);
   }
   
   messageContainer.classList.add("center-container");
@@ -941,7 +942,7 @@ function drawKvps(container, kvps, latex) {
         addValue(value);
       }
 
-      addActionButtonsToElement(tdiv);
+      // addActionButtonsToElement(tdiv);
 
       // autoscroll the KVP value if needed
       // if (getAutoScroll()) #TODO needs a better redraw system
@@ -1044,7 +1045,7 @@ function drawKvpsIncremental(container, kvps, latex) {
       // Clear and rebuild content (for now - could be optimized further)
       tdiv.innerHTML = "";
 
-      addActionButtonsToElement(tdiv);
+      // addActionButtonsToElement(tdiv);
 
       if (Array.isArray(value)) {
         for (const item of value) {
@@ -1163,6 +1164,10 @@ function convertHTML(str) {
 
 function convertImgFilePaths(str) {
   return str.replace(/img:\/\//g, "/image_get?path=");
+}
+
+function convertFilePaths(str) {
+  return str.replace(/file:\/\//g, "/download_work_dir_file?path=");
 }
 
 export function convertIcons(str) {
@@ -1696,6 +1701,7 @@ function renderStepDetailContent(container, content, kvps, type = null) {
     let processedContent = content;
     processedContent = convertImageTags(processedContent);
     processedContent = convertImgFilePaths(processedContent);
+    processedContent = convertFilePaths(processedContent);
     processedContent = marked.parse(processedContent, { breaks: true });
     processedContent = convertPathsToLinks(processedContent);
     processedContent = addBlankTargetsToLinks(processedContent);
@@ -2115,7 +2121,8 @@ function markProcessGroupComplete(group, responseTitle) {
   // Update status badge to END
   const statusEl = group.querySelector(".group-status");
   if (statusEl) {
-    statusEl.innerHTML = '<span class="badge-icon material-symbols-outlined">check</span>END';
+    // statusEl.innerHTML = '<span class="badge-icon material-symbols-outlined">check</span>END';
+    statusEl.innerHTML = 'END';
     statusEl.className = "status-badge status-end group-status";
   }
   

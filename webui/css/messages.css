@@ -74,8 +74,16 @@
 .message-user {
   text-align: end;
   margin-bottom: var(--spacing-md);
+
+}
+
+.message-user .message-text {
+  display: inline-block;
+  padding: var(--spacing-sm);
   border: 1px solid var(--color-border);
   border-radius: var(--border-radius);
+  max-width: 80%;
+  width: auto;
 }
 
 .message-user > div {
@@ -338,8 +346,7 @@
   flex: 0 0 auto;
   font-size: var(--font-size-medium);
   font-weight: 600;
-  color: var(--color-accent);
-  opacity: 0.95;
+  color: var(--color-error-text);
 }
 
 /* Error subtitle (short description) */
@@ -383,7 +390,7 @@
 .error-content-inner {
   padding: var(--spacing-md);
   border-radius: 8px;
-  border: 1px solid var(--color-accent);
+  /* border: 1px solid var(--color-error-text); */
   margin-left: var(--spacing-md);
 }
 
@@ -395,12 +402,11 @@
   font-family: var(--font-family-code);
   font-size: 0.72rem;
   line-height: 1.5;
-  color: var(--color-accent);
-  opacity: 0.9;
+  color: var(--color-error-text);
   max-height: 30vh;
   overflow-y: auto;
   scrollbar-width: thin;
-  scrollbar-color: var(--color-accent) transparent;
+  scrollbar-color: var(--color-error-text) transparent;
 }
 
 
@@ -622,18 +628,6 @@
   border-bottom: none;
 }
 
-/* Light mode error group */
-.light-mode .error-group-header .expand-icon {
-  border-color: transparent transparent transparent var(--color-accent);
-}
-
-.light-mode .error-group-header .error-title {
-  color: var(--color-accent);
-}
-
-.light-mode .error-content-inner {
-  border: 1px solid var(--color-accent);
-}
 
 .light-mode .message-user {
   color: #4e4e4e;

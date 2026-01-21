@@ -210,7 +210,7 @@
 
 /* ERR - error type (red) */
 .status-err {
-  --step-accent: var(--color-accent);
+  --step-accent: var(--color-error-text);
   color: var(--step-accent);
 }
 
@@ -250,7 +250,8 @@
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
-  margin-left: auto;
+  /* margin-left: auto; */
+  margin-left: 2em;
   font-size: 0.65rem;
   font-family: var(--font-family-code);
   color: var(--color-text);
@@ -742,7 +743,7 @@
 }
 
 .light-mode .status-err {
-  --step-accent: var(--color-accent);
+  --step-accent: var(--color-error-text);
   color: var(--step-accent);
 }
 
