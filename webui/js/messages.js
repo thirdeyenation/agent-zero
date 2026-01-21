@@ -347,7 +347,7 @@ export function _drawMessage(
       }
 
       // Ensure action buttons exist
-      // addActionButtonsToElement(bodyDiv);
+      addActionButtonsToElement(bodyDiv);
       adjustMarkdownRender(contentDiv);
 
     } else {
@@ -372,7 +372,7 @@ export function _drawMessage(
       spanElement.innerHTML = convertHTML(content);
 
       // Ensure action buttons exist
-      // addActionButtonsToElement(bodyDiv);
+      addActionButtonsToElement(bodyDiv);
 
     }
   } else {
@@ -555,7 +555,6 @@ export function drawMessageUser(
       textDiv.appendChild(spanElement);
     }
     spanElement.innerHTML = escapeHTML(content);
-    // addActionButtonsToElement(textDiv);
   } else {
     if (textDiv) textDiv.remove();
   }
@@ -631,7 +630,9 @@ export function drawMessageUser(
   } else if (headingElement) {
     headingElement.remove();
   }
-  // The messageDiv is already appended or updated, no need to append again
+
+  addActionButtonsToElement(messageDiv);
+
 }
 
 export function drawMessageTool(
@@ -924,7 +925,7 @@ export function drawMessageError(
     contentInner.appendChild(pre);
     
     // Add action buttons for copy functionality
-    // addActionButtonsToElement(contentInner);
+    addActionButtonsToElement(contentInner);
   }
   
   messageContainer.classList.add("center-container");
