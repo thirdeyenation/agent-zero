@@ -478,7 +478,7 @@ class Agent:
                         await self.call_extensions("error_format", msg=msg)
                         self.hist_add_warning(msg["message"])
                         PrintStyle(font_color="red", padding=True).print(msg["message"])
-                        self.context.log.log(type="error", content=msg["message"])
+                        self.context.log.log(type="warning", content=msg["message"])
                     except Exception as e:
                         # Retry critical exceptions before failing
                         error_retries = await self.retry_critical_exception(
@@ -909,14 +909,14 @@ class Agent:
                 self.hist_add_warning(error_detail)
                 PrintStyle(font_color="red", padding=True).print(error_detail)
                 self.context.log.log(
-                    type="error", content=f"{self.agent_name}: {error_detail}"
+                    type="warning", content=f"{self.agent_name}: {error_detail}"
                 )
         else:
             warning_msg_misformat = self.read_prompt("fw.msg_misformat.md")
             self.hist_add_warning(warning_msg_misformat)
             PrintStyle(font_color="red", padding=True).print(warning_msg_misformat)
             self.context.log.log(
-                type="error",
+                type="warning",
                 content=f"{self.agent_name}: Message misformat, no valid tool request found.",
             )
 
