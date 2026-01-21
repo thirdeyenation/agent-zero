@@ -64,9 +64,10 @@ const model = {
 
   // Width presets: { label, value in em }
   chatWidthOptions: [
-    { label: "STD", value: "55" },
-    { label: "X-WIDE", value: "90" },
-    { label: "FULL", value: "full" },
+    { label: "MIN", value: "40" },
+    { label: "WIDE", value: "55" },
+    { label: "2X", value: "80" },
+    { label: "<>", value: "full" },
   ],
 
   // Detail mode for process groups/steps expansion
@@ -81,9 +82,9 @@ const model = {
 
   // Detail mode options for UI sidebar
   detailModeOptions: [
-    { label: "MIN", value: "collapsed", icon: "unfold_less", title: "All collapsed" },
-    { label: "CUR", value: "current", icon: "step", title: "Current step only" },
-    { label: "ALL", value: "expanded", icon: "unfold_more", title: "All expanded" },
+    { label: "NONE", value: "collapsed", title: "All collapsed" },
+    { label: "STEP", value: "current", title: "Current step only" },
+    { label: "ALL", value: "expanded", title: "All expanded" },
   ],
 
   // Initialize preferences and apply current state
