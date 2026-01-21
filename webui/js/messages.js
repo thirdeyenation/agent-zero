@@ -335,8 +335,8 @@ export function _drawMessage(
         });
       }
 
-      // Ensure action buttons exist
-      // addActionButtonsToElement(bodyDiv);
+      // Ensure action buttons exist - pass content directly
+      addActionButtonsToElement(bodyDiv, { contentRef: content });
       adjustMarkdownRender(contentDiv);
 
     } else {
@@ -360,8 +360,8 @@ export function _drawMessage(
 
       spanElement.innerHTML = convertHTML(content);
 
-      // Ensure action buttons exist
-      // addActionButtonsToElement(bodyDiv);
+      // Ensure action buttons exist - pass content directly
+      addActionButtonsToElement(bodyDiv, { contentRef: content });
 
     }
   } else {
@@ -550,7 +550,6 @@ export function drawMessageUser(
       textDiv.appendChild(spanElement);
     }
     spanElement.innerHTML = escapeHTML(content);
-    // addActionButtonsToElement(textDiv);
   } else {
     if (textDiv) textDiv.remove();
   }
@@ -613,6 +612,9 @@ export function drawMessageUser(
   } else {
     if (attachmentsContainer) attachmentsContainer.remove();
   }
+
+  // Add action buttons below text and attachments (hover for pointer, always for touch - via CSS)
+  addActionButtonsToElement(messageDiv, { contentRef: content });
   // The messageDiv is already appended or updated, no need to append again
 }
 
@@ -1496,9 +1498,9 @@ function addProcessStep(group, id, type, heading, content, kvps, timestamp = nul
     toolName: toolNameToUse
   };
   
-  // Add "View Details" button for full modal view (reads fresh data from step._stepData)
-  const viewDetailsBtn = createViewDetailsButton(step);
-  detail.appendChild(viewDetailsBtn);
+  // Add step action buttons (view details, copy, speak) for full modal view
+  const stepActionBtns = createStepActionButtons(step);
+  detail.appendChild(stepActionBtns);
   
   step.appendChild(detail);
   
@@ -1950,26 +1952,37 @@ function renderThoughts(container, value) {
 }
 
 /**
- * Create "View Details" button for opening step detail modal
+ * Create step action buttons (view details, copy, speak) using unified action buttons
  * @param {HTMLElement} stepElement - The step DOM element containing _stepData property
  */
-function createViewDetailsButton(stepElement) {
+function createStepActionButtons(stepElement) {
   const btnContainer = document.createElement("div");
   btnContainer.classList.add("step-detail-actions");
   
-  const btn = document.createElement("button");
-  btn.classList.add("btn", "text-button");
-  btn.innerHTML = '<span class="material-symbols-outlined">open_in_full</span> View Details';
-  btn.title = "Open full step details in modal";
-  
-  btn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    // Read fresh data from the step element at click time
-    const freshData = stepElement._stepData || {};
-    stepDetailStore.showStepDetail(freshData);
+  // Use unified action buttons with step-specific options
+  addActionButtonsToElement(btnContainer, {
+    contentRef: () => {
+      // Get text content from step data at action time
+      const data = stepElement._stepData || {};
+      const parts = [];
+      if (data.heading) parts.push(data.heading);
+      if (data.content) parts.push(data.content);
+      if (data.kvps) {
+        for (const [key, value] of Object.entries(data.kvps)) {
+          if (key === "reasoning" || key === "finished" || key === "attachments") continue;
+          const valStr = typeof value === "object" ? JSON.stringify(value, null, 2) : String(value);
+          parts.push(`${key}: ${valStr}`);
+        }
+      }
+      return parts.join("\n\n");
+    },
+    onViewDetails: () => {
+      // Read fresh data from the step element at click time
+      const freshData = stepElement._stepData || {};
+      stepDetailStore.showStepDetail(freshData);
+    }
   });
   
-  btnContainer.appendChild(btn);
   return btnContainer;
 }
 

@@ -486,12 +486,6 @@
   opacity: 1;
 }
 
-/* Legacy copy button styles - DEPRECATED
- * These styles have been replaced by the new action buttons component
- * located at /components/messages/action-buttons/message-action-buttons.css
- * Remove this section after confirming all functionality works with action buttons
- */
-
 /* Make message containers relative for absolute positioning of copy buttons */
 .msg-content,
 .kvps-row,
@@ -766,8 +760,8 @@
 .message-group-right {
   width: 100%;
   justify-content: end;
-  margin-top: 5em;
-  margin-bottom:5em;
+  margin-top: 4em;
+  margin-bottom:4em;
 }
 
 .message-container {
