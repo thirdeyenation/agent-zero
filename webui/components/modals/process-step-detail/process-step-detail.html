@@ -31,17 +31,17 @@
                     </div>
                     <div class="header-actions">
                         <button class="btn btn-action-header copy-all" 
-                                @click="$store.stepDetail.copyToClipboard($store.stepDetail.formatStepForCopy($store.stepDetail.selectedStepForDetail))"
+                                @click.stop="$store.stepDetail.copyToClipboard($store.stepDetail.formatStepForCopy($store.stepDetail.selectedStepForDetail)).then(() => { $el.classList.add('copied'); setTimeout(() => $el.classList.remove('copied'), 1500) })"
                                 title="Copy Complete Step with Metadata">
                             <span class="material-symbols-outlined">copy_all</span> All
                         </button>
                         <button class="btn btn-action-header copy-content" 
-                                @click="$store.stepDetail.copyToClipboard($store.stepDetail.getStepPrimaryContent($store.stepDetail.selectedStepForDetail))"
-                                title="Copy Primary Content Only">
+                                @click.stop="$store.stepDetail.copyToClipboard($store.stepDetail.getStepPrimaryContent($store.stepDetail.selectedStepForDetail)).then(() => { $el.classList.add('copied'); setTimeout(() => $el.classList.remove('copied'), 1500) })"
+                                title="Copy Raw LLM Response">
                             <span class="material-symbols-outlined">content_copy</span> Content
                         </button>
                         <button class="btn btn-action-header toggle-raw" 
-                                @click="showRaw = !showRaw"
+                                @click.stop="showRaw = !showRaw"
                                 :class="{ 'active': showRaw }"
                                 title="Toggle Raw JSON View">
                             <span class="material-symbols-outlined">data_object</span>
@@ -103,6 +103,13 @@
                                                 </template>
                                             </div>
                                         </template>
+                                    </div>
+                                </template>
+                                <!-- Raw LLM Response (content field) -->
+                                <template x-if="$store.stepDetail.selectedStepForDetail?.content">
+                                    <div class="content-block raw-response-block">
+                                        <h4><span class="material-symbols-outlined">smart_toy</span> Raw Response</h4>
+                                        <pre class="raw-response-content" x-text="$store.stepDetail.selectedStepForDetail?.content"></pre>
                                     </div>
                                 </template>
                             </div>
@@ -305,6 +312,16 @@
             border-color: var(--color-primary);
         }
 
+        .btn-action-header.copied {
+            background: var(--color-success, #22c55e);
+            border-color: var(--color-success, #22c55e);
+            color: white;
+        }
+
+        .btn-action-header.copied .material-symbols-outlined::before {
+            content: 'check';
+        }
+
         .modal-body {
             flex: 1;
             overflow-y: auto;
@@ -388,6 +405,24 @@
         .reasoning-content {
             opacity: 0.75;
             font-style: italic;
+        }
+
+        .raw-response-block {
+            margin-top: 1rem;
+        }
+
+        .raw-response-content {
+            background: var(--color-background);
+            padding: 1rem;
+            border-radius: 8px;
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            margin: 0;
+            max-height: 50vh;
+            overflow: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+            color: var(--color-text);
         }
 
         .tool-call-block {

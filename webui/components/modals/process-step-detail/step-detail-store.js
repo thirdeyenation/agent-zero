@@ -63,13 +63,15 @@ const model = {
   },
 
   // Get primary content for a step (type-aware)
+  // For "Copy Content" button - returns the main content, not metadata
   getStepPrimaryContent(step) {
     if (!step) return "";
     if (step.type === "code_exe") {
       return step.content || "";
     }
-    if (step.type === "agent" && step.kvps) {
-      return step.kvps.thoughts || step.kvps.headline || step.content || "";
+    if (step.type === "agent") {
+      // Raw LLM response is in content field - this is the primary content
+      return step.content || "";
     }
     if ((step.type === "tool" || step.type === "mcp") && step.kvps) {
       return step.kvps.result || step.content || "";
