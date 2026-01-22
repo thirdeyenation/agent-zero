@@ -25,38 +25,30 @@ const chatHistory = document.getElementById("chat-history");
 let messageGroup = null;
 let currentProcessGroup = null; // Track current process group for collapsible UI
 let currentDelegationSteps = {}; // Track delegation steps by agent number for nesting
-let activeProcessGroupId = null; // Only one process group should show "running" indicators at a time
-let activeProcessGroupEl = null;
-let activeStepTitleEl = null;
-
-// Expose activeProcessGroupId for store access
-window.activeProcessGroupId = null;
 
 /**
- * Mark current process group as active and clear active badges.
+ * Mark a process group as the active one (via .active class)
  */
 function setActiveProcessGroup(group) {
-  if (!group || !group.id) return;
-  if (activeProcessGroupId === group.id) return;
-
-  // Clear shiny effect from the previous active step title if we moved to a new group
-  if (activeStepTitleEl && activeProcessGroupEl && activeProcessGroupEl !== group && activeProcessGroupEl.contains(activeStepTitleEl)) {
-    activeStepTitleEl.classList.remove("shiny-text");
-    activeStepTitleEl = null;
-  }
-
-  activeProcessGroupId = group.id;
-  activeProcessGroupEl = group;
-  window.activeProcessGroupId = group.id; // Keep window copy in sync for store access
-
+  if (!group) return;
+  
+  // Already active? Nothing to do
+  if (group.classList.contains("active")) return;
+  
+  // Clear active + shiny from all other groups
+  document.querySelectorAll(".process-group.active").forEach(g => {
+    if (g !== group) {
+      g.classList.remove("active");
+      g.querySelectorAll(".step-title.shiny-text").forEach(el => el.classList.remove("shiny-text"));
+    }
+  });
+  
+  // Mark this group as active
+  group.classList.add("active");
 }
 
 export function clearActiveStepShine() {
-  if (activeStepTitleEl) {
-    activeStepTitleEl.classList.remove("shiny-text");
-    activeStepTitleEl = null;
-  }
-  // clear any lingering shine in process steps
+  // Clear all shiny step titles in process steps
   document.querySelectorAll(".process-step .step-title.shiny-text").forEach((el) => {
     el.classList.remove("shiny-text");
   });
@@ -346,8 +338,8 @@ export function _drawMessage(
         });
       }
 
-      // Ensure action buttons exist
-      addActionButtonsToElement(bodyDiv);
+      // Ensure action buttons exist - pass content directly
+      addActionButtonsToElement(bodyDiv, { contentRef: content });
       adjustMarkdownRender(contentDiv);
 
     } else {
@@ -371,8 +363,8 @@ export function _drawMessage(
 
       spanElement.innerHTML = convertHTML(content);
 
-      // Ensure action buttons exist
-      addActionButtonsToElement(bodyDiv);
+      // Ensure action buttons exist - pass content directly
+      addActionButtonsToElement(bodyDiv, { contentRef: content });
 
     }
   } else {
@@ -631,8 +623,8 @@ export function drawMessageUser(
     headingElement.remove();
   }
 
-  addActionButtonsToElement(messageDiv);
-
+  // Add action buttons below text and attachments (hover for pointer, always for touch - via CSS)
+  addActionButtonsToElement(messageDiv, { contentRef: content });
 }
 
 export function drawMessageTool(
@@ -1308,7 +1300,7 @@ function createProcessGroup(id) {
   group.setAttribute("data-group-id", groupId);
   
   // Determine initial expansion state from current detail mode
-  const initiallyExpanded = processGroupStore.shouldExpandGroup(groupId, true); // true = is active
+  const initiallyExpanded = processGroupStore.shouldExpandGroup();
   if (initiallyExpanded) {
     group.classList.add('expanded');
   }
@@ -1421,7 +1413,12 @@ function addStepCollapseInteractionHandlers(stepElement) {
   });
   
   // On leave, start a new timeout ONLY if user hasn't explicitly clicked
+  // and only in "current" mode (in "expanded" mode, everything stays open)
   stepElement.addEventListener("mouseleave", () => {
+    const detailMode = preferencesStore.detailMode;
+    // Don't schedule collapse in "expanded" mode - user wants everything open
+    if (detailMode === "expanded") return;
+    
     // Don't restart timeout if user has explicitly interacted (clicked)
     if (stepElement.classList.contains("step-expanded") && 
         !stepElement.hasAttribute("data-user-pinned")) {
@@ -1443,9 +1440,6 @@ function addStepCollapseInteractionHandlers(stepElement) {
  * Add a step to a process group
  */
 function addProcessStep(group, id, type, heading, content, kvps, timestamp = null, durationMs = null, agentNumber = 0) {
-  // group with newest step becomes the active one
-  setActiveProcessGroup(group);
-
   const groupId = group.getAttribute("data-group-id");
   let stepsContainer = group.querySelector(".process-steps");
   const isGroupCompleted = group.classList.contains("process-group-completed");
@@ -1508,22 +1502,27 @@ function addProcessStep(group, id, type, heading, content, kvps, timestamp = nul
   
   // Determine if this new step should be expanded
   const detailMode = preferencesStore.detailMode;
+  const isActiveGroup = group.classList.contains("active");
   let shouldExpand = false;
   
   if (detailMode === "expanded") {
     shouldExpand = true;
-  } else if (detailMode === "current" && !isGroupCompleted) {
-    // In "current" mode: expand new step, delay-collapse all previous steps
-    shouldExpand = true;
-    
-    // Schedule collapse for ALL previously expanded steps
-    const allExpandedSteps = stepsContainer.querySelectorAll(".process-step.step-expanded");
-    allExpandedSteps.forEach(expandedStep => {
-      // Don't schedule collapse for the newly added step (the current one)
-      if (expandedStep.id !== `process-step-${id}`) {
-        scheduleStepCollapse(expandedStep, STEP_COLLAPSE_DELAY_MS);
-      }
-    });
+  } else if (detailMode === "current") {
+    // Only expand and schedule timeouts for the ACTIVE group (currently streaming)
+    // For non-active groups (historical data), render steps collapsed immediately
+    if (isActiveGroup && !isGroupCompleted) {
+      shouldExpand = true;
+      
+      // Schedule collapse for ALL previously expanded steps
+      const allExpandedSteps = stepsContainer.querySelectorAll(".process-step.step-expanded");
+      allExpandedSteps.forEach(expandedStep => {
+        // Don't schedule collapse for the newly added step (the current one)
+        if (expandedStep.id !== `process-step-${id}`) {
+          scheduleStepCollapse(expandedStep, STEP_COLLAPSE_DELAY_MS);
+        }
+      });
+    }
+    // Non-active groups: shouldExpand stays false → steps render collapsed
   }
   // In "collapsed" mode: shouldExpand stays false
   
@@ -1558,9 +1557,13 @@ function addProcessStep(group, id, type, heading, content, kvps, timestamp = nul
     // Toggle step (store directly modifies DOM - single source of truth)
     processGroupStore.toggleStep(groupId, id);
     
-    // Clear user-pinned flag when manually toggling
-    // (allows auto-collapse to work again on next expansion)
-    step.removeAttribute("data-user-pinned");
+    // If manually expanded, set pinned flag to prevent auto-collapse
+    // If collapsed, remove it
+    if (step.classList.contains("step-expanded")) {
+      step.setAttribute("data-user-pinned", "true");
+    } else {
+      step.removeAttribute("data-user-pinned");
+    }
   });
   
   step.appendChild(stepHeader);
@@ -1589,9 +1592,9 @@ function addProcessStep(group, id, type, heading, content, kvps, timestamp = nul
     toolName: toolNameToUse
   };
   
-  // Add "View Details" button for full modal view (reads fresh data from step._stepData)
-  const viewDetailsBtn = createViewDetailsButton(step);
-  detail.appendChild(viewDetailsBtn);
+  // Add step action buttons (view details, copy, speak)
+  const stepActionBtns = createStepActionButtons(step);
+  detail.appendChild(stepActionBtns);
   
   step.appendChild(detail);
   
@@ -1610,11 +1613,10 @@ function addProcessStep(group, id, type, heading, content, kvps, timestamp = nul
     step.classList.add("nested-step");
   }
   
-  // Remove shiny effect from the previously active step title (O(1))
-  if (activeStepTitleEl) {
-    activeStepTitleEl.classList.remove("shiny-text");
-    activeStepTitleEl = null;
-  }
+  // Clear shiny effect from all previous steps in this group
+  group.querySelectorAll(".process-step .step-title.shiny-text").forEach(el => {
+    el.classList.remove("shiny-text");
+  });
   
   appendTarget.appendChild(step);
   
@@ -1630,12 +1632,11 @@ function addProcessStep(group, id, type, heading, content, kvps, timestamp = nul
   // Update group header
   updateProcessGroupHeader(group);
 
-  // Apply shiny effect to the active step title
-  if (!isGroupCompleted && group.id === activeProcessGroupId) {
+  // Apply shiny effect to the new step's title if group is still active
+  if (!isGroupCompleted) {
     const titleEl = step.querySelector(".process-step-header .step-title");
     if (titleEl) {
       titleEl.classList.add("shiny-text");
-      activeStepTitleEl = titleEl;
     }
   }
   
@@ -2046,26 +2047,37 @@ function renderThoughts(container, value) {
 }
 
 /**
- * Create "View Details" button for opening step detail modal
+ * Create step action buttons (view details, copy, speak) using unified action buttons
  * @param {HTMLElement} stepElement - The step DOM element containing _stepData property
  */
-function createViewDetailsButton(stepElement) {
+function createStepActionButtons(stepElement) {
   const btnContainer = document.createElement("div");
   btnContainer.classList.add("step-detail-actions");
   
-  const btn = document.createElement("button");
-  btn.classList.add("btn", "text-button");
-  btn.innerHTML = '<span class="material-symbols-outlined">open_in_full</span> View Details';
-  btn.title = "Open full step details in modal";
-  
-  btn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    // Read fresh data from the step element at click time
-    const freshData = stepElement._stepData || {};
-    stepDetailStore.showStepDetail(freshData);
+  // Use unified action buttons with step-specific options
+  addActionButtonsToElement(btnContainer, {
+    contentRef: () => {
+      // Get text content from step data at action time
+      const data = stepElement._stepData || {};
+      const parts = [];
+      if (data.heading) parts.push(data.heading);
+      if (data.content) parts.push(data.content);
+      if (data.kvps) {
+        for (const [key, value] of Object.entries(data.kvps)) {
+          if (key === "reasoning" || key === "finished" || key === "attachments") continue;
+          const valStr = typeof value === "object" ? JSON.stringify(value, null, 2) : String(value);
+          parts.push(`${key}: ${valStr}`);
+        }
+      }
+      return parts.join("\n\n");
+    },
+    onViewDetails: () => {
+      // Read fresh data from the step element at click time
+      const freshData = stepElement._stepData || {};
+      stepDetailStore.showStepDetail(freshData);
+    }
   });
   
-  btnContainer.appendChild(btn);
   return btnContainer;
 }
 
@@ -2281,13 +2293,9 @@ export function resetProcessGroups() {
   currentProcessGroup = null;
   currentDelegationSteps = {};
   messageGroup = null;
-  activeProcessGroupId = null;
-  activeProcessGroupEl = null;
-  window.activeProcessGroupId = null; // Keep window copy in sync
-  if (activeStepTitleEl) {
-    activeStepTitleEl.classList.remove("shiny-text");
-  }
-  activeStepTitleEl = null;
+  
+  // Clear shiny effect from DOM (source of truth)
+  clearActiveStepShine();
   
   // Clear all pending collapse timeouts
   stepCollapseTimeouts.forEach(timeoutId => clearTimeout(timeoutId));

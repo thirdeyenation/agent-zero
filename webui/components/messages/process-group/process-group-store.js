@@ -40,84 +40,20 @@ const DISPLAY_CODES = {
 };
 
 const model = {
-  // Default collapsed state for new process groups
-  defaultCollapsed: true,
+  init() {},
 
-  init() {
-    try {
-      // Load persisted default collapsed state only
-      const stored = localStorage.getItem("processGroupState");
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        this.defaultCollapsed = parsed.defaultCollapsed ?? true;
-      }
-    } catch (e) {
-      console.error("Failed to load process group state", e);
-    }
-  },
-
-  _persist() {
-    try {
-      // Only persist the default collapsed preference
-      // DOM is the source of truth for actual state
-      localStorage.setItem("processGroupState", JSON.stringify({
-        defaultCollapsed: this.defaultCollapsed
-      }));
-    } catch (e) {
-      console.error("Failed to persist process group state", e);
-    }
-  },
-
-  // Check if a process group is expanded
-  isGroupExpanded(groupId) {
-    const groupElement = document.getElementById(groupId);
-    if (groupElement) {
-      return groupElement.classList.contains("expanded");
-    }
-    return !this.defaultCollapsed;
-  },
-
-  // Toggle process group expansion
+  // Toggle process group expansion (called from click handler in messages.js)
   toggleGroup(groupId) {
     const groupElement = document.getElementById(groupId);
     if (!groupElement) return;
-    
-    const currentState = groupElement.classList.contains("expanded");
-    groupElement.classList.toggle("expanded", !currentState);
+    groupElement.classList.toggle("expanded");
   },
 
-  // Expand a specific group
-  expandGroup(groupId) {
-    const groupElement = document.getElementById(groupId);
-    if (groupElement) {
-      groupElement.classList.add("expanded");
-    }
-  },
-
-  // Collapse a specific group
-  collapseGroup(groupId) {
-    const groupElement = document.getElementById(groupId);
-    if (groupElement) {
-      groupElement.classList.remove("expanded");
-    }
-  },
-
-  // Check if a step within a group is expanded
-  isStepExpanded(groupId, stepId) {
-    const stepElement = document.getElementById(`process-step-${stepId}`);
-    if (stepElement) {
-      return stepElement.classList.contains("step-expanded");
-    }
-    return false;
-  },
-
-  // Toggle step expansion
+  // Toggle step expansion (called from click handler in messages.js)
   toggleStep(groupId, stepId) {
     const stepElement = document.getElementById(`process-step-${stepId}`);
     if (!stepElement) return;
-    
-    const currentState = stepElement.classList.contains("step-expanded");
-    stepElement.classList.toggle("step-expanded", !currentState);
+    stepElement.classList.toggle("step-expanded");
   },
 
   // Status code (3-4 letter) for backend log types
@@ -164,30 +100,15 @@ const model = {
     return colors[type] || 'status-gen';
   },
 
-  // Clear state for a specific context (when chat is reset)
-  clearContext(contextPrefix) {
-  },
-
   // Get current detail mode from preferences
   _getDetailMode() {
     return preferencesStore.detailMode || "current";
   },
 
-  shouldExpandGroup(groupId, isActiveAndGenerating = false) {
+  shouldExpandGroup() {
     const mode = this._getDetailMode();
-    if (mode === "collapsed") {
-      return false;
-    }
-    if (mode === "current" || mode === "expanded") return true;
-    return !this.defaultCollapsed;
-  },
-
-  expandStep(groupId, stepId, isActive = false) {
-    const mode = this._getDetailMode();
-    if (mode === "collapsed") return false;
-    if (mode === "expanded") return true;
-    if (mode === "current") return isActive;
-    return this.isStepExpanded(groupId, stepId);
+    // Groups expand in "current" and "expanded" modes, collapse only in "collapsed" mode
+    return mode !== "collapsed";
   },
 
   // Apply current mode to all existing DOM elements
@@ -196,15 +117,18 @@ const model = {
     const showUtils = preferencesStore.showUtils || false;
     const allGroups = document.querySelectorAll(".process-group");
     
-    // Find the last visible step in an active (not completed) group only
-    const stepSelector = showUtils 
-      ? ".process-group:not(.process-group-completed) .process-step" 
-      : ".process-group:not(.process-group-completed) .process-step:not(.message-util)";
-    const visibleSteps = document.querySelectorAll(stepSelector);
-    const lastActiveStep = visibleSteps.length > 0 ? visibleSteps[visibleSteps.length - 1] : null;
+    // Find the active group (currently streaming) - DOM is source of truth
+    const activeGroup = document.querySelector(".process-group.active");
     
-    // Get all steps for applying expansion
-    const allSteps = document.querySelectorAll(".process-step");
+    // Find the last visible step in the ACTIVE group only (for "current" mode)
+    let lastActiveStep = null;
+    if (activeGroup && !activeGroup.classList.contains("process-group-completed")) {
+      const stepSelector = showUtils 
+        ? ".process-step" 
+        : ".process-step:not(.message-util)";
+      const stepsInActiveGroup = activeGroup.querySelectorAll(stepSelector);
+      lastActiveStep = stepsInActiveGroup.length > 0 ? stepsInActiveGroup[stepsInActiveGroup.length - 1] : null;
+    }
     
     // Apply to groups
     allGroups.forEach(group => {
@@ -212,21 +136,38 @@ const model = {
       group.classList.toggle("expanded", shouldExpandGroup);
     });
     
-    // Apply to steps
-    allSteps.forEach(step => {
-      let shouldExpand = false;
-      if (mode === "expanded") {
-        shouldExpand = true;
-      } else if (mode === "current") {
-        // Only expand the last step in an active group
-        shouldExpand = step === lastActiveStep || step.contains(lastActiveStep);
-      }
-      step.classList.toggle("step-expanded", shouldExpand);
+    // Apply to steps - different logic for active vs non-active groups
+    allGroups.forEach(group => {
+      const isActiveGroup = group.classList.contains("active");
+      const steps = group.querySelectorAll(".process-step");
       
-      // Clear user-pinned flag when mode changes
-      if (!shouldExpand) {
-        step.removeAttribute("data-user-pinned");
-      }
+      steps.forEach(step => {
+        let shouldExpand = false;
+        
+        if (mode === "expanded") {
+          shouldExpand = true;
+        } else if (mode === "current") {
+          if (isActiveGroup) {
+            // Active group: only expand the last step
+            shouldExpand = step === lastActiveStep;
+          }
+          // Non-active groups: shouldExpand stays false → all steps collapsed
+        }
+        // In "collapsed" mode: shouldExpand stays false
+        
+        if (shouldExpand) {
+          step.classList.add("step-expanded");
+        } else {
+          // For non-active groups or collapsed mode, immediately collapse
+          // Only defer to timeout for active group in "current" mode when there's an active step
+          // (lastActiveStep is null if group is completed - no deferral needed)
+          const shouldDefer = mode === "current" && isActiveGroup && lastActiveStep && step !== lastActiveStep;
+          if (!shouldDefer) {
+            step.classList.remove("step-expanded");
+            step.removeAttribute("data-user-pinned");
+          }
+        }
+      });
     });
     
     // Apply to error groups
