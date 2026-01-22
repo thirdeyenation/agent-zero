@@ -221,12 +221,18 @@ const model = {
         // Only expand the last step in an active group
         shouldExpand = step === lastActiveStep || step.contains(lastActiveStep);
       }
-      step.classList.toggle("step-expanded", shouldExpand);
       
-      // Clear user-pinned flag when mode changes
-      if (!shouldExpand) {
+      // IMPORTANT: Only EXPAND steps here, never collapse them during streaming.
+      // Collapsing is handled by the timeout mechanism in messages.js to avoid
+      // fighting with the scheduled delays. We only force-collapse when mode is "collapsed".
+      if (shouldExpand) {
+        step.classList.add("step-expanded");
+      } else if (mode === "collapsed") {
+        // In collapsed mode, force all steps closed
+        step.classList.remove("step-expanded");
         step.removeAttribute("data-user-pinned");
       }
+      // In "current" mode: don't remove step-expanded - let timeout handle it
     });
     
     // Apply to error groups
