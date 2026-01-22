@@ -42,16 +42,6 @@ const model = {
   },
   _showUtils: false,
 
-  // Process group collapse preference
-  get collapseProcessGroups() {
-    return this._collapseProcessGroups;
-  },
-  set collapseProcessGroups(value) {
-    this._collapseProcessGroups = value;
-    this._applyCollapseProcessGroups(value);
-  },
-  _collapseProcessGroups: true, // Default to collapsed
-
   // Chat container width preference for HiDPI/large screens
   get chatWidth() {
     return this._chatWidth;
@@ -105,14 +95,6 @@ const model = {
         this._speech = false; // Default to speech off if localStorage is unavailable
       }
 
-      // Load collapse process groups preference
-      try {
-        const storedCollapse = localStorage.getItem("collapseProcessGroups");
-        this._collapseProcessGroups = storedCollapse !== "false"; // Default true
-      } catch {
-        this._collapseProcessGroups = true;
-      }
-
       // Load chat width preference
       try {
         const storedChatWidth = localStorage.getItem("chatWidth");
@@ -138,7 +120,6 @@ const model = {
       this._applyAutoScroll(this._autoScroll);
       this._applySpeech(this._speech);
       this._applyShowUtils(this._showUtils);
-      this._applyCollapseProcessGroups(this._collapseProcessGroups);
       this._applyChatWidth(this._chatWidth);
       this._applyDetailMode(this._detailMode);
     } catch (e) {
@@ -182,12 +163,6 @@ const model = {
     processGroupStore.applyModeSteps();
   },
 
-  _applyCollapseProcessGroups(value) {
-    localStorage.setItem("collapseProcessGroups", value);
-    // Update process group store default
-    processGroupStore.defaultCollapsed = value;
-  },
-
   _applyChatWidth(value) {
     localStorage.setItem("chatWidth", value);
     // Set CSS custom property for chat max-width
@@ -201,8 +176,6 @@ const model = {
 
   _applyDetailMode(value) {
     localStorage.setItem("detailMode", value);
-    // Sync defaultCollapsed based on mode
-    processGroupStore.defaultCollapsed = value === "collapsed";
     // Apply mode to all existing DOM elements
     processGroupStore.applyModeSteps();
   },
