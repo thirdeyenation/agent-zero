@@ -1421,7 +1421,12 @@ function addStepCollapseInteractionHandlers(stepElement) {
   });
   
   // On leave, start a new timeout ONLY if user hasn't explicitly clicked
+  // and only in "current" mode (in "expanded" mode, everything stays open)
   stepElement.addEventListener("mouseleave", () => {
+    const detailMode = preferencesStore.detailMode;
+    // Don't schedule collapse in "expanded" mode - user wants everything open
+    if (detailMode === "expanded") return;
+    
     // Don't restart timeout if user has explicitly interacted (clicked)
     if (stepElement.classList.contains("step-expanded") && 
         !stepElement.hasAttribute("data-user-pinned")) {
