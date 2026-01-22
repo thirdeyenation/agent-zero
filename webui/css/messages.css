@@ -263,9 +263,9 @@
   white-space: nowrap;
 }
 
-.message-body code {
+/* .message-body code {
   white-space: break-spaces;
-}
+} */
 
 /* Light mode code-exe styling moved to main terminal block above */
 
