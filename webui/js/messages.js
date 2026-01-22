@@ -1558,9 +1558,13 @@ function addProcessStep(group, id, type, heading, content, kvps, timestamp = nul
     // Toggle step (store directly modifies DOM - single source of truth)
     processGroupStore.toggleStep(groupId, id);
     
-    // Clear user-pinned flag when manually toggling
-    // (allows auto-collapse to work again on next expansion)
-    step.removeAttribute("data-user-pinned");
+    // If manually expanded, set pinned flag to prevent auto-collapse
+    // If collapsed, remove it
+    if (step.classList.contains("step-expanded")) {
+      step.setAttribute("data-user-pinned", "true");
+    } else {
+      step.removeAttribute("data-user-pinned");
+    }
   });
   
   step.appendChild(stepHeader);
@@ -2077,7 +2081,6 @@ function createStepActionButtons(stepElement) {
     }
   });
   
-  btnContainer.appendChild(btn);
   return btnContainer;
 }
 

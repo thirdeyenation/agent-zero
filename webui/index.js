@@ -334,6 +334,7 @@ export async function poll() {
         );
       }
       afterMessagesUpdate(response.logs);
+      processGroupStore.applyModeSteps();
     }
 
     lastLogVersion = response.log_version;
