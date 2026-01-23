@@ -16,8 +16,8 @@
                 <div class="modal-header modal-header-compact">
                     <div class="header-info">
                         <span class="status-badge"
-                              :class="$store.processGroup.getStatusColorClass($store.stepDetail.selectedStepForDetail?.type, $store.stepDetail.selectedStepForDetail?.toolName || $store.stepDetail.selectedStepForDetail?.kvps?.tool_name)"
-                              x-text="$store.processGroup.getStepCode($store.stepDetail.selectedStepForDetail?.type, $store.stepDetail.selectedStepForDetail?.toolName || $store.stepDetail.selectedStepForDetail?.kvps?.tool_name)"></span>
+                              :class="$store.stepDetail.selectedStepForDetail?.statusClass || ''"
+                              x-text="$store.stepDetail.selectedStepForDetail?.statusCode || ''"></span>
                         <span class="step-type-label" x-text="$store.stepDetail.formatStepType($store.stepDetail.selectedStepForDetail?.type)"></span>
                         <template x-if="$store.stepDetail.selectedStepForDetail?.toolName || $store.stepDetail.selectedStepForDetail?.kvps?.tool_name">
                             <span class="tool-name-badge" x-text="$store.stepDetail.selectedStepForDetail?.toolName || $store.stepDetail.selectedStepForDetail?.kvps?.tool_name"></span>

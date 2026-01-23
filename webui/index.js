@@ -11,7 +11,7 @@ import { store as chatsStore } from "/components/sidebar/chats/chats-store.js";
 import { store as tasksStore } from "/components/sidebar/tasks/tasks-store.js";
 import { store as chatTopStore } from "/components/chat/top-section/chat-top-store.js";
 import { store as _tooltipsStore } from "/components/tooltips/tooltip-store.js";
-import { store as processGroupStore } from "/components/messages/process-group/process-group-store.js";
+import { applyModeSteps } from "/components/messages/process-group/process-group-dom.js";
 
 globalThis.fetchApi = api.fetchApi; // TODO - backward compatibility for non-modular scripts, remove once refactored to alpine
 
@@ -66,7 +66,7 @@ export async function sendMessage() {
             : "";
 
         // Render user message with attachments
-        setMessage(messageId, "user", heading, message, false, {
+        setMessage(messageId, "user", heading, message, {
           // attachments: attachmentsWithUrls, // skip here, let the backend properly log them
         });
 
@@ -200,8 +200,8 @@ async function updateUserTime() {
 updateUserTime();
 setInterval(updateUserTime, 1000);
 
-function setMessage(id, type, heading, content, temp, kvps = null, timestamp = null, durationMs = null, /* tokensIn = 0, tokensOut = 0, */ agentNumber = 0) {
-  const result = msgs.setMessage(id, type, heading, content, temp, kvps, timestamp, durationMs, /* tokensIn, tokensOut, */ agentNumber);
+function setMessage(id, type, heading, content, kvps = null, timestamp = null, durationMs = null, /* tokensIn = 0, tokensOut = 0, */ agentNumber = 0) {
+  const result = msgs.setMessage(id, type, heading, content, kvps, timestamp, durationMs, /* tokensIn, tokensOut, */ agentNumber);
   const chatHistoryEl = document.getElementById("chat-history");
   if (preferencesStore.autoScroll && chatHistoryEl) {
     chatHistoryEl.scrollTop = chatHistoryEl.scrollHeight;
@@ -308,7 +308,6 @@ export async function poll() {
     if (lastLogGuid != response.log_guid) {
       const chatHistoryEl = document.getElementById("chat-history");
       if (chatHistoryEl) chatHistoryEl.innerHTML = "";
-      msgs.resetProcessGroups(); // Reset process groups on chat reset
       lastLogVersion = 0;
       lastLogGuid = response.log_guid;
       await poll();
@@ -324,7 +323,6 @@ export async function poll() {
           log.type,
           log.heading,
           log.content,
-          log.temp,
           log.kvps,
           log.timestamp,
           log.duration_ms,
@@ -334,7 +332,7 @@ export async function poll() {
         );
       }
       afterMessagesUpdate(response.logs);
-      processGroupStore.applyModeSteps();
+      applyModeSteps(preferencesStore.detailMode, preferencesStore.showUtils);
     }
 
     lastLogVersion = response.log_version;
@@ -511,9 +509,6 @@ export const setContext = function (id) {
 
   // Stop speech when switching chats
   speechStore.stopAudio();
-
-  // Reset process groups for new context
-  msgs.resetProcessGroups();
 
   // Clear the chat history immediately to avoid showing stale content
   const chatHistoryEl = document.getElementById("chat-history");

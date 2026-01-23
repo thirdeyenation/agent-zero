@@ -4,8 +4,6 @@ import { marked } from "../vendor/marked/marked.esm.js";
 import { store as _messageResizeStore } from "/components/messages/resize/message-resize-store.js"; // keep here, required in html
 import { store as attachmentsStore } from "/components/chat/attachments/attachmentsStore.js";
 import { addActionButtonsToElement } from "/components/messages/action-buttons/simple-action-buttons.js";
-import { store as processGroupStore } from "/components/messages/process-group/process-group-store.js";
-import { store as stepDetailStore } from "/components/modals/process-step-detail/step-detail-store.js";
 import { store as preferencesStore } from "/components/sidebar/bottom/preferences/preferences-store.js";
 import { formatDuration } from "./time-utils.js";
 
@@ -17,11 +15,65 @@ const STEP_COLLAPSE_DELAY_MS = 3000;
 // Delay before collapsing the last step when processing completes
 const FINAL_STEP_COLLAPSE_DELAY_MS = 3000;
 
-const chatHistory = document.getElementById("chat-history");
+// Tool-specific status codes (fallback for tool steps)
+const TOOL_STATUS_CODES = {
+  call_subordinate: "SUB",
+  search_engine: "WEB",
+  a2a_chat: "A2A",
+  behaviour_adjustment: "ADJ",
+  document_query: "DOC",
+  vision_load: "EYE",
+  notify_user: "NTF",
+  scheduler: "SCH",
+  unknown: "UNK",
+  memory_save: "MEM",
+  memory_load: "MEM",
+  memory_forget: "MEM",
+  memory_delete: "MEM"
+};
 
-let messageGroup = null;
-let currentProcessGroup = null; // Track current process group for collapsible UI
-let currentDelegationSteps = {}; // Track delegation steps by agent number for nesting
+// Tool-specific status classes (fallback for tool steps)
+const TOOL_STATUS_CLASSES = {
+  call_subordinate: "status-sub"
+};
+
+const TYPE_STATUS_CODES = {
+  agent: "GEN",
+  response: "END",
+  tool: "USE",
+  code_exe: "EXE",
+  browser: "WWW",
+  progress: "HLD",
+  mcp: "MCP",
+  subagent: "SUB",
+  info: "INF",
+  hint: "HNT",
+  warning: "WRN",
+  rate_limit: "WRN",
+  error: "ERR",
+  util: "UTL",
+  done: "END"
+};
+
+const TYPE_STATUS_CLASSES = {
+  agent: "status-gen",
+  response: "status-end",
+  tool: "status-tool",
+  code_exe: "status-exe",
+  browser: "status-www",
+  progress: "status-wait",
+  mcp: "status-mcp",
+  subagent: "status-sub",
+  info: "status-inf",
+  hint: "status-hnt",
+  warning: "status-wrn",
+  rate_limit: "status-wrn",
+  error: "status-err",
+  util: "status-utl",
+  done: "status-end"
+};
+
+const chatHistory = document.getElementById("chat-history");
 
 // handlers for log message rendering
 export function getMessageHandler(type) {
@@ -38,6 +90,12 @@ export function getMessageHandler(type) {
       return drawMessageCodeExe;
     case "browser":
       return drawMessageBrowser;
+    case "progress":
+      return drawMessageProgress;
+    case "mcp":
+      return drawMessageMcp;
+    case "subagent":
+      return drawMessageSubagent;
     case "warning":
       return drawMessageWarning;
     case "rate_limit":
@@ -49,7 +107,7 @@ export function getMessageHandler(type) {
     case "util":
       return drawMessageUtil;
     case "hint":
-      return drawMessageInfo;
+      return drawMessageHint;
     default:
       return drawMessageDefault;
   }
@@ -82,6 +140,51 @@ export function clearActiveStepShine() {
   document.querySelectorAll(".process-step .step-title.shiny-text").forEach((el) => {
     el.classList.remove("shiny-text");
   });
+}
+
+function getChatHistoryEl() {
+  return chatHistory || document.getElementById("chat-history");
+}
+
+function getLastMessageContainer() {
+  const chatHistoryEl = getChatHistoryEl();
+  if (!chatHistoryEl) return null;
+  const lastGroup = chatHistoryEl.lastElementChild;
+  if (!lastGroup) return null;
+  return lastGroup.lastElementChild;
+}
+
+function appendToMessageGroup(messageContainer, position, forceNewGroup = false) {
+  const chatHistoryEl = getChatHistoryEl();
+  if (!chatHistoryEl) return;
+
+  const lastGroup = chatHistoryEl.lastElementChild;
+  const lastGroupType = lastGroup?.getAttribute("data-group-type");
+
+  if (!forceNewGroup && lastGroup && lastGroupType === position) {
+    lastGroup.appendChild(messageContainer);
+    return;
+  }
+
+  const group = document.createElement("div");
+  group.classList.add("message-group", `message-group-${position}`);
+  group.setAttribute("data-group-type", position);
+  group.appendChild(messageContainer);
+  chatHistoryEl.appendChild(group);
+}
+
+function getStatusCode(type, toolName = null) {
+  if (type === "tool" && toolName && TOOL_STATUS_CODES[toolName]) {
+    return TOOL_STATUS_CODES[toolName];
+  }
+  return TYPE_STATUS_CODES[type] || type?.toUpperCase()?.slice(0, 4) || "GEN";
+}
+
+function getStatusClass(type, toolName = null) {
+  if (type === "tool" && toolName && TOOL_STATUS_CLASSES[toolName]) {
+    return TOOL_STATUS_CLASSES[toolName];
+  }
+  return TYPE_STATUS_CLASSES[type] || "status-gen";
 }
 
 /**
@@ -119,123 +222,160 @@ function updateBadgeText(badge, newCode) {
   badge.textContent = newCode;
 }
 
-// Process types that should be grouped into collapsible sections
-const PROCESS_TYPES = ['agent', 'tool', 'code_exe', 'browser', 'progress', 'hint', 'util', 'warning', 'rate_limit'];
-// Main types that should always be visible (not collapsed)
-const MAIN_TYPES = ['user', 'response', 'error', 'info'];
-
-/**
- * Helper to append a message container to the correct group in chat history
- */
-function appendMessageToHistory(messageContainer, groupType, forceNewGroup, id) {
-  // Check if current messageGroup is still in DOM, if not, reset it (context switch)
-  if (messageGroup && !document.getElementById(messageGroup.id)) {
-    messageGroup = null;
-  }
-
-  // Create new group if needed
-  if (!messageGroup || forceNewGroup || groupType !== messageGroup.getAttribute("data-group-type")) {
-    messageGroup = document.createElement("div");
-    messageGroup.id = `message-group-${id}`;
-    messageGroup.classList.add("message-group", `message-group-${groupType}`);
-    messageGroup.setAttribute("data-group-type", groupType);
-    chatHistory.appendChild(messageGroup);
-  }
-
-  // Append message to group
-  messageGroup.appendChild(messageContainer);
-}
 
 // entrypoint called from poll/WS communication, this is how all messages are rendered and updated
-export function setMessage(id, type, heading, content, temp, kvps = null, timestamp = null, durationMs = null, agentNumber = 0) {
-  // Check if this is a process type message
-  const isProcessType = PROCESS_TYPES.includes(type);
-  
-  // Search for the existing message container by id
-  let messageContainer = document.getElementById(`message-${id}`);
-  let processStepElement = document.getElementById(`process-step-${id}`);
-
-  // For user messages, close current process group FIRST (start fresh for next interaction)
-  if (type === "user") {
-    currentProcessGroup = null;
-    currentDelegationSteps = {}; // Clear delegation tracking
-  }
-
-  // For process types, check if we should add to process group
-  if (isProcessType || (type === "response" && agentNumber !== 0)) {
-    if (processStepElement) {
-      // Update existing process step
-      updateProcessStep(processStepElement, id, type, heading, content, kvps, durationMs, agentNumber);
-      return processStepElement;
-    }
-    
-    // Create or get process group for current interaction
-    if (!currentProcessGroup || !document.getElementById(currentProcessGroup.id)) {
-      // Create response container for this process group immediately (Option B)
-      messageContainer = document.createElement("div");
-      messageContainer.id = `message-${id}`;
-      messageContainer.classList.add("message-container", "ai-container", "has-process-group");
-      
-      currentProcessGroup = createProcessGroup(id);
-      currentProcessGroup.classList.add("embedded");
-      messageContainer.appendChild(currentProcessGroup);
-      
-      // Handle DOM insertion immediately
-      appendMessageToHistory(messageContainer, "left", false, id);
-      
-      setActiveProcessGroup(currentProcessGroup);
-    }
-    
-    // Add step to current process group
-    const stepType = (type === "response" && agentNumber !== 0) ? "response" : type;
-    processStepElement = addProcessStep(currentProcessGroup, id, stepType, heading, content, kvps, timestamp, durationMs, agentNumber);
-    return processStepElement;
-  }
-
-  // For main agent (A0) response, mark the current process group as complete
-  if (type === "response" && currentProcessGroup) {
-    // Mark process group as complete (END state)
-    markProcessGroupComplete(currentProcessGroup, heading);
-  }
-
-  if (!messageContainer) {
-    // Create a new container if not found
-    const sender = type === "user" ? "user" : "ai";
-    messageContainer = document.createElement("div");
-    messageContainer.id = `message-${id}`;
-    messageContainer.classList.add("message-container", `${sender}-container`);
-  }
-
+export function setMessage(id, type, heading, content, kvps = null, timestamp = null, durationMs = null, agentNumber = 0) {
   const handler = getMessageHandler(type);
-  handler(messageContainer, id, type, heading, content, temp, kvps);
+  return handler(id, type, heading, content, kvps, timestamp, durationMs, agentNumber);
+}
 
-  // If this is a new message (not yet in DOM), handle DOM insertion
-  if (!messageContainer.parentNode) {
-    // message type visual grouping
-    const groupTypeMap = {
-      user: "right",
-      info: "mid",
-      warning: "mid",
-      error: "mid",
-      rate_limit: "mid",
-      util: "mid",
-      hint: "mid",
-      // anything else is "left"
-    };
-    //force new group on these types
-    const groupStart = {
-      response: true, // response starts a new group
-      user: true, // user message starts a new group (each user message should be separate)
-      // anything else is false
-    };
-
-    const groupType = groupTypeMap[type] || "left";
-    const forceNewGroup = groupStart[type] || false;
-
-    appendMessageToHistory(messageContainer, groupType, forceNewGroup, id);
+function getOrCreateMessageContainer(id, position, containerClasses = [], forceNewGroup = false) {
+  let container = document.getElementById(`message-${id}`);
+  if (!container) {
+    container = document.createElement("div");
+    container.id = `message-${id}`;
+    container.classList.add("message-container");
   }
 
-  return messageContainer;
+  if (containerClasses.length) {
+    container.classList.add(...containerClasses);
+  }
+
+  if (!container.parentNode) {
+    appendToMessageGroup(container, position, forceNewGroup);
+  }
+
+  return container;
+}
+
+function getLastProcessGroup() {
+  const lastContainer = getLastMessageContainer();
+  if (!lastContainer) return null;
+  if (!lastContainer.classList.contains("has-process-group")) return null;
+  const group = lastContainer.querySelector(".process-group");
+  if (!group || group.classList.contains("process-group-completed")) {
+    return null;
+  }
+  return group;
+}
+
+function getOrCreateProcessGroup(id) {
+  const existing = getLastProcessGroup();
+  if (existing) {
+    setActiveProcessGroup(existing);
+    return existing;
+  }
+
+  const messageContainer = document.createElement("div");
+  messageContainer.id = `message-${id}`;
+  messageContainer.classList.add("message-container", "ai-container", "has-process-group");
+
+  const group = createProcessGroup(id);
+  group.classList.add("embedded");
+  messageContainer.appendChild(group);
+
+  appendToMessageGroup(messageContainer, "left");
+  setActiveProcessGroup(group);
+  return group;
+}
+
+function buildDetailPayload(stepData) {
+  if (!stepData) return null;
+  return {
+    type: stepData.type,
+    heading: stepData.heading,
+    content: stepData.content,
+    kvps: stepData.kvps,
+    timestamp: stepData.timestamp,
+    durationMs: stepData.durationMs,
+    agentNumber: stepData.agentNumber,
+    toolName: stepData.toolName,
+    statusCode: stepData.statusCode,
+    statusClass: stepData.statusClass
+  };
+}
+
+function buildStepCopyContent(stepData) {
+  if (!stepData) return "";
+  const parts = [];
+  if (stepData.heading) parts.push(stepData.heading);
+  if (stepData.content) parts.push(stepData.content);
+  if (stepData.kvps) {
+    for (const [key, value] of Object.entries(stepData.kvps)) {
+      if (key === "reasoning" || key === "finished" || key === "attachments") continue;
+      const valStr = typeof value === "object" ? JSON.stringify(value, null, 2) : String(value);
+      parts.push(`${key}: ${valStr}`);
+    }
+  }
+  return parts.join("\n\n");
+}
+
+function drawProcessStep(id, title, statusClass, statusCode, kvps = null, detailHandler = null, copyContent = null, speakContent = null, options = {}) {
+  const {
+    type = "agent",
+    heading = null,
+    content = null,
+    timestamp = null,
+    durationMs = null,
+    agentNumber = 0,
+    toolName = null,
+    detailPayload = null
+  } = options;
+
+  const group = getOrCreateProcessGroup(id);
+  const stepId = `process-step-${id}`;
+  const stepData = {
+    id,
+    type,
+    title,
+    heading,
+    content,
+    kvps,
+    timestamp,
+    durationMs,
+    agentNumber,
+    toolName,
+    statusCode,
+    statusClass
+  };
+
+  let step = document.getElementById(stepId);
+  const detailData = detailPayload || buildDetailPayload(stepData);
+  const copyText = copyContent ?? buildStepCopyContent(stepData);
+  const speakText = speakContent ?? copyText;
+
+  if (step) {
+    updateProcessStep(step, stepData, detailData, copyText, speakText, detailHandler);
+    return step;
+  }
+
+  step = addProcessStep(group, stepData, detailData, copyText, speakText, detailHandler);
+  return step;
+}
+
+function drawStandaloneMessage(id, heading, content, options = {}) {
+  const {
+    position = "mid",
+    forceNewGroup = false,
+    containerClasses = [],
+    mainClass = "",
+    messageClasses = [],
+    contentClasses = [],
+    markdown = false,
+    latex = false,
+    kvps = null,
+    copyContent = null,
+    speakContent = null
+  } = options;
+
+  const container = getOrCreateMessageContainer(id, position, containerClasses, forceNewGroup);
+  const messageDiv = _drawMessage(container, heading, content, kvps, messageClasses, contentClasses, markdown, latex, mainClass);
+
+  const copyText = copyContent ?? content ?? "";
+  const speakText = speakContent ?? copyText;
+  addActionButtonsToElement(messageDiv, { copyContent: copyText, speakContent: speakText });
+
+  return container;
 }
 
 
@@ -244,15 +384,12 @@ export function _drawMessage(
   messageContainer,
   heading,
   content,
-  temp,
-  followUp,
-  mainClass = "",
   kvps = null,
   messageClasses = [],
   contentClasses = [],
-  latex = false,
   markdown = false,
-  resizeBtns = true
+  latex = false,
+  mainClass = ""
 ) {
   // Find existing message div or create new one
   let messageDiv = messageContainer.querySelector(".message");
@@ -337,8 +474,6 @@ export function _drawMessage(
         });
       }
 
-      // Ensure action buttons exist - pass content directly
-      addActionButtonsToElement(bodyDiv, { contentRef: content });
       adjustMarkdownRender(contentDiv);
 
     } else {
@@ -362,9 +497,6 @@ export function _drawMessage(
 
       spanElement.innerHTML = convertHTML(content);
 
-      // Ensure action buttons exist - pass content directly
-      addActionButtonsToElement(bodyDiv, { contentRef: content });
-
     }
   } else {
     // Remove content if it exists but content is empty
@@ -376,10 +508,6 @@ export function _drawMessage(
 
   // reapply scroll position or autoscroll
   scroller.reApplyScroll();
-
-  if (followUp) {
-    messageContainer.classList.add("message-followup");
-  }
 
   return messageDiv;
 }
@@ -409,118 +537,71 @@ export function addBlankTargetsToLinks(str) {
   return doc.body.innerHTML;
 }
 
-export function drawMessageDefault(
-  messageContainer,
-  id,
-  type,
-  heading,
-  content,
-  temp,
-  kvps = null
-) {
-  _drawMessage(
-    messageContainer,
-    heading,
-    content,
-    temp,
-    false,
-    "message-default",
-    kvps,
-    ["message-ai"],
-    ["msg-json"],
-    false,
-    false
-  );
+export function drawMessageDefault(id, type, heading, content, kvps = null) {
+  return drawStandaloneMessage(id, heading, content, {
+    position: "left",
+    containerClasses: ["ai-container"],
+    mainClass: "message-default",
+    messageClasses: ["message-ai"],
+    contentClasses: ["msg-json"],
+    kvps
+  });
 }
 
-export function drawMessageAgent(
-  messageContainer,
-  id,
-  type,
-  heading,
-  content,
-  temp,
-  kvps = null
-) {
-  let kvpsFlat = null;
-  if (kvps) {
-    kvpsFlat = { ...kvps, ...(kvps["tool_args"] || {}) };
-    delete kvpsFlat["tool_args"];
+export function drawMessageAgent(id, type, heading, content, kvps = null, timestamp = null, durationMs = null, agentNumber = 0) {
+  const title = getStepTitle(heading, kvps, type);
+  const statusCode = getStatusCode(type);
+  const statusClass = getStatusClass(type);
+  const toolName = kvps?.tool_name || null;
+
+  return drawProcessStep(id, title, statusClass, statusCode, kvps, null, null, null, {
+    type,
+    heading,
+    content,
+    kvps,
+    timestamp,
+    durationMs,
+    agentNumber,
+    toolName
+  });
+}
+
+export function drawMessageResponse(id, type, heading, content, kvps = null, timestamp = null, durationMs = null, agentNumber = 0) {
+  if (agentNumber && agentNumber > 0) {
+    const title = getStepTitle(heading, kvps, type);
+    const statusCode = getStatusCode(type);
+    const statusClass = getStatusClass(type);
+    return drawProcessStep(id, title, statusClass, statusCode, kvps, null, null, null, {
+      type,
+      heading,
+      content,
+      kvps,
+      timestamp,
+      durationMs,
+      agentNumber
+    });
   }
 
-  _drawMessage(
-    messageContainer,
-    heading,
-    content,
-    temp,
-    false,
-    "message-agent",
-    kvpsFlat,
-    ["message-ai"],
-    ["msg-json"],
-    false,
-    false
-  );
+  const group = getLastProcessGroup();
+  if (group) {
+    markProcessGroupComplete(group, heading);
+  }
+
+  return drawStandaloneMessage(id, heading, content, {
+    position: "left",
+    forceNewGroup: true,
+    containerClasses: ["ai-container"],
+    mainClass: "message-agent-response",
+    messageClasses: ["message-ai"],
+    markdown: true,
+    latex: true
+  });
 }
 
-export function drawMessageResponse(
-  messageContainer,
-  id,
-  type,
-  heading,
-  content,
-  temp,
-  kvps = null
-) {
-  _drawMessage(
-    messageContainer,
-    heading,
-    content,
-    temp,
-    true,
-    "message-agent-response",
-    null,
-    ["message-ai"],
-    [],
-    true,
-    true
-  );
-}
 
-export function drawMessageDelegation(
-  messageContainer,
-  id,
-  type,
-  heading,
-  content,
-  temp,
-  kvps = null
-) {
-  _drawMessage(
-    messageContainer,
-    heading,
-    content,
-    temp,
-    true,
-    "message-agent-delegation",
-    kvps,
-    ["message-ai", "message-agent"],
-    [],
-    true,
-    false
-  );
-}
+export function drawMessageUser(id, type, heading, content, kvps = null) {
+  const messageContainer = getOrCreateMessageContainer(id, "right", ["user-container"], true);
 
-export function drawMessageUser(
-  messageContainer,
-  id,
-  type,
-  heading,
-  content,
-  temp,
-  kvps = null,
-  latex = false
-) {
   // Find existing message div or create new one
   let messageDiv = messageContainer.querySelector(".message");
   if (!messageDiv) {
@@ -623,183 +704,163 @@ export function drawMessageUser(
   }
 
   // Add action buttons below text and attachments (hover for pointer, always for touch - via CSS)
-  addActionButtonsToElement(messageDiv, { contentRef: content });
+  addActionButtonsToElement(messageDiv, { copyContent: content || "", speakContent: content || "" });
 }
 
-export function drawMessageTool(
-  messageContainer,
-  id,
-  type,
-  heading,
-  content,
-  temp,
-  kvps = null
-) {
-  _drawMessage(
-    messageContainer,
-    heading,
-    content,
-    temp,
-    true,
-    "message-tool",
-    kvps,
-    ["message-ai"],
-    ["msg-output"],
-    false,
-    false
-  );
-}
+export function drawMessageTool(id, type, heading, content, kvps = null, timestamp = null, durationMs = null, agentNumber = 0) {
+  const toolName = kvps?.tool_name || null;
+  const title = getStepTitle(heading, kvps, type);
+  const statusCode = getStatusCode(type, toolName);
+  const statusClass = getStatusClass(type, toolName);
 
-export function drawMessageCodeExe(
-  messageContainer,
-  id,
-  type,
-  heading,
-  content,
-  temp,
-  kvps = null
-) {
-  _drawMessage(
-    messageContainer,
-    heading,
-    content,
-    temp,
-    true,
-    "message-code-exe",
-    null,
-    ["message-ai"],
-    [],
-    false,
-    false
-  );
-}
-
-export function drawMessageBrowser(
-  messageContainer,
-  id,
-  type,
-  heading,
-  content,
-  temp,
-  kvps = null
-) {
-  _drawMessage(
-    messageContainer,
-    heading,
-    content,
-    temp,
-    true,
-    "message-browser",
-    kvps,
-    ["message-ai"],
-    ["msg-json"],
-    false,
-    false
-  );
-}
-
-export function drawMessageAgentPlain(
-  mainClass,
-  messageContainer,
-  id,
-  type,
-  heading,
-  content,
-  temp,
-  kvps = null
-) {
-  _drawMessage(
-    messageContainer,
-    heading,
-    content,
-    temp,
-    false,
-    mainClass,
-    kvps,
-    [],
-    [],
-    false,
-    false
-  );
-  messageContainer.classList.add("center-container");
-}
-
-export function drawMessageInfo(
-  messageContainer,
-  id,
-  type,
-  heading,
-  content,
-  temp,
-  kvps = null
-) {
-  return drawMessageAgentPlain(
-    "message-info",
-    messageContainer,
-    id,
+  return drawProcessStep(id, title, statusClass, statusCode, kvps, null, null, null, {
     type,
     heading,
     content,
-    temp,
-    kvps
-  );
-}
-
-export function drawMessageUtil(
-  messageContainer,
-  id,
-  type,
-  heading,
-  content,
-  temp,
-  kvps = null
-) {
-  _drawMessage(
-    messageContainer,
-    heading,
-    content,
-    temp,
-    false,
-    "message-util",
     kvps,
-    [],
-    ["msg-json"],
-    false,
-    false
-  );
-  messageContainer.classList.add("center-container");
+    timestamp,
+    durationMs,
+    agentNumber,
+    toolName
+  });
 }
 
-export function drawMessageWarning(
-  messageContainer,
-  id,
-  type,
-  heading,
-  content,
-  temp,
-  kvps = null
-) {
-  return drawMessageAgentPlain(
-    "message-warning",
-    messageContainer,
-    id,
+export function drawMessageCodeExe(id, type, heading, content, kvps = null, timestamp = null, durationMs = null, agentNumber = 0) {
+  const title = getStepTitle(heading, kvps, type);
+  const statusCode = getStatusCode(type);
+  const statusClass = getStatusClass(type);
+
+  return drawProcessStep(id, title, statusClass, statusCode, kvps, null, null, null, {
     type,
     heading,
     content,
-    temp,
-    kvps
-  );
+    kvps,
+    timestamp,
+    durationMs,
+    agentNumber
+  });
 }
 
-export function drawMessageError(
-  messageContainer,
-  id,
-  type,
-  heading,
-  content,
-  temp,
-  kvps = null
-) {
+export function drawMessageBrowser(id, type, heading, content, kvps = null, timestamp = null, durationMs = null, agentNumber = 0) {
+  const title = getStepTitle(heading, kvps, type);
+  const statusCode = getStatusCode(type);
+  const statusClass = getStatusClass(type);
+
+  return drawProcessStep(id, title, statusClass, statusCode, kvps, null, null, null, {
+    type,
+    heading,
+    content,
+    kvps,
+    timestamp,
+    durationMs,
+    agentNumber
+  });
+}
+
+export function drawMessageMcp(id, type, heading, content, kvps = null, timestamp = null, durationMs = null, agentNumber = 0) {
+  const toolName = kvps?.tool_name || null;
+  const title = getStepTitle(heading, kvps, type);
+  const statusCode = getStatusCode(type, toolName);
+  const statusClass = getStatusClass(type, toolName);
+
+  return drawProcessStep(id, title, statusClass, statusCode, kvps, null, null, null, {
+    type,
+    heading,
+    content,
+    kvps,
+    timestamp,
+    durationMs,
+    agentNumber,
+    toolName
+  });
+}
+
+export function drawMessageSubagent(id, type, heading, content, kvps = null, timestamp = null, durationMs = null, agentNumber = 0) {
+  const title = getStepTitle(heading, kvps, type);
+  const statusCode = getStatusCode(type);
+  const statusClass = getStatusClass(type);
+
+  return drawProcessStep(id, title, statusClass, statusCode, kvps, null, null, null, {
+    type,
+    heading,
+    content,
+    kvps,
+    timestamp,
+    durationMs,
+    agentNumber
+  });
+}
+
+
+export function drawMessageInfo(id, type, heading, content, kvps = null) {
+  return drawStandaloneMessage(id, heading, content, {
+    position: "mid",
+    containerClasses: ["ai-container", "center-container"],
+    mainClass: "message-info",
+    kvps
+  });
+}
+
+export function drawMessageUtil(id, type, heading, content, kvps = null, timestamp = null, durationMs = null, agentNumber = 0) {
+  const title = getStepTitle(heading, kvps, type);
+  const statusCode = getStatusCode(type);
+  const statusClass = getStatusClass(type);
+
+  return drawProcessStep(id, title, statusClass, statusCode, kvps, null, null, null, {
+    type,
+    heading,
+    content,
+    kvps,
+    timestamp,
+    durationMs,
+    agentNumber
+  });
+}
+
+export function drawMessageHint(id, type, heading, content, kvps = null, timestamp = null, durationMs = null, agentNumber = 0) {
+  const title = getStepTitle(heading, kvps, type);
+  const statusCode = getStatusCode(type);
+  const statusClass = getStatusClass(type);
+
+  return drawProcessStep(id, title, statusClass, statusCode, kvps, null, null, null, {
+    type,
+    heading,
+    content,
+    kvps,
+    timestamp,
+    durationMs,
+    agentNumber
+  });
+}
+
+export function drawMessageProgress(id, type, heading, content, kvps = null, timestamp = null, durationMs = null, agentNumber = 0) {
+  const title = getStepTitle(heading, kvps, type);
+  const statusCode = getStatusCode(type);
+  const statusClass = getStatusClass(type);
+
+  return drawProcessStep(id, title, statusClass, statusCode, kvps, null, null, null, {
+    type,
+    heading,
+    content,
+    kvps,
+    timestamp,
+    durationMs,
+    agentNumber
+  });
+}
+
+export function drawMessageWarning(id, type, heading, content, kvps = null) {
+  return drawStandaloneMessage(id, heading, content, {
+    position: "mid",
+    containerClasses: ["ai-container", "center-container"],
+    mainClass: "message-warning",
+    kvps
+  });
+}
+
+export function drawMessageError(id, type, heading, content, kvps = null) {
+  const messageContainer = getOrCreateMessageContainer(id, "mid", ["ai-container", "center-container"]);
+
   // Create or get the message div
   let messageDiv = messageContainer.querySelector(".message");
   if (!messageDiv) {
@@ -916,7 +977,7 @@ export function drawMessageError(
     contentInner.appendChild(pre);
     
     // Add action buttons for copy functionality
-    addActionButtonsToElement(contentInner);
+    addActionButtonsToElement(contentInner, { copyContent: content, speakContent: content });
   }
   
   messageContainer.classList.add("center-container");
@@ -959,7 +1020,12 @@ function drawKvpsIncremental(container, kvps, latex) {
         th = row.insertCell(0);
         th.classList.add("kvps-key");
       }
-      th.textContent = convertToTitleCase(key);
+      const iconName = extractIconFromKey(key);
+      if (iconName) {
+        th.innerHTML = `<span class="material-symbols-outlined">${iconName}</span>`;
+      } else {
+        th.textContent = convertToTitleCase(key);
+      }
 
       // Handle value cell
       let td = row.cells[1];
@@ -1224,7 +1290,7 @@ function createProcessGroup(id) {
   group.setAttribute("data-group-id", groupId);
   
   // Determine initial expansion state from current detail mode
-  const initiallyExpanded = processGroupStore.shouldExpandGroup();
+  const initiallyExpanded = preferencesStore.detailMode !== "collapsed";
   if (initiallyExpanded) {
     group.classList.add('expanded');
   }
@@ -1245,9 +1311,8 @@ function createProcessGroup(id) {
   `;
   
   // Add click handler for expansion
-  header.addEventListener("click", (e) => {
-    // Toggle group (store directly modifies DOM - single source of truth)
-    processGroupStore.toggleGroup(groupId);
+  header.addEventListener("click", () => {
+    group.classList.toggle("expanded");
   });
   
   group.appendChild(header);
@@ -1363,13 +1428,43 @@ function addStepCollapseInteractionHandlers(stepElement) {
 }
 
 /**
+ * Find parent delegation step for nested agents (DOM-first, reverse scan).
+ */
+function findParentDelegationStep(group, agentNumber) {
+  if (!group || agentNumber <= 0) return null;
+  const steps = group.querySelectorAll(".process-step");
+  for (let i = steps.length - 1; i >= 0; i -= 1) {
+    const step = steps[i];
+    const stepAgent = Number(step.getAttribute("data-agent-number"));
+    if (stepAgent === agentNumber - 1 && step.getAttribute("data-tool-name") === "call_subordinate") {
+      return step;
+    }
+  }
+  return null;
+}
+
+/**
  * Add a step to a process group
  */
-function addProcessStep(group, id, type, heading, content, kvps, timestamp = null, durationMs = null, agentNumber = 0) {
-  const groupId = group.getAttribute("data-group-id");
-  let stepsContainer = group.querySelector(".process-steps");
+function addProcessStep(group, stepData, detailPayload, copyContent, speakContent, detailHandler) {
+  const {
+    id,
+    type,
+    title,
+    heading,
+    content,
+    kvps,
+    timestamp,
+    durationMs,
+    agentNumber,
+    toolName,
+    statusCode,
+    statusClass
+  } = stepData;
+
+  const stepsContainer = group.querySelector(".process-steps");
   const isGroupCompleted = group.classList.contains("process-group-completed");
-  
+
   // Create step element
   const step = document.createElement("div");
   step.id = `process-step-${id}`;
@@ -1377,24 +1472,15 @@ function addProcessStep(group, id, type, heading, content, kvps, timestamp = nul
   step.setAttribute("data-type", type);
   step.setAttribute("data-step-id", id);
   step.setAttribute("data-agent-number", agentNumber);
-  
-  // Resolve tool name (direct, inherited, or null)
-  // For new steps, pass null as stepElement - inheritance uses stepsContainer query
-  let toolNameToUse = kvps?.tool_name;
-  if (type === 'tool' && !toolNameToUse) {
-    const existingSteps = stepsContainer.querySelectorAll('.process-step[data-tool-name]');
-    if (existingSteps.length > 0) {
-      toolNameToUse = existingSteps[existingSteps.length - 1].getAttribute("data-tool-name");
-    }
+
+  if (toolName) {
+    step.setAttribute("data-tool-name", toolName);
   }
-  if (toolNameToUse) {
-    step.setAttribute("data-tool-name", toolNameToUse);
-  }
-  
+
   // Store timestamp for duration calculation
   if (timestamp) {
     step.setAttribute("data-timestamp", timestamp);
-    
+
     // Set group start time from first log item
     if (!group.getAttribute("data-start-timestamp")) {
       group.setAttribute("data-start-timestamp", timestamp);
@@ -1408,12 +1494,12 @@ function addProcessStep(group, id, type, heading, content, kvps, timestamp = nul
       }
     }
   }
-  
+
   // Store duration from backend (used for final duration calculation)
   if (durationMs != null) {
     step.setAttribute("data-duration-ms", durationMs);
   }
-  
+
   // Add message-util class for utility/info types (controlled by showUtils preference)
   if (type === "util" || type === "info" || type === "hint") {
     step.classList.add("message-util");
@@ -1422,15 +1508,12 @@ function addProcessStep(group, id, type, heading, content, kvps, timestamp = nul
       step.classList.add("show-util");
     }
   }
-  
-  // Get step info from heading (single source of truth: backend)
-  const title = getStepTitle(heading, kvps, type);
-  
+
   // Determine if this new step should be expanded
   const detailMode = preferencesStore.detailMode;
   const isActiveGroup = group.classList.contains("active");
   let shouldExpand = false;
-  
+
   if (detailMode === "expanded") {
     shouldExpand = true;
   } else if (detailMode === "current") {
@@ -1438,7 +1521,7 @@ function addProcessStep(group, id, type, heading, content, kvps, timestamp = nul
     // For non-active groups (historical data), render steps collapsed immediately
     if (isActiveGroup && !isGroupCompleted) {
       shouldExpand = true;
-      
+
       // Schedule collapse for ALL previously expanded steps
       const allExpandedSteps = stepsContainer.querySelectorAll(".process-step.step-expanded");
       allExpandedSteps.forEach(expandedStep => {
@@ -1451,38 +1534,40 @@ function addProcessStep(group, id, type, heading, content, kvps, timestamp = nul
     // Non-active groups: shouldExpand stays false → steps render collapsed
   }
   // In "collapsed" mode: shouldExpand stays false
-  
+
   if (shouldExpand) {
     step.classList.add("step-expanded");
   }
-  
+
   // Create step header
   const stepHeader = document.createElement("div");
   stepHeader.classList.add("process-step-header");
-  
-  // Status code and color class from store (maps backend types)
-  const statusCode = processGroupStore.getStepCode(type, toolNameToUse);
-  const statusColorClass = processGroupStore.getStatusColorClass(type, toolNameToUse);
-  
+
+  const resolvedTitle = title || getStepTitle(heading, kvps, type);
+  const resolvedStatusCode = statusCode || getStatusCode(type, toolName);
+  const resolvedStatusClass = statusClass || getStatusClass(type, toolName);
+
   // Add status color class to step for cascading --step-accent to internal icons
-  step.classList.add(statusColorClass);
-  
+  step.classList.add(resolvedStatusClass);
+  step.setAttribute("data-status-code", resolvedStatusCode);
+  step.setAttribute("data-status-class", resolvedStatusClass);
+
   stepHeader.innerHTML = `
     <span class="step-expand-icon"></span>
-    <span class="status-badge ${statusColorClass}">${statusCode}</span>
-    <span class="step-title">${escapeHTML(title)}</span>
+    <span class="status-badge ${resolvedStatusClass}">${resolvedStatusCode}</span>
+    <span class="step-title">${escapeHTML(resolvedTitle)}</span>
   `;
-  
+
   // Add click handler for step expansion
   stepHeader.addEventListener("click", (e) => {
     e.stopPropagation();
-    
+
     // Cancel any scheduled auto-collapse (user is manually toggling)
     cancelStepCollapse(step);
-    
-    // Toggle step (store directly modifies DOM - single source of truth)
-    processGroupStore.toggleStep(groupId, id);
-    
+
+    // Toggle step
+    step.classList.toggle("step-expanded");
+
     // If manually expanded, set pinned flag to prevent auto-collapse
     // If collapsed, remove it
     if (step.classList.contains("step-expanded")) {
@@ -1491,70 +1576,60 @@ function addProcessStep(group, id, type, heading, content, kvps, timestamp = nul
       step.removeAttribute("data-user-pinned");
     }
   });
-  
+
   step.appendChild(stepHeader);
-  
+
   // Create step detail container
   const detail = document.createElement("div");
   detail.classList.add("process-step-detail");
-  
+
   const detailContent = document.createElement("div");
   detailContent.classList.add("process-step-detail-content");
-  
+
   // Add content to detail
   renderStepDetailContent(detailContent, content, kvps, type);
-  
+
   detail.appendChild(detailContent);
-  
-  // Store step data on the element for fresh access on modal open
-  step._stepData = {
-    type,
-    heading,
-    content,
-    kvps,
-    timestamp,
-    durationMs,
-    agentNumber,
-    toolName: toolNameToUse
-  };
-  
+
   // Add step action buttons (view details, copy, speak)
-  const stepActionBtns = createStepActionButtons(step);
+  const stepActionBtns = document.createElement("div");
+  stepActionBtns.classList.add("step-detail-actions");
+  addActionButtonsToElement(stepActionBtns, {
+    detailPayload,
+    onViewDetails: detailHandler,
+    copyContent,
+    speakContent
+  });
   detail.appendChild(stepActionBtns);
-  
+
   step.appendChild(detail);
-  
-  // Track delegation steps for nesting
-  if (toolNameToUse === "call_subordinate") {
-    currentDelegationSteps[agentNumber] = step;
-  }
-  
+
   // Determine where to append the step (main list or nested in parent)
   let appendTarget = stepsContainer;
-  
+
   // Check if this step belongs to a subordinate agent
-  if (agentNumber > 0 && currentDelegationSteps[agentNumber - 1]) {
-    const parentStep = currentDelegationSteps[agentNumber - 1];
+  const parentStep = findParentDelegationStep(group, agentNumber);
+  if (parentStep) {
     appendTarget = getNestedContainer(parentStep);
     step.classList.add("nested-step");
   }
-  
+
   // Clear shiny effect from all previous steps in this group
   group.querySelectorAll(".process-step .step-title.shiny-text").forEach(el => {
     el.classList.remove("shiny-text");
   });
-  
+
   appendTarget.appendChild(step);
-  
+
   // Add interaction handlers to prevent fighting with user during auto-collapse
   addStepCollapseInteractionHandlers(step);
-  
+
   // Scroll terminal to bottom on initial render (including page refresh)
   const initialTerminal = step.querySelector(".terminal-output");
   if (initialTerminal) {
     initialTerminal.scrollTop = initialTerminal.scrollHeight;
   }
-  
+
   // Update group header
   updateProcessGroupHeader(group);
 
@@ -1565,48 +1640,76 @@ function addProcessStep(group, id, type, heading, content, kvps, timestamp = nul
       titleEl.classList.add("shiny-text");
     }
   }
-  
+
   return step;
 }
 
 /**
  * Update an existing process step
  */
-function updateProcessStep(stepElement, id, type, heading, content, kvps, durationMs = null, agentNumber = 0) {
-  // Update title
+function updateProcessStep(stepElement, stepData, detailPayload, copyContent, speakContent, detailHandler) {
+  const {
+    type,
+    title,
+    heading,
+    content,
+    kvps,
+    timestamp,
+    durationMs,
+    agentNumber,
+    toolName,
+    statusCode,
+    statusClass
+  } = stepData;
+
   const titleEl = stepElement.querySelector(".step-title");
   if (titleEl) {
-    const title = getStepTitle(heading, kvps, type);
-    titleEl.textContent = title;
+    const resolvedTitle = title || getStepTitle(heading, kvps, type);
+    titleEl.textContent = resolvedTitle;
   }
-  
-  // Update duration from backend
+
+  if (timestamp && !stepElement.hasAttribute("data-timestamp")) {
+    stepElement.setAttribute("data-timestamp", timestamp);
+  }
+
   if (durationMs != null) {
     stepElement.setAttribute("data-duration-ms", durationMs);
   }
-  
-  // Update agent number if provided
+
   if (agentNumber !== undefined) {
     stepElement.setAttribute("data-agent-number", agentNumber);
   }
-  
-  // Resolve and update tool name + badge
-  const toolNameToUse = resolveToolName(type, kvps, stepElement);
+
+  const toolNameToUse = resolveToolName(type, kvps, stepElement) || toolName;
   if (toolNameToUse) {
     stepElement.setAttribute("data-tool-name", toolNameToUse);
-    const newCode = processGroupStore.getStepCode(type, toolNameToUse);
-    updateBadgeText(stepElement.querySelector(".status-badge"), newCode);
   }
-  
+
+  const resolvedStatusCode = statusCode || getStatusCode(type, toolNameToUse);
+  const resolvedStatusClass = statusClass || getStatusClass(type, toolNameToUse);
+  const badge = stepElement.querySelector(".status-badge");
+  if (badge) {
+    updateBadgeText(badge, resolvedStatusCode);
+    badge.className = `status-badge ${resolvedStatusClass}`;
+  }
+
+  const previousStatusClass = stepElement.getAttribute("data-status-class");
+  if (previousStatusClass) {
+    stepElement.classList.remove(previousStatusClass);
+  }
+  stepElement.classList.add(resolvedStatusClass);
+  stepElement.setAttribute("data-status-code", resolvedStatusCode);
+  stepElement.setAttribute("data-status-class", resolvedStatusClass);
+
   // Update detail content
   const detailContent = stepElement.querySelector(".process-step-detail-content");
   let skipFullRender = false;
-  
+
   if (detailContent) {
     // Capture scroll state before re-render (uses existing Scroller pattern)
     const terminal = detailContent.querySelector(".terminal-output");
     const scroller = terminal ? new Scroller(terminal) : null;
-    
+
     // For browser, update image src incrementally to avoid flashing
     if (type === "browser" && kvps?.screenshot) {
       const existingImg = detailContent.querySelector(".screenshot-img");
@@ -1620,10 +1723,10 @@ function updateProcessStep(stepElement, id, type, heading, content, kvps, durati
         skipFullRender = true;
       }
     }
-    
+
     if (!skipFullRender) {
       renderStepDetailContent(detailContent, content, kvps, type);
-      
+
       // Re-apply scroll (stays at bottom if was at bottom)
       const newTerminal = detailContent.querySelector(".terminal-output");
       if (newTerminal && scroller?.wasAtBottom) {
@@ -1631,20 +1734,26 @@ function updateProcessStep(stepElement, id, type, heading, content, kvps, durati
       }
     }
   }
-  
-  // Update stored step data for fresh access by modal
-  const timestamp = stepElement._stepData?.timestamp; // preserve original timestamp
-  stepElement._stepData = {
-    type,
-    heading,
-    content,
-    kvps,
-    timestamp,
-    durationMs,
-    agentNumber,
-    toolName: toolNameToUse
-  };
-  
+
+  const detailData = detailPayload || buildDetailPayload({
+    ...stepData,
+    toolName: toolNameToUse,
+    statusCode: resolvedStatusCode,
+    statusClass: resolvedStatusClass
+  });
+
+  const stepActions = stepElement.querySelector(".step-detail-actions") || document.createElement("div");
+  if (!stepActions.classList.contains("step-detail-actions")) {
+    stepActions.classList.add("step-detail-actions");
+    stepElement.querySelector(".process-step-detail")?.appendChild(stepActions);
+  }
+  addActionButtonsToElement(stepActions, {
+    detailPayload: detailData,
+    onViewDetails: detailHandler,
+    copyContent,
+    speakContent
+  });
+
   // Update parent group header
   const group = stepElement.closest(".process-group");
   if (group) {
@@ -1697,12 +1806,11 @@ function getStepTitle(heading, kvps, type) {
 }
 
 /**
- * Extract icon name from heading with icon:// prefix
- * Returns the icon name (e.g., "terminal") or null if no prefix found
+ * Extract icon name from a key with icon:// prefix
  */
-function extractIconFromHeading(heading) {
-  if (!heading) return null;
-  const match = String(heading).match(/^icon:\/\/([a-zA-Z0-9_]+)/);
+function extractIconFromKey(key) {
+  if (!key) return null;
+  const match = String(key).match(/^icon:\/\/([a-zA-Z0-9_]+)/);
   return match ? match[1] : null;
 }
 
@@ -1830,25 +1938,6 @@ function renderStepDetailContent(container, content, kvps, type = null) {
         const argsDiv = document.createElement("div");
         argsDiv.classList.add("step-tool-args");
         
-        // Icon mapping for common tool arguments
-        const argIcons = {
-          'query': 'search',
-          'url': 'link',
-          'path': 'folder',
-          'file': 'description',
-          'code': 'code',
-          'command': 'terminal',
-          'message': 'chat',
-          'text': 'notes',
-          'content': 'article',
-          'name': 'label',
-          'id': 'tag',
-          'type': 'category',
-          'document': 'description',
-          'documents': 'folder_open',
-          'queries': 'search'
-        };
-        
         for (const [argKey, argValue] of Object.entries(value)) {
           const argRow = document.createElement("div");
           argRow.classList.add("tool-arg-row");
@@ -1856,10 +1945,9 @@ function renderStepDetailContent(container, content, kvps, type = null) {
           const argLabel = document.createElement("span");
           argLabel.classList.add("tool-arg-label");
           
-          // Use icon if available, otherwise use text label
-          const lowerArgKey = argKey.toLowerCase();
-          if (argIcons[lowerArgKey]) {
-            argLabel.innerHTML = `<span class="material-symbols-outlined">${argIcons[lowerArgKey]}</span>`;
+          const iconName = extractIconFromKey(argKey);
+          if (iconName) {
+            argLabel.innerHTML = `<span class="material-symbols-outlined">${iconName}</span>`;
           } else {
             argLabel.textContent = convertToTitleCase(argKey) + ":";
           }
@@ -1886,32 +1974,9 @@ function renderStepDetailContent(container, content, kvps, type = null) {
       const keySpan = document.createElement("span");
       keySpan.classList.add("step-kvp-key");
       
-      // Icon mapping for common kvp keys
-      const kvpIcons = {
-        'query': 'search',
-        'url': 'link',
-        'path': 'folder',
-        'file': 'description',
-        'code': 'code',
-        'command': 'terminal',
-        'message': 'chat',
-        'text': 'notes',
-        'content': 'article',
-        'name': 'label',
-        'id': 'tag',
-        'type': 'category',
-        'runtime': 'memory',
-        'result': 'output',
-        'progress': 'pending',
-        'document': 'description',
-        'documents': 'folder_open',
-        'queries': 'search',
-        'screenshot': 'image'
-      };
-      
-      // lowerKey already defined above
-      if (kvpIcons[lowerKey]) {
-        keySpan.innerHTML = `<span class="material-symbols-outlined">${kvpIcons[lowerKey]}</span>`;
+      const iconName = extractIconFromKey(key);
+      if (iconName) {
+        keySpan.innerHTML = `<span class="material-symbols-outlined">${iconName}</span>`;
       } else {
         keySpan.textContent = convertToTitleCase(key) + ":";
       }
@@ -1972,40 +2037,6 @@ function renderThoughts(container, value) {
   }
 }
 
-/**
- * Create step action buttons (view details, copy, speak) using unified action buttons
- * @param {HTMLElement} stepElement - The step DOM element containing _stepData property
- */
-function createStepActionButtons(stepElement) {
-  const btnContainer = document.createElement("div");
-  btnContainer.classList.add("step-detail-actions");
-  
-  // Use unified action buttons with step-specific options
-  addActionButtonsToElement(btnContainer, {
-    contentRef: () => {
-      // Get text content from step data at action time
-      const data = stepElement._stepData || {};
-      const parts = [];
-      if (data.heading) parts.push(data.heading);
-      if (data.content) parts.push(data.content);
-      if (data.kvps) {
-        for (const [key, value] of Object.entries(data.kvps)) {
-          if (key === "reasoning" || key === "finished" || key === "attachments") continue;
-          const valStr = typeof value === "object" ? JSON.stringify(value, null, 2) : String(value);
-          parts.push(`${key}: ${valStr}`);
-        }
-      }
-      return parts.join("\n\n");
-    },
-    onViewDetails: () => {
-      // Read fresh data from the step element at click time
-      const freshData = stepElement._stepData || {};
-      stepDetailStore.showStepDetail(freshData);
-    }
-  });
-  
-  return btnContainer;
-}
 
 /**
  * Update process group header with step count, status, and metrics
@@ -2120,10 +2151,9 @@ function updateProcessGroupHeader(group) {
     
     // Update status badge
     if (statusEl) {
-      // Status code and color class from store (maps backend types)
-      const statusCode = processGroupStore.getStepCode(lastType, lastToolName);
-      const statusColorClass = processGroupStore.getStatusColorClass(lastType, lastToolName);
-      
+      const statusCode = getStatusCode(lastType, lastToolName);
+      const statusColorClass = getStatusClass(lastType, lastToolName);
+
       statusEl.textContent = statusCode;
       statusEl.className = `status-badge ${statusColorClass} group-status`;
     }
@@ -2212,33 +2242,4 @@ function markProcessGroupComplete(group, responseTitle) {
   }
 }
 
-/**
- * Reset process group state (called on context switch)
- */
-export function resetProcessGroups() {
-  currentProcessGroup = null;
-  currentDelegationSteps = {};
-  messageGroup = null;
-  
-  // Clear shiny effect from DOM (source of truth)
-  clearActiveStepShine();
-  
-  // Clear all pending collapse timeouts
-  document
-    .querySelectorAll('.process-step[data-collapse-timeout-id]')
-    .forEach((el) => cancelStepCollapse(el));
-}
 
-/**
- * Format Unix timestamp as date-time string (YYYY-MM-DD HH:MM:SS)
- */
-function formatDateTime(timestamp) {
-  const date = new Date(timestamp * 1000); // Convert seconds to milliseconds
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  const hours = String(date.getHours()).padStart(2, "0");
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-  const seconds = String(date.getSeconds()).padStart(2, "0");
-  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-}

@@ -1,7 +1,7 @@
 import { createStore } from "/js/AlpineStore.js";
 import * as css from "/js/css.js";
 import { store as speechStore } from "/components/chat/speech/speech-store.js";
-import { store as processGroupStore } from "/components/messages/process-group/process-group-store.js";
+import { applyModeSteps } from "/components/messages/process-group/process-group-dom.js";
 
 // Preferences store centralizes user preference toggles and side-effects
 const model = {
@@ -156,11 +156,29 @@ const model = {
       value ? undefined : "none"
     );
     // For process steps - toggle class on all existing elements
-    document.querySelectorAll(".process-step.message-util").forEach((el) => {
-      el.classList.toggle("show-util", value);
-    });
+    const chatHistory = document.getElementById("chat-history");
+    if (chatHistory) {
+      const groups = chatHistory.children;
+      for (let gi = groups.length - 1; gi >= 0; gi -= 1) {
+        const messageGroup = groups[gi];
+        const containers = messageGroup.children;
+        for (let ci = containers.length - 1; ci >= 0; ci -= 1) {
+          const container = containers[ci];
+          if (!container.classList.contains("has-process-group")) continue;
+          const processGroup = container.querySelector(".process-group");
+          if (!processGroup) continue;
+          const steps = processGroup.getElementsByClassName("process-step");
+          for (let si = 0; si < steps.length; si += 1) {
+            const step = steps[si];
+            if (step.classList.contains("message-util")) {
+              step.classList.toggle("show-util", value);
+            }
+          }
+        }
+      }
+    }
     // Re-apply detail mode to reset current visible step
-    processGroupStore.applyModeSteps();
+    applyModeSteps(this._detailMode, this._showUtils);
   },
 
   _applyChatWidth(value) {
@@ -177,7 +195,7 @@ const model = {
   _applyDetailMode(value) {
     localStorage.setItem("detailMode", value);
     // Apply mode to all existing DOM elements
-    processGroupStore.applyModeSteps();
+    applyModeSteps(this._detailMode, this._showUtils);
   },
 };
 
