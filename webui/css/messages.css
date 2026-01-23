@@ -17,7 +17,7 @@
   scrollbar-color: #555 transparent;
   padding-left: var(--spacing-sm);
   padding-right: var(--spacing-sm);
-  padding-bottom:5em;
+  padding-bottom: 5em;
 }
 
 #chat-history > *:first-child {
@@ -70,7 +70,6 @@
   margin: 0;
 }
 
-
 .message.message-user {
   text-align: end;
   margin-bottom: var(--spacing-md);
@@ -117,12 +116,10 @@
   color: #2e2e2e;
 } */
 
-
 .message-center {
   align-self: center;
   /* border-bottom-left-radius: unset; */
 }
-
 
 .message-followup .message {
   border-radius: 0;
@@ -333,7 +330,9 @@
   border-width: 4px 0 4px 6px;
   border-color: transparent transparent transparent #ef4444;
   opacity: 0.7;
-  transition: transform 0.2s ease, opacity 0.15s ease;
+  transition:
+    transform 0.2s ease,
+    opacity 0.15s ease;
   flex-shrink: 0;
   font-size: 0;
   margin-right: 2px;
@@ -375,10 +374,11 @@
   opacity: 0;
   margin-top: 0;
   padding-top: 0;
-  transition: grid-template-rows 0.25s ease-out, 
-              opacity 0.2s ease-out,
-              margin-top 0.25s ease-out,
-              padding-top 0.25s ease-out;
+  transition:
+    grid-template-rows 0.25s ease-out,
+    opacity 0.2s ease-out,
+    margin-top 0.25s ease-out,
+    padding-top 0.25s ease-out;
   overflow: hidden;
 }
 
@@ -415,7 +415,6 @@
   scrollbar-color: var(--color-error-text) transparent;
 }
 
-
 /* Terminal styling moved to new terminal block above */
 
 /* Agent and AI Info */
@@ -433,21 +432,24 @@
   width: 100%;
 }
 
+.kvps-val{
+  font-size: 0.75rem;
+}
+
 .kvps-val pre {
   white-space: pre-wrap; /* keep \n, collapse no spaces, allow wrapping */
   word-break: break-word; /* optional – forces really long “words” to break */
   font-family: var(--font-family-code);
   font-optical-sizing: auto;
   -webkit-font-optical-sizing: auto;
-  font-size: 0.75rem;
 }
 
 .msg-kvps th,
 .msg-kvps td {
-  align-content: center;
+  align-content: start;
   padding: 0.25rem;
   padding-left: 0;
-  text-align: left;
+  /* text-align: left; */
 }
 
 .msg-kvps th {
@@ -510,12 +512,19 @@
 .kvps-key {
   font-weight: 500;
   font-size: var(--font-size-small);
-  min-width: 7em;
+  /* min-width: 7em; */
+  max-width: 10em;
+  text-align: right;
+}
+
+.kvps-key .material-symbols-outlined{
+  font-size: var(--font-size-smaller);
 }
 
 .kvps-val {
   /* margin: 0.65rem 0 0.65rem 0.4rem; */
   white-space: pre-wrap;
+  font-size: var(--font-size-small);
 }
 
 .kvps-img {
@@ -531,18 +540,6 @@
   width: 100%;
 }
 
-.msg-json {
-  display: none;
-}
-
-.msg-thoughts {
-  display: auto;
-}
-
-.msg-thoughts .kvps-val {
-  max-height: 20em;
-  overflow: auto;
-}
 
 .msg-content {
   margin-bottom: 0;
@@ -550,13 +547,6 @@
   overflow: hidden;
 }
 
-.message-temp {
-  display: none;
-}
-
-.message-temp:not([style*="display: none"]):last-of-type {
-  display: block; /* or any style you want for visibility */
-}
 
 /* Math (KaTeX) */
 .katex {
@@ -568,8 +558,14 @@
 /* Chat width controlled by --chat-max-width CSS variable (set via preferences, default 55em) */
 @media (min-width: 1025px) {
   #chat-history {
-    padding-left: max(var(--spacing-sm), calc((100% - var(--chat-max-width, 55em)) / 2)) !important;
-    padding-right: max(var(--spacing-sm), calc((100% - var(--chat-max-width, 55em)) / 2)) !important;
+    padding-left: max(
+      var(--spacing-sm),
+      calc((100% - var(--chat-max-width, 55em)) / 2)
+    ) !important;
+    padding-right: max(
+      var(--spacing-sm),
+      calc((100% - var(--chat-max-width, 55em)) / 2)
+    ) !important;
   }
 }
 
@@ -628,7 +624,6 @@
   border-bottom: none;
 }
 
-
 .light-mode .message-user {
   color: #4e4e4e;
 }
@@ -647,13 +642,16 @@
   max-width: 25em;
   max-height: 25em;
   border-radius: var(--border-radius);
-  background: repeating-linear-gradient(45deg, var(--color-panel) 0 10px, var(--color-chat-background) 10px 20px);
+  background: repeating-linear-gradient(
+    45deg,
+    var(--color-panel) 0 10px,
+    var(--color-chat-background) 10px 20px
+  );
 }
 
-.message-agent-response .msg-content .message-markdown-image-wrap img:hover{
+.message-agent-response .msg-content .message-markdown-image-wrap img:hover {
   transform: translateY(-2px);
 }
-
 
 .msg-content h1 {
   font-size: 1.25em;
@@ -767,7 +765,7 @@
   width: 100%;
   justify-content: end;
   margin-top: 4em;
-  margin-bottom:4em;
+  margin-bottom: 4em;
 }
 
 .message-container {

@@ -1099,45 +1099,6 @@ input:checked + .slider:before {
   }
 }
 
-@media (max-width: 768px) {
-  /* .copy-button {
-    display: none !important;
-  } */
-
-  /* .msg-content span,
-  .kvps-val,
-  .message-text span {
-    cursor: pointer;
-    position: relative;
-  } */
-
-  /* .msg-thoughts span::after,
-  .msg-content span::after,
-  .kvps-val::after,
-  .message-text::after {
-    content: "Copied!";
-    position: absolute;
-    opacity: 0;
-    font-family: "Rubik", Arial, Helvetica, sans-serif;
-    font-size: 0.7rem;
-    padding: 6px var(--spacing-sm);
-    -webkit-transition: opacity var(--transition-speed) ease-in-out;
-    transition: opacity var(--transition-speed) ease-in-out;
-    right: 0px;
-    top: 0px;
-    background-color: var(--color-background);
-    border: none;
-    border-radius: 5px;
-    color: inherit;
-  } */
-
-  /* .msg-thoughts span.copied::after,
-  .msg-content span.copied::after,
-  .kvps-val.copied::after,
-  .message-text.copied::after {
-    opacity: 1;
-  } */
-}
 
 @media (max-height: 600px) {
   /* consistent font sizing */

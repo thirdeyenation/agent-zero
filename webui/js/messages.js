@@ -73,7 +73,7 @@ const TYPE_STATUS_CLASSES = {
   done: "status-end"
 };
 
-const chatHistory = document.getElementById("chat-history");
+let chatHistory = null;
 
 // handlers for log message rendering
 export function getMessageHandler(type) {
@@ -124,7 +124,7 @@ function setActiveProcessGroup(group) {
   if (group.classList.contains("active")) return;
   
   // Clear active + shiny from all other groups
-  document.querySelectorAll(".process-group.active").forEach(g => {
+  getChatHistoryEl().querySelectorAll(".process-group.active").forEach(g => {
     if (g !== group) {
       g.classList.remove("active");
       g.querySelectorAll(".step-title.shiny-text").forEach(el => el.classList.remove("shiny-text"));
@@ -137,13 +137,14 @@ function setActiveProcessGroup(group) {
 
 export function clearActiveStepShine() {
   // Clear all shiny step titles in process steps
-  document.querySelectorAll(".process-step .step-title.shiny-text").forEach((el) => {
+  getChatHistoryEl().querySelectorAll(".process-step .step-title.shiny-text").forEach((el) => {
     el.classList.remove("shiny-text");
   });
 }
 
 function getChatHistoryEl() {
-  return chatHistory || document.getElementById("chat-history");
+  if(!chatHistory) chatHistory = document.getElementById("chat-history");
+  return chatHistory;
 }
 
 function getLastMessageContainer() {
@@ -224,9 +225,11 @@ function updateBadgeText(badge, newCode) {
 
 
 // entrypoint called from poll/WS communication, this is how all messages are rendered and updated
-export function setMessage(id, type, heading, content, kvps = null, timestamp = null, durationMs = null, agentNumber = 0) {
+// input is raw log format
+export function setMessage({ no, id, type, heading, content, kvps, timestamp, agentno, ...additional }) {
   const handler = getMessageHandler(type);
-  return handler(id, type, heading, content, kvps, timestamp, durationMs, agentNumber);
+  // prefer log ID if set to match user message created on frontend with backend updates 
+  return handler({ id: id || no, type, heading, content, kvps, timestamp, agentno, ...additional });
 }
 
 function getOrCreateMessageContainer(id, position, containerClasses = [], forceNewGroup = false) {
@@ -287,8 +290,7 @@ function buildDetailPayload(stepData) {
     content: stepData.content,
     kvps: stepData.kvps,
     timestamp: stepData.timestamp,
-    durationMs: stepData.durationMs,
-    agentNumber: stepData.agentNumber,
+    agentno: stepData.agentno,
     toolName: stepData.toolName,
     statusCode: stepData.statusCode,
     statusClass: stepData.statusClass
@@ -310,17 +312,24 @@ function buildStepCopyContent(stepData) {
   return parts.join("\n\n");
 }
 
-function drawProcessStep(id, title, statusClass, statusCode, kvps = null, detailHandler = null, copyContent = null, speakContent = null, options = {}) {
-  const {
-    type = "agent",
-    heading = null,
-    content = null,
-    timestamp = null,
-    durationMs = null,
-    agentNumber = 0,
-    toolName = null,
-    detailPayload = null
-  } = options;
+function drawProcessStep({
+  id,
+  title,
+  statusClass,
+  statusCode,
+  kvps = null,
+  detailHandler = null,
+  copyContent = null,
+  speakContent = null,
+  type = "agent",
+  heading = null,
+  content = null,
+  timestamp = null,
+  agentno = 0,
+  toolName = null,
+  detailPayload = null,
+  ...additional
+}) {
 
   const group = getOrCreateProcessGroup(id);
   const stepId = `process-step-${id}`;
@@ -332,8 +341,7 @@ function drawProcessStep(id, title, statusClass, statusCode, kvps = null, detail
     content,
     kvps,
     timestamp,
-    durationMs,
-    agentNumber,
+    agentno,
     toolName,
     statusCode,
     statusClass
@@ -344,12 +352,10 @@ function drawProcessStep(id, title, statusClass, statusCode, kvps = null, detail
   const copyText = copyContent ?? buildStepCopyContent(stepData);
   const speakText = speakContent ?? copyText;
 
-  if (step) {
+  if (step) 
     updateProcessStep(step, stepData, detailData, copyText, speakText, detailHandler);
-    return step;
-  }
-
-  step = addProcessStep(group, stepData, detailData, copyText, speakText, detailHandler);
+  else
+    step = addProcessStep(group, stepData, detailData, copyText, speakText, detailHandler);
   return step;
 }
 
@@ -537,7 +543,7 @@ export function addBlankTargetsToLinks(str) {
   return doc.body.innerHTML;
 }
 
-export function drawMessageDefault(id, type, heading, content, kvps = null) {
+export function drawMessageDefault({ id, heading, content, kvps = null, ...additional }) {
   return drawStandaloneMessage(id, heading, content, {
     position: "left",
     containerClasses: ["ai-container"],
@@ -548,37 +554,44 @@ export function drawMessageDefault(id, type, heading, content, kvps = null) {
   });
 }
 
-export function drawMessageAgent(id, type, heading, content, kvps = null, timestamp = null, durationMs = null, agentNumber = 0) {
+export function drawMessageAgent({ id, type, heading, content, kvps = null, timestamp = null, agentno = 0, ...additional }) {
   const title = getStepTitle(heading, kvps, type);
   const statusCode = getStatusCode(type);
   const statusClass = getStatusClass(type);
   const toolName = kvps?.tool_name || null;
+  let displayKvps = { "icon://lightbulb": kvps?.thoughts, "icon://step": heading, "icon school":"dummy" }
 
-  return drawProcessStep(id, title, statusClass, statusCode, kvps, null, null, null, {
+  return drawProcessStep({
+    id,
+    title,
+    statusClass,
+    statusCode,
+    kvps: displayKvps,
     type,
     heading,
     content,
-    kvps,
     timestamp,
-    durationMs,
-    agentNumber,
+    agentno,
     toolName
   });
 }
 
-export function drawMessageResponse(id, type, heading, content, kvps = null, timestamp = null, durationMs = null, agentNumber = 0) {
-  if (agentNumber && agentNumber > 0) {
+export function drawMessageResponse({ id, type, heading, content, kvps = null, timestamp = null, agentno = 0, ...additional }) {
+  if (agentno && agentno > 0) {
     const title = getStepTitle(heading, kvps, type);
     const statusCode = getStatusCode(type);
     const statusClass = getStatusClass(type);
-    return drawProcessStep(id, title, statusClass, statusCode, kvps, null, null, null, {
+    return drawProcessStep({
+      id,
+      title,
+      statusClass,
+      statusCode,
+      kvps,
       type,
       heading,
       content,
-      kvps,
       timestamp,
-      durationMs,
-      agentNumber
+      agentno
     });
   }
 
@@ -599,7 +612,7 @@ export function drawMessageResponse(id, type, heading, content, kvps = null, tim
 }
 
 
-export function drawMessageUser(id, type, heading, content, kvps = null) {
+export function drawMessageUser({ id, heading, content, kvps = null, ...additional }) {
   const messageContainer = getOrCreateMessageContainer(id, "right", ["user-container"], true);
 
   // Find existing message div or create new one
@@ -707,92 +720,107 @@ export function drawMessageUser(id, type, heading, content, kvps = null) {
   addActionButtonsToElement(messageDiv, { copyContent: content || "", speakContent: content || "" });
 }
 
-export function drawMessageTool(id, type, heading, content, kvps = null, timestamp = null, durationMs = null, agentNumber = 0) {
+export function drawMessageTool({ id, type, heading, content, kvps = null, timestamp = null, agentno = 0, ...additional }) {
   const toolName = kvps?.tool_name || null;
   const title = getStepTitle(heading, kvps, type);
   const statusCode = getStatusCode(type, toolName);
   const statusClass = getStatusClass(type, toolName);
 
-  return drawProcessStep(id, title, statusClass, statusCode, kvps, null, null, null, {
+  return drawProcessStep({
+    id,
+    title,
+    statusClass,
+    statusCode,
+    kvps,
     type,
     heading,
     content,
-    kvps,
     timestamp,
-    durationMs,
-    agentNumber,
+    agentno,
     toolName
   });
 }
 
-export function drawMessageCodeExe(id, type, heading, content, kvps = null, timestamp = null, durationMs = null, agentNumber = 0) {
+export function drawMessageCodeExe({ id, type, heading, content, kvps = null, timestamp = null, agentno = 0, ...additional }) {
   const title = getStepTitle(heading, kvps, type);
   const statusCode = getStatusCode(type);
   const statusClass = getStatusClass(type);
 
-  return drawProcessStep(id, title, statusClass, statusCode, kvps, null, null, null, {
+  return drawProcessStep({
+    id,
+    title,
+    statusClass,
+    statusCode,
+    kvps,
     type,
     heading,
     content,
-    kvps,
     timestamp,
-    durationMs,
-    agentNumber
+    agentno
   });
 }
 
-export function drawMessageBrowser(id, type, heading, content, kvps = null, timestamp = null, durationMs = null, agentNumber = 0) {
+export function drawMessageBrowser({ id, type, heading, content, kvps = null, timestamp = null, agentno = 0, ...additional }) {
   const title = getStepTitle(heading, kvps, type);
   const statusCode = getStatusCode(type);
   const statusClass = getStatusClass(type);
 
-  return drawProcessStep(id, title, statusClass, statusCode, kvps, null, null, null, {
+  return drawProcessStep({
+    id,
+    title,
+    statusClass,
+    statusCode,
+    kvps,
     type,
     heading,
     content,
-    kvps,
     timestamp,
-    durationMs,
-    agentNumber
+    agentno
   });
 }
 
-export function drawMessageMcp(id, type, heading, content, kvps = null, timestamp = null, durationMs = null, agentNumber = 0) {
+export function drawMessageMcp({ id, type, heading, content, kvps = null, timestamp = null, agentno = 0, ...additional }) {
   const toolName = kvps?.tool_name || null;
   const title = getStepTitle(heading, kvps, type);
   const statusCode = getStatusCode(type, toolName);
   const statusClass = getStatusClass(type, toolName);
 
-  return drawProcessStep(id, title, statusClass, statusCode, kvps, null, null, null, {
+  return drawProcessStep({
+    id,
+    title,
+    statusClass,
+    statusCode,
+    kvps,
     type,
     heading,
     content,
-    kvps,
     timestamp,
-    durationMs,
-    agentNumber,
+    agentno,
     toolName
   });
 }
 
-export function drawMessageSubagent(id, type, heading, content, kvps = null, timestamp = null, durationMs = null, agentNumber = 0) {
+export function drawMessageSubagent({ id, type, heading, content, kvps = null, timestamp = null, agentno = 0, ...additional }) {
   const title = getStepTitle(heading, kvps, type);
   const statusCode = getStatusCode(type);
   const statusClass = getStatusClass(type);
 
-  return drawProcessStep(id, title, statusClass, statusCode, kvps, null, null, null, {
+  return drawProcessStep({
+    id,
+    title,
+    statusClass,
+    statusCode,
+    kvps,
     type,
     heading,
     content,
-    kvps,
     timestamp,
-    durationMs,
-    agentNumber
+    agentno
   });
 }
 
 
-export function drawMessageInfo(id, type, heading, content, kvps = null) {
+export function drawMessageInfo({ id, heading, content, kvps = null, ...additional }) {
   return drawStandaloneMessage(id, heading, content, {
     position: "mid",
     containerClasses: ["ai-container", "center-container"],
@@ -801,55 +829,64 @@ export function drawMessageInfo(id, type, heading, content, kvps = null) {
   });
 }
 
-export function drawMessageUtil(id, type, heading, content, kvps = null, timestamp = null, durationMs = null, agentNumber = 0) {
+export function drawMessageUtil({ id, type, heading, content, kvps = null, timestamp = null, agentno = 0, ...additional }) {
   const title = getStepTitle(heading, kvps, type);
   const statusCode = getStatusCode(type);
   const statusClass = getStatusClass(type);
 
-  return drawProcessStep(id, title, statusClass, statusCode, kvps, null, null, null, {
+  return drawProcessStep({
+    id,
+    title,
+    statusClass,
+    statusCode,
+    kvps,
     type,
     heading,
     content,
-    kvps,
     timestamp,
-    durationMs,
-    agentNumber
+    agentno
   });
 }
 
-export function drawMessageHint(id, type, heading, content, kvps = null, timestamp = null, durationMs = null, agentNumber = 0) {
+export function drawMessageHint({ id, type, heading, content, kvps = null, timestamp = null, agentno = 0, ...additional }) {
   const title = getStepTitle(heading, kvps, type);
   const statusCode = getStatusCode(type);
   const statusClass = getStatusClass(type);
 
-  return drawProcessStep(id, title, statusClass, statusCode, kvps, null, null, null, {
+  return drawProcessStep({
+    id,
+    title,
+    statusClass,
+    statusCode,
+    kvps,
     type,
     heading,
     content,
-    kvps,
     timestamp,
-    durationMs,
-    agentNumber
+    agentno
   });
 }
 
-export function drawMessageProgress(id, type, heading, content, kvps = null, timestamp = null, durationMs = null, agentNumber = 0) {
+export function drawMessageProgress({ id, type, heading, content, kvps = null, timestamp = null, agentno = 0, ...additional }) {
   const title = getStepTitle(heading, kvps, type);
   const statusCode = getStatusCode(type);
   const statusClass = getStatusClass(type);
 
-  return drawProcessStep(id, title, statusClass, statusCode, kvps, null, null, null, {
+  return drawProcessStep({
+    id,
+    title,
+    statusClass,
+    statusCode,
+    kvps,
     type,
     heading,
     content,
-    kvps,
     timestamp,
-    durationMs,
-    agentNumber
+    agentno
   });
 }
 
-export function drawMessageWarning(id, type, heading, content, kvps = null) {
+export function drawMessageWarning({ id, heading, content, kvps = null, ...additional }) {
   return drawStandaloneMessage(id, heading, content, {
     position: "mid",
     containerClasses: ["ai-container", "center-container"],
@@ -858,7 +895,7 @@ export function drawMessageWarning(id, type, heading, content, kvps = null) {
   });
 }
 
-export function drawMessageError(id, type, heading, content, kvps = null) {
+export function drawMessageError({ id, heading, content, kvps = null, ...additional }) {
   const messageContainer = getOrCreateMessageContainer(id, "mid", ["ai-container", "center-container"]);
 
   // Create or get the message div
@@ -1010,9 +1047,6 @@ function drawKvpsIncremental(container, kvps, latex) {
 
       // Update row classes
       row.className = "kvps-row";
-      if (key === "thoughts") {
-        row.classList.add("msg-thoughts");
-      }
 
       // Handle key cell
       let th = row.querySelector(".kvps-key");
@@ -1083,11 +1117,12 @@ function drawKvpsIncremental(container, kvps, latex) {
           imageViewerStore.open(imgElement.src, { refreshInterval: 1000 });
         });
       } else {
-        const pre = document.createElement("pre");
+        // const pre = document.createElement("pre");
         const span = document.createElement("span");
         span.innerHTML = convertHTML(value);
-        pre.appendChild(span);
-        tdiv.appendChild(pre);
+        // pre.appendChild(span);
+        // tdiv.appendChild(pre);
+        tdiv.appendChild(span)
 
         // Add action buttons to the row
         // const row = tdiv.closest(".kvps-row");
@@ -1430,13 +1465,13 @@ function addStepCollapseInteractionHandlers(stepElement) {
 /**
  * Find parent delegation step for nested agents (DOM-first, reverse scan).
  */
-function findParentDelegationStep(group, agentNumber) {
-  if (!group || agentNumber <= 0) return null;
+function findParentDelegationStep(group, agentno) {
+  if (!group || agentno <= 0) return null;
   const steps = group.querySelectorAll(".process-step");
   for (let i = steps.length - 1; i >= 0; i -= 1) {
     const step = steps[i];
     const stepAgent = Number(step.getAttribute("data-agent-number"));
-    if (stepAgent === agentNumber - 1 && step.getAttribute("data-tool-name") === "call_subordinate") {
+    if (stepAgent === agentno - 1 && step.getAttribute("data-tool-name") === "call_subordinate") {
       return step;
     }
   }
@@ -1455,8 +1490,7 @@ function addProcessStep(group, stepData, detailPayload, copyContent, speakConten
     content,
     kvps,
     timestamp,
-    durationMs,
-    agentNumber,
+    agentno,
     toolName,
     statusCode,
     statusClass
@@ -1471,7 +1505,7 @@ function addProcessStep(group, stepData, detailPayload, copyContent, speakConten
   step.classList.add("process-step");
   step.setAttribute("data-type", type);
   step.setAttribute("data-step-id", id);
-  step.setAttribute("data-agent-number", agentNumber);
+  step.setAttribute("data-agent-number", agentno);
 
   if (toolName) {
     step.setAttribute("data-tool-name", toolName);
@@ -1495,19 +1529,14 @@ function addProcessStep(group, stepData, detailPayload, copyContent, speakConten
     }
   }
 
-  // Store duration from backend (used for final duration calculation)
-  if (durationMs != null) {
-    step.setAttribute("data-duration-ms", durationMs);
-  }
-
-  // Add message-util class for utility/info types (controlled by showUtils preference)
-  if (type === "util" || type === "info" || type === "hint") {
-    step.classList.add("message-util");
-    // Apply current preference state
-    if (preferencesStore.showUtils) {
-      step.classList.add("show-util");
-    }
-  }
+  // // Add message-util class for utility/info types (controlled by showUtils preference)
+  // if (type === "util" || type === "info" || type === "hint") {
+  //   step.classList.add("message-util");
+  //   // Apply current preference state
+  //   if (preferencesStore.showUtils) {
+  //     step.classList.add("show-util");
+  //   }
+  // }
 
   // Determine if this new step should be expanded
   const detailMode = preferencesStore.detailMode;
@@ -1608,7 +1637,7 @@ function addProcessStep(group, stepData, detailPayload, copyContent, speakConten
   let appendTarget = stepsContainer;
 
   // Check if this step belongs to a subordinate agent
-  const parentStep = findParentDelegationStep(group, agentNumber);
+  const parentStep = findParentDelegationStep(group, agentno);
   if (parentStep) {
     appendTarget = getNestedContainer(parentStep);
     step.classList.add("nested-step");
@@ -1655,8 +1684,7 @@ function updateProcessStep(stepElement, stepData, detailPayload, copyContent, sp
     content,
     kvps,
     timestamp,
-    durationMs,
-    agentNumber,
+    agentno,
     toolName,
     statusCode,
     statusClass
@@ -1672,12 +1700,8 @@ function updateProcessStep(stepElement, stepData, detailPayload, copyContent, sp
     stepElement.setAttribute("data-timestamp", timestamp);
   }
 
-  if (durationMs != null) {
-    stepElement.setAttribute("data-duration-ms", durationMs);
-  }
-
-  if (agentNumber !== undefined) {
-    stepElement.setAttribute("data-agent-number", agentNumber);
+  if (agentno !== undefined) {
+    stepElement.setAttribute("data-agent-number", agentno);
   }
 
   const toolNameToUse = resolveToolName(type, kvps, stepElement) || toolName;
@@ -1837,6 +1861,8 @@ function cleanStepTitle(text, maxLength) {
 function renderStepDetailContent(container, content, kvps, type = null) {
   container.innerHTML = "";
   
+  drawKvpsIncremental(container, kvps)
+
   // Special handling for response type - show content as markdown (for subordinate responses)
   if (type === "response" && content && content.trim()) {
     const responseDiv = document.createElement("div");
@@ -2121,25 +2147,14 @@ function updateProcessGroupHeader(group) {
   // Update duration metric
   const durationMetricEl = metricsEl?.querySelector(".metric-duration .metric-value");
   if (durationMetricEl && steps.length > 0) {
-    // Calculate accumulated duration from backend data
-    let accumulatedMs = 0;
-    steps.forEach(step => {
-      accumulatedMs += parseInt(step.getAttribute("data-duration-ms") || "0", 10);
-    });
-    
-    // Check if last step is still in progress (no duration_ms set yet)
+    const firstTimestampMs = parseInt(steps[0]?.getAttribute("data-timestamp") || "0", 10);
+
     const lastStep = steps[steps.length - 1];
-    const lastStepDuration = lastStep.getAttribute("data-duration-ms");
-    const lastStepTimestamp = lastStep.getAttribute("data-timestamp");
-    
-    if (lastStepDuration == null && lastStepTimestamp) {
-      // Last step is in progress - add live elapsed time for this step only
-      const lastStepStartMs = parseFloat(lastStepTimestamp) * 1000;
-      const liveElapsedMs = Math.max(0, Date.now() - lastStepStartMs);
-      accumulatedMs += liveElapsedMs;
-    }
-    
-    durationMetricEl.textContent = formatDuration(accumulatedMs);
+    const lastTimestampMs = parseInt(lastStep.getAttribute("data-timestamp") || "0", 10);
+
+    const totalDurationMs = Math.max(0, lastTimestampMs - firstTimestampMs);
+
+    durationMetricEl.textContent = formatDuration(totalDurationMs);
   }
   
   if (steps.length > 0) {
@@ -2226,13 +2241,11 @@ function markProcessGroupComplete(group, responseTitle) {
     });
   }
   
-  // Calculate final duration from backend data (sum of all step durations)
+  // Calculate final duration from backend data (difference between first and last timestamps)
   const steps = group.querySelectorAll(".process-step");
-  let totalDurationMs = 0;
-  steps.forEach(step => {
-    const durationMs = parseInt(step.getAttribute("data-duration-ms") || "0", 10);
-    totalDurationMs += durationMs;
-  });
+  const firstTimestampMs = parseInt(steps[0]?.getAttribute("data-timestamp") || "0", 10);
+  const lastTimestampMs = parseInt(steps[steps.length - 1]?.getAttribute("data-timestamp") || "0", 10);
+  const totalDurationMs = Math.max(0, lastTimestampMs - firstTimestampMs);
   
   // Update duration metric with final value from backend
   const metricsEl = group.querySelector(".group-metrics");

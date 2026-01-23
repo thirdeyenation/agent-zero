@@ -66,9 +66,9 @@ export async function sendMessage() {
             : "";
 
         // Render user message with attachments
-        setMessage(messageId, "user", heading, message, {
+        setMessage({ id: messageId, type: "user", heading, content: message, kvps: {
           // attachments: attachmentsWithUrls, // skip here, let the backend properly log them
-        });
+        }});
 
         // sleep one frame to render the message before upload starts - better UX
         sleep(0);
@@ -200,8 +200,8 @@ async function updateUserTime() {
 updateUserTime();
 setInterval(updateUserTime, 1000);
 
-function setMessage(id, type, heading, content, kvps = null, timestamp = null, durationMs = null, /* tokensIn = 0, tokensOut = 0, */ agentNumber = 0) {
-  const result = msgs.setMessage(id, type, heading, content, kvps, timestamp, durationMs, /* tokensIn, tokensOut, */ agentNumber);
+function setMessage(...params) {
+  const result = msgs.setMessage(...params);
   const chatHistoryEl = document.getElementById("chat-history");
   if (preferencesStore.autoScroll && chatHistoryEl) {
     chatHistoryEl.scrollTop = chatHistoryEl.scrollHeight;
@@ -317,19 +317,7 @@ export async function poll() {
     if (lastLogVersion != response.log_version) {
       updated = true;
       for (const log of response.logs) {
-        const messageId = log.id || log.no; // Use log.id if available
-        setMessage(
-          messageId,
-          log.type,
-          log.heading,
-          log.content,
-          log.kvps,
-          log.timestamp,
-          log.duration_ms,
-          // log.tokens_in,
-          // log.tokens_out,
-          log.agent_number || 0  // Agent number for identifying main/subordinate agents
-        );
+        setMessage(log);
       }
       afterMessagesUpdate(response.logs);
       applyModeSteps(preferencesStore.detailMode, preferencesStore.showUtils);
