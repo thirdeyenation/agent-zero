@@ -13,18 +13,48 @@ import { formatDuration } from "./time-utils.js";
 // Timing Constants
 // ============================================
 // Delay before collapsing previous steps when a new step is added
-const STEP_COLLAPSE_DELAY_MS = 2000;
+const STEP_COLLAPSE_DELAY_MS = 3000;
 // Delay before collapsing the last step when processing completes
-const FINAL_STEP_COLLAPSE_DELAY_MS = 2000;
-
-// Track active collapse timeouts for steps (key: step DOM element, value: timeout ID)
-const stepCollapseTimeouts = new Map();
+const FINAL_STEP_COLLAPSE_DELAY_MS = 3000;
 
 const chatHistory = document.getElementById("chat-history");
 
 let messageGroup = null;
 let currentProcessGroup = null; // Track current process group for collapsible UI
 let currentDelegationSteps = {}; // Track delegation steps by agent number for nesting
+
+// handlers for log message rendering
+export function getMessageHandler(type) {
+  switch (type) {
+    case "user":
+      return drawMessageUser;
+    case "agent":
+      return drawMessageAgent;
+    case "response":
+      return drawMessageResponse;
+    case "tool":
+      return drawMessageTool;
+    case "code_exe":
+      return drawMessageCodeExe;
+    case "browser":
+      return drawMessageBrowser;
+    case "warning":
+      return drawMessageWarning;
+    case "rate_limit":
+      return drawMessageWarning;
+    case "error":
+      return drawMessageError;
+    case "info":
+      return drawMessageInfo;
+    case "util":
+      return drawMessageUtil;
+    case "hint":
+      return drawMessageInfo;
+    default:
+      return drawMessageDefault;
+  }
+}
+
 
 /**
  * Mark a process group as the active one (via .active class)
@@ -67,16 +97,16 @@ function resolveToolName(type, kvps, stepElement) {
     return stepElement.getAttribute('data-tool-name');
   }
   
-  // Inherit from previous sibling (for tool steps)
-  if (type === 'tool' && stepElement) {
-    let prev = stepElement.previousElementSibling;
-    while (prev) {
-      if (prev.hasAttribute('data-tool-name')) {
-        return prev.getAttribute('data-tool-name');
-      }
-      prev = prev.previousElementSibling;
-    }
-  }
+  // // Inherit from previous sibling (for tool steps)
+  // if (type === 'tool' && stepElement) {
+  //   let prev = stepElement.previousElementSibling;
+  //   while (prev) {
+  //     if (prev.hasAttribute('data-tool-name')) {
+  //       return prev.getAttribute('data-tool-name');
+  //     }
+  //     prev = prev.previousElementSibling;
+  //   }
+  // }
   
   return null;
 }
@@ -116,6 +146,7 @@ function appendMessageToHistory(messageContainer, groupType, forceNewGroup, id) 
   messageGroup.appendChild(messageContainer);
 }
 
+// entrypoint called from poll/WS communication, this is how all messages are rendered and updated
 export function setMessage(id, type, heading, content, temp, kvps = null, timestamp = null, durationMs = null, agentNumber = 0) {
   // Check if this is a process type message
   const isProcessType = PROCESS_TYPES.includes(type);
@@ -175,7 +206,7 @@ export function setMessage(id, type, heading, content, temp, kvps = null, timest
     messageContainer.classList.add("message-container", `${sender}-container`);
   }
 
-  const handler = getHandler(type);
+  const handler = getMessageHandler(type);
   handler(messageContainer, id, type, heading, content, temp, kvps);
 
   // If this is a new message (not yet in DOM), handle DOM insertion
@@ -207,38 +238,6 @@ export function setMessage(id, type, heading, content, temp, kvps = null, timest
   return messageContainer;
 }
 
-// Legacy copy button functions removed - now using action buttons component
-
-export function getHandler(type) {
-  switch (type) {
-    case "user":
-      return drawMessageUser;
-    case "agent":
-      return drawMessageAgent;
-    case "response":
-      return drawMessageResponse;
-    case "tool":
-      return drawMessageTool;
-    case "code_exe":
-      return drawMessageCodeExe;
-    case "browser":
-      return drawMessageBrowser;
-    case "warning":
-      return drawMessageWarning;
-    case "rate_limit":
-      return drawMessageWarning;
-    case "error":
-      return drawMessageError;
-    case "info":
-      return drawMessageInfo;
-    case "util":
-      return drawMessageUtil;
-    case "hint":
-      return drawMessageInfo;
-    default:
-      return drawMessageDefault;
-  }
-}
 
 // draw a message with a specific type
 export function _drawMessage(
@@ -923,81 +922,6 @@ export function drawMessageError(
   messageContainer.classList.add("center-container");
 }
 
-function drawKvps(container, kvps, latex) {
-  if (kvps) {
-    const table = document.createElement("table");
-    table.classList.add("msg-kvps");
-    for (let [key, value] of Object.entries(kvps)) {
-      const row = table.insertRow();
-      row.classList.add("kvps-row");
-      // Skip reasoning
-      if (key === "reasoning") continue;
-      if (key === "thoughts")
-        // TODO: find a better way to determine special class assignment
-        row.classList.add("msg-thoughts");
-
-      const th = row.insertCell();
-      th.textContent = convertToTitleCase(key);
-      th.classList.add("kvps-key");
-
-      const td = row.insertCell();
-      const tdiv = document.createElement("div");
-      tdiv.classList.add("kvps-val");
-      td.appendChild(tdiv);
-
-      if (Array.isArray(value)) {
-        for (const item of value) {
-          addValue(item);
-        }
-      } else {
-        addValue(value);
-      }
-
-      // addActionButtonsToElement(tdiv);
-
-      // autoscroll the KVP value if needed
-      // if (getAutoScroll()) #TODO needs a better redraw system
-      setTimeout(() => {
-        tdiv.scrollTop = tdiv.scrollHeight;
-      }, 0);
-
-      function addValue(value) {
-        if (typeof value === "object") value = JSON.stringify(value, null, 2);
-
-        if (typeof value === "string" && value.startsWith("img://")) {
-          const imgElement = document.createElement("img");
-          imgElement.classList.add("kvps-img");
-          imgElement.src = value.replace("img://", "/image_get?path=");
-          imgElement.alt = "Image Attachment";
-          tdiv.appendChild(imgElement);
-
-          // Add click handler and cursor change
-          imgElement.style.cursor = "pointer";
-          imgElement.addEventListener("click", () => {
-            openImageModal(imgElement.src, 1000);
-          });
-        } else {
-          const pre = document.createElement("pre");
-          const span = document.createElement("span");
-          span.innerHTML = convertHTML(value);
-          pre.appendChild(span);
-          tdiv.appendChild(pre);
-
-          // KaTeX rendering for markdown
-          if (latex) {
-            span.querySelectorAll("latex").forEach((element) => {
-              katex.render(element.innerHTML, element, {
-                throwOnError: false,
-              });
-            });
-          }
-        }
-      }
-    }
-    container.appendChild(table);
-  }
-}
-
 function drawKvpsIncremental(container, kvps, latex) {
   if (kvps) {
     // Find existing table or create new one
@@ -1372,30 +1296,32 @@ function getNestedContainer(parentStep) {
  * Automatically handles cancellation on click and reset on hover
  */
 function scheduleStepCollapse(stepElement, delayMs) {
-  // Cancel any existing timeout for this step
-  cancelStepCollapse(stepElement);
+  // skip if any existing timeout for this step
+  if (stepElement.hasAttribute("data-collapse-timeout-id")) {
+    return;
+  }
   
   // Schedule the collapse
   const timeoutId = setTimeout(() => {
     stepElement.classList.remove("step-expanded");
-    stepCollapseTimeouts.delete(stepElement);
+    stepElement.removeAttribute("data-collapse-timeout-id");
     // Clear user-pinned flag when auto-collapsing
     stepElement.removeAttribute("data-user-pinned");
   }, delayMs);
-  
+
   // Store the timeout ID
-  stepCollapseTimeouts.set(stepElement, timeoutId);
+  stepElement.setAttribute("data-collapse-timeout-id", String(timeoutId));
 }
 
 /**
  * Cancel a scheduled collapse for a step
  */
 function cancelStepCollapse(stepElement) {
-  const timeoutId = stepCollapseTimeouts.get(stepElement);
-  if (timeoutId) {
-    clearTimeout(timeoutId);
-    stepCollapseTimeouts.delete(stepElement);
-  }
+  const timeoutIdStr = stepElement.getAttribute("data-collapse-timeout-id");
+  if (!timeoutIdStr) return;
+  const timeoutId = Number(timeoutIdStr);
+  if (!Number.isNaN(timeoutId)) clearTimeout(timeoutId);
+  stepElement.removeAttribute("data-collapse-timeout-id");
 }
 
 /**
@@ -2298,8 +2224,9 @@ export function resetProcessGroups() {
   clearActiveStepShine();
   
   // Clear all pending collapse timeouts
-  stepCollapseTimeouts.forEach(timeoutId => clearTimeout(timeoutId));
-  stepCollapseTimeouts.clear();
+  document
+    .querySelectorAll('.process-step[data-collapse-timeout-id]')
+    .forEach((el) => cancelStepCollapse(el));
 }
 
 /**
