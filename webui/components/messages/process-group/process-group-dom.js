@@ -1,16 +1,17 @@
 /**
  * Process group DOM utilities (no store/state)
  */
+import { store as preferencesStore } from "/components/sidebar/bottom/preferences/preferences-store.js";
 
 export function applyModeSteps(detailMode, showUtils) {
   const mode =
     detailMode ||
-    window.Alpine?.store("preferences")?.detailMode ||
+    preferencesStore.detailMode ||
     "current";
   const showUtilsFlag =
     typeof showUtils === "boolean"
       ? showUtils
-      : window.Alpine?.store("preferences")?.showUtils || false;
+      : preferencesStore.showUtils || false;
 
   const chatHistory = document.getElementById("chat-history");
   if (!chatHistory) return;

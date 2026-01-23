@@ -921,7 +921,7 @@ export function drawMessageError(id, type, heading, content, kvps = null) {
     messageDiv.appendChild(errorGroup);
     
     // Check detail mode and expand if needed
-    const detailMode = window.Alpine?.store("preferences")?.detailMode || "current";
+    const detailMode = preferencesStore.detailMode || "current";
     if (detailMode === "current" || detailMode === "expanded") {
       errorGroup.classList.add("expanded");
     }
