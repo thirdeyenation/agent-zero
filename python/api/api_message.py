@@ -6,7 +6,7 @@ from python.helpers.api import ApiHandler, Request, Response
 from python.helpers import files, projects
 from python.helpers.print_style import PrintStyle
 from python.helpers.projects import activate_project
-from werkzeug.utils import secure_filename
+from python.helpers.security import safe_filename
 from initialize import initialize_agent
 import threading
 
@@ -57,9 +57,9 @@ class ApiMessage(ApiHandler):
                     continue
 
                 try:
-                    filename = secure_filename(attachment["filename"])
+                    filename = safe_filename(attachment["filename"])
                     if not filename:
-                        continue
+                        raise ValueError("Invalid filename")
 
                     # Decode base64 content
                     file_content = base64.b64decode(attachment["base64"])

@@ -3,7 +3,7 @@ from python.helpers.api import ApiHandler, Request, Response
 
 from python.helpers import files, extension
 import os
-from werkzeug.utils import secure_filename
+from python.helpers.security import safe_filename
 from python.helpers.defer import DeferredTask
 from python.helpers.print_style import PrintStyle
 
@@ -37,7 +37,9 @@ class Message(ApiHandler):
                 for attachment in attachments:
                     if attachment.filename is None:
                         continue
-                    filename = secure_filename(attachment.filename)
+                    filename = safe_filename(attachment.filename)
+                    if not filename:
+                        continue
                     save_path = files.get_abs_path(upload_folder_ext, filename)
                     attachment.save(save_path)
                     attachment_paths.append(os.path.join(upload_folder_int, filename))
