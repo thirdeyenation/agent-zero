@@ -66,9 +66,9 @@ export async function sendMessage() {
             : "";
 
         // Render user message with attachments
-        setMessage({ id: messageId, type: "user", heading, content: message, kvps: {
+        setMessages([{ id: messageId, type: "user", heading, content: message, kvps: {
           // attachments: attachmentsWithUrls, // skip here, let the backend properly log them
-        }});
+        }}]);
 
         // sleep one frame to render the message before upload starts - better UX
         sleep(0);
@@ -200,8 +200,8 @@ async function updateUserTime() {
 updateUserTime();
 setInterval(updateUserTime, 1000);
 
-function setMessage(...params) {
-  const result = msgs.setMessage(...params);
+function setMessages(logs) {
+  const result = msgs.setMessages(logs);
   const chatHistoryEl = document.getElementById("chat-history");
   if (preferencesStore.autoScroll && chatHistoryEl) {
     chatHistoryEl.scrollTop = chatHistoryEl.scrollHeight;
@@ -316,9 +316,8 @@ export async function poll() {
 
     if (lastLogVersion != response.log_version) {
       updated = true;
-      for (const log of response.logs) {
-        setMessage(log);
-      }
+      setMessages(response.logs);
+
       afterMessagesUpdate(response.logs);
       applyModeSteps(preferencesStore.detailMode, preferencesStore.showUtils);
     }

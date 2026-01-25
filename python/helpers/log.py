@@ -21,6 +21,7 @@ Type = Literal[
     "agent",
     "browser",
     "code_exe",
+    "subagent",
     "error",
     "hint",
     "info",

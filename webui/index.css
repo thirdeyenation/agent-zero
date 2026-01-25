@@ -69,6 +69,7 @@
   --spacing-lg: 2rem;
 
   /* Font sizes */
+  --font-size-xs: 0.7rem;
   --font-size-small: 0.8rem;
   --font-size-smaller: 0.9rem;
   --font-size-normal: 1rem;

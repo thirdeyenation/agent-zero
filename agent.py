@@ -831,8 +831,8 @@ class Agent:
         tool_request = extract_tools.json_parse_dirty(msg)
 
         if tool_request is not None:
-            raw_tool_name = tool_request.get("tool_name", "")  # Get the raw tool name
-            tool_args = tool_request.get("tool_args", {})
+            raw_tool_name = tool_request.get("tool_name", tool_request.get("tool",""))  # Get the raw tool name
+            tool_args = tool_request.get("tool_args", tool_request.get("args", {}))
 
             tool_name = raw_tool_name  # Initialize tool_name with raw_tool_name
             tool_method = None  # Initialize tool_method

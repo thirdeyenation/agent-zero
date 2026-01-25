@@ -72,8 +72,9 @@
 
 .message.message-user {
   text-align: end;
-  margin-bottom: var(--spacing-md);
+  /* margin-bottom: var(--spacing-md); */
   width: 100%;
+  margin-bottom: -2.5rem; /* compensate for action buttons */
 }
 
 .message-user .message-user-heading {
@@ -111,6 +112,7 @@
   /* color: azure; */
   color: var(--color-text);
 }
+
 
 /* .light-mode .message-user .message-text pre {
   color: #2e2e2e;
@@ -511,9 +513,9 @@
 /* Utility Classes */
 .kvps-key {
   font-weight: 500;
-  font-size: var(--font-size-small);
+  font-size: var(--font-size-xs);
   /* min-width: 7em; */
-  max-width: 10em;
+  width: 4em;
   text-align: right;
 }
 
@@ -524,7 +526,7 @@
 .kvps-val {
   /* margin: 0.65rem 0 0.65rem 0.4rem; */
   white-space: pre-wrap;
-  font-size: var(--font-size-small);
+  font-size: var(--font-size-xs);
 }
 
 .kvps-img {
