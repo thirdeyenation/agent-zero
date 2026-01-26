@@ -460,7 +460,7 @@ function drawProcessStep({
       if (isActiveGroup && !isGroupCompleted) {
         step.classList.add("step-expanded");
         const allExpandedSteps = stepsContainer.querySelectorAll(
-          ".process-step.step-expanded",
+          ".process-step.expanded",
         );
         allExpandedSteps.forEach((expandedStep) => {
           if (expandedStep.id !== stepId) {
@@ -2584,7 +2584,7 @@ function markProcessGroupComplete(group, responseTitle) {
   if (detailMode === "current") {
     // Schedule collapse for all expanded steps (deterministic)
     const allExpandedSteps = group.querySelectorAll(
-      ".process-step.step-expanded",
+      ".process-step.expanded",
     );
     allExpandedSteps.forEach((expandedStep) => {
       scheduleStepCollapse(expandedStep, FINAL_STEP_COLLAPSE_DELAY_MS);

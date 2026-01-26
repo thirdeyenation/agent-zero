@@ -437,7 +437,7 @@
 }
 
 /* Use direct child selector to prevent affecting nested steps */
-.process-step.step-expanded > .process-step-header > .step-expand-icon {
+.process-step.expanded > .process-step-header > .step-expand-icon {
   transform: rotate(90deg);
 }
 
@@ -455,11 +455,11 @@
   overscroll-behavior: contain; /* avoid scroll chaining */
 }
 
-.process-step:not(.step-expanded) > .process-step-detail {
+.process-step:not(.expanded) > .process-step-detail {
   margin-top: 0;
 }
 
-.process-step:not(.step-expanded) > .process-step-detail > .process-step-detail-scroll {
+.process-step:not(.expanded) > .process-step-detail > .process-step-detail-scroll {
   padding: 0;
   margin-top: 0;
   max-height: 0;
@@ -483,19 +483,19 @@
 }
 
 /* Use direct child selector (>) to prevent cascading to nested steps */
-.process-step.step-expanded > .process-step-detail {
+.process-step.expanded > .process-step-detail {
   /* grid-template-rows: 1fr; */
   opacity: 1;
   overflow: visible;
   margin-top: var(--spacing-xs);
 }
 
-.process-step.step-expanded > .process-step-detail > .process-step-detail-scroll {
+.process-step.expanded > .process-step-detail > .process-step-detail-scroll {
   max-height: 40em;
   overflow-y: auto;
 }
 
-.process-step.step-expanded > .process-step-detail > .process-step-detail-scroll > .process-step-detail-scroll {
+.process-step.expanded > .process-step-detail > .process-step-detail-scroll > .process-step-detail-scroll {
 }
 
 .process-step-detail-scroll {
@@ -741,7 +741,7 @@
 }
 
 /* Only show nested container when parent step is expanded */
-.process-step.step-expanded > .process-nested-container {
+.process-step.expanded > .process-nested-container {
   grid-template-rows: 1fr;
   opacity: 1;
   margin-top: 2px;
@@ -826,7 +826,7 @@
 }
 
 /* Hide View Details button when step is collapsed */
-.process-step:not(.step-expanded) > .process-step-detail > .step-detail-actions {
+.process-step:not(.expanded) > .process-step-detail > .step-detail-actions {
   display: none;
 }
 
