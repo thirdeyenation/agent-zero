@@ -630,7 +630,7 @@
   white-space: pre;
   font-family: monospace;
   max-width: fit-content;
-  max-height: 300px;
+  /* max-height: 300px; */
   overflow: auto;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;

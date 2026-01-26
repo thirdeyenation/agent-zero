@@ -651,20 +651,22 @@ function drawProcessStep({
   };
 }
 
-function drawStandaloneMessage(id, heading, content, options = {}) {
-  const {
-    position = "mid",
-    forceNewGroup = false,
-    containerClasses = [],
-    mainClass = "",
-    messageClasses = [],
-    contentClasses = [],
-    markdown = false,
-    latex = false,
-    kvps = null,
-    copyContent = null,
-    speakContent = null,
-  } = options;
+function drawStandaloneMessage({
+  id,
+  heading,
+  content,
+  position = "mid",
+  forceNewGroup = false,
+  containerClasses = [],
+  mainClass = "",
+  messageClasses = [],
+  contentClasses = [],
+  markdown = false,
+  latex = false,
+  kvps = null,
+  copyContent = null,
+  speakContent = null,
+}) {
 
   const container = getOrCreateMessageContainer(
     id,
@@ -857,7 +859,10 @@ export function drawMessageDefault({
   kvps = null,
   ...additional
 }) {
-  return drawStandaloneMessage(id, heading, content, {
+  return drawStandaloneMessage({
+    id,
+    heading,
+    content,
     position: "left",
     containerClasses: ["ai-container"],
     mainClass: "message-default",
@@ -886,7 +891,6 @@ export function drawMessageAgent({
     id,
     title,
     code: "GEN",
-    codeClass: "status-gen",
     classes: null,
     kvps: displayKvps,
     copyText: kvps?.thoughts,
@@ -1101,7 +1105,6 @@ export function drawMessageTool({
     id,
     title,
     code: "USE",
-    codeClass: "status-tool",
     classes: null,
     kvps: displayKvps,
     content,
@@ -1125,7 +1128,6 @@ export function drawMessageCodeExe({
   let title = "Code Execution";
   // show command at the start and end
   if (
-    type === "code_exe" &&
     kvps?.code &&
     /done_all|code_execution_tool/.test(heading || "")
   ) {
@@ -1146,7 +1148,6 @@ export function drawMessageCodeExe({
     id,
     title,
     code: "EXE",
-    codeClass: "status-exe",
     classes: null,
     kvps: displayKvps,
     content,
@@ -1174,7 +1175,6 @@ export function drawMessageBrowser({
     id,
     title,
     code: "HDL",
-    codeClass: "status-hdl",
     classes: null,
     kvps: displayKvps,
     content,
@@ -1202,16 +1202,22 @@ export function drawMessageMcp({
     id,
     title,
     code: "MCP",
-    codeClass: "status-mcp",
     classes: null,
     kvps: displayKvps,
     content,
     // contentClasses: [],
-    copyText: content,
-    speakText: content,
+    actionButtons:[
+      createActionButton("detail","", ()=>{ openDetail(arguments[0]) }),
+      createActionButton("speak","", ()=>{ speakText(content) }),
+      createActionButton("copy","Command", ()=>{ copyToClipboard(kvps?.code) }),
+      createActionButton("copy","Output", ()=>{ copyText(content) })
+    ],
     log: arguments[0],
   });
 }
+
+// todo - move to store
+function createActionButton(icon, text, handler){}
 
 export function drawMessageSubagent({
   id,
@@ -1230,7 +1236,6 @@ export function drawMessageSubagent({
     id,
     title,
     code: "SUB",
-    codeClass: "status-sub",
     classes: null,
     kvps: displayKvps,
     content,
@@ -1248,11 +1253,20 @@ export function drawMessageInfo({
   kvps = null,
   ...additional
 }) {
-  return drawStandaloneMessage(id, heading, content, {
-    position: "mid",
-    containerClasses: ["ai-container", "center-container"],
-    mainClass: "message-info",
-    kvps,
+  const title = cleanStepTitle(heading);
+  let displayKvps = { ...kvps };
+
+  return drawProcessStep({
+    id,
+    title,
+    code: "INF",
+    classes: null,
+    kvps: displayKvps,
+    content,
+    // contentClasses: [],
+    copyText: content,
+    speakText: content,
+    log: arguments[0],
   });
 }
 
@@ -1272,7 +1286,6 @@ export function drawMessageUtil({
     id,
     title,
     code: "UTL",
-    codeClass: "status-utl",
     classes: ["message-util"],
     kvps,
     copyText: null,
@@ -1296,7 +1309,7 @@ export function drawMessageHint({
   const statusCode = getStatusCode(type);
   const statusClass = getStatusClass(type);
 
-  return drawProcessStep({
+  return drawStandaloneMessage({
     id,
     title,
     statusClass,
@@ -1327,7 +1340,6 @@ export function drawMessageProgress({
     id,
     title,
     code: "HDL",
-    codeClass: "status-hdl",
     classes: null,
     kvps: displayKvps,
     content,
@@ -1353,7 +1365,6 @@ export function drawMessageWarning({
   //   id,
   //   title,
   //   code: "WRN",
-  //   codeClass: "status-wrn",
   //   classes: null,
   //   kvps: displayKvps,
   //   content,
@@ -1362,7 +1373,10 @@ export function drawMessageWarning({
   //   speakText: content,
   //   log: arguments[0],
   // });
-  return drawStandaloneMessage(id, heading, content, {
+  return drawStandaloneMessage({
+    id,
+    heading,
+    content,
     position: "mid",
     containerClasses: ["ai-container", "center-container"],
     mainClass: "message-warning",
@@ -1377,7 +1391,10 @@ export function drawMessageError({
   kvps = null,
   ...additional
 }) {
-  return drawStandaloneMessage(id, heading, content, {
+  return drawStandaloneMessage({
+    id,
+    heading,
+    content,
     position: "mid",
     containerClasses: ["ai-container", "center-container"],
     mainClass: "message-error",
@@ -1783,13 +1800,13 @@ function adjustMarkdownRender(element) {
   });
 }
 
-class Scroller {
+export class Scroller {
   constructor(element) {
     this.element = element;
     this.wasAtBottom = this.isAtBottom();
   }
 
-  isAtBottom(tolerance = 10) {
+  isAtBottom(tolerance = 80) {
     const scrollHeight = this.element.scrollHeight;
     const clientHeight = this.element.clientHeight;
     const distanceFromBottom =
@@ -1798,7 +1815,7 @@ class Scroller {
   }
 
   reApplyScroll() {
-    if (this.wasAtBottom) this.element.scrollTop = this.element.scrollHeight;
+    if (this.wasAtBottom && !this.isAtBottom()) this.element.scrollTop = this.element.scrollHeight;
   }
 }
 

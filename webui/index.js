@@ -200,12 +200,14 @@ async function updateUserTime() {
 updateUserTime();
 setInterval(updateUserTime, 1000);
 
-function setMessages(logs) {
-  const result = msgs.setMessages(logs);
+function setMessages(...params) {
   const chatHistoryEl = document.getElementById("chat-history");
-  if (preferencesStore.autoScroll && chatHistoryEl) {
-    chatHistoryEl.scrollTop = chatHistoryEl.scrollHeight;
-  }
+  let scroller;
+
+  if (preferencesStore.autoScroll && chatHistoryEl) scroller = new msgs.Scroller(chatHistoryEl)
+  const result = msgs.setMessages(...params);
+  if (scroller) scroller.reApplyScroll();
+
   return result;
 }
 
@@ -317,7 +319,6 @@ export async function poll() {
     if (lastLogVersion != response.log_version) {
       updated = true;
       setMessages(response.logs);
-
       afterMessagesUpdate(response.logs);
       applyModeSteps(preferencesStore.detailMode, preferencesStore.showUtils);
     }
