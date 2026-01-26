@@ -454,11 +454,11 @@ function drawProcessStep({
 
     //expand all
     if (detailMode === "expanded") {
-      step.classList.add("step-expanded");
+      step.classList.add("expanded");
       // expand current step and schedule collapse of previous
     } else if (detailMode === "current") {
       if (isActiveGroup && !isGroupCompleted) {
-        step.classList.add("step-expanded");
+        step.classList.add("expanded");
         const allExpandedSteps = stepsContainer.querySelectorAll(
           ".process-step.expanded",
         );
@@ -472,7 +472,7 @@ function drawProcessStep({
   }
 
   // is step expanded?
-  const isExpanded = step.classList.contains("step-expanded");
+  const isExpanded = step.classList.contains("expanded");
 
   // create step header
   const stepHeader = ensureChild(
@@ -515,8 +515,8 @@ function drawProcessStep({
     stepHeader.addEventListener("click", (e) => {
       e.stopPropagation();
       cancelStepCollapse(step);
-      step.classList.toggle("step-expanded");
-      if (step.classList.contains("step-expanded")) {
+      step.classList.toggle("expanded");
+      if (step.classList.contains("expanded")) {
         step.setAttribute("data-user-pinned", "true");
       } else {
         step.removeAttribute("data-user-pinned");
@@ -2021,7 +2021,7 @@ function scheduleStepCollapse(stepElement, delayMs) {
 
   // Schedule the collapse
   const timeoutId = setTimeout(() => {
-    stepElement.classList.remove("step-expanded");
+    stepElement.classList.remove("expanded");
     stepElement.removeAttribute("data-collapse-timeout-id");
     // Clear user-pinned flag when auto-collapsing
     stepElement.removeAttribute("data-user-pinned");
@@ -2051,7 +2051,7 @@ function cancelStepCollapse(stepElement) {
 function addStepCollapseInteractionHandlers(stepElement) {
   // On hover, cancel the timeout to keep it open while user is reading
   stepElement.addEventListener("mouseenter", () => {
-    if (stepElement.classList.contains("step-expanded")) {
+    if (stepElement.classList.contains("expanded")) {
       cancelStepCollapse(stepElement);
     }
   });
@@ -2065,7 +2065,7 @@ function addStepCollapseInteractionHandlers(stepElement) {
 
     // Don't restart timeout if user has explicitly interacted (clicked)
     if (
-      stepElement.classList.contains("step-expanded") &&
+      stepElement.classList.contains("expanded") &&
       !stepElement.hasAttribute("data-user-pinned")
     ) {
       scheduleStepCollapse(stepElement, STEP_COLLAPSE_DELAY_MS);
@@ -2074,7 +2074,7 @@ function addStepCollapseInteractionHandlers(stepElement) {
 
   // On click anywhere on step, permanently cancel auto-collapse
   stepElement.addEventListener("click", () => {
-    if (stepElement.classList.contains("step-expanded")) {
+    if (stepElement.classList.contains("expanded")) {
       cancelStepCollapse(stepElement);
       // Mark as user-pinned so mouseleave won't restart timeout
       stepElement.setAttribute("data-user-pinned", "true");
