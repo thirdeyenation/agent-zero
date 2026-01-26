@@ -28,6 +28,7 @@ Type = Literal[
     "progress",
     "response",
     "tool",
+    "mcp",
     "input",
     "user",
     "util",

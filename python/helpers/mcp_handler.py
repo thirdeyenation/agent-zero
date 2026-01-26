@@ -23,6 +23,7 @@ from datetime import timedelta
 import json
 from python.helpers import errors
 from python.helpers import settings
+from python.helpers.log import LogItem
 
 import httpx
 
@@ -99,6 +100,14 @@ def initialize_mcp(mcp_servers_config: str):
 
 class MCPTool(Tool):
     """MCP Tool wrapper"""
+
+    def get_log_object(self) -> LogItem:
+        return self.agent.context.log.log(
+            type="mcp",
+            heading=f"icon://extension {self.agent.agent_name}: Using MCP tool '{self.name}'",
+            content="",
+            kvps={"tool_name": self.name, **self.args},
+        )
 
     async def execute(self, **kwargs: Any):
         error = ""
