@@ -3,7 +3,9 @@ import { store as imageViewerStore } from "../components/modals/image-viewer/ima
 import { marked } from "../vendor/marked/marked.esm.js";
 import { store as _messageResizeStore } from "/components/messages/resize/message-resize-store.js"; // keep here, required in html
 import { store as attachmentsStore } from "/components/chat/attachments/attachmentsStore.js";
-import { addActionButtonsToElement } from "/components/messages/action-buttons/simple-action-buttons.js";
+import { store as speechStore } from "/components/chat/speech/speech-store.js";
+import { createActionButton, copyToClipboard } from "/components/messages/action-buttons/simple-action-buttons.js";
+import { store as stepDetailStore } from "/components/modals/process-step-detail/step-detail-store.js";
 import { store as preferencesStore } from "/components/sidebar/bottom/preferences/preferences-store.js";
 import { formatDuration } from "./time-utils.js";
 
@@ -379,8 +381,7 @@ function drawProcessStep({
   kvps,
   content,
   contentClasses,
-  copyText,
-  speakText,
+  actionButtons = [],
   log,
   allowCompletedGroup = false,
   ...additional
@@ -393,10 +394,6 @@ function drawProcessStep({
 
   const isNewStep = !step;
   const isGroupCompleted = group.classList.contains("process-group-completed");
-
-  // const detailData = buildDetailPayload(stepData);
-  // const speakText = speakContent ?? copyText;
-  // const speakText = speakContent ?? copyText;
 
   if (isNewStep) {
     // create the base DOM element for the step
@@ -430,17 +427,6 @@ function drawProcessStep({
     //     }
     //   }
     // }
-
-    // // create step detail container
-    // detail = document.createElement("div");
-    // detail.classList.add("process-step-detail");
-    // detailContent = document.createElement("div")
-    // detailContent.classList.add("process-step-detail-content")
-
-    // const stepActionBtns = document.createElement("div");
-    // stepActionBtns.classList.add("step-detail-actions");
-    // detail.appendChild(stepActionBtns);
-    // step.appendChild(detail);
 
     let appendTarget = stepsContainer;
     const parentStep = findParentDelegationStep(group, log.agentno);
@@ -508,14 +494,6 @@ function drawProcessStep({
     ".process-step-detail-scroll",
     "div",
     "process-step-detail-scroll",
-  );
-
-  // create action buttons
-  const stepActionBtns = ensureChild(
-    stepDetail,
-    ".step-detail-actions",
-    "div",
-    "step-detail-actions",
   );
 
   // else {
@@ -623,13 +601,18 @@ function drawProcessStep({
   //     statusClass: resolvedStatusClass,
   //   });
 
-  // const stepActions = ensureChild(detail, ".step-detail-actions", "div", "step-detail-actions");
-  addActionButtonsToElement(stepActionBtns, {
-    detailPayload: {}, // detailDataToUse,
-    onViewDetails: null,
-    copyContent: copyText,
-    speakContent: speakText,
-  });
+  // Render action buttons: get/create container, clear, append
+  const stepActionBtns = ensureChild(
+    stepDetail,
+    ".step-detail-actions",
+    "div",
+    "step-detail-actions",
+    "step-action-buttons",
+  );
+  stepActionBtns.textContent = "";
+  (actionButtons || [])
+    .filter(Boolean)
+    .forEach((button) => stepActionBtns.appendChild(button));
 
   if (isExpanded && !isMassRender()) detailScroller.reApplyScroll(); // reapply scroll position (autoscroll if bottom) - only when expanded already and not
 
@@ -664,8 +647,7 @@ function drawStandaloneMessage({
   markdown = false,
   latex = false,
   kvps = null,
-  copyContent = null,
-  speakContent = null,
+  actionButtons = [],
 }) {
 
   const container = getOrCreateMessageContainer(
@@ -686,12 +668,17 @@ function drawStandaloneMessage({
     mainClass,
   });
 
-  const copyText = copyContent ?? content ?? "";
-  const speakText = speakContent ?? copyText;
-  addActionButtonsToElement(messageDiv, {
-    copyContent: copyText,
-    speakContent: speakText,
-  });
+  // Render action buttons: get/create container, clear, append
+  const actionButtonsContainer = ensureChild(
+    messageDiv,
+    ".step-action-buttons",
+    "div",
+    "step-action-buttons",
+  );
+  actionButtonsContainer.textContent = "";
+  (actionButtons || [])
+    .filter(Boolean)
+    .forEach((button) => actionButtonsContainer.appendChild(button));
 
   return container;
 }
@@ -859,6 +846,14 @@ export function drawMessageDefault({
   kvps = null,
   ...additional
 }) {
+  const contentText = String(content ?? "");
+  const actionButtons = contentText.trim()
+    ? [
+        createActionButton("speak", "", () => speechStore.speak(contentText)),
+        createActionButton("copy", "", () => copyToClipboard(contentText)),
+      ].filter(Boolean)
+    : [];
+
   return drawStandaloneMessage({
     id,
     heading,
@@ -869,6 +864,7 @@ export function drawMessageDefault({
     messageClasses: ["message-ai"],
     contentClasses: ["msg-json"],
     kvps,
+    actionButtons,
   });
 }
 
@@ -886,6 +882,16 @@ export function drawMessageAgent({
   let displayKvps = {};
   if (kvps?.thoughts) displayKvps["icon://lightbulb"] = kvps.thoughts;
   if (kvps?.step) displayKvps["icon://step"] = kvps.step;
+  const thoughtsText = String(kvps?.thoughts ?? "");
+  const actionButtons = thoughtsText.trim()
+    ? [
+        createActionButton("detail", "", () =>
+          stepDetailStore.showStepDetail(buildDetailPayload(arguments[0])),
+        ),
+        createActionButton("speak", "", () => speechStore.speak(thoughtsText)),
+        createActionButton("copy", "", () => copyToClipboard(thoughtsText)),
+      ].filter(Boolean)
+    : [];
 
   return drawProcessStep({
     id,
@@ -893,8 +899,7 @@ export function drawMessageAgent({
     code: "GEN",
     classes: null,
     kvps: displayKvps,
-    copyText: kvps?.thoughts,
-    speakText: kvps?.thoughts,
+    actionButtons,
     log: arguments[0],
   });
 }
@@ -914,6 +919,13 @@ export function drawMessageResponse({
     const title = getStepTitle(heading, kvps, type);
     const statusCode = getStatusCode(type);
     const statusClass = getStatusClass(type);
+    const contentText = String(content ?? "");
+    const actionButtons = contentText.trim()
+      ? [
+          createActionButton("speak", "", () => speechStore.speak(contentText)),
+          createActionButton("copy", "", () => copyToClipboard(contentText)),
+        ].filter(Boolean)
+      : [];
     return drawProcessStep({
       id,
       title,
@@ -925,6 +937,7 @@ export function drawMessageResponse({
       content,
       timestamp,
       agentno,
+      actionButtons,
     });
   }
 
@@ -954,12 +967,24 @@ export function drawMessageResponse({
     mainClass: "message-agent-response",
   });
 
-  // const copyText = copyContent ?? content ?? "";
-  // const speakText = speakContent ?? copyText;
-  // addActionButtonsToElement(messageDiv, {
-  //   copyContent: copyText,
-  //   speakContent: speakText,
-  // });
+  // Render action buttons: get/create container, clear, append
+  const responseText = String(content ?? "");
+  const responseActionButtons = responseText.trim()
+    ? [
+        createActionButton("speak", "", () => speechStore.speak(responseText)),
+        createActionButton("copy", "", () => copyToClipboard(responseText)),
+      ].filter(Boolean)
+    : [];
+  const actionButtonsContainer = ensureChild(
+    messageDiv,
+    ".step-action-buttons",
+    "div",
+    "step-action-buttons",
+  );
+  actionButtonsContainer.textContent = "";
+  responseActionButtons.forEach((button) =>
+    actionButtonsContainer.appendChild(button),
+  );
 
   if (group) updateProcessGroupHeader(group);
 
@@ -1081,11 +1106,24 @@ export function drawMessageUser({
     headingElement.remove();
   }
 
-  // Add action buttons below text and attachments (hover for pointer, always for touch - via CSS)
-  addActionButtonsToElement(messageDiv, {
-    copyContent: content || "",
-    speakContent: content || "",
-  });
+  // Render action buttons: get/create container, clear, append
+  const userText = String(content ?? "");
+  const userActionButtons = userText.trim()
+    ? [
+        createActionButton("speak", "", () => speechStore.speak(userText)),
+        createActionButton("copy", "", () => copyToClipboard(userText)),
+      ].filter(Boolean)
+    : [];
+  const actionButtonsContainer = ensureChild(
+    messageDiv,
+    ".step-action-buttons",
+    "div",
+    "step-action-buttons",
+  );
+  actionButtonsContainer.textContent = "";
+  userActionButtons.forEach((button) =>
+    actionButtonsContainer.appendChild(button),
+  );
 }
 
 export function drawMessageTool({
@@ -1100,6 +1138,16 @@ export function drawMessageTool({
 }) {
   const title = cleanStepTitle(heading);
   let displayKvps = { ...kvps };
+  const contentText = String(content ?? "");
+  const actionButtons = contentText.trim()
+    ? [
+        createActionButton("detail", "", () =>
+          stepDetailStore.showStepDetail(buildDetailPayload(arguments[0])),
+        ),
+        createActionButton("speak", "", () => speechStore.speak(contentText)),
+        createActionButton("copy", "", () => copyToClipboard(contentText)),
+      ].filter(Boolean)
+    : [];
 
   return drawProcessStep({
     id,
@@ -1109,8 +1157,7 @@ export function drawMessageTool({
     kvps: displayKvps,
     content,
     // contentClasses: [],
-    copyText: content,
-    speakText: content,
+    actionButtons,
     log: arguments[0],
   });
 }
@@ -1144,6 +1191,21 @@ export function drawMessageCodeExe({
   if (kvps?.session) displayKvps.session = kvps.session;
 
   // render the standard step
+  const commandText = String(kvps?.code ?? "");
+  const outputText = String(content ?? "");
+  const actionButtons = [
+    createActionButton("detail", "", () =>
+      stepDetailStore.showStepDetail(buildDetailPayload(arguments[0])),
+    ),
+    commandText.trim()
+      ? createActionButton("copy", "Command", () =>
+          copyToClipboard(commandText),
+        )
+      : null,
+    outputText.trim()
+      ? createActionButton("copy", "Output", () => copyToClipboard(outputText))
+      : null,
+  ].filter(Boolean);
   const stepData = drawProcessStep({
     id,
     title,
@@ -1152,8 +1214,7 @@ export function drawMessageCodeExe({
     kvps: displayKvps,
     content,
     contentClasses: ["terminal-output"],
-    copyText: content,
-    speakText: null,
+    actionButtons,
     log: arguments[0],
   });
 }
@@ -1170,6 +1231,16 @@ export function drawMessageBrowser({
 }) {
   const title = cleanStepTitle(heading);
   let displayKvps = { ...kvps };
+  const answerText = String(kvps?.answer ?? "");
+  const actionButtons = answerText.trim()
+    ? [
+        createActionButton("detail", "", () =>
+          stepDetailStore.showStepDetail(buildDetailPayload(arguments[0])),
+        ),
+        createActionButton("speak", "", () => speechStore.speak(answerText)),
+        createActionButton("copy", "", () => copyToClipboard(answerText)),
+      ].filter(Boolean)
+    : [];
 
   return drawProcessStep({
     id,
@@ -1179,8 +1250,7 @@ export function drawMessageBrowser({
     kvps: displayKvps,
     content,
     // contentClasses: [],
-    copyText: content,
-    speakText: content,
+    actionButtons,
     log: arguments[0],
   });
 }
@@ -1197,6 +1267,16 @@ export function drawMessageMcp({
 }) {
   const title = cleanStepTitle(heading);
   let displayKvps = { ...kvps };
+  const contentText = String(content ?? "");
+  const actionButtons = contentText.trim()
+    ? [
+        createActionButton("detail", "", () =>
+          stepDetailStore.showStepDetail(buildDetailPayload(arguments[0])),
+        ),
+        createActionButton("speak", "", () => speechStore.speak(contentText)),
+        createActionButton("copy", "", () => copyToClipboard(contentText)),
+      ].filter(Boolean)
+    : [];
 
   return drawProcessStep({
     id,
@@ -1206,18 +1286,10 @@ export function drawMessageMcp({
     kvps: displayKvps,
     content,
     // contentClasses: [],
-    actionButtons:[
-      createActionButton("detail","", ()=>{ openDetail(arguments[0]) }),
-      createActionButton("speak","", ()=>{ speakText(content) }),
-      createActionButton("copy","Command", ()=>{ copyToClipboard(kvps?.code) }),
-      createActionButton("copy","Output", ()=>{ copyText(content) })
-    ],
+    actionButtons,
     log: arguments[0],
   });
 }
-
-// todo - move to store
-function createActionButton(icon, text, handler){}
 
 export function drawMessageSubagent({
   id,
@@ -1231,6 +1303,16 @@ export function drawMessageSubagent({
 }) {
   const title = cleanStepTitle(heading);
   let displayKvps = { ...kvps };
+  const contentText = String(content ?? "");
+  const actionButtons = contentText.trim()
+    ? [
+        createActionButton("detail", "", () =>
+          stepDetailStore.showStepDetail(buildDetailPayload(arguments[0])),
+        ),
+        createActionButton("speak", "", () => speechStore.speak(contentText)),
+        createActionButton("copy", "", () => copyToClipboard(contentText)),
+      ].filter(Boolean)
+    : [];
 
   return drawProcessStep({
     id,
@@ -1240,8 +1322,7 @@ export function drawMessageSubagent({
     kvps: displayKvps,
     content,
     // contentClasses: [],
-    copyText: content,
-    speakText: content,
+    actionButtons,
     log: arguments[0],
   });
 }
@@ -1255,6 +1336,13 @@ export function drawMessageInfo({
 }) {
   const title = cleanStepTitle(heading);
   let displayKvps = { ...kvps };
+  const contentText = String(content ?? "");
+  const actionButtons = contentText.trim()
+    ? [
+        createActionButton("speak", "", () => speechStore.speak(contentText)),
+        createActionButton("copy", "", () => copyToClipboard(contentText)),
+      ].filter(Boolean)
+    : [];
 
   return drawProcessStep({
     id,
@@ -1264,8 +1352,7 @@ export function drawMessageInfo({
     kvps: displayKvps,
     content,
     // contentClasses: [],
-    copyText: content,
-    speakText: content,
+    actionButtons,
     log: arguments[0],
   });
 }
@@ -1281,6 +1368,13 @@ export function drawMessageUtil({
   ...additional
 }) {
   const title = cleanStepTitle(heading);
+  const contentText = String(content ?? "");
+  const actionButtons = contentText.trim()
+    ? [
+        createActionButton("speak", "", () => speechStore.speak(contentText)),
+        createActionButton("copy", "", () => copyToClipboard(contentText)),
+      ].filter(Boolean)
+    : [];
 
   return drawProcessStep({
     id,
@@ -1288,8 +1382,8 @@ export function drawMessageUtil({
     code: "UTL",
     classes: ["message-util"],
     kvps,
-    copyText: null,
-    speakText: null,
+    content,
+    actionButtons,
     log: arguments[0],
     allowCompletedGroup: true,
   });
@@ -1308,6 +1402,13 @@ export function drawMessageHint({
   const title = getStepTitle(heading, kvps, type);
   const statusCode = getStatusCode(type);
   const statusClass = getStatusClass(type);
+  const contentText = String(content ?? "");
+  const actionButtons = contentText.trim()
+    ? [
+        createActionButton("speak", "", () => speechStore.speak(contentText)),
+        createActionButton("copy", "", () => copyToClipboard(contentText)),
+      ].filter(Boolean)
+    : [];
 
   return drawStandaloneMessage({
     id,
@@ -1320,6 +1421,7 @@ export function drawMessageHint({
     content,
     timestamp,
     agentno,
+    actionButtons,
   });
 }
 
@@ -1344,8 +1446,7 @@ export function drawMessageProgress({
     kvps: displayKvps,
     content,
     // contentClasses: [],
-    // copyText: kvps?.thoughts,
-    // speakText: kvps?.thoughts,
+    actionButtons: [],
     log: arguments[0],
   });
 }
@@ -1359,6 +1460,13 @@ export function drawMessageWarning({
 }) {
   const title = cleanStepTitle(heading);
   let displayKvps = { ...kvps };
+  const contentText = String(content ?? "");
+  const actionButtons = contentText.trim()
+    ? [
+        createActionButton("speak", "", () => speechStore.speak(contentText)),
+        createActionButton("copy", "", () => copyToClipboard(contentText)),
+      ].filter(Boolean)
+    : [];
 
   //TODO: if process group is running, append there instead
   // return drawProcessStep({
@@ -1369,8 +1477,6 @@ export function drawMessageWarning({
   //   kvps: displayKvps,
   //   content,
   //   // contentClasses: [],
-  //   copyText: content,
-  //   speakText: content,
   //   log: arguments[0],
   // });
   return drawStandaloneMessage({
@@ -1381,6 +1487,7 @@ export function drawMessageWarning({
     containerClasses: ["ai-container", "center-container"],
     mainClass: "message-warning",
     kvps,
+    actionButtons,
   });
 }
 
@@ -1391,6 +1498,16 @@ export function drawMessageError({
   kvps = null,
   ...additional
 }) {
+  const contentText = String(content ?? "");
+  const actionButtons = [
+    createActionButton("detail", "", () =>
+      stepDetailStore.showStepDetail(buildDetailPayload(arguments[0])),
+    ),
+    contentText.trim()
+      ? createActionButton("copy", "", () => copyToClipboard(contentText))
+      : null,
+  ].filter(Boolean);
+
   return drawStandaloneMessage({
     id,
     heading,
@@ -1399,6 +1516,7 @@ export function drawMessageError({
     containerClasses: ["ai-container", "center-container"],
     mainClass: "message-error",
     kvps,
+    actionButtons,
   });
 }
 
@@ -1529,11 +1647,6 @@ export function drawMessageError({
 //     pre.textContent = content;
 //     contentInner.appendChild(pre);
 
-//     // Add action buttons for copy functionality
-//     addActionButtonsToElement(contentInner, {
-//       copyContent: content,
-//       speakContent: content,
-//     });
 //   }
 
 //   messageContainer.classList.add("center-container");
