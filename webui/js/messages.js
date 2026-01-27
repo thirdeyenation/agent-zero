@@ -671,7 +671,7 @@ function drawStandaloneMessage({
   // Render action buttons: get/create container, clear, append
   const actionButtonsContainer = ensureChild(
     messageDiv,
-    ":scope > .step-action-buttons",
+    ".step-action-buttons",
     "div",
     "step-action-buttons",
   );
@@ -1118,7 +1118,7 @@ export function drawMessageUser({
   // Look for direct child only to avoid finding nested code block buttons
   const actionButtonsContainer = ensureChild(
     messageDiv,
-    ":scope > .step-action-buttons",
+    ".step-action-buttons",
     "div",
     "step-action-buttons",
   );
