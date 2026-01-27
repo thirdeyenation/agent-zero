@@ -14,7 +14,8 @@
   pointer-events: none;
 }
 
-.step-action-buttons .action-button {
+.step-action-buttons .action-button,
+.action-button {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -24,7 +25,8 @@
   cursor: pointer;
 }
 
-.step-action-buttons .action-button .material-symbols-outlined {
+.step-action-buttons .action-button .material-symbols-outlined,
+.action-button .material-symbols-outlined {
   font-size: 0.85rem;
   line-height: 1;
   color: var(--color-message-text);
@@ -32,18 +34,21 @@
   transition: color 0.15s ease;
 }
 
-.step-action-buttons .action-button:hover .material-symbols-outlined {
+.step-action-buttons .action-button:hover .material-symbols-outlined,
+.action-button:hover .material-symbols-outlined {
   color: var(--color-text);
 }
 
 /* Success state */
-.step-action-buttons .action-button.success .material-symbols-outlined {
+.step-action-buttons .action-button.success .material-symbols-outlined,
+.action-button.success .material-symbols-outlined {
   color: #4CAF50;
   font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 20;
 }
 
 /* Error state */
-.step-action-buttons .action-button.error .material-symbols-outlined {
+.step-action-buttons .action-button.error .material-symbols-outlined,
+.action-button.error .material-symbols-outlined {
   color: var(--color-accent);
   font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 20;
 }
@@ -61,6 +66,13 @@
 .device-pointer .message-user:hover .step-action-buttons,
 .device-pointer .message-agent-response:hover .step-action-buttons,
 .device-pointer .process-step:hover > .process-step-detail .step-action-buttons {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Code blocks and tables: show copy button on hover */
+.device-pointer .code-block-wrapper:hover .step-action-buttons,
+.device-pointer .message-markdown-table-wrap:hover .step-action-buttons {
   opacity: 1;
   pointer-events: auto;
 }

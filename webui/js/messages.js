@@ -1883,16 +1883,57 @@ function convertPathsToLinks(str) {
     .join("");
 }
 
+// markdown render helpers //
+
+// wraps an element with a container div
+const wrapElement = (el, className) => {
+  const wrapper = document.createElement("div");
+  wrapper.className = className;
+  el.parentNode.insertBefore(wrapper, el);
+  wrapper.appendChild(el);
+  return wrapper;
+};
+
+// data extractors
+const extractTableTSV = (table) =>
+  [...table.rows]
+    .map((row) =>
+      [...row.cells]
+        .map((cell) => cell.textContent.replace(/\t/g, "  ").replace(/\n/g, " "))
+        .join("\t"),
+    )
+    .join("\n");
+
 function adjustMarkdownRender(element) {
   // find all tables in the element
-  const elements = element.querySelectorAll("table");
+  const tables = element.querySelectorAll("table");
+  tables.forEach((el) => {
+    if (el.parentNode.classList.contains("message-markdown-table-wrap"))
+      return;
+    const wrapper = wrapElement(el, "message-markdown-table-wrap");
+    
+    // create copy button directly
+    const copyBtn = createActionButton("copy", "", () =>
+      copyToClipboard(extractTableTSV(el))
+    );
+    copyBtn.classList.add("step-action-buttons", "overlay-actions");
+    wrapper.appendChild(copyBtn);
+  });
 
-  // wrap each with a div with class message-markdown-table-wrap
-  elements.forEach((el) => {
-    const wrapper = document.createElement("div");
-    wrapper.className = "message-markdown-table-wrap";
-    el.parentNode.insertBefore(wrapper, el);
-    wrapper.appendChild(el);
+  // find all code blocks
+  // we select the code element to ensure valid targets, then wrap the parent pre
+  const codeElements = element.querySelectorAll("pre > code");
+  codeElements.forEach((code) => {
+    const pre = code.parentNode;
+    if (pre.parentNode.classList.contains("code-block-wrapper")) return;
+    const wrapper = wrapElement(pre, "code-block-wrapper");
+    
+    // create copy button directly
+    const copyBtn = createActionButton("copy", "", () =>
+      copyToClipboard(code.textContent)
+    );
+    copyBtn.classList.add("step-action-buttons", "overlay-actions");
+    wrapper.appendChild(copyBtn);
   });
 
   // find all images

@@ -732,6 +732,23 @@
   border-radius: 0.3em;
 }
 
+/* Code block and table copy buttons */
+.code-block-wrapper,
+.message-markdown-table-wrap {
+  position: relative;
+}
+
+.overlay-actions {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: var(--color-panel);
+  border-radius: var(--border-radius-sm);
+  z-index: 1;
+  padding: 2px !important;
+  gap: 0 !important;
+}
+
 .msg-content hr {
   border: 0;
   border-top: 1px solid var(--color-border);
