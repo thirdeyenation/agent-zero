@@ -671,7 +671,7 @@ function drawStandaloneMessage({
   // Render action buttons: get/create container, clear, append
   const actionButtonsContainer = ensureChild(
     messageDiv,
-    ".step-action-buttons",
+    ":scope > .step-action-buttons",
     "div",
     "step-action-buttons",
   );
@@ -975,9 +975,10 @@ export function drawMessageResponse({
         createActionButton("copy", "", () => copyToClipboard(responseText)),
       ].filter(Boolean)
     : [];
+  // Look for direct child only to avoid finding nested code block buttons
   const actionButtonsContainer = ensureChild(
     messageDiv,
-    ".step-action-buttons",
+    ":scope > .step-action-buttons",
     "div",
     "step-action-buttons",
   );
@@ -1114,9 +1115,10 @@ export function drawMessageUser({
         createActionButton("copy", "", () => copyToClipboard(userText)),
       ].filter(Boolean)
     : [];
+  // Look for direct child only to avoid finding nested code block buttons
   const actionButtonsContainer = ensureChild(
     messageDiv,
-    ".step-action-buttons",
+    ":scope > .step-action-buttons",
     "div",
     "step-action-buttons",
   );
@@ -1909,11 +1911,12 @@ function adjustMarkdownRender(element) {
   const tables = element.querySelectorAll("table");
   tables.forEach((el) => {
     const wrapper = wrapElement(el, "message-markdown-table-wrap");
-    const copyBtn = createActionButton("copy", "", () =>
-      copyToClipboard(extractTableTSV(el))
+    const actionsDiv = document.createElement("div");
+    actionsDiv.className = "step-action-buttons";
+    actionsDiv.appendChild(
+      createActionButton("copy", "", () => copyToClipboard(extractTableTSV(el)))
     );
-    copyBtn.classList.add("step-action-buttons", "overlay-actions");
-    wrapper.appendChild(copyBtn);
+    wrapper.appendChild(actionsDiv);
   });
 
   // find all code blocks
@@ -1921,11 +1924,12 @@ function adjustMarkdownRender(element) {
   codeElements.forEach((code) => {
     const pre = code.parentNode;
     const wrapper = wrapElement(pre, "code-block-wrapper");
-    const copyBtn = createActionButton("copy", "", () =>
-      copyToClipboard(code.textContent)
+    const actionsDiv = document.createElement("div");
+    actionsDiv.className = "step-action-buttons";
+    actionsDiv.appendChild(
+      createActionButton("copy", "", () => copyToClipboard(code.textContent))
     );
-    copyBtn.classList.add("step-action-buttons", "overlay-actions");
-    wrapper.appendChild(copyBtn);
+    wrapper.appendChild(actionsDiv);
   });
 
   // find all images
