@@ -1908,11 +1908,7 @@ function adjustMarkdownRender(element) {
   // find all tables in the element
   const tables = element.querySelectorAll("table");
   tables.forEach((el) => {
-    if (el.parentNode.classList.contains("message-markdown-table-wrap"))
-      return;
     const wrapper = wrapElement(el, "message-markdown-table-wrap");
-    
-    // create copy button directly
     const copyBtn = createActionButton("copy", "", () =>
       copyToClipboard(extractTableTSV(el))
     );
@@ -1921,14 +1917,10 @@ function adjustMarkdownRender(element) {
   });
 
   // find all code blocks
-  // we select the code element to ensure valid targets, then wrap the parent pre
   const codeElements = element.querySelectorAll("pre > code");
   codeElements.forEach((code) => {
     const pre = code.parentNode;
-    if (pre.parentNode.classList.contains("code-block-wrapper")) return;
     const wrapper = wrapElement(pre, "code-block-wrapper");
-    
-    // create copy button directly
     const copyBtn = createActionButton("copy", "", () =>
       copyToClipboard(code.textContent)
     );
