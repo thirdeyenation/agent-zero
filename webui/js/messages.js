@@ -1115,7 +1115,6 @@ export function drawMessageUser({
         createActionButton("copy", "", () => copyToClipboard(userText)),
       ].filter(Boolean)
     : [];
-  // Look for direct child only to avoid finding nested code block buttons
   const actionButtonsContainer = ensureChild(
     messageDiv,
     ".step-action-buttons",
