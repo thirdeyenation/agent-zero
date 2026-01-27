@@ -668,6 +668,22 @@ function drawStandaloneMessage({
     mainClass,
   });
 
+  // Collapsible: show ~10 lines with fade, expand button reveals full content
+  messageDiv.classList.add("message-collapsible");
+
+  const expandBtn = ensureChild(messageDiv, ".expand-btn", "button", "expand-btn");
+  expandBtn.textContent = messageDiv.classList.contains("expanded") ? "Show less" : "Show more";
+  expandBtn.onclick = () => {
+    messageDiv.classList.toggle("expanded");
+    expandBtn.textContent = messageDiv.classList.contains("expanded") ? "Show less" : "Show more";
+  };
+
+  // Detect overflow after render - CSS handles visibility based on .has-overflow class
+  requestAnimationFrame(() => {
+    const body = messageDiv.querySelector(".message-body");
+    messageDiv.classList.toggle("has-overflow", body.scrollHeight > body.clientHeight);
+  });
+
   // Render action buttons: get/create container, clear, append
   const actionButtonsContainer = ensureChild(
     messageDiv,
@@ -965,6 +981,22 @@ export function drawMessageResponse({
     markdown: true,
     latex: true,
     mainClass: "message-agent-response",
+  });
+
+  // Collapsible: show ~10 lines with fade, expand button reveals full content
+  messageDiv.classList.add("message-collapsible");
+
+  const expandBtn = ensureChild(messageDiv, ".expand-btn", "button", "expand-btn");
+  expandBtn.textContent = messageDiv.classList.contains("expanded") ? "Show less" : "Show more";
+  expandBtn.onclick = () => {
+    messageDiv.classList.toggle("expanded");
+    expandBtn.textContent = messageDiv.classList.contains("expanded") ? "Show less" : "Show more";
+  };
+
+  // Detect overflow after render - CSS handles visibility based on .has-overflow class
+  requestAnimationFrame(() => {
+    const body = messageDiv.querySelector(".message-body");
+    messageDiv.classList.toggle("has-overflow", body.scrollHeight > body.clientHeight);
   });
 
   // Render action buttons: get/create container, clear, append
