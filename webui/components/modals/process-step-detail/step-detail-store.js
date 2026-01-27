@@ -49,7 +49,6 @@ const model = {
       lines.push("");
       lines.push("--- Data ---");
       for (const [key, value] of Object.entries(step.kvps)) {
-        if (key === "reasoning") continue;
         const formattedValue = typeof value === "object" ? JSON.stringify(value, null, 2) : String(value);
         lines.push(`${key}: ${formattedValue}`);
       }
