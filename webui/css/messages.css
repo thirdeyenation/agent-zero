@@ -10,18 +10,14 @@
   overflow-y: scroll;
   overflow-x: hidden;
   scroll-behavior: auto !important; /* avoid infinite scrolling! */
-  /* padding: var(--spacing-md) 10em 0 !important; */
+  padding-left: var(--spacing-sm) !important;
+  padding-right: var(--spacing-md)   !important;
+  padding-top: 4rem !important;
+  padding-bottom: 4rem !important;
   -webkit-transition: all 0.3s ease;
   transition: all 0.3s ease;
   scrollbar-width: thin;
   scrollbar-color: #555 transparent;
-  padding-left: var(--spacing-sm);
-  padding-right: var(--spacing-sm);
-  padding-bottom: 5em;
-}
-
-#chat-history > *:first-child {
-  margin-top: 4.4em;
 }
 
 /* Scrollbar styling for Firefox */
@@ -577,8 +573,11 @@
 
 @media (max-width: 1024px) {
   #chat-history {
-    padding: var(--spacing-md) var(--spacing-sm) 0 !important;
-  }
+  padding-left: var(--spacing-sm) !important;
+  padding-right: var(--spacing-md)   !important;
+  padding-top: 4rem !important;
+  padding-bottom: 2rem !important;  
+}
 }
 
 @media (max-width: 640px) {

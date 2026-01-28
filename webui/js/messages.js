@@ -9,73 +9,15 @@ import { store as stepDetailStore } from "/components/modals/process-step-detail
 import { store as preferencesStore } from "/components/sidebar/bottom/preferences/preferences-store.js";
 import { formatDuration } from "./time-utils.js";
 
-// ============================================
-// Timing Constants
-// ============================================
 // Delay before collapsing previous steps when a new step is added
 const STEP_COLLAPSE_DELAY_MS = 3000;
 // Delay before collapsing the last step when processing completes
 const FINAL_STEP_COLLAPSE_DELAY_MS = 3000;
 
-// // Tool-specific status codes (fallback for tool steps)
-// const TOOL_STATUS_CODES = {
-//   call_subordinate: "SUB",
-//   search_engine: "WEB",
-//   a2a_chat: "A2A",
-//   behaviour_adjustment: "ADJ",
-//   document_query: "DOC",
-//   vision_load: "EYE",
-//   notify_user: "NTF",
-//   scheduler: "SCH",
-//   unknown: "UNK",
-//   memory_save: "MEM",
-//   memory_load: "MEM",
-//   memory_forget: "MEM",
-//   memory_delete: "MEM",
-// };
-
-// Tool-specific status classes (fallback for tool steps)
-// const TOOL_STATUS_CLASSES = {
-//   call_subordinate: "status-sub",
-// };
-
-const TYPE_STATUS_CODES = {
-  // agent: "GEN",
-  response: "END",
-  // tool: "USE",
-  // code_exe: "EXE",
-  // browser: "WWW",
-  // progress: "HLD",
-  // mcp: "MCP",
-  // subagent: "SUB",
-  info: "INF",
-  hint: "HNT",
-  // warning: "WRN",
-  rate_limit: "WRN",
-  // error: "ERR",
-  // util: "UTL",
-  done: "END",
-};
-
-const TYPE_STATUS_CLASSES = {
-  // agent: "status-gen",
-  response: "status-end",
-  // tool: "status-tool",
-  // code_exe: "status-exe",
-  // browser: "status-www",
-  // progress: "status-wait",
-  // mcp: "status-mcp",
-  // subagent: "status-sub",
-  info: "status-inf",
-  hint: "status-hnt",
-  // warning: "status-wrn",
-  rate_limit: "status-wrn",
-  // error: "status-err",
-  // util: "status-utl",
-  done: "status-end",
-};
-
+// dom references
 let _chatHistory = null;
+
+// state vars
 let _massRender = false;
 
 // handlers for log message rendering
@@ -120,34 +62,25 @@ export function getMessageHandler(type) {
  * Mark a process group as the active one (via .active class)
  */
 function setActiveProcessGroup(group) {
-  if (!group) return;
+  // if (!group) return;
 
-  // Already active? Nothing to do
-  if (group.classList.contains("active")) return;
+  // // Already active? Nothing to do
+  // if (group.classList.contains("active")) return;
 
-  // Clear active + shiny from all other groups
-  getChatHistoryEl()
-    .querySelectorAll(".process-group.active")
-    .forEach((g) => {
-      if (g !== group) {
-        g.classList.remove("active");
-        g.querySelectorAll(".step-title.shiny-text").forEach((el) =>
-          el.classList.remove("shiny-text"),
-        );
-      }
-    });
+  // // Clear active + shiny from all other groups
+  // getChatHistoryEl()
+  //   .querySelectorAll(".process-group.active")
+  //   .forEach((g) => {
+  //     if (g !== group) {
+  //       g.classList.remove("active");
+  //       g.querySelectorAll(".step-title.shiny-text").forEach((el) =>
+  //         el.classList.remove("shiny-text"),
+  //       );
+  //     }
+  //   });
 
-  // Mark this group as active
-  group.classList.add("active");
-}
-
-export function clearActiveStepShine() {
-  // Clear all shiny step titles in process steps
-  getChatHistoryEl()
-    .querySelectorAll(".process-step .step-title.shiny-text")
-    .forEach((el) => {
-      el.classList.remove("shiny-text");
-    });
+  // // Mark this group as active
+  // group.classList.add("active");
 }
 
 function getChatHistoryEl() {
@@ -393,7 +326,7 @@ function drawProcessStep({
   let step = document.getElementById(stepId);
 
   const isNewStep = !step;
-  const isGroupCompleted = group.classList.contains("process-group-completed");
+  const isGroupComplete = isProcessGroupComplete(group);
 
   if (isNewStep) {
     // create the base DOM element for the step
@@ -408,25 +341,6 @@ function drawProcessStep({
 
     // apply step classes
     if (classes) step.classList.add(...classes);
-
-    // if (toolName) {
-    //   step.setAttribute("data-tool-name", toolName);
-    // }
-    // timestamp data
-    // if (log.timestamp) {
-    //   step.setAttribute("data-timestamp", log.timestamp);
-
-    //   if (!group.getAttribute("data-start-timestamp")) {
-    //     group.setAttribute("data-start-timestamp", log.timestamp);
-    //     const timeMetricEl = group.querySelector(".metric-time .metric-value");
-    //     if (timeMetricEl) {
-    //       const date = new Date(parseFloat(timestamp) * 1000);
-    //       const hours = String(date.getHours()).padStart(2, "0");
-    //       const minutes = String(date.getMinutes()).padStart(2, "0");
-    //       timeMetricEl.textContent = `${hours}:${minutes}`;
-    //     }
-    //   }
-    // }
 
     let appendTarget = stepsContainer;
     const parentStep = findParentDelegationStep(group, log.agentno);
@@ -450,24 +364,22 @@ function drawProcessStep({
 
     // expand all or current step based on settings
     const detailMode = preferencesStore.detailMode;
-    const isActiveGroup = group.classList.contains("active");
+    // const isActiveGroup = group.classList.contains("active");
 
     //expand all
     if (detailMode === "expanded") {
       step.classList.add("expanded");
       // expand current step and schedule collapse of previous
-    } else if (detailMode === "current") {
-      if (isActiveGroup && !isGroupCompleted) {
-        step.classList.add("expanded");
-        const allExpandedSteps = stepsContainer.querySelectorAll(
-          ".process-step.expanded",
-        );
-        allExpandedSteps.forEach((expandedStep) => {
-          if (expandedStep.id !== stepId) {
+    } else if (detailMode === "current" && !isMassRender() && !isGroupComplete) {
+      step.classList.add("expanded");
+      const allExpandedSteps = stepsContainer.querySelectorAll(
+        ".process-step.expanded",
+      );
+      allExpandedSteps.forEach((expandedStep) => {
+        if (expandedStep.id !== stepId) {
             scheduleStepCollapse(expandedStep, STEP_COLLAPSE_DELAY_MS);
           }
         });
-      }
     }
   }
 
@@ -496,20 +408,7 @@ function drawProcessStep({
     "process-step-detail-scroll",
   );
 
-  // else {
-  //   if (timestamp && !step.hasAttribute("data-timestamp")) {
-  //     step.setAttribute("data-timestamp", timestamp);
-  //   }
-  //   if (agentno !== undefined) {
-  //     step.setAttribute("data-agent-number", agentno);
-  //   }
-  // }
-
-  // const toolNameToUse = resolveToolName(type, kvps, step) || toolName;
-  // if (toolNameToUse) {
-  //   step.setAttribute("data-tool-name", toolNameToUse);
-  // }
-
+  // expand/collapse handler for step header
   if (!stepHeader.hasAttribute("data-expand-handler")) {
     stepHeader.setAttribute("data-expand-handler", "true");
     stepHeader.addEventListener("click", (e) => {
@@ -544,39 +443,7 @@ function drawProcessStep({
   const titleEl = ensureChild(stepHeader, ".step-title", "span", "step-title");
   titleEl.textContent = title;
 
-  // const detail = ensureChild(step, ".process-step-detail", "div", "process-step-detail");
-  // const detailContent = ensureChild(
-  //   detail,
-  //   ".process-step-detail-content",
-  //   "div",
-  //   "process-step-detail-content",
-  // );
-
-  // let skipFullRender = false;
-
-  // const terminal = stepDetailContent.querySelector(".terminal-output");
-  // const scroller = terminal ? new Scroller(terminal) : null;
-
-  // if (type === "browser" && kvps?.screenshot) {
-  //   const existingImg = detailContent.querySelector(".screenshot-img");
-  //   const newSrc = kvps.screenshot.replace("img://", "/image_get?path=");
-  //   if (existingImg) {
-  //     if (!existingImg.src.endsWith(newSrc.split("?path=")[1])) {
-  //       existingImg.src = newSrc;
-  //     }
-  //     skipFullRender = true;
-  //   }
-  // }
-
-  // if (!skipFullRender) {
-  //   renderStepDetailContent(detailContent, content, kvps, type);
-
-  //   const newTerminal = detailContent.querySelector(".terminal-output");
-  //   if (newTerminal && scroller?.wasAtBottom) {
-  //     newTerminal.scrollTop = newTerminal.scrollHeight;
-  //   }
-  // }
-
+  // auto-scroller of the step detail
   const detailScroller = new Scroller(stepDetailScroll); // scroller for step detail content
 
   // update KVPs of the step detail
@@ -592,14 +459,9 @@ function drawProcessStep({
   );
   stepDetailContent.textContent = content;
 
-  // const detailDataToUse =
-  //   detailData ||
-  //   buildDetailPayload({
-  //     ...stepData,
-  //     toolName: toolNameToUse,
-  //     statusCode: resolvedStatusCode,
-  //     statusClass: resolvedStatusClass,
-  //   });
+  // reapply scroll position (autoscroll if bottom) - only when expanded already and not mass rendering
+  if (isExpanded && !isMassRender()) detailScroller.reApplyScroll();
+
 
   // Render action buttons: get/create container, clear, append
   const stepActionBtns = ensureChild(
@@ -614,11 +476,15 @@ function drawProcessStep({
     .filter(Boolean)
     .forEach((button) => stepActionBtns.appendChild(button));
 
-  if (isExpanded && !isMassRender()) detailScroller.reApplyScroll(); // reapply scroll position (autoscroll if bottom) - only when expanded already and not
 
+  // update the process grop header by this step
   updateProcessGroupHeader(group);
 
-  if (isNewStep && !isGroupCompleted) {
+  // remove shine from previous steps and add to this one if new and not completed
+  if (isNewStep && !isGroupComplete) {
+    stepDetailScroll.querySelectorAll(".step-title.shiny-text").forEach((el) => {
+      el.classList.remove("shiny-text");
+    });
     titleEl.classList.add("shiny-text");
   }
 
@@ -1553,137 +1419,6 @@ export function drawMessageError({
   });
 }
 
-// export function drawMessageError({
-//   id,
-//   heading,
-//   content,
-//   kvps = null,
-//   ...additional
-// }) {
-//   const messageContainer = getOrCreateMessageContainer(id, "mid", [
-//     "ai-container",
-//     "center-container",
-//   ]);
-
-//   // Create or get the message div
-//   let messageDiv = messageContainer.querySelector(".message");
-//   if (!messageDiv) {
-//     messageDiv = document.createElement("div");
-//     messageDiv.classList.add("message", "message-error-group");
-//     messageContainer.appendChild(messageDiv);
-//   }
-
-//   // Check if error group already exists
-//   let errorGroup = messageDiv.querySelector(".error-group");
-//   if (!errorGroup) {
-//     errorGroup = document.createElement("div");
-//     errorGroup.classList.add("error-group");
-//     errorGroup.setAttribute("data-error-id", id);
-
-//     // Create header (clickable for expand/collapse)
-//     const header = document.createElement("div");
-//     header.classList.add("error-group-header");
-
-//     // Expand icon (triangle)
-//     const expandIcon = document.createElement("span");
-//     expandIcon.classList.add("expand-icon");
-//     header.appendChild(expandIcon);
-
-//     // Status badge (before title)
-//     const badge = document.createElement("span");
-//     badge.classList.add("step-badge", "status-err");
-//     badge.textContent = "ERR";
-//     header.appendChild(badge);
-
-//     // Title
-//     const title = document.createElement("span");
-//     title.classList.add("error-title");
-//     title.textContent = "Error";
-//     header.appendChild(title);
-
-//     // Subtitle (short error description)
-//     const subtitle = document.createElement("span");
-//     subtitle.classList.add("error-subtitle");
-//     header.appendChild(subtitle);
-
-//     // Click handler for expand/collapse
-//     header.addEventListener("click", () => {
-//       errorGroup.classList.toggle("expanded");
-//     });
-
-//     errorGroup.appendChild(header);
-
-//     // Create content container (collapsible)
-//     const contentWrapper = document.createElement("div");
-//     contentWrapper.classList.add("error-group-content");
-
-//     const contentInner = document.createElement("div");
-//     contentInner.classList.add("error-content-inner");
-//     contentWrapper.appendChild(contentInner);
-
-//     errorGroup.appendChild(contentWrapper);
-//     messageDiv.appendChild(errorGroup);
-
-//     // Check detail mode and expand if needed
-//     const detailMode = preferencesStore.detailMode || "current";
-//     if (detailMode === "current" || detailMode === "expanded") {
-//       errorGroup.classList.add("expanded");
-//     }
-//   }
-
-//   // Update subtitle with short error description
-//   const subtitle = errorGroup.querySelector(".error-subtitle");
-//   if (subtitle) {
-//     // Extract short description from heading or content
-//     let shortDesc = "";
-//     // Skip if heading is just "Error" (redundant with title)
-//     if (heading && heading.trim() && heading.trim().toLowerCase() !== "error") {
-//       shortDesc = heading.trim();
-//     }
-//     // If no useful heading, try to extract from content
-//     if (!shortDesc && content && content.trim()) {
-//       const lines = content.trim().split("\n");
-//       // Look for the error line (usually last meaningful line or one matching ErrorType: pattern)
-//       for (let i = lines.length - 1; i >= 0; i--) {
-//         const line = lines[i].trim();
-//         if (line && /^[\w\.]+Error[:\s]/.test(line)) {
-//           shortDesc = line;
-//           break;
-//         }
-//       }
-//       // Fallback to first non-empty line if no error pattern found
-//       if (!shortDesc) {
-//         for (const line of lines) {
-//           if (line.trim() && !line.startsWith("Traceback")) {
-//             shortDesc = line.trim();
-//             break;
-//           }
-//         }
-//       }
-//     }
-//     // Truncate if too long
-//     if (shortDesc.length > 100) {
-//       shortDesc = shortDesc.substring(0, 97) + "...";
-//     }
-//     subtitle.textContent = shortDesc;
-//     subtitle.title = shortDesc; // Full text on hover
-//   }
-
-//   // Update content (full callstack)
-//   const contentInner = errorGroup.querySelector(".error-content-inner");
-//   if (contentInner && content) {
-//     contentInner.innerHTML = "";
-
-//     // Create pre element for callstack/content
-//     const pre = document.createElement("pre");
-//     pre.classList.add("error-callstack");
-//     pre.textContent = content;
-//     contentInner.appendChild(pre);
-
-//   }
-
-//   messageContainer.classList.add("center-container");
-// }
 
 function drawKvpsIncremental(container, kvps, latex) {
   // existing KVPS table
@@ -1808,27 +1543,6 @@ function convertToTitleCase(str) {
       return match.toUpperCase(); // Capitalize the first letter of each word
     });
 }
-
-/**
- * Clean text value by removing standalone bracket lines and trimming
- * Handles both strings and arrays (filters out bracket-only items)
- */
-// function cleanTextValue(value) {
-//   if (Array.isArray(value)) {
-//     return value
-//       .filter(
-//         (item) =>
-//           item && String(item).trim() && !/^[\[\]]$/.test(String(item).trim()),
-//       )
-//       .join("\n");
-//   }
-//   if (typeof value === "object" && value !== null) {
-//     return JSON.stringify(value, null, 2);
-//   }
-//   return String(value)
-//     .replace(/^\s*[\[\]]\s*$/gm, "")
-//     .trim();
-// }
 
 function convertImageTags(content) {
   // Regular expression to match <image> tags and extract base64 content
@@ -2173,15 +1887,6 @@ function findParentDelegationStep(group, agentno) {
  * Get a concise title for a process step
  */
 function getStepTitle(heading, kvps, type) {
-  // code_exe: show command when finished
-  // const showCommand =
-  //   type === "code_exe" &&
-  //   kvps?.code &&
-  //   /done_all|code_execution_tool/.test(heading || "");
-  // if (showCommand) {
-  //   const s = kvps.session ?? kvps.Session;
-  //   return `${s != null ? `[${s}] ` : ""}${kvps.runtime || "bash"}> ${kvps.code.trim()}`;
-  // }
 
   // Try to get a meaningful title from heading or kvps
   if (heading && heading.trim()) {
@@ -2243,222 +1948,6 @@ function cleanStepTitle(text, maxLength = 100) {
   return truncateText(cleaned, maxLength);
 }
 
-/**
- * Render content for step detail panel
- */
-// function renderStepDetailContent(container, content, kvps, type = null) {
-//   container.innerHTML = "";
-
-//   drawKvpsIncremental(container, kvps);
-
-//   // Special handling for response type - show content as markdown (for subordinate responses)
-//   if (type === "response" && content && content.trim()) {
-//     const responseDiv = document.createElement("div");
-//     responseDiv.classList.add("step-response-content");
-
-//     // Parse markdown
-//     let processedContent = content;
-//     processedContent = convertImageTags(processedContent);
-//     processedContent = convertImgFilePaths(processedContent);
-//     processedContent = convertFilePaths(processedContent);
-//     processedContent = marked.parse(processedContent, { breaks: true });
-//     processedContent = convertPathsToLinks(processedContent);
-//     processedContent = addBlankTargetsToLinks(processedContent);
-
-//     responseDiv.innerHTML = processedContent;
-//     container.appendChild(responseDiv);
-//     return;
-//   }
-
-//   // Special handling for warning/error types - always show content prominently
-//   if ((type === "warning" || type === "error") && content && content.trim()) {
-//     const warningDiv = document.createElement("div");
-//     warningDiv.classList.add("step-warning-content");
-//     warningDiv.textContent = content;
-//     container.appendChild(warningDiv);
-//     // Don't return - also show kvps if present
-//   }
-
-//   // Special handling for code_exe type - render as terminal-style output
-//   if (type === "code_exe" && kvps) {
-//     const runtime = kvps.runtime || kvps.Runtime || "bash";
-//     const code = kvps.code || kvps.Code || "";
-//     const output = content || "";
-
-//     if (code || output) {
-//       const terminalDiv = document.createElement("div");
-//       terminalDiv.classList.add("step-terminal");
-
-//       // Show output if present (no truncation - CSS handles max-height)
-//       if (output && output.trim()) {
-//         const outputPre = document.createElement("pre");
-//         outputPre.classList.add("terminal-output");
-//         // Escape HTML first, then convert paths to clickable links
-//         let processedOutput = escapeHTML(output);
-//         processedOutput = convertPathsToLinks(processedOutput);
-//         outputPre.innerHTML = processedOutput;
-//         terminalDiv.appendChild(outputPre);
-//       }
-
-//       container.appendChild(terminalDiv);
-//     }
-
-//     // Still render thoughts if present (but not reasoning - that's native model thinking, not structured output)
-//     if (kvps.thoughts || kvps.thinking) {
-//       const thoughtKey = kvps.thoughts ? "thoughts" : "thinking";
-//       const thoughtValue = kvps[thoughtKey];
-//       renderThoughts(container, thoughtValue);
-//     }
-
-//     return;
-//   }
-
-//   // Add KVPs if present
-//   if (kvps && Object.keys(kvps).length > 0) {
-//     const kvpsDiv = document.createElement("div");
-//     kvpsDiv.classList.add("step-kvps");
-
-//     for (const [key, value] of Object.entries(kvps)) {
-//       // Skip internal/display keys
-//       if (key === "finished" || key === "attachments") continue;
-
-//       // Skip code_exe specific keys that we handle specially above
-//       if (
-//         type === "code_exe" &&
-//         (key.toLowerCase() === "runtime" ||
-//           key.toLowerCase() === "session" ||
-//           key.toLowerCase() === "code")
-//       ) {
-//         continue;
-//       }
-
-//       const lowerKey = key.toLowerCase();
-
-//       // Skip headline and tool_name - they're shown elsewhere
-//       if (lowerKey === "headline" || lowerKey === "tool_name") continue;
-
-//       // Skip query in agent steps - it's shown in the tool call step
-//       if (type === "agent" && lowerKey === "query") continue;
-
-//       // Special handling for thoughts - render with single lightbulb icon
-//       // Skip reasoning
-//       if (lowerKey === "reasoning") continue;
-//       if (
-//         lowerKey === "thoughts" ||
-//         lowerKey === "thinking" ||
-//         lowerKey === "reflection"
-//       ) {
-//         renderThoughts(kvpsDiv, value);
-//         continue;
-//       }
-
-//       // Special handling for tool_args - render only for tool/mcp types (skip for agent)
-//       if (lowerKey === "tool_args") {
-//         // Skip tool_args for agent steps - it's shown in the tool call step
-//         if (type === "agent") continue;
-
-//         if (typeof value !== "object" || value === null) continue;
-//         const argsDiv = document.createElement("div");
-//         argsDiv.classList.add("step-tool-args");
-
-//         for (const [argKey, argValue] of Object.entries(value)) {
-//           const argRow = document.createElement("div");
-//           argRow.classList.add("tool-arg-row");
-
-//           const argLabel = document.createElement("span");
-//           argLabel.classList.add("tool-arg-label");
-
-//           const iconName = extractIconFromKey(argKey);
-//           if (iconName) {
-//             argLabel.innerHTML = `<span class="material-symbols-outlined">${iconName}</span>`;
-//           } else {
-//             argLabel.textContent = convertToTitleCase(argKey) + ":";
-//           }
-
-//           const argVal = document.createElement("span");
-//           argVal.classList.add("tool-arg-value");
-
-//           const argText = cleanTextValue(argValue);
-
-//           argVal.textContent = truncateText(argText, 300);
-
-//           argRow.appendChild(argLabel);
-//           argRow.appendChild(argVal);
-//           argsDiv.appendChild(argRow);
-//         }
-
-//         kvpsDiv.appendChild(argsDiv);
-//         continue;
-//       }
-
-//       const kvpDiv = document.createElement("div");
-//       kvpDiv.classList.add("step-kvp");
-
-//       const keySpan = document.createElement("span");
-//       keySpan.classList.add("step-kvp-key");
-
-//       const iconName = extractIconFromKey(key);
-//       if (iconName) {
-//         keySpan.innerHTML = `<span class="material-symbols-outlined">${iconName}</span>`;
-//       } else {
-//         keySpan.textContent = convertToTitleCase(key) + ":";
-//       }
-
-//       const valueSpan = document.createElement("div");
-//       valueSpan.classList.add("step-kvp-value");
-
-//       if (typeof value === "string" && value.startsWith("img://")) {
-//         const imgElement = document.createElement("img");
-//         imgElement.classList.add("screenshot-img");
-//         imgElement.src = value.replace("img://", "/image_get?path=");
-//         imgElement.alt = "Image Attachment";
-//         imgElement.style.cursor = "pointer";
-//         imgElement.style.maxWidth = "100%";
-//         imgElement.style.display = "block";
-//         imgElement.style.marginTop = "4px";
-
-//         // Add click handler and cursor change
-//         imgElement.addEventListener("click", () => {
-//           imageViewerStore.open(imgElement.src, { name: "Image Attachment" });
-//         });
-
-//         valueSpan.appendChild(imgElement);
-//       } else {
-//         const valueText = cleanTextValue(value);
-//         valueSpan.textContent = truncateText(valueText, 1000);
-//       }
-
-//       kvpDiv.appendChild(keySpan);
-//       kvpDiv.appendChild(valueSpan);
-//       kvpsDiv.appendChild(kvpDiv);
-//     }
-
-//     container.appendChild(kvpsDiv);
-//   }
-
-//   // Add main content if present (JSON content)
-//   if (content && content.trim()) {
-//     const pre = document.createElement("pre");
-//     pre.classList.add("msg-json");
-//     pre.textContent = truncateText(content, 1000);
-//     container.appendChild(pre);
-//   }
-// }
-
-/**
- * Helper to render thoughts/reasoning with lightbulb icon
- */
-// function renderThoughts(container, value) {
-//   const thoughtsDiv = document.createElement("div");
-//   thoughtsDiv.classList.add("step-thoughts", "msg-thoughts");
-
-//   const thoughtText = cleanTextValue(value);
-
-//   if (thoughtText) {
-//     thoughtsDiv.innerHTML = `<span class="thought-icon material-symbols-outlined">lightbulb</span><span class="thought-text">${escapeHTML(thoughtText)}</span>`;
-//     container.appendChild(thoughtsDiv);
-//   }
-// }
 
 /**
  * Update process group header with step count, status, and metrics
@@ -2469,8 +1958,7 @@ function updateProcessGroupHeader(group) {
   const titleEl = header.querySelector(".group-title");
   const badgeEl = header.querySelector(".step-badge");
   const metricsEl = header.querySelector(".group-metrics");
-  const response = group.querySelector(".process-group-response");
-  const isCompleted = !!response;
+  const isCompleted = isProcessGroupComplete(group);
   const notificationsEl = metricsEl?.querySelector(".metric-notifications");
 
   // Update group title with the latest agent step heading
@@ -2494,7 +1982,12 @@ function updateProcessGroupHeader(group) {
 
   // If completed, set badge to END
   if (isCompleted) {
+    // set end badge
     badgeEl.outerHTML = `<span class="step-badge END">END</span>`;
+    // remove shine from any steps
+    group.querySelectorAll(".step-title.shiny-text").forEach((el) => {
+      el.classList.remove("shiny-text");
+    });
   } else {
     // if not complete, clone the last step badge
     if (badgeEl && steps.length > 0) {
@@ -2502,6 +1995,7 @@ function updateProcessGroupHeader(group) {
       const code = lastStep.getAttribute("data-step-code");
       badgeEl.outerHTML = `<span class="step-badge ${code}">${code}</span>`;
     }
+
   }
 
   // Update step count in metrics - All GEN steps from all agents per process group
@@ -2573,42 +2067,12 @@ function updateProcessGroupHeader(group) {
     }
   }
 
-  if (steps.length > 0) {
-    // Get the last step's type for status
-    // const lastStep = steps[steps.length - 1];
-    // const lastType = lastStep.getAttribute("data-type");
-    // const lastToolName = lastStep.getAttribute("data-tool-name");
-    // const lastTitle = lastStep.querySelector(".step-title")?.textContent || "";
-    // Update status badge
-    // if (statusEl) {
-    //   const statusCode = getStatusCode(lastType, lastToolName);
-    //   const statusColorClass = getStatusClass(lastType, lastToolName);
-    //   statusEl.textContent = statusCode;
-    //   statusEl.className = `step-badge ${statusColorClass} group-status`;
-    // }
-    // Update title
-    // if (titleEl) {
-    //   // Prefer agent type steps for the group title as they contain thinking/planning info
-    //   if (lastType === "agent" && lastTitle) {
-    //     titleEl.textContent = cleanStepTitle(lastTitle, 50);
-    //   } else {
-    //     // Try to find the most recent agent step for a better title
-    //     const agentSteps = group.querySelectorAll(
-    //       '.process-step[data-type="agent"]',
-    //     );
-    //     if (agentSteps.length > 0) {
-    //       const lastAgentStep = agentSteps[agentSteps.length - 1];
-    //       const agentTitle =
-    //         lastAgentStep.querySelector(".step-title")?.textContent || "";
-    //       if (agentTitle) {
-    //         titleEl.textContent = cleanStepTitle(agentTitle, 50);
-    //         return;
-    //       }
-    //     }
-    //     titleEl.textContent = cleanStepTitle(lastTitle, 50) || `Processing...`;
-    //   }
-    // }
-  }
+
+}
+
+function isProcessGroupComplete(group) {
+  const response = group.querySelector(".process-group-response");
+  return !!response;
 }
 
 /**

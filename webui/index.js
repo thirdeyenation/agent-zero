@@ -459,8 +459,6 @@ function setProgressBarShine(progressBarEl, active) {
   if (!progressBarEl) return;
   if (!active) {
     removeClassFromElement(progressBarEl, "shiny-text");
-    // clear any lingering shines in process steps
-    msgs.clearActiveStepShine();
   } else {
     addClassToElement(progressBarEl, "shiny-text");
   }

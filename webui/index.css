@@ -81,6 +81,7 @@
 
   /* Other variables */
   --border-radius: 1.125rem;
+  --border-radius-sm: 0.5rem;
   --transition-speed: 0.3s;
   --svg-filter: brightness(0) saturate(100%) var(--color-primary-filter);
   --color-primary-filter: invert(73%) sepia(17%) saturate(360%)
@@ -738,30 +739,6 @@ h4 {
 #chat-history .attachments-container {
   padding: 0 !important;
 }
-
-/* #chat-history .attachment-item {
-  padding: 0 !important;
-  background-color: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-  transform: none !important;
-}
-
-#chat-history .attachment-item:hover {
-  background-color: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-  transform: none !important;
-}
-
-#chat-history .attachment-preview,
-#chat-history .attachment-item.image-type .attachment-preview {
-  background: transparent;
-}
-
-.attachment-image .attachment-preview {
-  margin-right: 0;
-} */
 
 .attachment-info,
 .file-info {
