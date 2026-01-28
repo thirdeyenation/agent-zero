@@ -837,9 +837,10 @@ export function drawMessageResponse({
       "process-group-response",
     );
     //collapse all steps when response is ready
-    group.querySelectorAll(".process-step").forEach((step) => {
-      scheduleStepCollapse(step);
-    });
+    if(preferencesStore.detailMode!=="expanded")
+      group.querySelectorAll(".process-step").forEach((step) => {
+        scheduleStepCollapse(step);
+      });
   } else container = getOrCreateMessageContainer(id, "left");
 
   const messageDiv = _drawMessage({
