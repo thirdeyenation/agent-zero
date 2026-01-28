@@ -272,7 +272,7 @@ function getOrCreateProcessGroup(id, allowCompleted = true) {
   return group;
 }
 
-function buildDetailPayload(stepData) {
+function buildDetailPayload(stepData, extras = {}) {
   if (!stepData) return null;
   return {
     type: stepData.type,
@@ -284,6 +284,7 @@ function buildDetailPayload(stepData) {
     toolName: stepData.toolName,
     statusCode: stepData.statusCode,
     statusClass: stepData.statusClass,
+    ...extras,
   };
 }
 
@@ -765,10 +766,13 @@ export function drawMessageAgent({
   if (kvps?.thoughts) displayKvps["icon://lightbulb"] = kvps.thoughts;
   if (kvps?.step) displayKvps["icon://step"] = kvps.step;
   const thoughtsText = String(kvps?.thoughts ?? "");
+  const headerLabels = [
+    kvps?.tool_name && { label: kvps.tool_name, class: "tool-name-badge" },
+  ].filter(Boolean);
   const actionButtons = thoughtsText.trim()
     ? [
         createActionButton("detail", "", () =>
-          stepDetailStore.showStepDetail(buildDetailPayload(arguments[0])),
+          stepDetailStore.showStepDetail(buildDetailPayload(arguments[0], { headerLabels })),
         ),
         createActionButton("speak", "", () => speechStore.speak(thoughtsText)),
         createActionButton("copy", "", () => copyToClipboard(thoughtsText)),
@@ -1037,11 +1041,14 @@ export function drawMessageTool({
 }) {
   const title = cleanStepTitle(heading);
   let displayKvps = { ...kvps };
+  const headerLabels = [
+    kvps?.tool_name && { label: kvps.tool_name, class: "tool-name-badge" },
+  ].filter(Boolean);
   const contentText = String(content ?? "");
   const actionButtons = contentText.trim()
     ? [
         createActionButton("detail", "", () =>
-          stepDetailStore.showStepDetail(buildDetailPayload(arguments[0])),
+          stepDetailStore.showStepDetail(buildDetailPayload(arguments[0], { headerLabels })),
         ),
         createActionButton("speak", "", () => speechStore.speak(contentText)),
         createActionButton("copy", "", () => copyToClipboard(contentText)),
@@ -1089,12 +1096,17 @@ export function drawMessageCodeExe({
   if (kvps?.runtime) displayKvps.runtime = kvps.runtime;
   if (kvps?.session) displayKvps.session = kvps.session;
 
+  const headerLabels = [
+    kvps?.runtime && { label: kvps.runtime, class: "tool-name-badge" },
+    kvps?.session != null && { label: `Session ${kvps.session}`, class: "header-label" },
+  ].filter(Boolean);
+
   // render the standard step
   const commandText = String(kvps?.code ?? "");
   const outputText = String(content ?? "");
   const actionButtons = [
     createActionButton("detail", "", () =>
-      stepDetailStore.showStepDetail(buildDetailPayload(arguments[0])),
+      stepDetailStore.showStepDetail(buildDetailPayload(arguments[0], { headerLabels })),
     ),
     commandText.trim()
       ? createActionButton("copy", "Command", () =>
@@ -1134,7 +1146,7 @@ export function drawMessageBrowser({
   const actionButtons = answerText.trim()
     ? [
         createActionButton("detail", "", () =>
-          stepDetailStore.showStepDetail(buildDetailPayload(arguments[0])),
+          stepDetailStore.showStepDetail(buildDetailPayload(arguments[0], { headerLabels: [] })),
         ),
         createActionButton("speak", "", () => speechStore.speak(answerText)),
         createActionButton("copy", "", () => copyToClipboard(answerText)),
@@ -1166,11 +1178,14 @@ export function drawMessageMcp({
 }) {
   const title = cleanStepTitle(heading);
   let displayKvps = { ...kvps };
+  const headerLabels = [
+    kvps?.tool_name && { label: kvps.tool_name, class: "tool-name-badge" },
+  ].filter(Boolean);
   const contentText = String(content ?? "");
   const actionButtons = contentText.trim()
     ? [
         createActionButton("detail", "", () =>
-          stepDetailStore.showStepDetail(buildDetailPayload(arguments[0])),
+          stepDetailStore.showStepDetail(buildDetailPayload(arguments[0], { headerLabels })),
         ),
         createActionButton("speak", "", () => speechStore.speak(contentText)),
         createActionButton("copy", "", () => copyToClipboard(contentText)),
@@ -1202,11 +1217,14 @@ export function drawMessageSubagent({
 }) {
   const title = cleanStepTitle(heading);
   let displayKvps = { ...kvps };
+  const headerLabels = [
+    kvps?.tool_name && { label: kvps.tool_name, class: "tool-name-badge" },
+  ].filter(Boolean);
   const contentText = String(content ?? "");
   const actionButtons = contentText.trim()
     ? [
         createActionButton("detail", "", () =>
-          stepDetailStore.showStepDetail(buildDetailPayload(arguments[0])),
+          stepDetailStore.showStepDetail(buildDetailPayload(arguments[0], { headerLabels })),
         ),
         createActionButton("speak", "", () => speechStore.speak(contentText)),
         createActionButton("copy", "", () => copyToClipboard(contentText)),
@@ -1400,7 +1418,7 @@ export function drawMessageError({
   const contentText = String(content ?? "");
   const actionButtons = [
     createActionButton("detail", "", () =>
-      stepDetailStore.showStepDetail(buildDetailPayload(arguments[0])),
+      stepDetailStore.showStepDetail(buildDetailPayload(arguments[0], { headerLabels: [] })),
     ),
     contentText.trim()
       ? createActionButton("copy", "", () => copyToClipboard(contentText))
