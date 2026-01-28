@@ -415,6 +415,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   margin-left: var(--spacing-xs);
+  min-width: 0;
 }
 
 /* Step expand icon - CSS triangle (no Material Icons) */
@@ -453,6 +454,7 @@
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* IE/Edge */
   overscroll-behavior: contain; /* avoid scroll chaining */
+  max-width: 100%;
 }
 
 .process-step:not(.expanded) > .process-step-detail {
@@ -508,6 +510,8 @@
   font-size: var(--font-size-xs);
   line-height: 1.5;
   overflow-y: auto;
+  overflow-x: hidden;
+  max-width: 100%;
   -webkit-overflow-scrolling: touch; /* smooth scrolling on iOS */
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* IE/Edge */
@@ -527,7 +531,7 @@
 /* KVPs in step detail - CSS Grid for aligned columns */
 .process-step-detail-scroll .step-kvps {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: auto minmax(0, 1fr);
   gap: var(--spacing-xs) var(--spacing-sm);
   align-items: start;
 }
@@ -543,6 +547,7 @@
   display: flex;
   align-items: center;
   justify-content: end;
+  white-space: nowrap;
 }
 
 .process-step-detail-scroll .step-kvp-key .material-symbols-outlined {
@@ -554,9 +559,17 @@
   /* color: var(--color-text); */
   opacity: 0.85;
   word-break: break-word;
+  overflow-wrap: anywhere;
   white-space: pre-wrap;
   font-size: 0.75rem;
   line-height: 1.5;
+  min-width: 0;
+}
+
+.process-step-detail-scroll .step-kvp-value p {
+  margin: 0;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 
@@ -769,6 +782,8 @@
   color: var(--color-text);
   opacity: 0.9;
   margin: var(--spacing-xs) 0;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .process-step-detail-scroll .step-response-content p {
