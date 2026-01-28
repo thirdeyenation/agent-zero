@@ -1,4 +1,6 @@
 import { createStore } from "/js/AlpineStore.js";
+import { createActionButton, copyToClipboard } from "/components/messages/action-buttons/simple-action-buttons.js";
+import { store as notificationStore } from "/components/notifications/notification-store.js";
 
 // Step Detail Store - manages the step detail modal
 
@@ -16,22 +18,40 @@ const model = {
     window.openModal("modals/process-step-detail/process-step-detail.html");
   },
 
+  // render copy buttons for each segment (called via x-init)
+  renderSegmentButtons() {
+    const step = this.selectedStepForDetail;
+
+    // heading
+    document.querySelector('[data-segment="heading"]')?.replaceChildren(
+      createActionButton("copy", "", () => copyToClipboard(this.cleanHeading(step.heading)))
+    );
+
+    // details (kvps)
+    const kvpsText = Object.entries(step.kvps || {})
+      .map(([k, v]) => `${this.formatKey(k)}: ${this.formatValue(v)}`)
+      .join('\n');
+    document.querySelector('[data-segment="details"]')?.replaceChildren(
+      createActionButton("copy", "", () => copyToClipboard(kvpsText))
+    );
+
+    // content
+    document.querySelector('[data-segment="content"]')?.replaceChildren(
+      createActionButton("copy", "", () => copyToClipboard(step.content))
+    );
+  },
+
   // Close step detail modal
   closeStepDetail() {
     this.selectedStepForDetail = null;
     window.closeModal();
   },
 
-  // Copy text to clipboard
-  async copyToClipboard(text) {
-    if (!text) return false;
-    try {
-      await navigator.clipboard.writeText(text);
-      return true;
-    } catch (err) {
-      console.error("Failed to copy to clipboard:", err);
-      return false;
-    }
+  // Copy text to clipboard with toast feedback
+  copyToClipboard(text) {
+    navigator.clipboard.writeText(text)
+      .then(() => notificationStore.addFrontendToastOnly("success", "Copied to clipboard!", "", 3))
+      .catch((err) => console.error("Clipboard copy failed:", err));
   },
 
   // Format step data for full copy (all metadata + content)

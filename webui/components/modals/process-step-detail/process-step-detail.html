@@ -15,9 +15,6 @@
                 <!-- Compact Modal Header -->
                 <div class="modal-header modal-header-compact">
                     <div class="header-info">
-                        <span class="status-badge"
-                              :class="$store.stepDetail.selectedStepForDetail?.statusClass || ''"
-                              x-text="$store.stepDetail.selectedStepForDetail?.statusCode || ''"></span>
                         <span class="step-type-label" x-text="$store.stepDetail.formatStepType($store.stepDetail.selectedStepForDetail?.type)"></span>
                         <template x-if="$store.stepDetail.selectedStepForDetail?.headerLabels">
                             <template x-for="(label, index) in $store.stepDetail.selectedStepForDetail?.headerLabels || []" :key="index">
@@ -27,12 +24,12 @@
                     </div>
                     <div class="header-actions">
                         <button class="btn btn-action-header copy-all" 
-                                @click.stop="$store.stepDetail.copyToClipboard($store.stepDetail.formatStepForCopy($store.stepDetail.selectedStepForDetail)).then(() => { $el.classList.add('copied'); setTimeout(() => $el.classList.remove('copied'), 1500) })"
+                                @click.stop="$store.stepDetail.copyToClipboard($store.stepDetail.formatStepForCopy($store.stepDetail.selectedStepForDetail))"
                                 title="Copy Complete Step with Metadata">
                             <span class="material-symbols-outlined">copy_all</span> All
                         </button>
                         <button class="btn btn-action-header copy-content" 
-                                @click.stop="$store.stepDetail.copyToClipboard($store.stepDetail.getStepPrimaryContent($store.stepDetail.selectedStepForDetail)).then(() => { $el.classList.add('copied'); setTimeout(() => $el.classList.remove('copied'), 1500) })"
+                                @click.stop="$store.stepDetail.copyToClipboard($store.stepDetail.getStepPrimaryContent($store.stepDetail.selectedStepForDetail))"
                                 title="Copy Raw LLM Response">
                             <span class="material-symbols-outlined">content_copy</span> Content
                         </button>
@@ -53,12 +50,13 @@
                     </div>
 
                     <!-- Formatted View -->
-                    <div class="formatted-content" x-show="!showRaw">
+                    <div class="formatted-content" x-show="!showRaw" x-init="$nextTick(() => $store.stepDetail.renderSegmentButtons())">
                         <!-- Heading/Title Section -->
                         <template x-if="$store.stepDetail.selectedStepForDetail?.heading">
                             <div class="content-block">
                                 <h4>Heading</h4>
                                 <div class="content-text" x-text="$store.stepDetail.cleanHeading($store.stepDetail.selectedStepForDetail?.heading)"></div>
+                                <div class="step-action-buttons" data-segment="heading"></div>
                             </div>
                         </template>
 
@@ -66,14 +64,8 @@
                         <template x-if="$store.stepDetail.selectedStepForDetail?.kvps">
                             <div class="content-block">
                                 <h4>Details</h4>
-                                <div class="kvps-display">
-                                    <template x-for="[key, value] in Object.entries($store.stepDetail.selectedStepForDetail?.kvps || {})" :key="key">
-                                        <div class="kvp-item">
-                                            <span class="kvp-key" x-text="$store.stepDetail.formatKey(key)"></span>
-                                            <span class="kvp-value" x-text="$store.stepDetail.formatValue(value)"></span>
-                                        </div>
-                                    </template>
-                                </div>
+                                <div class="kvps-display"><template x-for="[key, value] in Object.entries($store.stepDetail.selectedStepForDetail?.kvps || {})" :key="key"><span class="kvp-line"><span class="kvp-key" x-text="$store.stepDetail.formatKey(key)"></span><span class="kvp-value" x-text="$store.stepDetail.formatValue(value)"></span></span></template></div>
+                                <div class="step-action-buttons" data-segment="details"></div>
                             </div>
                         </template>
 
@@ -82,6 +74,7 @@
                             <div class="content-block">
                                 <h4>Content</h4>
                                 <pre class="result-content" x-text="$store.stepDetail.selectedStepForDetail?.content"></pre>
+                                <div class="step-action-buttons" data-segment="content"></div>
                             </div>
                         </template>
                     </div>
@@ -99,10 +92,8 @@
         }
 
         .modal-header-compact {
-            background: linear-gradient(135deg, var(--color-panel) 0%, var(--color-background) 100%);
             position: sticky;
             padding: 0.75rem 1rem;
-            border-radius: 6px 6px 0 0;
             top: 0;
             z-index: 100;
             display: flex;
@@ -170,11 +161,6 @@
             border-color: var(--color-primary);
         }
 
-        .btn-action-header.copied {
-            background: var(--color-success, #22c55e);
-            border-color: var(--color-success, #22c55e);
-            color: white;
-        }
 
         .modal-body {
             flex: 1;
@@ -211,10 +197,7 @@
         }
 
         .content-block {
-            background: var(--color-panel);
-            border: 1px solid var(--color-border);
-            border-radius: 6px;
-            padding: 1rem;
+            padding: var(--spacing-xs) 0;
         }
 
         .content-block h4 {
@@ -233,10 +216,7 @@
         }
 
         .result-content {
-            background: var(--color-background);
-            padding: 1rem;
-            border-radius: 8px;
-            font-family: var(--font-mono);
+            font-family: monospace !important;
             font-size: 0.85rem;
             margin: 0;
             max-height: 40vh;
@@ -248,32 +228,39 @@
         .kvps-display {
             display: flex;
             flex-direction: column;
-            gap: 0.5rem;
+            gap: 0.25rem;
+            font-size: 0.9rem;
+            line-height: 1.5;
         }
 
-        .kvp-item {
-            display: flex;
-            flex-direction: column;
-            gap: 0.25rem;
-            padding: 0.5rem;
-            background: var(--color-background);
-            border-radius: 8px;
-            border: 1px solid var(--color-border);
+        .kvp-line {
+            display: block;
         }
 
         .kvp-key {
-            font-weight: 600;
-            color: var(--color-text);
-            opacity: 0.7;
-            font-size: 0.8rem;
-            text-transform: uppercase;
+            color: var(--color-text-muted);
+            margin-right: 0.5rem;
+        }
+
+        .kvp-key::after {
+            content: ':';
         }
 
         .kvp-value {
             color: var(--color-text);
-            font-size: 0.9rem;
             white-space: pre-wrap;
             word-break: break-word;
+        }
+
+        .step-action-buttons {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: flex-start;
+            margin-top: 0.75rem;
+            padding-top: 0.5rem;
+            border-top: 1px solid var(--color-border);
+            opacity: 1;
+            pointer-events: auto;
         }
 
         .modal-scroll::-webkit-scrollbar {
