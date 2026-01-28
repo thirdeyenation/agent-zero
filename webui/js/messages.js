@@ -669,6 +669,22 @@ function drawStandaloneMessage({
     mainClass,
   });
 
+  // Collapsible: show ~10 lines with fade, expand button reveals full content
+  messageDiv.classList.add("message-collapsible");
+
+  const expandBtn = ensureChild(messageDiv, ".expand-btn", "button", "expand-btn");
+  expandBtn.textContent = messageDiv.classList.contains("expanded") ? "Show less" : "Show more";
+  expandBtn.onclick = () => {
+    messageDiv.classList.toggle("expanded");
+    expandBtn.textContent = messageDiv.classList.contains("expanded") ? "Show less" : "Show more";
+  };
+
+  // Detect overflow after render - CSS handles visibility based on .has-overflow class
+  requestAnimationFrame(() => {
+    const body = messageDiv.querySelector(".message-body");
+    messageDiv.classList.toggle("has-overflow", body.scrollHeight > body.clientHeight);
+  });
+
   // Render action buttons: get/create container, clear, append
   const actionButtonsContainer = ensureChild(
     messageDiv,
@@ -971,6 +987,22 @@ export function drawMessageResponse({
     mainClass: "message-agent-response",
   });
 
+  // Collapsible: show ~10 lines with fade, expand button reveals full content
+  messageDiv.classList.add("message-collapsible");
+
+  const expandBtn = ensureChild(messageDiv, ".expand-btn", "button", "expand-btn");
+  expandBtn.textContent = messageDiv.classList.contains("expanded") ? "Show less" : "Show more";
+  expandBtn.onclick = () => {
+    messageDiv.classList.toggle("expanded");
+    expandBtn.textContent = messageDiv.classList.contains("expanded") ? "Show less" : "Show more";
+  };
+
+  // Detect overflow after render - CSS handles visibility based on .has-overflow class
+  requestAnimationFrame(() => {
+    const body = messageDiv.querySelector(".message-body");
+    messageDiv.classList.toggle("has-overflow", body.scrollHeight > body.clientHeight);
+  });
+
   // Render action buttons: get/create container, clear, append
   const responseText = String(content ?? "");
   const responseActionButtons = responseText.trim()
@@ -979,9 +1011,10 @@ export function drawMessageResponse({
         createActionButton("copy", "", () => copyToClipboard(responseText)),
       ].filter(Boolean)
     : [];
+  // Look for direct child only to avoid finding nested code block buttons
   const actionButtonsContainer = ensureChild(
     messageDiv,
-    ".step-action-buttons",
+    ":scope > .step-action-buttons",
     "div",
     "step-action-buttons",
   );
@@ -1763,7 +1796,7 @@ function drawKvpsIncremental(container, kvps, latex) {
           imageViewerStore.open(imgElement.src, { refreshInterval: 1000 });
         });
       } else {
-        const span = document.createElement("span");
+        const span = document.createElement("p");
         span.innerHTML = convertHTML(value);
         tdiv.appendChild(span);
 
@@ -1901,16 +1934,51 @@ function convertPathsToLinks(str) {
     .join("");
 }
 
+// markdown render helpers //
+
+// wraps an element with a container div
+const wrapElement = (el, className) => {
+  const wrapper = document.createElement("div");
+  wrapper.className = className;
+  el.parentNode.insertBefore(wrapper, el);
+  wrapper.appendChild(el);
+  return wrapper;
+};
+
+// data extractors
+const extractTableTSV = (table) =>
+  [...table.rows]
+    .map((row) =>
+      [...row.cells]
+        .map((cell) => cell.textContent.replace(/\t/g, "  ").replace(/\n/g, " "))
+        .join("\t"),
+    )
+    .join("\n");
+
 function adjustMarkdownRender(element) {
   // find all tables in the element
-  const elements = element.querySelectorAll("table");
+  const tables = element.querySelectorAll("table");
+  tables.forEach((el) => {
+    const wrapper = wrapElement(el, "message-markdown-table-wrap");
+    const actionsDiv = document.createElement("div");
+    actionsDiv.className = "step-action-buttons";
+    actionsDiv.appendChild(
+      createActionButton("copy", "", () => copyToClipboard(extractTableTSV(el)))
+    );
+    wrapper.appendChild(actionsDiv);
+  });
 
-  // wrap each with a div with class message-markdown-table-wrap
-  elements.forEach((el) => {
-    const wrapper = document.createElement("div");
-    wrapper.className = "message-markdown-table-wrap";
-    el.parentNode.insertBefore(wrapper, el);
-    wrapper.appendChild(el);
+  // find all code blocks
+  const codeElements = element.querySelectorAll("pre > code");
+  codeElements.forEach((code) => {
+    const pre = code.parentNode;
+    const wrapper = wrapElement(pre, "code-block-wrapper");
+    const actionsDiv = document.createElement("div");
+    actionsDiv.className = "step-action-buttons";
+    actionsDiv.appendChild(
+      createActionButton("copy", "", () => copyToClipboard(code.textContent))
+    );
+    wrapper.appendChild(actionsDiv);
   });
 
   // find all images
