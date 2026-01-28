@@ -1778,7 +1778,7 @@ function drawKvpsIncremental(container, kvps, latex) {
           imageViewerStore.open(imgElement.src, { refreshInterval: 1000 });
         });
       } else {
-        const span = document.createElement("span");
+        const span = document.createElement("p");
         span.innerHTML = convertHTML(value);
         tdiv.appendChild(span);
 

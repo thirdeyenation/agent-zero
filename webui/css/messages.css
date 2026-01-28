@@ -438,6 +438,10 @@
   font-size: 0.75rem;
 }
 
+.kvps-val p{
+  margin:0;
+}
+
 .kvps-val pre {
   white-space: pre-wrap; /* keep \n, collapse no spaces, allow wrapping */
   word-break: break-word; /* optional – forces really long “words” to break */
