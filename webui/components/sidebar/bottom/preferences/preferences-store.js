@@ -73,6 +73,7 @@ const model = {
   // Detail mode options for UI sidebar
   detailModeOptions: [
     { label: "NONE", value: "collapsed", title: "All collapsed" },
+    { label: "LIST", value: "list", title: "Steps collapsed" },
     { label: "STEP", value: "current", title: "Current step only" },
     { label: "ALL", value: "expanded", title: "All expanded" },
   ],
