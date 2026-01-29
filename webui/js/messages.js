@@ -69,6 +69,12 @@ export function setMessages(messages) {
   const historyEmpty = !history || history.childElementCount === 0;
   const isLargeAppend = !historyEmpty && messages.length > 10;
   const cutoff = isLargeAppend ? Math.max(0, messages.length - 2) : 0;
+  const massRender = historyEmpty || isLargeAppend;
+
+  let mainScroller;
+  if (preferencesStore.autoScroll && history) {
+    mainScroller = new Scroller(history, { smooth: !massRender });
+  }
 
   // process messages
   for (let i = 0; i < messages.length; i++) {
@@ -78,6 +84,8 @@ export function setMessages(messages) {
 
   // reset _massRender flag
   _massRender = false;
+
+  if (mainScroller) mainScroller.reApplyScroll();
 }
 
 // entrypoint called from poll/WS communication, this is how all messages are rendered and updated
@@ -350,7 +358,9 @@ function drawProcessStep({
   titleEl.textContent = title;
 
   // auto-scroller of the step detail
-  const detailScroller = new Scroller(stepDetailScroll); // scroller for step detail content
+  const detailScroller = new Scroller(stepDetailScroll, {
+    smooth: !isMassRender(),
+  }); // scroller for step detail content
 
   // update KVPs of the step detail
   const kvpsTable = drawKvpsIncremental(stepDetailScroll, kvps);
@@ -366,7 +376,7 @@ function drawProcessStep({
   stepDetailContent.textContent = content;
 
   // reapply scroll position (autoscroll if bottom) - only when expanded already and not mass rendering
-  if (isExpanded && !isMassRender()) detailScroller.reApplyScroll();
+  if (isExpanded) detailScroller.reApplyScroll();
 
   // Render action buttons: get/create container, clear, append
   const stepActionBtns = ensureChild(
@@ -502,7 +512,7 @@ export function _drawMessage({
   }
 
   // reapply scroll position or autoscroll
-  const scroller = new Scroller(bodyDiv);
+  const scroller = new Scroller(bodyDiv, { smooth: !isMassRender() });
 
   // Handle KVPs incrementally
   drawKvpsIncremental(bodyDiv, kvps, false);
@@ -1587,22 +1597,26 @@ function adjustMarkdownRender(element) {
 }
 
 export class Scroller {
-  constructor(element) {
+  constructor(element, { smooth = false } = {}) {
     this.element = element;
+    this.smooth = smooth;
     this.wasAtBottom = this.isAtBottom();
   }
 
   isAtBottom(tolerance = 80) {
-    const scrollHeight = this.element.scrollHeight;
-    const clientHeight = this.element.clientHeight;
-    const distanceFromBottom =
-      scrollHeight - this.element.scrollTop - clientHeight;
-    return distanceFromBottom <= tolerance;
+    const { scrollHeight, clientHeight, scrollTop } = this.element;
+    return scrollHeight - scrollTop - clientHeight <= tolerance;
+  }
+
+  scrollToBottom() {
+    const target = this.element.scrollHeight;
+    this.smooth
+      ? this.element.scrollTo({ top: target, behavior: "smooth" })
+      : (this.element.scrollTop = target);
   }
 
   reApplyScroll() {
-    if (this.wasAtBottom && !this.isAtBottom())
-      this.element.scrollTop = this.element.scrollHeight;
+    if (this.wasAtBottom && !this.isAtBottom()) this.scrollToBottom();
   }
 }
 
