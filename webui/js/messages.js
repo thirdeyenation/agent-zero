@@ -61,108 +61,6 @@ export function getMessageHandler(type) {
   }
 }
 
-/**
- * Mark a process group as the active one (via .active class)
- */
-function setActiveProcessGroup(group) {
-  // if (!group) return;
-  // // Already active? Nothing to do
-  // if (group.classList.contains("active")) return;
-  // // Clear active + shiny from all other groups
-  // getChatHistoryEl()
-  //   .querySelectorAll(".process-group.active")
-  //   .forEach((g) => {
-  //     if (g !== group) {
-  //       g.classList.remove("active");
-  //       g.querySelectorAll(".step-title.shiny-text").forEach((el) =>
-  //         el.classList.remove("shiny-text"),
-  //       );
-  //     }
-  //   });
-  // // Mark this group as active
-  // group.classList.add("active");
-}
-
-function getChatHistoryEl() {
-  if (!_chatHistory) _chatHistory = document.getElementById("chat-history");
-  return _chatHistory;
-}
-
-function getLastMessageGroup() {
-  return getChatHistoryEl()?.lastElementChild;
-}
-
-// function getLastMessageContainer() {
-//   const chatHistoryEl = getChatHistoryEl();
-//   if (!chatHistoryEl) return null;
-//   const lastGroup = chatHistoryEl.lastElementChild;
-//   if (!lastGroup) return null;
-//   return lastGroup.lastElementChild;
-// }
-
-function appendToMessageGroup(
-  messageContainer,
-  position,
-  forceNewGroup = false,
-) {
-  const chatHistoryEl = getChatHistoryEl();
-  if (!chatHistoryEl) return;
-
-  const lastGroup = chatHistoryEl.lastElementChild;
-  const lastGroupType = lastGroup?.getAttribute("data-group-type");
-
-  if (!forceNewGroup && lastGroup && lastGroupType === position) {
-    lastGroup.appendChild(messageContainer);
-  } else {
-    const group = document.createElement("div");
-    group.classList.add("message-group", `message-group-${position}`);
-    group.setAttribute("data-group-type", position);
-    group.appendChild(messageContainer);
-    chatHistoryEl.appendChild(group);
-  }
-}
-
-// function getStatusCode(type, toolName = null) {
-//   if (type === "tool" && toolName && TOOL_STATUS_CODES[toolName]) {
-//     return TOOL_STATUS_CODES[toolName];
-//   }
-//   return TYPE_STATUS_CODES[type] || type?.toUpperCase()?.slice(0, 4) || "GEN";
-// }
-
-// function getStatusClass(type, toolName = null) {
-//   if (type === "tool" && toolName && TOOL_STATUS_CLASSES[toolName]) {
-//     return TOOL_STATUS_CLASSES[toolName];
-//   }
-//   return TYPE_STATUS_CLASSES[type] || "status-gen";
-// }
-
-// /**
-//  * Resolve tool name from kvps, existing attribute, or previous siblings
-//  * For 'tool' type steps, inherits from preceding step if not directly available
-//  */
-// function resolveToolName(type, kvps, stepElement) {
-//   // Direct from kvps
-//   if (kvps?.tool_name) return kvps.tool_name;
-
-//   // Keep existing if present (for non-tool types during updates)
-//   if (type !== "tool" && stepElement?.hasAttribute("data-tool-name")) {
-//     return stepElement.getAttribute("data-tool-name");
-//   }
-
-//   // // Inherit from previous sibling (for tool steps)
-//   // if (type === 'tool' && stepElement) {
-//   //   let prev = stepElement.previousElementSibling;
-//   //   while (prev) {
-//   //     if (prev.hasAttribute('data-tool-name')) {
-//   //       return prev.getAttribute('data-tool-name');
-//   //     }
-//   //     prev = prev.previousElementSibling;
-//   //   }
-//   // }
-
-//   return null;
-// }
-
 // entrypoint called from poll/WS communication, this is how all messages are rendered and updated
 // input is raw log format
 export function setMessages(messages) {
@@ -233,6 +131,38 @@ function getOrCreateMessageContainer(
   return container;
 }
 
+
+function getChatHistoryEl() {
+  if (!_chatHistory) _chatHistory = document.getElementById("chat-history");
+  return _chatHistory;
+}
+
+function getLastMessageGroup() {
+  return getChatHistoryEl()?.lastElementChild;
+}
+
+function appendToMessageGroup(
+  messageContainer,
+  position,
+  forceNewGroup = false,
+) {
+  const chatHistoryEl = getChatHistoryEl();
+  if (!chatHistoryEl) return;
+
+  const lastGroup = chatHistoryEl.lastElementChild;
+  const lastGroupType = lastGroup?.getAttribute("data-group-type");
+
+  if (!forceNewGroup && lastGroup && lastGroupType === position) {
+    lastGroup.appendChild(messageContainer);
+  } else {
+    const group = document.createElement("div");
+    group.classList.add("message-group", `message-group-${position}`);
+    group.setAttribute("data-group-type", position);
+    group.appendChild(messageContainer);
+    chatHistoryEl.appendChild(group);
+  }
+}
+
 function getLastProcessGroup(allowCompleted = true) {
   const lastContainer = getLastMessageGroup();
   if (!lastContainer) return null;
@@ -268,22 +198,13 @@ function getOrCreateProcessGroup(id, allowCompleted = true) {
   messageContainer.appendChild(group);
 
   appendToMessageGroup(messageContainer, "left");
-  setActiveProcessGroup(group);
   return group;
 }
 
 function buildDetailPayload(stepData, extras = {}) {
   if (!stepData) return null;
   return {
-    type: stepData.type,
-    heading: stepData.heading,
-    content: stepData.content,
-    kvps: stepData.kvps,
-    timestamp: stepData.timestamp,
-    agentno: stepData.agentno,
-    toolName: stepData.toolName,
-    statusCode: stepData.statusCode,
-    statusClass: stepData.statusClass,
+    ...stepData,
     ...extras,
   };
 }
@@ -800,8 +721,6 @@ export function drawMessageResponse({
   // response of subordinate agent - render as process step
   if (agentno && agentno > 0) {
     const title = getStepTitle(heading, kvps, type);
-    const statusCode = getStatusCode(type);
-    const statusClass = getStatusClass(type);
     const contentText = String(content ?? "");
     const actionButtons = contentText.trim()
       ? [
@@ -812,8 +731,8 @@ export function drawMessageResponse({
     return drawProcessStep({
       id,
       title,
-      statusClass,
-      statusCode,
+      // statusClass,
+      statusCode: "RSP",
       kvps,
       type,
       heading,
@@ -1097,7 +1016,7 @@ export function drawMessageCodeExe({
   let title = "Code Execution";
   // show command at the start and end
   if (kvps?.code && /done_all|code_execution_tool/.test(heading || "")) {
-    const s = kvps.session ?? kvps.Session;
+    const s = kvps.session;
     title = `${s != null ? `[${s}] ` : ""}${kvps.runtime || "bash"}> ${kvps.code.trim()}`;
   } else {
     // during execution show the original heading (current step)
@@ -1106,8 +1025,8 @@ export function drawMessageCodeExe({
 
   // KVPS to show
   const displayKvps = {};
-  if (kvps?.runtime) displayKvps.runtime = kvps.runtime;
-  if (kvps?.session) displayKvps.session = kvps.session;
+  // if (kvps?.runtime) displayKvps.runtime = kvps.runtime;
+  // if (kvps?.session>=0) displayKvps.session = kvps.session;
 
   const headerLabels = [
     kvps?.runtime && { label: kvps.runtime, class: "tool-name-badge" },
@@ -1341,8 +1260,6 @@ export function drawMessageHint({
   ...additional
 }) {
   const title = getStepTitle(heading, kvps, type);
-  const statusCode = getStatusCode(type);
-  const statusClass = getStatusClass(type);
   const contentText = String(content ?? "");
   const actionButtons = contentText.trim()
     ? [
@@ -1354,8 +1271,8 @@ export function drawMessageHint({
   return drawStandaloneMessage({
     id,
     title,
-    statusClass,
-    statusCode,
+    // statusClass,
+    statusCode: "HNT",
     kvps,
     type,
     heading,
