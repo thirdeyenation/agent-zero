@@ -239,6 +239,11 @@ function drawProcessStep({
   const isNewStep = !step;
   const isGroupComplete = isProcessGroupComplete(group);
 
+  // Set start timestamp on group when first step is created
+  if (isNewStep && !group.hasAttribute("data-start-timestamp") && log.timestamp) {
+    group.setAttribute("data-start-timestamp", String(log.timestamp));
+  }
+
   if (isNewStep) {
     // create the base DOM element for the step
     step = document.createElement("div");
@@ -249,6 +254,11 @@ function drawProcessStep({
     step.setAttribute("data-log-type", log.type);
     step.setAttribute("data-step-id", id);
     step.setAttribute("data-agent-number", log.agentno);
+    
+    // set timestamp attribute (convert to milliseconds for duration calculation)
+    if (log.timestamp) {
+      step.setAttribute("data-timestamp", String(Math.round(log.timestamp * 1000)));
+    }
 
     // apply step classes
     if (classes) step.classList.add(...classes);
@@ -1647,7 +1657,6 @@ function createProcessGroup(id) {
       <span class="metric-time" title="Start time"><span class="material-symbols-outlined">schedule</span><span class="metric-value">--:--</span></span>
       <span class="metric-steps" title="Steps"><span class="material-symbols-outlined">footprint</span><span class="metric-value">0</span></span>
       <span class="metric-notifications" title="Warnings/Info/Hint" hidden><span class="material-symbols-outlined">priority_high</span><span class="metric-value">0</span></span>
-      <span class="metric-duration" title="Duration"><span class="material-symbols-outlined">timer</span><span class="metric-value">0s</span></span>
     </span>
   `;
 
@@ -1918,26 +1927,42 @@ function updateProcessGroupHeader(group) {
     timeMetricEl.textContent = `${hours}:${minutes}`;
   }
 
-  // Update duration metric
-  const durationMetricEl = metricsEl?.querySelector(
-    ".metric-duration .metric-value",
+  const firstTimestampMs = parseInt(
+    steps[0]?.getAttribute("data-timestamp") || "0",
+    10,
   );
-  if (durationMetricEl && steps.length > 0) {
-    const firstTimestampMs = parseInt(
-      steps[0]?.getAttribute("data-timestamp") || "0",
-      10,
-    );
+  const lastTimestampMs = parseInt(
+    steps[steps.length - 1]?.getAttribute("data-timestamp") || "0",
+    10,
+  );
+  const durationText =
+    isCompleted &&
+    metricsEl &&
+    steps.length > 0 &&
+    firstTimestampMs > 0 &&
+    lastTimestampMs > 0 &&
+    formatDuration(Math.max(0, lastTimestampMs - firstTimestampMs));
 
-    const lastStep = steps[steps.length - 1];
-    const lastTimestampMs = parseInt(
-      lastStep.getAttribute("data-timestamp") || "0",
-      10,
-    );
-
-    const totalDurationMs = Math.max(0, lastTimestampMs - firstTimestampMs);
-
-    durationMetricEl.textContent = formatDuration(totalDurationMs);
-  }
+  const durationMetricEl =
+    durationText &&
+    (() => {
+      const container = ensureChild(
+        metricsEl,
+        ".metric-duration",
+        "span",
+        "metric-duration",
+      );
+      container.title = "Duration";
+      const icon = ensureChild(
+        container,
+        ".material-symbols-outlined",
+        "span",
+        "material-symbols-outlined",
+      );
+      icon.textContent = "timer";
+      return ensureChild(container, ".metric-value", "span", "metric-value");
+    })();
+  durationMetricEl && (durationMetricEl.textContent = durationText);
 
   if (notificationsEl) {
     const counts = { warning: 0, info: 0, hint: 0 };
