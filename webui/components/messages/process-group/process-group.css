@@ -346,6 +346,7 @@
               border-color 0.2s ease-out;
   overflow: hidden;
   color: var(--color-text-muted);
+  max-width: 100%;
 }
 
 .process-group-content > .process-steps {
@@ -366,6 +367,8 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 /* Individual Process Step */
@@ -374,6 +377,8 @@
   flex-direction: column;
   padding: 0.1em;
   transition: background-color 0.15s ease;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 /* Utility/Info/Hint steps have subtle background tint */
@@ -404,6 +409,8 @@
   user-select: none;
   gap: 4px;
   min-height: 18px;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 /* Step title */
@@ -488,13 +495,17 @@
 .process-step.expanded > .process-step-detail {
   /* grid-template-rows: 1fr; */
   opacity: 1;
-  overflow: visible;
+  overflow: hidden;
   margin-top: var(--spacing-xs);
+  max-width: 100%;
 }
 
 .process-step.expanded > .process-step-detail > .process-step-detail-scroll {
   max-height: 40em;
   overflow-y: auto;
+  max-width: 100%;
+  width: fit-content;
+  box-sizing: content-box;
   border-radius: var(--border-radius-sm);
 }
 
@@ -635,6 +646,7 @@
 } */
 
 
+/* Terminal output - self-contained scrollable block */
 .process-step-detail .terminal-output {
   margin: var(--spacing-xs) 0 0 0;
   padding: var(--spacing-xs);
@@ -644,12 +656,11 @@
   white-space: pre;
   font-family: monospace;
   max-width: fit-content;
-  /* max-height: 300px; */
   overflow: auto;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
   scrollbar-color: rgba(255,255,255,0.2) transparent;
-  overscroll-behavior-x: contain;
+  overscroll-behavior: contain;
 }
 
 .process-step-detail .terminal-output::-webkit-scrollbar {
@@ -752,6 +763,7 @@
   overflow: hidden;
   transition: grid-template-rows 0.25s ease-out, opacity 0.2s ease-out;
   gap: 2px;
+  max-width: 100%;
 }
 
 /* Only show nested container when parent step is expanded */
@@ -768,6 +780,8 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 /* All nested containers have same indentation (no cascading) */
