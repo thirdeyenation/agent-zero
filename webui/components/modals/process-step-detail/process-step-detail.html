@@ -60,12 +60,16 @@
                             </div>
                         </template>
 
-                        <!-- Generic KVPs for all types -->
+                        <!-- Flattened KVPs -->
                         <template x-if="$store.stepDetail.selectedStepForDetail?.kvps">
-                            <div class="content-block">
-                                <h4>Details</h4>
-                                <div class="kvps-display"><template x-for="[key, value] in Object.entries($store.stepDetail.selectedStepForDetail?.kvps || {})" :key="key"><span class="kvp-line"><span class="kvp-key" x-text="$store.stepDetail.formatKey(key)"></span><span class="kvp-value" x-text="$store.stepDetail.formatValue(value)"></span></span></template></div>
-                                <div class="step-action-buttons" data-segment="details"></div>
+                            <div class="kvp-boxes">
+                                <template x-for="[key, value] in Object.entries($store.stepDetail.flattenKvps($store.stepDetail.selectedStepForDetail?.kvps) || {})" :key="key">
+                                    <div class="content-block kvp-box">
+                                        <h4 x-text="key"></h4>
+                                        <pre class="kvp-value-content" x-text="$store.stepDetail.formatFlatValue(value)"></pre>
+                                        <div class="step-action-buttons kvp-box-actions" x-init="$store.stepDetail.renderKvpCopyButton($el, key, value)"></div>
+                                    </div>
+                                </template>
                             </div>
                         </template>
 
@@ -225,31 +229,22 @@
             word-break: break-word;
         }
 
-        .kvps-display {
+        .kvp-boxes {
             display: flex;
             flex-direction: column;
-            gap: 0.25rem;
-            font-size: 0.9rem;
-            line-height: 1.5;
+            gap: 1rem;
         }
 
-        .kvp-line {
-            display: block;
-        }
-
-        .kvp-key {
-            color: var(--color-text-muted);
-            margin-right: 0.5rem;
-        }
-
-        .kvp-key::after {
-            content: ':';
-        }
-
-        .kvp-value {
+        .kvp-value-content {
             color: var(--color-text);
             white-space: pre-wrap;
             word-break: break-word;
+            margin: 0;
+            font-size: 0.85rem;
+        }
+
+        .kvp-box-actions {
+            margin-top: 0.5rem;
         }
 
         .step-action-buttons {
