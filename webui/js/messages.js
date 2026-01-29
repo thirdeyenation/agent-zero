@@ -2067,10 +2067,15 @@ function setupCollapsible(messageDiv, containerSelector, initialExpanded, action
   if (!messageDiv.classList.contains("has-overflow")) {
     requestAnimationFrame(() => {
       const body = messageDiv.querySelector(".message-body");
-      const wasExp = messageDiv.classList.contains("expanded");
-      messageDiv.classList.remove("expanded");
-      messageDiv.classList.toggle("has-overflow", body?.scrollHeight > body?.clientHeight);
-      messageDiv.classList.toggle("expanded", wasExp);
+      if (!body) return;
+      
+      // calculate max height without touching DOM (no scroll jitter)
+      const fontSize = parseFloat(getComputedStyle(body).fontSize || "16");
+      const maxHeight = messageDiv.classList.contains("expanded") 
+        ? fontSize * 15 
+        : body.clientHeight;
+        
+      messageDiv.classList.toggle("has-overflow", body.scrollHeight > maxHeight);
     });
   }
 }

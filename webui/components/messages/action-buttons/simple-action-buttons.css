@@ -15,7 +15,7 @@
 }
 
 .step-action-buttons .expand-btn {
-  display: inline-flex;
+  display: none;
   align-items: center;
   background: transparent;
   border: none;
