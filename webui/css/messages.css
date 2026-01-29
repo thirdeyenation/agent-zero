@@ -281,136 +281,22 @@
   background-color: transparent;
 }
 
-/* Collapsible Error Group */
-
-.message-error-group {
-  background: transparent;
-  border: none !important;
-  padding: 0 !important;
-}
-
-.error-group {
-  display: inline-flex;
-  flex-direction: column;
-  position: relative;
-  z-index: 1;
-  margin: var(--spacing-xs) 0;
-  padding: var(--spacing-xs) 0;
-  min-width: 200px;
-  max-width: 100%;
-  box-sizing: border-box;
-  flex-shrink: 0;
-}
-
-/* Error Group Header */
-.error-group-header {
+/* Error messages styled like process groups */
+.message-error .msg-heading {
   display: flex;
   align-items: center;
-  padding: 0;
-  cursor: pointer;
-  user-select: none;
-  transition: opacity 0.15s ease;
-  min-height: 22px;
   gap: 6px;
-  white-space: nowrap;
+  margin-bottom: var(--spacing-xs);
 }
 
-.error-group-header:hover {
-  opacity: 0.85;
-}
-
-/* Expand/collapse triangle */
-.error-group-header .expand-icon {
-  display: inline-block;
-  width: 0;
-  height: 0;
-  border-style: solid;
-  border-width: 4px 0 4px 6px;
-  border-color: transparent transparent transparent #ef4444;
-  opacity: 0.7;
-  transition:
-    transform 0.2s ease,
-    opacity 0.15s ease;
-  flex-shrink: 0;
-  font-size: 0;
-  margin-right: 2px;
-}
-
-.error-group-header:hover .expand-icon {
-  opacity: 1;
-}
-
-.error-group.expanded .error-group-header .expand-icon {
-  transform: rotate(90deg);
-}
-
-/* Error title */
-.error-group-header .error-title {
-  flex: 0 0 auto;
+.message-error .msg-heading h4 {
+  display: flex;
+  align-items: center;
   font-size: var(--font-size-medium);
-  font-weight: 600;
+  font-weight: 500;
   color: var(--color-error-text);
-}
-
-/* Error subtitle (short description) */
-.error-group-header .error-subtitle {
-  flex: 1 1 auto;
-  font-size: 0.75rem;
-  color: var(--color-text);
-  opacity: 0.7;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  margin-left: var(--spacing-xs);
-  font-family: var(--font-family-code);
-}
-
-/* Error Group Content - Animated expand/collapse */
-.error-group-content {
-  display: grid;
-  grid-template-rows: 0fr;
-  opacity: 0;
-  margin-top: 0;
-  padding-top: 0;
-  transition:
-    grid-template-rows 0.25s ease-out,
-    opacity 0.2s ease-out,
-    margin-top 0.25s ease-out,
-    padding-top 0.25s ease-out;
-  overflow: hidden;
-}
-
-.error-group-content > .error-content-inner {
-  min-height: 0;
-}
-
-.error-group.expanded .error-group-content {
-  grid-template-rows: 1fr;
-  opacity: 1;
-  margin-top: var(--spacing-xs);
-  padding-top: var(--spacing-xs);
-}
-
-.error-content-inner {
-  padding: var(--spacing-md);
-  border-radius: 8px;
-  /* border: 1px solid var(--color-error-text); */
-  margin-left: var(--spacing-md);
-}
-
-/* Callstack styling */
-.error-callstack {
-  margin: 0;
-  white-space: pre-wrap;
-  word-break: break-word;
-  font-family: var(--font-family-code);
-  font-size: 0.72rem;
-  line-height: 1.5;
-  color: var(--color-error-text);
-  max-height: 30vh;
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: var(--color-error-text) transparent;
+  opacity: 0.9;
+  margin-bottom: var(--spacing-sm);
 }
 
 /* Terminal styling moved to new terminal block above */

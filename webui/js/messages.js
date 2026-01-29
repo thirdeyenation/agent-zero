@@ -505,7 +505,7 @@ export function _drawMessage({
       headingElement.appendChild(headingH4);
     }
     headingH4.innerHTML = convertIcons(escapeHTML(heading));
-
+  } else {
     // Remove heading if it exists but heading is null
     const existingHeading = messageDiv.querySelector(".msg-heading");
     if (existingHeading) {
@@ -1304,6 +1304,8 @@ export function drawMessageError({
   ...additional
 }) {
   const contentText = String(content ?? "");
+  const errorText = kvps?.text || "Error";
+  const errorHeading = errorText ? `Error - ${errorText}` : "Error";
   const actionButtons = [
     createActionButton("detail", "", () =>
       stepDetailStore.showStepDetail(
@@ -1317,12 +1319,11 @@ export function drawMessageError({
 
   return drawStandaloneMessage({
     id,
-    heading,
+    heading: errorHeading,
     content,
     position: "mid",
     containerClasses: ["ai-container", "center-container"],
     mainClass: "message-error",
-    kvps,
     actionButtons,
   });
 }
