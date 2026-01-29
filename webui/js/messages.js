@@ -439,45 +439,8 @@ function drawStandaloneMessage({
     mainClass,
   });
 
-  // Collapsible: show ~10 lines with fade, expand button reveals full content
-  messageDiv.classList.add("message-collapsible");
-
-  const expandBtn = ensureChild(
-    messageDiv,
-    ".expand-btn",
-    "button",
-    "expand-btn",
-  );
-  expandBtn.textContent = messageDiv.classList.contains("expanded")
-    ? "Show less"
-    : "Show more";
-  expandBtn.onclick = () => {
-    messageDiv.classList.toggle("expanded");
-    expandBtn.textContent = messageDiv.classList.contains("expanded")
-      ? "Show less"
-      : "Show more";
-  };
-
-  // Detect overflow after render - CSS handles visibility based on .has-overflow class
-  requestAnimationFrame(() => {
-    const body = messageDiv.querySelector(".message-body");
-    messageDiv.classList.toggle(
-      "has-overflow",
-      body.scrollHeight > body.clientHeight,
-    );
-  });
-
-  // Render action buttons: get/create container, clear, append
-  const actionButtonsContainer = ensureChild(
-    messageDiv,
-    ".step-action-buttons",
-    "div",
-    "step-action-buttons",
-  );
-  actionButtonsContainer.textContent = "";
-  (actionButtons || [])
-    .filter(Boolean)
-    .forEach((button) => actionButtonsContainer.appendChild(button));
+  // Collapsible with action buttons
+  setupCollapsible(messageDiv, ".step-action-buttons", false, actionButtons);
 
   return container;
 }
@@ -502,8 +465,10 @@ export function _drawMessage({
     messageContainer.appendChild(messageDiv);
   }
 
-  // Update message classes
-  messageDiv.className = `message ${mainClass} ${messageClasses.join(" ")}`;
+  // Update message classes (preserve collapsible state)
+  const preserve = ["message-collapsible", "expanded", "has-overflow"]
+    .filter((c) => messageDiv.classList.contains(c)).join(" ");
+  messageDiv.className = `message ${mainClass} ${messageClasses.join(" ")} ${preserve}`;
 
   // Handle heading (important for error/rate_limit messages that show context)
   if (heading) {
@@ -774,35 +739,7 @@ export function drawMessageResponse({
     mainClass: "message-agent-response",
   });
 
-  // Collapsible: show ~10 lines with fade, expand button reveals full content
-  messageDiv.classList.add("message-collapsible");
-
-  const expandBtn = ensureChild(
-    messageDiv,
-    ".expand-btn",
-    "button",
-    "expand-btn",
-  );
-  expandBtn.textContent = messageDiv.classList.contains("expanded")
-    ? "Show less"
-    : "Show more";
-  expandBtn.onclick = () => {
-    messageDiv.classList.toggle("expanded");
-    expandBtn.textContent = messageDiv.classList.contains("expanded")
-      ? "Show less"
-      : "Show more";
-  };
-
-  // Detect overflow after render - CSS handles visibility based on .has-overflow class
-  requestAnimationFrame(() => {
-    const body = messageDiv.querySelector(".message-body");
-    messageDiv.classList.toggle(
-      "has-overflow",
-      body.scrollHeight > body.clientHeight,
-    );
-  });
-
-  // Render action buttons: get/create container, clear, append
+  // Collapsible with action buttons
   const responseText = String(content ?? "");
   const responseActionButtons = responseText.trim()
     ? [
@@ -810,17 +747,7 @@ export function drawMessageResponse({
         createActionButton("copy", "", () => copyToClipboard(responseText)),
       ].filter(Boolean)
     : [];
-  // Look for direct child only to avoid finding nested code block buttons
-  const actionButtonsContainer = ensureChild(
-    messageDiv,
-    ":scope > .step-action-buttons",
-    "div",
-    "step-action-buttons",
-  );
-  actionButtonsContainer.textContent = "";
-  responseActionButtons.forEach((button) =>
-    actionButtonsContainer.appendChild(button),
-  );
+  setupCollapsible(messageDiv, ":scope > .step-action-buttons", !isMassRender(), responseActionButtons);
 
   if (group) updateProcessGroupHeader(group);
 
@@ -2114,6 +2041,38 @@ function ensureChild(parent, selector, tagName, ...classNames) {
     parent.appendChild(el);
   }
   return el;
+}
+
+// Setup collapsible message with expand button and action buttons
+function setupCollapsible(messageDiv, containerSelector, initialExpanded, actionButtons = []) {
+  messageDiv.classList.add("message-collapsible");
+  messageDiv.classList.toggle("expanded", initialExpanded);
+
+  const container = ensureChild(messageDiv, containerSelector, "div", "step-action-buttons");
+  container.textContent = "";
+
+  const btn = ensureChild(container, ".expand-btn", "button", "expand-btn");
+  const syncBtn = () => {
+    const exp = messageDiv.classList.contains("expanded");
+    btn.textContent = exp ? "Show less" : "Show more";
+    btn.classList.toggle("show-less-btn", exp);
+    btn.classList.toggle("show-more-btn", !exp);
+  };
+  syncBtn();
+  btn.onclick = () => { messageDiv.classList.toggle("expanded"); syncBtn(); };
+
+  actionButtons.filter(Boolean).forEach((b) => container.appendChild(b));
+
+  // Detect overflow after render (skip if already detected to avoid scroll disruption)
+  if (!messageDiv.classList.contains("has-overflow")) {
+    requestAnimationFrame(() => {
+      const body = messageDiv.querySelector(".message-body");
+      const wasExp = messageDiv.classList.contains("expanded");
+      messageDiv.classList.remove("expanded");
+      messageDiv.classList.toggle("has-overflow", body?.scrollHeight > body?.clientHeight);
+      messageDiv.classList.toggle("expanded", wasExp);
+    });
+  }
 }
 
 // returns true if this is the initial render of a chat eg. when reloading window, switching chat or catching up after a break
