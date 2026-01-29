@@ -14,6 +14,7 @@ import { formatDuration } from "./time-utils.js";
 
 // Delay before collapsing previous steps when a new step is added
 const STEP_COLLAPSE_DELAY_MS = 3000;
+const STEP_COLLAPSE_HOVER_DELAY_MS = 5000;
 // Delay before collapsing the last step when processing completes
 const FINAL_STEP_COLLAPSE_DELAY_MS = 3000;
 
@@ -131,7 +132,6 @@ function getOrCreateMessageContainer(
   return container;
 }
 
-
 function getChatHistoryEl() {
   if (!_chatHistory) _chatHistory = document.getElementById("chat-history");
   return _chatHistory;
@@ -169,8 +169,7 @@ function getLastProcessGroup(allowCompleted = true) {
   const groups = lastContainer.querySelectorAll(".process-group");
   if (groups.length === 0) return null;
   const group = groups[groups.length - 1];
-  if (!allowCompleted && group.classList.contains("process-group-completed"))
-    return null;
+  if (!allowCompleted && isProcessGroupComplete(group)) return null;
 
   return group;
 }
@@ -223,10 +222,13 @@ function drawProcessStep({
   ...additional
 }) {
   // group and steps DOM elements
-  const group = getOrCreateProcessGroup(id, allowCompletedGroup);
-  const stepsContainer = group.querySelector(".process-steps");
   const stepId = `process-step-${id}`;
   let step = document.getElementById(stepId);
+
+  const group =
+    getStepProcessGroup(step) ||
+    getOrCreateProcessGroup(id, allowCompletedGroup);
+  const stepsContainer = group.querySelector(".process-steps");
 
   const isNewStep = !step;
   const isGroupComplete = isProcessGroupComplete(group);
@@ -262,9 +264,6 @@ function drawProcessStep({
     // insert step
     appendTarget.appendChild(step);
 
-    // add interaction handlers - don't collapse when user interacts
-    addStepCollapseInteractionHandlers(step); // TODO? cleanup listeners?
-
     // expand all or current step based on settings
     const detailMode = preferencesStore.detailMode;
     // const isActiveGroup = group.classList.contains("active");
@@ -287,6 +286,14 @@ function drawProcessStep({
         });
       step.classList.add("expanded");
     }
+
+    // create step header
+    const stepHeader = ensureChild(
+      step,
+      ".process-step-header",
+      "div",
+      "process-step-header",
+    );
   }
 
   // is step expanded?
@@ -314,20 +321,8 @@ function drawProcessStep({
     "process-step-detail-scroll",
   );
 
-  // expand/collapse handler for step header
-  if (!stepHeader.hasAttribute("data-expand-handler")) {
-    stepHeader.setAttribute("data-expand-handler", "true");
-    stepHeader.addEventListener("click", (e) => {
-      e.stopPropagation();
-      cancelStepCollapse(step);
-      step.classList.toggle("expanded");
-      if (step.classList.contains("expanded")) {
-        step.setAttribute("data-user-pinned", "true");
-      } else {
-        step.removeAttribute("data-user-pinned");
-      }
-    });
-  }
+  // set click handlers
+  setupProcessStepHandlers(step, stepHeader);
 
   // header row - expand icon
   ensureChild(stepHeader, ".step-expand-icon", "span", "step-expand-icon");
@@ -421,6 +416,9 @@ function drawStandaloneMessage({
   kvps = null,
   actionButtons = [],
 }) {
+  // end last process group on any standalone messge
+  completeLastProcessGroup();
+
   const container = getOrCreateMessageContainer(
     id,
     position,
@@ -456,6 +454,7 @@ export function _drawMessage({
   markdown = false,
   latex = false,
   mainClass = "",
+  smoothStream = false,
 }) {
   // Find existing message div or create new one
   let messageDiv = messageContainer.querySelector(".message");
@@ -467,7 +466,8 @@ export function _drawMessage({
 
   // Update message classes (preserve collapsible state)
   const preserve = ["message-collapsible", "expanded", "has-overflow"]
-    .filter((c) => messageDiv.classList.contains(c)).join(" ");
+    .filter((c) => messageDiv.classList.contains(c))
+    .join(" ");
   messageDiv.className = `message ${mainClass} ${messageClasses.join(" ")} ${preserve}`;
 
   // Handle heading (important for error/rate_limit messages that show context)
@@ -517,11 +517,11 @@ export function _drawMessage({
       }
       contentDiv.className = `msg-content ${contentClasses.join(" ")}`;
 
-      let spanElement = contentDiv.querySelector("span");
-      if (!spanElement) {
-        spanElement = document.createElement("span");
-        contentDiv.appendChild(spanElement);
-      }
+      // let spanElement = contentDiv.querySelector("span");
+      // if (!spanElement) {
+      //   spanElement = document.createElement("span");
+      //   contentDiv.appendChild(spanElement);
+      // }
 
       let processedContent = content;
       processedContent = convertImageTags(processedContent);
@@ -531,11 +531,13 @@ export function _drawMessage({
       processedContent = convertPathsToLinks(processedContent);
       processedContent = addBlankTargetsToLinks(processedContent);
 
-      spanElement.innerHTML = processedContent;
+      // do a smooth stream if requested
+      if (smoothStream) smoothRender(contentDiv, processedContent);
+      else contentDiv.innerHTML = processedContent;
 
       // KaTeX rendering for markdown
       if (latex) {
-        spanElement.querySelectorAll("latex").forEach((element) => {
+        contentDiv.querySelectorAll("latex").forEach((element) => {
           katex.render(element.innerHTML, element, {
             throwOnError: false,
           });
@@ -556,13 +558,14 @@ export function _drawMessage({
         preElement.className = `msg-content ${contentClasses.join(" ")}`;
       }
 
-      let spanElement = preElement.querySelector("span");
-      if (!spanElement) {
-        spanElement = document.createElement("span");
-        preElement.appendChild(spanElement);
-      }
+      // let spanElement = preElement.querySelector("span");
+      // if (!spanElement) {
+      //   spanElement = document.createElement("span");
+      //   preElement.appendChild(spanElement);
+      // }
 
-      spanElement.innerHTML = convertHTML(content);
+      if (smoothStream) smoothRender(preElement, convertHTML(content));
+      else preElement.innerHTML = convertHTML(content);
     }
   } else {
     // Remove content if it exists but content is empty
@@ -650,17 +653,22 @@ export function drawMessageAgent({
   const headerLabels = [
     kvps?.tool_name && { label: kvps.tool_name, class: "tool-name-badge" },
   ].filter(Boolean);
-  const actionButtons = thoughtsText.trim()
-    ? [
-        createActionButton("detail", "", () =>
-          stepDetailStore.showStepDetail(
-            buildDetailPayload(arguments[0], { headerLabels }),
-          ),
-        ),
-        createActionButton("speak", "", () => speechStore.speak(thoughtsText)),
-        createActionButton("copy", "", () => copyToClipboard(thoughtsText)),
-      ].filter(Boolean)
-    : [];
+  const actionButtons = [
+    createActionButton("detail", "", () =>
+      stepDetailStore.showStepDetail(
+        buildDetailPayload(arguments[0], { headerLabels }),
+      ),
+    ),
+  ];
+
+  if (thoughtsText.trim()) {
+    actionButtons.push(
+      createActionButton("speak", "", () => speechStore.speak(thoughtsText)),
+    );
+    actionButtons.push(
+      createActionButton("copy", "", () => copyToClipboard(thoughtsText)),
+    );
+  }
 
   return drawProcessStep({
     id,
@@ -714,17 +722,20 @@ export function drawMessageResponse({
   let container = null;
 
   if (group) {
+    // new response, collapse all previous steps once
+    if (!group.querySelector(".process-group-response")) {
+      if (preferencesStore.detailMode == "current")
+        group.querySelectorAll(".process-step").forEach((step) => {
+          scheduleStepCollapse(step);
+        });
+    }
+
     container = ensureChild(
       group,
       ".process-group-response",
       "div",
       "process-group-response",
     );
-    //collapse all steps when response is ready
-    if(preferencesStore.detailMode!=="expanded")
-      group.querySelectorAll(".process-step").forEach((step) => {
-        scheduleStepCollapse(step);
-      });
   } else container = getOrCreateMessageContainer(id, "left");
 
   const messageDiv = _drawMessage({
@@ -737,6 +748,7 @@ export function drawMessageResponse({
     markdown: true,
     latex: true,
     mainClass: "message-agent-response",
+    smoothStream: !isMassRender(), // stream smoothly if not in mass render mode
   });
 
   // Collapsible with action buttons
@@ -747,7 +759,12 @@ export function drawMessageResponse({
         createActionButton("copy", "", () => copyToClipboard(responseText)),
       ].filter(Boolean)
     : [];
-  setupCollapsible(messageDiv, ":scope > .step-action-buttons", !isMassRender(), responseActionButtons);
+  setupCollapsible(
+    messageDiv,
+    ":scope > .step-action-buttons",
+    !isMassRender(),
+    responseActionButtons,
+  );
 
   if (group) updateProcessGroupHeader(group);
 
@@ -767,6 +784,9 @@ export function drawMessageUser({
     ["user-container"],
     true,
   );
+
+  // end last process group on any user message
+  completeLastProcessGroup();
 
   // Find existing message div or create new one
   let messageDiv = messageContainer.querySelector(".message");
@@ -1121,7 +1141,7 @@ export function drawMessageInfo({
   kvps = null,
   ...additional
 }) {
-  const title = cleanStepTitle(heading);
+  const title = cleanStepTitle(heading || content);
   let displayKvps = { ...kvps };
   const contentText = String(content ?? "");
   const actionButtons = contentText.trim()
@@ -1154,7 +1174,7 @@ export function drawMessageUtil({
   agentno = 0,
   ...additional
 }) {
-  const title = cleanStepTitle(heading);
+  const title = cleanStepTitle(heading || content);
   const contentText = String(content ?? "");
   const actionButtons = contentText.trim()
     ? [
@@ -1220,7 +1240,7 @@ export function drawMessageProgress({
   agentno = 0,
   ...additional
 }) {
-  const title = cleanStepTitle(heading);
+  const title = cleanStepTitle(heading || content);
   let displayKvps = { ...kvps };
 
   return drawProcessStep({
@@ -1243,7 +1263,7 @@ export function drawMessageWarning({
   kvps = null,
   ...additional
 }) {
-  const title = cleanStepTitle(heading);
+  const title = cleanStepTitle(heading || content);
   let displayKvps = { ...kvps };
   const contentText = String(content ?? "");
   const actionButtons = contentText.trim()
@@ -1544,15 +1564,15 @@ function adjustMarkdownRender(element) {
   // find all tables in the element
   const tables = element.querySelectorAll("table");
   tables.forEach((el) => {
-    const wrapper = wrapElement(el, "message-markdown-table-wrap");
-    const actionsDiv = document.createElement("div");
-    actionsDiv.className = "step-action-buttons";
-    actionsDiv.appendChild(
-      createActionButton("copy", "", () =>
-        copyToClipboard(extractTableTSV(el)),
-      ),
-    );
-    wrapper.appendChild(actionsDiv);
+    // const wrapper = wrapElement(el, "message-markdown-table-wrap");
+    // const actionsDiv = document.createElement("div");
+    // actionsDiv.className = "step-action-buttons";
+    // actionsDiv.appendChild(
+    //   createActionButton("copy", "", () =>
+    //     copyToClipboard(extractTableTSV(el)),
+    //   ),
+    // );
+    // wrapper.appendChild(actionsDiv);
   });
 
   // find all code blocks
@@ -1560,12 +1580,12 @@ function adjustMarkdownRender(element) {
   codeElements.forEach((code) => {
     const pre = code.parentNode;
     const wrapper = wrapElement(pre, "code-block-wrapper");
-    const actionsDiv = document.createElement("div");
-    actionsDiv.className = "step-action-buttons";
-    actionsDiv.appendChild(
-      createActionButton("copy", "", () => copyToClipboard(code.textContent)),
-    );
-    wrapper.appendChild(actionsDiv);
+    // const actionsDiv = document.createElement("div");
+    // actionsDiv.className = "step-action-buttons";
+    // actionsDiv.appendChild(
+    //   createActionButton("copy", "", () => copyToClipboard(code.textContent)),
+    // );
+    // wrapper.appendChild(actionsDiv);
   });
 
   // find all images
@@ -1689,20 +1709,56 @@ function getNestedContainer(parentStep) {
  */
 function scheduleStepCollapse(stepElement, delayMs) {
   // skip if any existing timeout for this step
-  if (stepElement.hasAttribute("data-collapse-timeout-id")) {
-    return;
-  }
+  if (stepElement.hasAttribute("data-collapse-timeout-id")) return;
+  // skip already collapsed steps
+  if (!stepElement.classList.contains("expanded")) return;
 
   // Schedule the collapse
   const timeoutId = setTimeout(() => {
-    stepElement.classList.remove("expanded");
     stepElement.removeAttribute("data-collapse-timeout-id");
-    // Clear user-pinned flag when auto-collapsing
-    stepElement.removeAttribute("data-user-pinned");
+
+    if (stepElement.dataset.clicked === "true") {
+      console.log(`Skip clicked collapse: ${stepElement.id}`);
+      return;
+    }
+
+    if (stepElement.matches(":hover")) {
+      console.log(`Delay hover collapse: ${stepElement.id}`);
+      scheduleStepCollapse(stepElement, STEP_COLLAPSE_HOVER_DELAY_MS);
+      return;
+    }
+
+    console.log(`Collapse step: ${stepElement.id}`);
+    stepElement.classList.remove("expanded");
   }, delayMs);
 
   // Store the timeout ID
   stepElement.setAttribute("data-collapse-timeout-id", String(timeoutId));
+}
+
+function setupProcessStepHandlers(stepElement, stepHeader) {
+  if (!stepElement.hasAttribute("data-step-handlers")) {
+    stepElement.setAttribute("data-step-handlers", "true");
+
+    stepElement.addEventListener(
+      "click",
+      function handler() {
+        stepElement.dataset.clicked = "true";
+        console.log(`Step clicked: ${stepElement.id}`);
+      },
+      { once: true },
+    );
+  }
+
+  if (stepHeader && !stepHeader.hasAttribute("data-expand-handler")) {
+    stepHeader.setAttribute("data-expand-handler", "true");
+    stepHeader.addEventListener("click", (e) => {
+      e.stopPropagation();
+      cancelStepCollapse(stepElement);
+      stepElement.dataset.clicked = "true";
+      stepElement.classList.toggle("expanded");
+    });
+  }
 }
 
 /**
@@ -1714,46 +1770,6 @@ function cancelStepCollapse(stepElement) {
   const timeoutId = Number(timeoutIdStr);
   if (!Number.isNaN(timeoutId)) clearTimeout(timeoutId);
   stepElement.removeAttribute("data-collapse-timeout-id");
-}
-
-/**
- * Add interaction handlers to prevent fighting with user
- * - Hover: cancels the collapse timeout (keeps step open while reading)
- * - Leave: starts a new timeout ONLY if user hasn't clicked (no explicit interaction)
- * - Click anywhere on step: permanently cancels auto-collapse (user wants it open)
- */
-function addStepCollapseInteractionHandlers(stepElement) {
-  // On hover, cancel the timeout to keep it open while user is reading
-  stepElement.addEventListener("mouseenter", () => {
-    if (stepElement.classList.contains("expanded")) {
-      cancelStepCollapse(stepElement);
-    }
-  });
-
-  // On leave, start a new timeout ONLY if user hasn't explicitly clicked
-  // and only in "current" mode (in "expanded" mode, everything stays open)
-  stepElement.addEventListener("mouseleave", () => {
-    const detailMode = preferencesStore.detailMode;
-    // Don't schedule collapse in "expanded" mode - user wants everything open
-    if (detailMode === "expanded") return;
-
-    // Don't restart timeout if user has explicitly interacted (clicked)
-    if (
-      stepElement.classList.contains("expanded") &&
-      !stepElement.hasAttribute("data-user-pinned")
-    ) {
-      scheduleStepCollapse(stepElement, STEP_COLLAPSE_DELAY_MS);
-    }
-  });
-
-  // On click anywhere on step, permanently cancel auto-collapse
-  stepElement.addEventListener("click", () => {
-    if (stepElement.classList.contains("expanded")) {
-      cancelStepCollapse(stepElement);
-      // Mark as user-pinned so mouseleave won't restart timeout
-      stepElement.setAttribute("data-user-pinned", "true");
-    }
-  });
 }
 
 /**
@@ -1958,8 +1974,23 @@ function updateProcessGroupHeader(group) {
 }
 
 function isProcessGroupComplete(group) {
+  // manually closed group
+  if (group?.hasAttribute?.("data-group-complete")) return true;
+  // naturally completed group
   const response = group.querySelector(".process-group-response");
   return !!response;
+}
+
+// manually complete last process group
+export function completeLastProcessGroup() {
+  const group = getLastProcessGroup();
+  if (!group || isProcessGroupComplete(group)) return;
+  group.setAttribute("data-group-complete", "true");
+  updateProcessGroupHeader(group);
+}
+
+function getStepProcessGroup(step) {
+  return step?.closest(".process-group");
 }
 
 /**
@@ -1971,66 +2002,6 @@ function truncateText(text, maxLength) {
   if (text.length <= maxLength) return text;
   return text.substring(0, maxLength - 3) + "...";
 }
-
-/**
- * Mark a process group as complete (END state)
- */
-// function markProcessGroupComplete(group, responseTitle) {
-//   if (!group) return;
-
-// // Update status badge to END
-// const statusEl = group.querySelector(".group-status");
-// if (statusEl) {
-//   // statusEl.innerHTML = '<span class="badge-icon material-symbols-outlined">check</span>END';
-//   statusEl.innerHTML = "END";
-//   statusEl.className = "step-badge status-end group-status";
-// }
-
-// // Update title if response title is available
-// const titleEl = group.querySelector(".group-title");
-// if (titleEl && responseTitle) {
-//   const cleanTitle = cleanStepTitle(responseTitle, 50);
-//   if (cleanTitle) {
-//     titleEl.textContent = cleanTitle;
-//   }
-// }
-
-//   // Add completed class to group
-//   group.classList.add("process-group-completed");
-
-//   // Collapse all expanded steps when processing is done (in "current" mode) with delay
-//   const detailMode = preferencesStore.detailMode;
-//   if (detailMode === "current") {
-//     // Schedule collapse for all expanded steps (deterministic)
-//     const allExpandedSteps = group.querySelectorAll(
-//       ".process-step.expanded",
-//     );
-//     allExpandedSteps.forEach((expandedStep) => {
-//       scheduleStepCollapse(expandedStep, FINAL_STEP_COLLAPSE_DELAY_MS);
-//     });
-//   }
-
-//   // Calculate final duration from backend data (difference between first and last timestamps)
-//   const steps = group.querySelectorAll(".process-step");
-//   const firstTimestampMs = parseInt(
-//     steps[0]?.getAttribute("data-timestamp") || "0",
-//     10,
-//   );
-//   const lastTimestampMs = parseInt(
-//     steps[steps.length - 1]?.getAttribute("data-timestamp") || "0",
-//     10,
-//   );
-//   const totalDurationMs = Math.max(0, lastTimestampMs - firstTimestampMs);
-
-//   // Update duration metric with final value from backend
-//   const metricsEl = group.querySelector(".group-metrics");
-//   const durationMetricEl = metricsEl?.querySelector(
-//     ".metric-duration .metric-value",
-//   );
-//   if (durationMetricEl && totalDurationMs > 0) {
-//     durationMetricEl.textContent = formatDuration(totalDurationMs);
-//   }
-// }
 
 // gets or creates a child DOM element
 function ensureChild(parent, selector, tagName, ...classNames) {
@@ -2044,11 +2015,21 @@ function ensureChild(parent, selector, tagName, ...classNames) {
 }
 
 // Setup collapsible message with expand button and action buttons
-function setupCollapsible(messageDiv, containerSelector, initialExpanded, actionButtons = []) {
+function setupCollapsible(
+  messageDiv,
+  containerSelector,
+  initialExpanded,
+  actionButtons = [],
+) {
   messageDiv.classList.add("message-collapsible");
   messageDiv.classList.toggle("expanded", initialExpanded);
 
-  const container = ensureChild(messageDiv, containerSelector, "div", "step-action-buttons");
+  const container = ensureChild(
+    messageDiv,
+    containerSelector,
+    "div",
+    "step-action-buttons",
+  );
   container.textContent = "";
 
   const btn = ensureChild(container, ".expand-btn", "button", "expand-btn");
@@ -2059,7 +2040,10 @@ function setupCollapsible(messageDiv, containerSelector, initialExpanded, action
     btn.classList.toggle("show-more-btn", !exp);
   };
   syncBtn();
-  btn.onclick = () => { messageDiv.classList.toggle("expanded"); syncBtn(); };
+  btn.onclick = () => {
+    messageDiv.classList.toggle("expanded");
+    syncBtn();
+  };
 
   actionButtons.filter(Boolean).forEach((b) => container.appendChild(b));
 
@@ -2069,7 +2053,10 @@ function setupCollapsible(messageDiv, containerSelector, initialExpanded, action
       const body = messageDiv.querySelector(".message-body");
       const wasExp = messageDiv.classList.contains("expanded");
       messageDiv.classList.remove("expanded");
-      messageDiv.classList.toggle("has-overflow", body?.scrollHeight > body?.clientHeight);
+      messageDiv.classList.toggle(
+        "has-overflow",
+        body?.scrollHeight > body?.clientHeight,
+      );
       messageDiv.classList.toggle("expanded", wasExp);
     });
   }
@@ -2079,4 +2066,45 @@ function setupCollapsible(messageDiv, containerSelector, initialExpanded, action
 // returns false when already in a rendered chat and adding messages regurarly
 function isMassRender() {
   return _massRender;
+}
+
+// smooth fade in animation for new chunks when streaming
+function smoothRender(element, newContent, delay = 350) {
+  // skip on mass render
+  if (isMassRender()) {
+    element.innerHTML = newContent; 
+    return;
+  }
+
+  element.dataset.smoothPendingHtml = newContent;
+
+  if (element.dataset.smoothTimeoutId) return;
+
+  const timeoutId = window.setTimeout(() => {
+    const pending = element.dataset.smoothPendingHtml || "";
+    delete element.dataset.smoothPendingHtml;
+    delete element.dataset.smoothTimeoutId;
+
+    const existing = element.querySelector(
+      ":scope > div.smooth-render-visible",
+    );
+    if (existing) {
+      existing.classList.remove("smooth-render-visible");
+      existing.classList.add("smooth-render-invisible");
+
+      existing.addEventListener("animationend", () => existing.remove(), {
+        once: true,
+      });
+    }
+
+    const nextLayer = document.createElement("div");
+    nextLayer.className = "smooth-render-visible";
+    nextLayer.innerHTML = pending;
+    element.appendChild(nextLayer);
+
+    // Keep container height stable while layers are absolute
+    element.style.height = `${nextLayer.scrollHeight}px`;
+  }, delay);
+
+  element.dataset.smoothTimeoutId = String(timeoutId);
 }

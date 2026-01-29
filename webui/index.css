@@ -24,6 +24,7 @@
   --color-input-focus-dark: #101010;
   --color-chat-background-dark: #212121;
   --color-error-text-dark:#e72323;
+  --color-table-row-dark: #272727;
 
   /* Light mode */
   --color-background-light: #fafafa;
@@ -39,8 +40,9 @@
   --color-border-light: #bdbdbdcf;
   --color-input-light: #e4e4e4;
   --color-input-focus-light: #dadada;
-  --color-chat-background-light: #fafafaf3;
+  --color-chat-background-light: #fafafa;
   --color-error-text-light:#920000;
+  --color-table-row-light: #edededf3;
 
 
   /* Default to dark mode */
@@ -60,6 +62,7 @@
   --color-background-hover: color-mix(in srgb, var(--color-border) 50%, transparent);
   --color-chat-background: var(--color-chat-background-dark);
   --color-error-text:var(--color-error-text-dark);
+  --color-table-row: var(--color-table-row-dark);
 
   /* Spacing variables */
   --spacing-xxs: 0.15rem;
@@ -105,7 +108,8 @@
   --color-background-hover: color-mix(in srgb, var(--color-border) 50%, transparent);
   --color-chat-background: var(--color-chat-background-light);
   --color-error-text:var(--color-error-text-light);
-  } 
+  --color-table-row: var(--color-table-row-light);
+} 
 
 
 /* Reset and Base Styles */

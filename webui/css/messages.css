@@ -11,7 +11,7 @@
   overflow-x: hidden;
   scroll-behavior: auto !important; /* avoid infinite scrolling! */
   padding-left: var(--spacing-sm) !important;
-  padding-right: var(--spacing-md)   !important;
+  padding-right: var(--spacing-md) !important;
   padding-top: 4rem !important;
   padding-bottom: 4rem !important;
   -webkit-transition: all 0.3s ease;
@@ -108,7 +108,6 @@
   /* color: azure; */
   color: var(--color-text);
 }
-
 
 /* .light-mode .message-user .message-text pre {
   color: #2e2e2e;
@@ -430,12 +429,12 @@
   width: 100%;
 }
 
-.kvps-val{
+.kvps-val {
   font-size: 0.75rem;
 }
 
-.kvps-val p{
-  margin:0;
+.kvps-val p {
+  margin: 0;
 }
 
 .kvps-val pre {
@@ -519,7 +518,7 @@
   text-align: right;
 }
 
-.kvps-key .material-symbols-outlined{
+.kvps-key .material-symbols-outlined {
   font-size: var(--font-size-smaller);
 }
 
@@ -542,13 +541,11 @@
   width: 100%;
 }
 
-
 .msg-content {
   margin-bottom: 0;
   padding: 0;
   overflow: hidden;
 }
-
 
 /* Math (KaTeX) */
 .katex {
@@ -573,11 +570,11 @@
 
 @media (max-width: 1024px) {
   #chat-history {
-  padding-left: var(--spacing-sm) !important;
-  padding-right: var(--spacing-md)   !important;
-  padding-top: 4rem !important;
-  padding-bottom: 2rem !important;  
-}
+    padding-left: var(--spacing-sm) !important;
+    padding-right: var(--spacing-md) !important;
+    padding-top: 4rem !important;
+    padding-bottom: 3rem !important;
+  }
 }
 
 @media (max-width: 640px) {
@@ -700,25 +697,25 @@
   margin: 1em 0;
   font-size: 0.98em;
   background: transparent;
-  border-radius: 8px;
+  border-radius: var(--border-radius-sm);
   overflow: hidden;
 }
 
 .msg-content th,
 .msg-content td {
   padding: 0.55em 1em;
-  border: 1px solid rgba(142, 142, 142, 0.1);
+  border: 1px solid var(--color-border);
   text-align: left;
   background: transparent;
 }
 
 .msg-content th {
   font-weight: 600;
-  background: rgba(142, 142, 142, 0.1);
+  background: var(--color-table-row);
 }
 
 .msg-content tr:nth-child(even) {
-  background: rgba(142, 142, 142, 0.1);
+  background: var(--color-table-row);
 }
 
 .msg-content tr:nth-child(odd) {
@@ -731,8 +728,8 @@
 
 .msg-content pre:has(code) {
   padding: 0.5em;
-  border: 1px solid rgba(142, 142, 142, 0.1);
-  border-radius: 0.3em;
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-sm);
 }
 
 .msg-content hr {
@@ -846,3 +843,40 @@
   opacity: 0;
 }
 
+/* Smooth Render */
+.smooth-render-visible,
+.smooth-render-invisible {
+  position: absolute;
+  width:100%;
+  inset: 0;
+  opacity: 0;
+}
+
+.smooth-render-visible {
+  z-index: 2;
+  animation: smoothFadeIn 200ms ease-out forwards;
+}
+
+.smooth-render-invisible {
+  z-index: 1;
+  opacity: 1;
+  animation: smoothFadeOut 70ms ease-out forwards;
+  animation-delay: 100ms;
+}
+
+@keyframes smoothFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes smoothFadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
