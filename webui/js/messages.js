@@ -1564,15 +1564,15 @@ function adjustMarkdownRender(element) {
   // find all tables in the element
   const tables = element.querySelectorAll("table");
   tables.forEach((el) => {
-    // const wrapper = wrapElement(el, "message-markdown-table-wrap");
-    // const actionsDiv = document.createElement("div");
-    // actionsDiv.className = "step-action-buttons";
-    // actionsDiv.appendChild(
-    //   createActionButton("copy", "", () =>
-    //     copyToClipboard(extractTableTSV(el)),
-    //   ),
-    // );
-    // wrapper.appendChild(actionsDiv);
+    const wrapper = wrapElement(el, "message-markdown-table-wrap");
+    const actionsDiv = document.createElement("div");
+    actionsDiv.className = "step-action-buttons";
+    actionsDiv.appendChild(
+      createActionButton("copy", "", () =>
+        copyToClipboard(extractTableTSV(el)),
+      ),
+    );
+    wrapper.appendChild(actionsDiv);
   });
 
   // find all code blocks
@@ -1580,12 +1580,12 @@ function adjustMarkdownRender(element) {
   codeElements.forEach((code) => {
     const pre = code.parentNode;
     const wrapper = wrapElement(pre, "code-block-wrapper");
-    // const actionsDiv = document.createElement("div");
-    // actionsDiv.className = "step-action-buttons";
-    // actionsDiv.appendChild(
-    //   createActionButton("copy", "", () => copyToClipboard(code.textContent)),
-    // );
-    // wrapper.appendChild(actionsDiv);
+    const actionsDiv = document.createElement("div");
+    actionsDiv.className = "step-action-buttons";
+    actionsDiv.appendChild(
+      createActionButton("copy", "", () => copyToClipboard(code.textContent)),
+    );
+    wrapper.appendChild(actionsDiv);
   });
 
   // find all images
