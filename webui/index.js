@@ -200,14 +200,7 @@ updateUserTime();
 setInterval(updateUserTime, 1000);
 
 function setMessages(...params) {
-  const chatHistoryEl = document.getElementById("chat-history");
-  let scroller;
-
-  if (preferencesStore.autoScroll && chatHistoryEl) scroller = new msgs.Scroller(chatHistoryEl)
-  const result = msgs.setMessages(...params);
-  if (scroller) scroller.reApplyScroll();
-
-  return result;
+  return msgs.setMessages(...params);
 }
 
 globalThis.loadKnowledge = async function () {

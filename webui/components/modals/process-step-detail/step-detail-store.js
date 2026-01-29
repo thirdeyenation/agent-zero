@@ -22,22 +22,21 @@ const model = {
   renderSegmentButtons() {
     const step = this.selectedStepForDetail;
 
-    // heading
-    document.querySelector('[data-segment="heading"]')?.replaceChildren(
-      createActionButton("copy", "", () => copyToClipboard(this.cleanHeading(step.heading)))
-    );
+    [
+      { segment: "heading", value: this.cleanHeading(step?.heading) },
+      { segment: "content", value: step?.content ?? "" }
+    ].forEach(({ segment, value }) => {
+      document.querySelector(`[data-segment="${segment}"]`)?.replaceChildren(
+        createActionButton("copy", "", () => copyToClipboard(value))
+      );
+    });
+  },
 
-    // details (kvps)
-    const kvpsText = Object.entries(step.kvps || {})
-      .map(([k, v]) => `${this.formatKey(k)}: ${this.formatValue(v)}`)
-      .join('\n');
-    document.querySelector('[data-segment="details"]')?.replaceChildren(
-      createActionButton("copy", "", () => copyToClipboard(kvpsText))
-    );
-
-    // content
-    document.querySelector('[data-segment="content"]')?.replaceChildren(
-      createActionButton("copy", "", () => copyToClipboard(step.content))
+  // render copy buttons for individual kvp boxes
+  renderKvpCopyButton(container, key, value) {
+    const copyText = this.formatFlatValue(value);
+    container?.replaceChildren(
+      createActionButton("copy", "", () => copyToClipboard(copyText))
     );
   },
 
@@ -59,7 +58,8 @@ const model = {
     if (!step) return "";
     const lines = [];
     lines.push(`Type: ${step.type || "unknown"}`);
-    if (step.heading) lines.push(`Heading: ${step.heading}`);
+    const heading = this.cleanHeading(step.heading);
+    if (heading) lines.push(`Heading: ${heading}`);
     if (step.timestamp) {
       const date = new Date(parseFloat(step.timestamp) * 1000);
       lines.push(`Timestamp: ${date.toISOString()}`);
@@ -68,9 +68,9 @@ const model = {
     if (step.kvps) {
       lines.push("");
       lines.push("--- Data ---");
-      for (const [key, value] of Object.entries(step.kvps)) {
-        const formattedValue = typeof value === "object" ? JSON.stringify(value, null, 2) : String(value);
-        lines.push(`${key}: ${formattedValue}`);
+      const flattenedKvps = this.flattenKvps(step.kvps);
+      for (const [key, value] of Object.entries(flattenedKvps)) {
+        lines.push(this.buildKvpCopyText(key, value));
       }
     }
     if (step.content) {
@@ -183,9 +183,9 @@ const model = {
 
   // Format value for display (handles objects)
   formatValue(value) {
-    if (value === null || value === undefined) return '';
-    if (typeof value === 'object') return JSON.stringify(value, null, 2);
-    return String(value);
+    return value == null
+      ? ''
+      : (typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value));
   },
 
   // Format key for display (title case)
@@ -193,17 +193,33 @@ const model = {
     return key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
   },
 
-  // Clean text value (handle arrays, remove brackets)
-  cleanTextValue(value) {
-    if (Array.isArray(value)) {
-      return value
-        .filter(item => item && String(item).trim() && !/^[\[\]]$/.test(String(item).trim()))
-        .join('\n');
-    }
-    if (typeof value === 'object' && value !== null) {
-      return JSON.stringify(value, null, 2);
-    }
-    return String(value).replace(/^\s*[\[\]]\s*$/gm, '').trim();
+  // flatten nested kvps into top-level entries
+  flattenKvps(kvps, parentKey = "") {
+    const isPlainObject = value => value && typeof value === "object" && !Array.isArray(value);
+    return Object.entries(kvps || {}).reduce((acc, [key, value]) => {
+      const fullKey = [parentKey, this.formatKey(key)].filter(Boolean).join(" / ");
+      return {
+        ...acc,
+        ...(isPlainObject(value) ? this.flattenKvps(value, fullKey) : { [fullKey]: value })
+      };
+    }, {});
+  },
+
+  // format values
+  formatFlatValue(value) {
+    return Array.isArray(value)
+      ? value
+        .map(item => this.formatValue(item))
+        .filter(item => item.trim())
+        .join('\n')
+      : this.formatValue(value);
+  },
+
+  // build copy text
+  buildKvpCopyText(key, value) {
+    const formattedValue = this.formatFlatValue(value);
+    const separator = formattedValue.includes("\n") ? ":\n" : ": ";
+    return `${key}${separator}${formattedValue}`;
   },
 
   // Clean heading by removing icon:// prefixes

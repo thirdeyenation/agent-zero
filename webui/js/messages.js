@@ -70,6 +70,12 @@ export function setMessages(messages) {
   const historyEmpty = !history || history.childElementCount === 0;
   const isLargeAppend = !historyEmpty && messages.length > 10;
   const cutoff = isLargeAppend ? Math.max(0, messages.length - 2) : 0;
+  const massRender = historyEmpty || isLargeAppend;
+
+  let mainScroller;
+  if (preferencesStore.autoScroll && history) {
+    mainScroller = new Scroller(history, { smooth: !massRender });
+  }
 
   // process messages
   for (let i = 0; i < messages.length; i++) {
@@ -79,6 +85,8 @@ export function setMessages(messages) {
 
   // reset _massRender flag
   _massRender = false;
+
+  if (mainScroller) mainScroller.reApplyScroll();
 }
 
 // entrypoint called from poll/WS communication, this is how all messages are rendered and updated
@@ -233,6 +241,11 @@ function drawProcessStep({
   const isNewStep = !step;
   const isGroupComplete = isProcessGroupComplete(group);
 
+  // Set start timestamp on group when first step is created
+  if (isNewStep && !group.hasAttribute("data-start-timestamp") && log.timestamp) {
+    group.setAttribute("data-start-timestamp", String(log.timestamp));
+  }
+
   if (isNewStep) {
     // create the base DOM element for the step
     step = document.createElement("div");
@@ -243,6 +256,11 @@ function drawProcessStep({
     step.setAttribute("data-log-type", log.type);
     step.setAttribute("data-step-id", id);
     step.setAttribute("data-agent-number", log.agentno);
+    
+    // set timestamp attribute (convert to milliseconds for duration calculation)
+    if (log.timestamp) {
+      step.setAttribute("data-timestamp", String(Math.round(log.timestamp * 1000)));
+    }
 
     // apply step classes
     if (classes) step.classList.add(...classes);
@@ -345,7 +363,9 @@ function drawProcessStep({
   titleEl.textContent = title;
 
   // auto-scroller of the step detail
-  const detailScroller = new Scroller(stepDetailScroll); // scroller for step detail content
+  const detailScroller = new Scroller(stepDetailScroll, {
+    smooth: !isMassRender(),
+  }); // scroller for step detail content
 
   // update KVPs of the step detail
   const kvpsTable = drawKvpsIncremental(stepDetailScroll, kvps);
@@ -361,7 +381,7 @@ function drawProcessStep({
   stepDetailContent.textContent = content;
 
   // reapply scroll position (autoscroll if bottom) - only when expanded already and not mass rendering
-  if (isExpanded && !isMassRender()) detailScroller.reApplyScroll();
+  if (isExpanded) detailScroller.reApplyScroll();
 
   // Render action buttons: get/create container, clear, append
   const stepActionBtns = ensureChild(
@@ -439,6 +459,8 @@ function drawStandaloneMessage({
 
   // Collapsible with action buttons
   setupCollapsible(messageDiv, ".step-action-buttons", false, actionButtons);
+  // Collapsible with action buttons
+  setupCollapsible(messageDiv, ".step-action-buttons", false, actionButtons);
 
   return container;
 }
@@ -466,8 +488,7 @@ export function _drawMessage({
 
   // Update message classes (preserve collapsible state)
   const preserve = ["message-collapsible", "expanded", "has-overflow"]
-    .filter((c) => messageDiv.classList.contains(c))
-    .join(" ");
+    .filter((c) => messageDiv.classList.contains(c)).join(" ");
   messageDiv.className = `message ${mainClass} ${messageClasses.join(" ")} ${preserve}`;
 
   // Handle heading (important for error/rate_limit messages that show context)
@@ -485,7 +506,7 @@ export function _drawMessage({
       headingElement.appendChild(headingH4);
     }
     headingH4.innerHTML = convertIcons(escapeHTML(heading));
-
+  } else {
     // Remove heading if it exists but heading is null
     const existingHeading = messageDiv.querySelector(".msg-heading");
     if (existingHeading) {
@@ -502,7 +523,7 @@ export function _drawMessage({
   }
 
   // reapply scroll position or autoscroll
-  const scroller = new Scroller(bodyDiv);
+  const scroller = new Scroller(bodyDiv, { smooth: !isMassRender() });
 
   // Handle KVPs incrementally
   drawKvpsIncremental(bodyDiv, kvps, false);
@@ -759,12 +780,7 @@ export function drawMessageResponse({
         createActionButton("copy", "", () => copyToClipboard(responseText)),
       ].filter(Boolean)
     : [];
-  setupCollapsible(
-    messageDiv,
-    ":scope > .step-action-buttons",
-    !isMassRender(),
-    responseActionButtons,
-  );
+  setupCollapsible(messageDiv, ":scope > .step-action-buttons", !isMassRender(), responseActionButtons);
 
   if (group) updateProcessGroupHeader(group);
 
@@ -1304,6 +1320,8 @@ export function drawMessageError({
   ...additional
 }) {
   const contentText = String(content ?? "");
+  const errorText = kvps?.text || "Error";
+  const errorHeading = errorText ? `Error - ${errorText}` : "Error";
   const actionButtons = [
     createActionButton("detail", "", () =>
       stepDetailStore.showStepDetail(
@@ -1317,12 +1335,11 @@ export function drawMessageError({
 
   return drawStandaloneMessage({
     id,
-    heading,
+    heading: errorHeading,
     content,
     position: "mid",
     containerClasses: ["ai-container", "center-container"],
     mainClass: "message-error",
-    kvps,
     actionButtons,
   });
 }
@@ -1607,22 +1624,26 @@ function adjustMarkdownRender(element) {
 }
 
 export class Scroller {
-  constructor(element) {
+  constructor(element, { smooth = false } = {}) {
     this.element = element;
+    this.smooth = smooth;
     this.wasAtBottom = this.isAtBottom();
   }
 
   isAtBottom(tolerance = 80) {
-    const scrollHeight = this.element.scrollHeight;
-    const clientHeight = this.element.clientHeight;
-    const distanceFromBottom =
-      scrollHeight - this.element.scrollTop - clientHeight;
-    return distanceFromBottom <= tolerance;
+    const { scrollHeight, clientHeight, scrollTop } = this.element;
+    return scrollHeight - scrollTop - clientHeight <= tolerance;
+  }
+
+  scrollToBottom() {
+    const target = this.element.scrollHeight;
+    this.smooth
+      ? this.element.scrollTo({ top: target, behavior: "smooth" })
+      : (this.element.scrollTop = target);
   }
 
   reApplyScroll() {
-    if (this.wasAtBottom && !this.isAtBottom())
-      this.element.scrollTop = this.element.scrollHeight;
+    if (this.wasAtBottom && !this.isAtBottom()) this.scrollToBottom();
   }
 }
 
@@ -1653,7 +1674,6 @@ function createProcessGroup(id) {
       <span class="metric-time" title="Start time"><span class="material-symbols-outlined">schedule</span><span class="metric-value">--:--</span></span>
       <span class="metric-steps" title="Steps"><span class="material-symbols-outlined">footprint</span><span class="metric-value">0</span></span>
       <span class="metric-notifications" title="Warnings/Info/Hint" hidden><span class="material-symbols-outlined">priority_high</span><span class="metric-value">0</span></span>
-      <span class="metric-duration" title="Duration"><span class="material-symbols-outlined">timer</span><span class="metric-value">0s</span></span>
     </span>
   `;
 
@@ -1920,26 +1940,42 @@ function updateProcessGroupHeader(group) {
     timeMetricEl.textContent = `${hours}:${minutes}`;
   }
 
-  // Update duration metric
-  const durationMetricEl = metricsEl?.querySelector(
-    ".metric-duration .metric-value",
+  const firstTimestampMs = parseInt(
+    steps[0]?.getAttribute("data-timestamp") || "0",
+    10,
   );
-  if (durationMetricEl && steps.length > 0) {
-    const firstTimestampMs = parseInt(
-      steps[0]?.getAttribute("data-timestamp") || "0",
-      10,
-    );
+  const lastTimestampMs = parseInt(
+    steps[steps.length - 1]?.getAttribute("data-timestamp") || "0",
+    10,
+  );
+  const durationText =
+    isCompleted &&
+    metricsEl &&
+    steps.length > 0 &&
+    firstTimestampMs > 0 &&
+    lastTimestampMs > 0 &&
+    formatDuration(Math.max(0, lastTimestampMs - firstTimestampMs));
 
-    const lastStep = steps[steps.length - 1];
-    const lastTimestampMs = parseInt(
-      lastStep.getAttribute("data-timestamp") || "0",
-      10,
-    );
-
-    const totalDurationMs = Math.max(0, lastTimestampMs - firstTimestampMs);
-
-    durationMetricEl.textContent = formatDuration(totalDurationMs);
-  }
+  const durationMetricEl =
+    durationText &&
+    (() => {
+      const container = ensureChild(
+        metricsEl,
+        ".metric-duration",
+        "span",
+        "metric-duration",
+      );
+      container.title = "Duration";
+      const icon = ensureChild(
+        container,
+        ".material-symbols-outlined",
+        "span",
+        "material-symbols-outlined",
+      );
+      icon.textContent = "timer";
+      return ensureChild(container, ".metric-value", "span", "metric-value");
+    })();
+  durationMetricEl && (durationMetricEl.textContent = durationText);
 
   if (notificationsEl) {
     const counts = { warning: 0, info: 0, hint: 0 };
@@ -2015,21 +2051,11 @@ function ensureChild(parent, selector, tagName, ...classNames) {
 }
 
 // Setup collapsible message with expand button and action buttons
-function setupCollapsible(
-  messageDiv,
-  containerSelector,
-  initialExpanded,
-  actionButtons = [],
-) {
+function setupCollapsible(messageDiv, containerSelector, initialExpanded, actionButtons = []) {
   messageDiv.classList.add("message-collapsible");
   messageDiv.classList.toggle("expanded", initialExpanded);
 
-  const container = ensureChild(
-    messageDiv,
-    containerSelector,
-    "div",
-    "step-action-buttons",
-  );
+  const container = ensureChild(messageDiv, containerSelector, "div", "step-action-buttons");
   container.textContent = "";
 
   const btn = ensureChild(container, ".expand-btn", "button", "expand-btn");
@@ -2040,10 +2066,7 @@ function setupCollapsible(
     btn.classList.toggle("show-more-btn", !exp);
   };
   syncBtn();
-  btn.onclick = () => {
-    messageDiv.classList.toggle("expanded");
-    syncBtn();
-  };
+  btn.onclick = () => { messageDiv.classList.toggle("expanded"); syncBtn(); };
 
   actionButtons.filter(Boolean).forEach((b) => container.appendChild(b));
 
@@ -2051,13 +2074,15 @@ function setupCollapsible(
   if (!messageDiv.classList.contains("has-overflow")) {
     requestAnimationFrame(() => {
       const body = messageDiv.querySelector(".message-body");
-      const wasExp = messageDiv.classList.contains("expanded");
-      messageDiv.classList.remove("expanded");
-      messageDiv.classList.toggle(
-        "has-overflow",
-        body?.scrollHeight > body?.clientHeight,
-      );
-      messageDiv.classList.toggle("expanded", wasExp);
+      if (!body) return;
+      
+      // calculate max height without touching DOM (no scroll jitter)
+      const fontSize = parseFloat(getComputedStyle(body).fontSize || "16");
+      const maxHeight = messageDiv.classList.contains("expanded") 
+        ? fontSize * 15 
+        : body.clientHeight;
+        
+      messageDiv.classList.toggle("has-overflow", body.scrollHeight > maxHeight);
     });
   }
 }
