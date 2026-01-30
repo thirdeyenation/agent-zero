@@ -54,7 +54,7 @@ export function showButtonFeedback(button, success, originalIcon) {
   setTimeout(() => {
     icon.textContent = originalIcon;
     button.classList.remove("success", "error");
-  }, 2000);
+  }, 1000);
 }
 
 /**
@@ -77,7 +77,7 @@ export function createActionButton(icon, text = "", handler = null) {
   if (typeof handler === "function") {
     button.addEventListener("click", async (event) => {
       event.stopPropagation();
-      const shouldShowFeedback = icon === "copy" || icon === "speak";
+      const shouldShowFeedback = true; // icon === "copy" || icon === "speak";
       try {
         await handler();
         if (shouldShowFeedback) {
