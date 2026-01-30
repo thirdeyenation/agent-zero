@@ -57,7 +57,7 @@ const model = {
     { label: "MIN", value: "40" },
     { label: "WIDE", value: "55" },
     { label: "2X", value: "80" },
-    { label: "<>", value: "full" },
+    { label: "FULL", value: "full" },
   ],
 
   // Detail mode for process groups/steps expansion
@@ -72,7 +72,8 @@ const model = {
 
   // Detail mode options for UI sidebar
   detailModeOptions: [
-    { label: "NONE", value: "collapsed", title: "All collapsed" },
+    { label: "NO", value: "collapsed", title: "All collapsed" },
+    { label: "LIST", value: "list", title: "Steps collapsed" },
     { label: "STEP", value: "current", title: "Current step only" },
     { label: "ALL", value: "expanded", title: "All expanded" },
   ],
@@ -115,6 +116,14 @@ const model = {
         this._detailMode = "current"; // Default
       }
 
+      // load utility messages preference
+      try{
+        const storedShowUtils = localStorage.getItem("showUtils");
+        this._showUtils = storedShowUtils === "true";
+      } catch {
+        this._showUtils = false; // Default to speech off if localStorage is unavailable
+      }
+
       // Apply all preferences
       this._applyDarkMode(this._darkMode);
       this._applyAutoScroll(this._autoScroll);
@@ -149,36 +158,12 @@ const model = {
 
 
   _applyShowUtils(value) {
-    // For original messages
+    localStorage.setItem("showUtils", value);
     css.toggleCssProperty(
-      ".message-util",
+      ".process-step.message-util",
       "display",
       value ? undefined : "none"
     );
-    // For process steps - toggle class on all existing elements
-    const chatHistory = document.getElementById("chat-history");
-    if (chatHistory) {
-      const groups = chatHistory.children;
-      for (let gi = groups.length - 1; gi >= 0; gi -= 1) {
-        const messageGroup = groups[gi];
-        const containers = messageGroup.children;
-        for (let ci = containers.length - 1; ci >= 0; ci -= 1) {
-          const container = containers[ci];
-          if (!container.classList.contains("has-process-group")) continue;
-          const processGroup = container.querySelector(".process-group");
-          if (!processGroup) continue;
-          const steps = processGroup.getElementsByClassName("process-step");
-          for (let si = 0; si < steps.length; si += 1) {
-            const step = steps[si];
-            if (step.classList.contains("message-util")) {
-              step.classList.toggle("show-util", value);
-            }
-          }
-        }
-      }
-    }
-    // Re-apply detail mode to reset current visible step
-    applyModeSteps(this._detailMode, this._showUtils);
   },
 
   _applyChatWidth(value) {

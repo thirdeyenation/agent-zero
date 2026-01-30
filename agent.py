@@ -187,6 +187,7 @@ class AgentContext:
                 else Localization.get().serialize_datetime(datetime.fromtimestamp(0))
             ),
             "type": self.type.value,
+            "running": self.is_running(),
             **self.output_data,
         }
 
@@ -229,6 +230,9 @@ class AgentContext:
 
     def get_agent(self):
         return self.streaming_agent or self.agent0
+
+    def is_running(self):
+        return self.task and self.task.is_alive()
 
     def communicate(self, msg: "UserMessage", broadcast_level: int = 1):
         self.paused = False  # unpause if paused
@@ -831,8 +835,8 @@ class Agent:
         tool_request = extract_tools.json_parse_dirty(msg)
 
         if tool_request is not None:
-            raw_tool_name = tool_request.get("tool_name", "")  # Get the raw tool name
-            tool_args = tool_request.get("tool_args", {})
+            raw_tool_name = tool_request.get("tool_name", tool_request.get("tool",""))  # Get the raw tool name
+            tool_args = tool_request.get("tool_args", tool_request.get("args", {}))
 
             tool_name = raw_tool_name  # Initialize tool_name with raw_tool_name
             tool_method = None  # Initialize tool_method

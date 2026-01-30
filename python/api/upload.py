@@ -18,7 +18,7 @@ class UploadFile(ApiHandler):
                 filename = safe_filename(file.filename)
                 if not filename:
                     continue
-                file.save(files.get_abs_path("tmp/upload", filename))
+                file.save(files.get_abs_path("tmp/uploads", filename))
                 saved_filenames.append(filename)
 
         return {"filenames": saved_filenames}  # Return saved filenames

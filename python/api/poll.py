@@ -122,4 +122,6 @@ class Poll(ApiHandler):
             "notifications": notifications,
             "notifications_guid": notification_manager.guid,
             "notifications_version": len(notification_manager.updates),
+            "message_queue": context.output_data.get("message_queue", []) if context else [],
+            "running": context.is_running() if context else False,
         }

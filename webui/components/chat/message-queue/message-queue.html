@@ -1,0 +1,223 @@
+<html>
+<head>
+  <script type="module">
+    import { store } from "/components/chat/message-queue/message-queue-store.js";
+  </script>
+</head>
+<body>
+  <div x-data>
+    <template x-if="$store.messageQueue?.hasQueue">
+      <div class="queue-preview">
+        <div class="queue-header">
+          <span class="queue-title">
+            <span class="queue-spinner"></span>
+            Queued Messages (<span x-text="$store.messageQueue.count"></span>)
+          </span>
+          <button class="queue-clear-btn" @click="$store.messageQueue.clearQueue()" title="Clear all">
+            <span class="material-symbols-outlined">delete_sweep</span>
+          </button>
+        </div>
+        <div class="queue-items">
+          <template x-for="(item, index) in $store.messageQueue.items" :key="item.id">
+            <div class="queue-item">
+              <div class="queue-item-content">
+                <span class="queue-item-seq" x-text="index + 1"></span>
+                <span class="queue-item-text" x-text="item.text || '(attachment only)'"></span>
+                <template x-if="item.attachments?.length > 0">
+                  <div class="queue-attachments">
+                    <template x-for="att in item.attachments" :key="att">
+                      <img 
+                        :src="$store.messageQueue.getAttachmentUrl(att)" 
+                        :alt="att"
+                        class="queue-attachment-thumb"
+                        :title="att"
+                      />
+                    </template>
+                  </div>
+                </template>
+              </div>
+              <div class="queue-item-actions">
+                <button class="queue-action-btn send" @click="$store.messageQueue.sendItem(item.id)" title="Send now">
+                  <span class="material-symbols-outlined">send</span>
+                </button>
+                <button class="queue-action-btn delete" @click="$store.messageQueue.removeItem(item.id)" title="Remove">
+                  <span class="material-symbols-outlined">close</span>
+                </button>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+    </template>
+  </div>
+
+  <style>
+    .queue-preview {
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      padding: var(--spacing-sm);
+      margin-bottom: var(--spacing-xs);
+    }
+
+    .queue-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: var(--spacing-xs);
+    }
+
+    .queue-title {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-xs);
+      font-size: var(--font-size-xs);
+      color: var(--color-text-secondary);
+    }
+
+    .queue-spinner {
+      width: 12px;
+      height: 12px;
+      border: 2px solid var(--color-border);
+      border-top-color: var(--color-primary);
+      border-radius: 50%;
+      animation: queue-spin 1s linear infinite;
+    }
+
+    @keyframes queue-spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .queue-clear-btn {
+      background: transparent;
+      border: none;
+      color: var(--color-text-secondary);
+      cursor: pointer;
+      padding: 2px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      opacity: 0.6;
+      transition: all 0.1s ease-in-out;
+    }
+
+    .queue-clear-btn:hover {
+      opacity: 1;
+      transform: scale(1.1);
+    }
+
+    .queue-clear-btn:active {
+      opacity: 0.5;
+      transform: scale(0.95);
+    }
+
+    .queue-clear-btn .material-symbols-outlined {
+      font-size: var(--font-size-large);
+    }
+
+    .queue-items {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      max-height: 120px;
+      overflow-y: auto;
+    }
+
+    .queue-items::-webkit-scrollbar {
+      flex: 1;
+      min-height: 0;
+      overflow: scroll;
+      scroll-behavior: smooth;
+      max-height: 100%;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+
+    .queue-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--spacing-sm);
+      padding: 6px 8px;
+      border-radius: 4px;
+      cursor: default;
+    }
+
+    .queue-item:hover {
+      background-color: var(--color-background-hover);
+    }
+
+    .queue-item-content {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      flex: 1;
+      min-width: 0;
+    }
+
+    .queue-item-seq {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1rem;
+      height: 1rem;
+      font-size: 0.5rem;
+      color: var(--color-text-secondary);
+      background: var(--color-background);
+      border-radius: 50%;
+    }
+
+    .queue-item-text {
+      font-size: var(--font-size-small);
+      color: var(--color-text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .queue-attachments {
+      display: flex;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+
+    .queue-attachment-thumb {
+      width: 20px;
+      height: 20px;
+      object-fit: contain;
+      border-radius: 3px;
+      border: 1px solid var(--color-border);
+    }
+
+    .queue-item-actions {
+      display: flex;
+      gap: 2px;
+      flex-shrink: 0;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.15s;
+    }
+
+    .queue-item:hover .queue-item-actions {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .queue-action-btn {
+      background: transparent;
+      border: none;
+      color: var(--color-primary);
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+    }
+
+    .queue-action-btn .material-symbols-outlined {
+      font-size: var(--font-size-smaller);
+    }
+  </style>
+</body>
+</html>
