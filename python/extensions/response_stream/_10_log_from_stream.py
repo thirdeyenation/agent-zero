@@ -25,8 +25,8 @@ class LogFromStream(Extension):
             heading = build_heading(self.agent, f"Using {parsed['tool_name']}") # if the llm skipped headline
         elif "thoughts" in parsed:
             # thought length indicator
-            pipes = "|" * math.ceil(math.sqrt(len(text)))
-            heading = build_heading(self.agent, f"Thinking... {pipes}")
+            length = "|" * math.ceil(math.sqrt(len(text))/2)
+            heading = build_heading(self.agent, f"Thinking... {length}")
         else:
             heading = build_heading(self.agent, "Receiving...")
         
@@ -52,16 +52,16 @@ class LogFromStream(Extension):
             kvps["step"] = f"Using {parsed['tool_name']}..." # using tool XY
             if parsed["tool_name"]=="code_execution_tool":
                 if "tool_args" in parsed and "runtime" in parsed["tool_args"]:
-                    pipes = ""
+                    length = ""
                     if "code" in parsed["tool_args"]:
-                        pipes = "|" * math.ceil(math.sqrt(len(parsed["tool_args"]["code"]))) 
-                        kvps["step"] = f"Writing code... {pipes}"
+                        length = f"({len(parsed['tool_args']['code'])})"
+                        kvps["step"] = f"Writing code... {length}"
                     if parsed["tool_args"]["runtime"] == "python":
-                        kvps["step"] = f"Writing Python code... {pipes}"
+                        kvps["step"] = f"Writing Python code... {length}"
                     elif parsed["tool_args"]["runtime"] == "nodejs":
-                        kvps["step"] = f"Writing Node.js code... {pipes}"
+                        kvps["step"] = f"Writing Node.js code... {length}"
                     elif parsed["tool_args"]["runtime"] == "terminal":
-                        kvps["step"] = f"Writing terminal command... {pipes}"
+                        kvps["step"] = f"Writing terminal command... {length}"
         kvps.update(parsed)
 
 

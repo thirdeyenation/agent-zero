@@ -769,7 +769,7 @@ export function drawMessageResponse({
     markdown: true,
     latex: true,
     mainClass: "message-agent-response",
-    smoothStream: !isMassRender(), // stream smoothly if not in mass render mode
+    smoothStream: false,// !isMassRender(), // stream smoothly if not in mass render mode
   });
 
   // Collapsible with action buttons
