@@ -993,6 +993,10 @@ input:checked + .slider:before {
   color: #e40138;
 }
 
+.heartbeat {
+  animation: heartbeat 1.5s ease-in-out infinite;
+}
+
 .font-bold {
   font-weight: bold;
 }

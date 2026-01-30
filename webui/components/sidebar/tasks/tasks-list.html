@@ -28,7 +28,7 @@
                     <div class="chat-list-button" @click="$store.tasks.selectTask(task.id)">
                       <div class="task-container-vertical">
                         <div class="task-title-line">
-                          <span class="project-color-ball" :style="task.project?.color ? { backgroundColor: task.project.color } : { border: '1px solid var(--color-border)' }"></span>
+                          <span :class="{'project-color-ball': true, 'heartbeat': task.running}" :style="task.project?.color ? { backgroundColor: task.project.color } : { border: '1px solid var(--color-border)' }"></span>
                           <span class="task-name"
                             x-text="(task.task_name || `Task #${task.no}`)"
                             :data-task-id="task.id"></span>

@@ -187,6 +187,7 @@ class AgentContext:
                 else Localization.get().serialize_datetime(datetime.fromtimestamp(0))
             ),
             "type": self.type.value,
+            "running": self.is_running(),
             **self.output_data,
         }
 
@@ -229,6 +230,9 @@ class AgentContext:
 
     def get_agent(self):
         return self.streaming_agent or self.agent0
+
+    def is_running(self):
+        return self.task and self.task.is_alive()
 
     def communicate(self, msg: "UserMessage", broadcast_level: int = 1):
         self.paused = False  # unpause if paused
