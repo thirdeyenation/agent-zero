@@ -11,6 +11,7 @@ import {
 import { store as stepDetailStore } from "/components/modals/process-step-detail/step-detail-store.js";
 import { store as preferencesStore } from "/components/sidebar/bottom/preferences/preferences-store.js";
 import { formatDuration } from "./time-utils.js";
+import { Scroller } from "./scroller.js";
 
 // Delay before collapsing previous steps when a new step is added
 const STEP_COLLAPSE_DELAY = {
@@ -74,7 +75,7 @@ export function setMessages(messages) {
   const cutoff = isLargeAppend ? Math.max(0, messages.length - 2) : 0;
   const massRender = historyEmpty || isLargeAppend;
 
-  const mainScroller = new Scroller(history, { smooth: !massRender, toleranceRem: 6 });
+  const mainScroller = new Scroller(history, { smooth: !massRender, toleranceRem: 4, reapplyDelayMs: 1000 });
   
   // process messages
   for (let i = 0; i < messages.length; i++) {
@@ -667,8 +668,8 @@ export function drawMessageAgent({
 }) {
   const title = cleanStepTitle(heading);
   let displayKvps = {};
-  if (kvps?.thoughts) displayKvps["icon://lightbulb"] = kvps.thoughts;
-  if (kvps?.step) displayKvps["icon://step"] = kvps.step;
+  if (kvps?.thoughts) displayKvps["icon://lightbulb[Thoughts]"] = kvps.thoughts;
+  if (kvps?.step) displayKvps["icon://step[Step]"] = kvps.step;
   const thoughtsText = String(kvps?.thoughts ?? "");
   const headerLabels = [
     kvps?.tool_name && { label: kvps.tool_name, class: "tool-name-badge" },
@@ -1380,9 +1381,9 @@ function drawKvpsIncremental(container, kvps, latex) {
         th = row.insertCell(0);
         th.classList.add("kvps-key");
       }
-      const iconName = extractIconFromKey(key);
-      if (iconName) {
-        th.innerHTML = `<span class="material-symbols-outlined">${iconName}</span>`;
+      const convertedKey = convertIcons(String(key), "");
+      if (convertedKey !== String(key)) {
+        th.innerHTML = convertedKey;
       } else {
         th.textContent = convertToTitleCase(key);
       }
@@ -1499,12 +1500,6 @@ function convertFilePaths(str) {
   return str.replace(/file:\/\//g, "/download_work_dir_file?path=");
 }
 
-export function convertIcons(str) {
-  return str.replace(
-    /icon:\/\/([a-zA-Z0-9_]+)/g,
-    '<span class="icon material-symbols-outlined">$1</span>',
-  );
-}
 
 function escapeHTML(str) {
   const escapeChars = {
@@ -1622,72 +1617,6 @@ function adjustMarkdownRender(element) {
       imageViewerStore.open(img.src, { name: img.alt || "Image" })
     );
   });
-}
-
-export class Scroller {
-  constructor(element, { smooth = false, toleranceRem = 2 } = {}) {
-    this.element = element;
-    this.smooth = smooth;
-    this.tolerance = toleranceRem * parseFloat(getComputedStyle(document.documentElement).fontSize);
-    this.wasAtBottom = this.isAtBottom();
-    this._scrollListener = null;
-  }
-
-  _getEffectiveScrollTop() {
-    const scrollingToRaw = this.element?.dataset?.scrollingTo;
-    const scrollingTo = scrollingToRaw == null ? null : Number(scrollingToRaw);
-    if (Number.isFinite(scrollingTo)) return scrollingTo;
-    return this.element.scrollTop;
-  }
-
-  _setScrollingTo(target) {
-    this.element.dataset.scrollingTo = String(target);
-
-    if (this._scrollListener) return;
-
-    this._scrollListener = () => {
-      const current = this.element.scrollTop;
-      const activeTargetRaw = this.element?.dataset?.scrollingTo;
-      const activeTarget = activeTargetRaw == null ? null : Number(activeTargetRaw);
-      if (!Number.isFinite(activeTarget)) {
-        this._clearScrollingTo();
-        return;
-      }
-
-      if (current >= activeTarget - 1) this._clearScrollingTo();
-    };
-
-    this.element.addEventListener("scroll", this._scrollListener, { passive: true });
-  }
-
-  _clearScrollingTo() {
-    delete this.element.dataset.scrollingTo;
-    if (this._scrollListener) {
-      this.element.removeEventListener("scroll", this._scrollListener);
-      this._scrollListener = null;
-    }
-  }
-
-  isAtBottom() {
-    const { scrollHeight, clientHeight } = this.element;
-    const scrollTop = this._getEffectiveScrollTop();
-    return scrollHeight - scrollTop - clientHeight <= this.tolerance;
-  }
-
-  scrollToBottom() {
-    const target = Math.max(0, this.element.scrollHeight - this.element.clientHeight);
-    if (this.smooth) {
-      this._setScrollingTo(target);
-      this.element.scrollTo({ top: target, behavior: "smooth" });
-    } else {
-      this._clearScrollingTo();
-      this.element.scrollTop = target;
-    }
-  }
-
-  reApplyScroll() {
-    if (this.wasAtBottom && !this.isAtBottom()) this.scrollToBottom();
-  }
 }
 
 /**
@@ -1893,12 +1822,30 @@ function getStepTitle(heading, kvps, type) {
 }
 
 /**
- * Extract icon name from a key with icon:// prefix
+ * Convert icon://name[Optional Tooltip] into a material icon span.
+ * Tooltip supports escaped brackets inside, e.g. [Tooltip of \[brackets\]].
  */
-function extractIconFromKey(key) {
-  if (!key) return null;
-  const match = String(key).match(/^icon:\/\/([a-zA-Z0-9_]+)/);
-  return match ? match[1] : null;
+export function convertIcons(html, classes = "") {
+  if (html == null) return "";
+
+  return String(html).replace(
+    /icon:\/\/([a-zA-Z0-9_]+)(\[(?:\\.|[^\]])*\])?/g,
+    (match, iconName, tooltipBlock) => {
+      if (!tooltipBlock) {
+        return `<span class="icon material-symbols-outlined ${classes}">${iconName}</span>`;
+      }
+
+      const tooltipRaw = tooltipBlock
+        .slice(1, -1)
+        .replace(/\\\[/g, "[")
+        .replace(/\\\]/g, "]")
+        .replace(/\\\\/g, "\\");
+
+      const tooltip = escapeHTML(tooltipRaw);
+
+      return `<span class="icon material-symbols-outlined ${classes}" title="${tooltip}" data-bs-placement="top" data-bs-trigger="hover">${iconName}</span>`;
+    },
+  );
 }
 
 /**
@@ -1909,8 +1856,8 @@ function cleanStepTitle(text, maxLength = 100) {
   if (!text) return "";
   let cleaned = String(text);
 
-  // Remove icon:// patterns (e.g., "icon://network_intelligence")
-  cleaned = cleaned.replace(/icon:\/\/[a-zA-Z0-9_]+\s*/g, "");
+  // Remove icon:// patterns (e.g., "icon://network_intelligence" or "icon://network_intelligence[Tooltip]")
+  cleaned = cleaned.replace(/icon:\/\/[a-zA-Z0-9_]+(\[(?:\\.|[^\]])*\])?\s*/g, "");
 
   // Trim whitespace
   cleaned = cleaned.trim();

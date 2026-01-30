@@ -1,4 +1,5 @@
 import { createStore } from "/js/AlpineStore.js";
+import { store as navStore } from "/components/chat/navigation/chat-navigation-store.js";
 import * as api from "/js/api.js";
 
 const model = {
@@ -71,6 +72,7 @@ const model = {
     const context = globalThis.getContext?.();
     if (!context || !this.hasQueue) return;
     try {
+      navStore.scrollToBottom();
       await api.callJsonApi("/message_queue_send", { context, send_all: true });
     } catch (e) {
       console.error("Failed to send all queued:", e);

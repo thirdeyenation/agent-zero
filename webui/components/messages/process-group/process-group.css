@@ -659,6 +659,7 @@
   padding: var(--spacing-xs);
   background: rgba(0, 0, 0, 0.8);
   min-height: 5em;
+  min-width: 20em;
   width: max-content;
   border-radius: var(--border-radius-sm);
   color: #c9d1d9;
