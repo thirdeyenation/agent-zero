@@ -4,7 +4,7 @@ import shutil
 import base64
 import subprocess
 from typing import Dict, List, Tuple, Any
-from werkzeug.utils import secure_filename
+from python.helpers.security import safe_filename
 from datetime import datetime
 
 from python.helpers import files
@@ -69,7 +69,9 @@ class FileBrowser:
             for file in files:
                 try:
                     if file and self._is_allowed_file(file.filename, file):
-                        filename = secure_filename(file.filename)
+                        filename = safe_filename(file.filename)
+                        if not filename:
+                            raise ValueError("Invalid filename")
                         file_path = target_dir / filename
 
                         file.save(str(file_path))
