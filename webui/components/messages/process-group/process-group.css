@@ -508,11 +508,15 @@
 
 .process-step.expanded > .process-step-detail > .process-step-detail-scroll {
   max-height: 40em;
-  overflow-y: auto;
+  overflow: auto;
   max-width: 100%;
   width: fit-content;
   box-sizing: content-box;
   border-radius: var(--border-radius-sm);
+  -webkit-overflow-scrolling: touch; 
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.2) transparent;
+  /* overscroll-behavior: contain; */
 }
 
 .process-step.expanded > .process-step-detail > .process-step-detail-scroll > .process-step-detail-scroll {
@@ -526,9 +530,6 @@
   background-color: transparent;
   font-size: var(--font-size-xs);
   line-height: 1.5;
-  overflow-y: auto;
-  overflow-x: hidden;
-  max-width: 100%;
   -webkit-overflow-scrolling: touch; /* smooth scrolling on iOS */
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* IE/Edge */
@@ -657,16 +658,18 @@
   margin: var(--spacing-xs) 0 0 0;
   padding: var(--spacing-xs);
   background: rgba(0, 0, 0, 0.8);
+  min-height: 5em;
+  width: max-content;
   border-radius: var(--border-radius-sm);
   color: #c9d1d9;
   white-space: pre;
   font-family: monospace;
-  max-width: fit-content;
-  overflow: auto;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255,255,255,0.2) transparent;
-  overscroll-behavior: contain;
+  /* max-width: fit-content; */
+  /* overflow: auto; */
+  /* -webkit-overflow-scrolling: touch; */
+  /* scrollbar-width: thin; */
+  /* scrollbar-color: rgba(255,255,255,0.2) transparent; */
+  /* overscroll-behavior: contain; */
 }
 
 .process-step-detail .terminal-output::-webkit-scrollbar {
