@@ -174,11 +174,17 @@
   --step-accent: #b45309;
 }
 
-/* SUB - subagent type (teal) */
+/* SUB and RES - subagent type and response (teal) */
 .process-group .SUB {
   --step-accent: #14b8a6;
 }
 .light-mode .process-group .SUB {
+  --step-accent: #0f766e;
+}
+.process-group .RES {
+  --step-accent: #14b8a6;
+}
+.light-mode .process-group .RES {
   --step-accent: #0f766e;
 }
 

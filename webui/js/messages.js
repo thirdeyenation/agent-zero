@@ -13,10 +13,12 @@ import { store as preferencesStore } from "/components/sidebar/bottom/preference
 import { formatDuration } from "./time-utils.js";
 
 // Delay before collapsing previous steps when a new step is added
-const STEP_COLLAPSE_DELAY_MS = 3000;
+const STEP_COLLAPSE_DELAY = {
+  "agent": 2000,
+  "other": 4000, // tools should stay longer as next gen step is placed quickly
+}
+// delay collapse when hovering
 const STEP_COLLAPSE_HOVER_DELAY_MS = 5000;
-// Delay before collapsing the last step when processing completes
-const FINAL_STEP_COLLAPSE_DELAY_MS = 3000;
 
 // dom references
 let _chatHistory = null;
@@ -72,11 +74,8 @@ export function setMessages(messages) {
   const cutoff = isLargeAppend ? Math.max(0, messages.length - 2) : 0;
   const massRender = historyEmpty || isLargeAppend;
 
-  let mainScroller;
-  if (preferencesStore.autoScroll && history) {
-    mainScroller = new Scroller(history, { smooth: !massRender });
-  }
-
+  const mainScroller = new Scroller(history, { smooth: !massRender, toleranceRem: 6 });
+  
   // process messages
   for (let i = 0; i < messages.length; i++) {
     _massRender = historyEmpty || (isLargeAppend && i < cutoff);
@@ -86,7 +85,7 @@ export function setMessages(messages) {
   // reset _massRender flag
   _massRender = false;
 
-  if (mainScroller) mainScroller.reApplyScroll();
+  mainScroller.reApplyScroll();
 }
 
 // entrypoint called from poll/WS communication, this is how all messages are rendered and updated
@@ -298,9 +297,9 @@ function drawProcessStep({
       stepsContainer
         .querySelectorAll(".process-step.expanded")
         .forEach((expandedStep) => {
-          if (expandedStep.id !== stepId) {
-            scheduleStepCollapse(expandedStep, STEP_COLLAPSE_DELAY_MS);
-          }
+          const delay = STEP_COLLAPSE_DELAY[expandedStep.getAttribute("data-log-type")] || STEP_COLLAPSE_DELAY.other;
+          console.log("collapsing", expandedStep.getAttribute("data-log-type"), delay);
+          scheduleStepCollapse(expandedStep, delay);
         });
       step.classList.add("expanded");
     }
@@ -364,7 +363,7 @@ function drawProcessStep({
 
   // auto-scroller of the step detail
   const detailScroller = new Scroller(stepDetailScroll, {
-    smooth: !isMassRender(),
+    smooth: !isMassRender(), toleranceRem: 4
   }); // scroller for step detail content
 
   // update KVPs of the step detail
@@ -725,15 +724,15 @@ export function drawMessageResponse({
     return drawProcessStep({
       id,
       title,
-      // statusClass,
-      statusCode: "RSP",
-      kvps,
+      code: "RES",
+      kvps: {},
       type,
       heading,
       content,
       timestamp,
       agentno,
       actionButtons,
+      log: arguments[0],
     });
   }
 
@@ -769,7 +768,7 @@ export function drawMessageResponse({
     markdown: true,
     latex: true,
     mainClass: "message-agent-response",
-    smoothStream: false,// !isMassRender(), // stream smoothly if not in mass render mode
+    smoothStream: false ,// smooth render disabled, not reliable yet !isMassRender(), // stream smoothly if not in mass render mode
   });
 
   // Collapsible with action buttons
@@ -1582,6 +1581,7 @@ function adjustMarkdownRender(element) {
   const tables = element.querySelectorAll("table");
   tables.forEach((el) => {
     const wrapper = wrapElement(el, "message-markdown-table-wrap");
+    const outerWrapper = wrapElement(wrapper, "markdown-block-wrap");
     const actionsDiv = document.createElement("div");
     actionsDiv.className = "step-action-buttons";
     actionsDiv.appendChild(
@@ -1589,7 +1589,7 @@ function adjustMarkdownRender(element) {
         copyToClipboard(extractTableTSV(el)),
       ),
     );
-    wrapper.appendChild(actionsDiv);
+    outerWrapper.appendChild(actionsDiv);
   });
 
   // find all code blocks
@@ -1597,12 +1597,13 @@ function adjustMarkdownRender(element) {
   codeElements.forEach((code) => {
     const pre = code.parentNode;
     const wrapper = wrapElement(pre, "code-block-wrapper");
+    const outerWrapper = wrapElement(wrapper, "markdown-block-wrap");
     const actionsDiv = document.createElement("div");
     actionsDiv.className = "step-action-buttons";
     actionsDiv.appendChild(
       createActionButton("copy", "", () => copyToClipboard(code.textContent)),
     );
-    wrapper.appendChild(actionsDiv);
+    outerWrapper.appendChild(actionsDiv);
   });
 
   // find all images
@@ -1624,22 +1625,64 @@ function adjustMarkdownRender(element) {
 }
 
 export class Scroller {
-  constructor(element, { smooth = false } = {}) {
+  constructor(element, { smooth = false, toleranceRem = 2 } = {}) {
     this.element = element;
     this.smooth = smooth;
+    this.tolerance = toleranceRem * parseFloat(getComputedStyle(document.documentElement).fontSize);
     this.wasAtBottom = this.isAtBottom();
+    this._scrollListener = null;
   }
 
-  isAtBottom(tolerance = 80) {
-    const { scrollHeight, clientHeight, scrollTop } = this.element;
-    return scrollHeight - scrollTop - clientHeight <= tolerance;
+  _getEffectiveScrollTop() {
+    const scrollingToRaw = this.element?.dataset?.scrollingTo;
+    const scrollingTo = scrollingToRaw == null ? null : Number(scrollingToRaw);
+    if (Number.isFinite(scrollingTo)) return scrollingTo;
+    return this.element.scrollTop;
+  }
+
+  _setScrollingTo(target) {
+    this.element.dataset.scrollingTo = String(target);
+
+    if (this._scrollListener) return;
+
+    this._scrollListener = () => {
+      const current = this.element.scrollTop;
+      const activeTargetRaw = this.element?.dataset?.scrollingTo;
+      const activeTarget = activeTargetRaw == null ? null : Number(activeTargetRaw);
+      if (!Number.isFinite(activeTarget)) {
+        this._clearScrollingTo();
+        return;
+      }
+
+      if (current >= activeTarget - 1) this._clearScrollingTo();
+    };
+
+    this.element.addEventListener("scroll", this._scrollListener, { passive: true });
+  }
+
+  _clearScrollingTo() {
+    delete this.element.dataset.scrollingTo;
+    if (this._scrollListener) {
+      this.element.removeEventListener("scroll", this._scrollListener);
+      this._scrollListener = null;
+    }
+  }
+
+  isAtBottom() {
+    const { scrollHeight, clientHeight } = this.element;
+    const scrollTop = this._getEffectiveScrollTop();
+    return scrollHeight - scrollTop - clientHeight <= this.tolerance;
   }
 
   scrollToBottom() {
-    const target = this.element.scrollHeight;
-    this.smooth
-      ? this.element.scrollTo({ top: target, behavior: "smooth" })
-      : (this.element.scrollTop = target);
+    const target = Math.max(0, this.element.scrollHeight - this.element.clientHeight);
+    if (this.smooth) {
+      this._setScrollingTo(target);
+      this.element.scrollTo({ top: target, behavior: "smooth" });
+    } else {
+      this._clearScrollingTo();
+      this.element.scrollTop = target;
+    }
   }
 
   reApplyScroll() {
@@ -1727,7 +1770,7 @@ function getNestedContainer(parentStep) {
  * Schedule a step to collapse after a delay
  * Automatically handles cancellation on click and reset on hover
  */
-function scheduleStepCollapse(stepElement, delayMs) {
+function scheduleStepCollapse(stepElement, delayMs=STEP_COLLAPSE_DELAY.other) {
   // skip if any existing timeout for this step
   if (stepElement.hasAttribute("data-collapse-timeout-id")) return;
   // skip already collapsed steps
