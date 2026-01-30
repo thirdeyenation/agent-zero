@@ -225,7 +225,7 @@ class AgentContext:
     def nudge(self):
         self.kill_process()
         self.paused = False
-        self.task = self.run_task(self.get_agent().monologue)
+        self.task = self.communicate(UserMessage(self.agent0.read_prompt("fw.msg_nudge.md")))
         return self.task
 
     def get_agent(self):
@@ -277,6 +277,10 @@ class AgentContext:
             superior = agent.data.get(Agent.DATA_NAME_SUPERIOR, None)
             if superior:
                 response = await self._process_chain(superior, response, False)  # type: ignore
+
+            # call end of process extensions
+            await self.get_agent().call_extensions("process_chain_end", data={})
+
             return response
         except Exception as e:
             agent.handle_critical_exception(e)
