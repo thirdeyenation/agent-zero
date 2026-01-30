@@ -4,6 +4,7 @@
         import { store as speechStore } from "/components/chat/speech/speech-store.js";
         import { store as attachmentsStore } from "/components/chat/attachments/attachmentsStore.js";
         import { store as fullScreenStore } from "/components/modals/full-screen-input/full-screen-store.js";
+        import { store as messageQueueStore } from "/components/chat/message-queue/message-queue-store.js";
     </script>
 </head>
 <body>
@@ -33,10 +34,19 @@
         <div id="chat-buttons-wrapper">
             <!-- Send button -->
             <button class="chat-button" id="send-button" aria-label="Send message"
-                    @click="$store.chatInput.sendMessage()">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-                    <path d="M25 20 L75 50 L25 80" fill="none" stroke="currentColor" stroke-width="15"></path>
-                </svg>
+                    @click="$store.chatInput.sendMessage()"
+                    :class="{ 'send-queue': $store.messageQueue?.hasQueue }"
+                    :title="$store.messageQueue?.hasQueue ? 'Send queued messages' : 'Send message'">
+                <!-- Normal send icon -->
+                <template x-if="!$store.messageQueue?.hasQueue">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+                        <path d="M25 20 L75 50 L25 80" fill="none" stroke="currentColor" stroke-width="15"></path>
+                    </svg>
+                </template>
+                <!-- Spinning loader when queue has messages -->
+                <template x-if="$store.messageQueue?.hasQueue">
+                    <span class="send-queue-spinner"></span>
+                </template>
             </button>
 
             <!-- Microphone button -->
@@ -108,9 +118,25 @@
     #chat-buttons-wrapper { gap: var(--spacing-xs); padding-left: var(--spacing-xs); line-height: 0.5rem; display: -webkit-flex; display: flex; }
     .chat-button { border: none; border-radius: 50%; color: var(--color-background); cursor: pointer; font-size: var(--font-size-normal); height: 2.525rem; width: 2.525rem; margin: 0 0.18rem 0 0 var(--spacing-xs); display: -webkit-flex; display: flex; align-items: center; justify-content: center; flex-shrink: 0; flex-grow: 0; min-width: 2.525rem; -webkit-transition: all var(--transition-speed), transform 0.1s ease-in-out; transition: all var(--transition-speed), transform 0.1s ease-in-out; }
     #send-button { background-color: #4248f1; }
+    #send-button.send-queue { background-color: #e67e22; }
     #send-button:hover { -webkit-transform: scale(1.05); transform: scale(1.05); transform-origin: center; background-color: #353bc5; }
+    #send-button.send-queue:hover { background-color: #d35400; }
     #send-button:active { -webkit-transform: scale(1); transform: scale(1); transform-origin: center; background-color: #2b309c; }
     .chat-button svg { width: 1.5rem; height: 1.5rem; }
+    
+    /* Queue spinner in send button */
+    .send-queue-spinner {
+      width: 18px;
+      height: 18px;
+      border: 3px solid rgba(255,255,255,0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: send-queue-spin 0.8s linear infinite;
+    }
+    @keyframes send-queue-spin {
+      to { transform: rotate(360deg); }
+    }
+    
     /* Microphone button */
     .chat-button.mic-inactive svg { /* Add specific styles if needed */ }
     /* Responsive tweaks */

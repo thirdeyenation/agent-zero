@@ -11,6 +11,7 @@ import { store as chatsStore } from "/components/sidebar/chats/chats-store.js";
 import { store as tasksStore } from "/components/sidebar/tasks/tasks-store.js";
 import { store as chatTopStore } from "/components/chat/top-section/chat-top-store.js";
 import { store as _tooltipsStore } from "/components/tooltips/tooltip-store.js";
+import { store as messageQueueStore } from "/components/chat/message-queue/message-queue-store.js";
 import { applyModeSteps } from "/components/messages/process-group/process-group-dom.js";
 
 globalThis.fetchApi = api.fetchApi; // TODO - backward compatibility for non-modular scripts, remove once refactored to alpine
@@ -46,7 +47,24 @@ export async function sendMessage() {
     const attachmentsWithUrls = attachmentsStore.getAttachmentsForSending();
     const hasAttachments = attachmentsWithUrls.length > 0;
 
+    // If empty input but has queued messages, send all queued
+    if (!message && !hasAttachments && messageQueueStore.hasQueue) {
+      await messageQueueStore.sendAll();
+      return;
+    }
+
     if (message || hasAttachments) {
+      // Check if agent is busy - queue instead of sending
+      if (chatTopStore.progressActive) {
+        const success = await messageQueueStore.addToQueue(message, attachmentsWithUrls);
+        if (success) {
+          chatInputEl.value = "";
+          attachmentsStore.clearAttachments();
+          adjustTextareaHeight();
+        }
+        return;
+      }
+
       // Sending a message is an explicit user intent to go to the bottom
       forceScrollChatToBottom();
 
@@ -327,6 +345,12 @@ export async function poll() {
     lastLogGuid = response.log_guid;
 
     updateProgress(response.log_progress, response.log_progress_active);
+    
+    // Update agent busy state for queue logic
+    chatTopStore.progressActive = response.log_progress_active;
+    
+    // Update message queue from poll
+    messageQueueStore.updateFromPoll(response.message_queue);
 
     // Update notifications from response
     notificationStore.updateFromPoll(response);
