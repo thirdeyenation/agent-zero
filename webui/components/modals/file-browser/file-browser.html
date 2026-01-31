@@ -51,7 +51,7 @@
                 <template x-if="$store.fileBrowser.browser.entries.length">
                   <template x-for="file in $store.fileBrowser.sortFiles($store.fileBrowser.browser.entries)" :key="file.path">
                     <div class="file-item" :data-is-dir="file.is_dir">
-                      <div class="file-name" @click="file.is_dir ? $store.fileBrowser.navigateToFolder(file.path) : $store.fileBrowser.downloadFile(file)">
+                      <div class="file-name" @click="file.is_dir && $store.fileBrowser.navigateToFolder(file.path)">
                         <img :src="'/public/' + (file.type === 'unknown' ? 'file' : ($store.fileBrowser.isArchive(file.name) ? 'archive' : file.type)) + '.svg'" class="file-icon" :alt="file.type" />
                         <span x-text="file.name"></span>
                       </div>
@@ -91,7 +91,7 @@
                             <button
                               type="button"
                               class="dropdown-item"
-                              x-show="!file.is_dir"
+                              x-show="!file.is_dir && file.size <= 1048576"
                               @click="$store.fileBrowser.openFileEditor(file)"
                             >
                               <span class="material-symbols-outlined">file_open</span>
@@ -191,22 +191,24 @@
     }
 
     /* File Browser Styles */
-    .files-list,
-    .file-header {
+    .files-list {
       width: 100%;
       border-radius: 4px;
-      overflow: hidden;
+      /* Removed overflow: hidden to allow dropdown menus to be visible */
     }
 
     /* Header Styles */
     .file-header {
-    display: grid;
-    grid-template-columns: 2fr 0.6fr 1fr 160px;
-    background: var(--secondary-bg);
-    padding: 8px 0;
-    font-weight: bold;
-    border-bottom: 1px solid var(--border-color);
-    color: var(--color-primary);
+      width: 100%;
+      border-radius: 4px;
+      overflow: hidden;
+      display: grid;
+      grid-template-columns: 1.5fr 0.71fr 1.05fr 0.6fr;
+      background: var(--secondary-bg);
+      padding: 8px 0;
+      font-weight: bold;
+      border-bottom: 1px solid var(--border-color);
+      color: var(--color-primary);
     }
     .file-cell,
     .file-cell-size,
@@ -219,7 +221,7 @@
     /* File Item Styles */
     .file-item {
     display: grid;
-    grid-template-columns: 2fr 0.6fr 1fr 160px;
+    grid-template-columns: 1.5fr 0.7fr 1fr 0.6fr;
     align-items: center;
     padding: 8px 0;
     font-size: 0.875rem;
@@ -381,7 +383,9 @@
     }
     /* Responsive Design */
     @media (max-width: 768px) {
-    .file-header,
+    .file-header {
+      grid-template-columns: 1fr 0.52fr 120px;
+    }
     .file-item {
         grid-template-columns: 1fr 0.5fr 120px;
     }
