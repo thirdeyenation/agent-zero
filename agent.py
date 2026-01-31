@@ -8,7 +8,6 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Awaitable, Coroutine, Dict, Literal
 from enum import Enum
-import uuid
 import models
 
 from python.helpers import (
@@ -188,6 +187,7 @@ class AgentContext:
                 else Localization.get().serialize_datetime(datetime.fromtimestamp(0))
             ),
             "type": self.type.value,
+            "running": self.is_running(),
             **self.output_data,
         }
 
@@ -225,11 +225,14 @@ class AgentContext:
     def nudge(self):
         self.kill_process()
         self.paused = False
-        self.task = self.run_task(self.get_agent().monologue)
+        self.task = self.communicate(UserMessage(self.agent0.read_prompt("fw.msg_nudge.md")))
         return self.task
 
     def get_agent(self):
         return self.streaming_agent or self.agent0
+
+    def is_running(self):
+        return self.task and self.task.is_alive()
 
     def communicate(self, msg: "UserMessage", broadcast_level: int = 1):
         self.paused = False  # unpause if paused
@@ -274,6 +277,10 @@ class AgentContext:
             superior = agent.data.get(Agent.DATA_NAME_SUPERIOR, None)
             if superior:
                 response = await self._process_chain(superior, response, False)  # type: ignore
+
+            # call end of process extensions
+            await self.get_agent().call_extensions("process_chain_end", data={})
+
             return response
         except Exception as e:
             agent.handle_critical_exception(e)
@@ -479,7 +486,7 @@ class Agent:
                         await self.call_extensions("error_format", msg=msg)
                         self.hist_add_warning(msg["message"])
                         PrintStyle(font_color="red", padding=True).print(msg["message"])
-                        self.context.log.log(type="error", content=msg["message"])
+                        self.context.log.log(type="warning", content=msg["message"])
                     except Exception as e:
                         # Retry critical exceptions before failing
                         error_retries = await self.retry_critical_exception(
@@ -488,9 +495,10 @@ class Agent:
 
                     finally:
                         # call message_loop_end extensions
-                        await self.call_extensions(
-                            "message_loop_end", loop_data=self.loop_data
-                        )
+                        if self.context.task and self.context.task.is_alive(): # don't call extensions post mortem
+                            await self.call_extensions(
+                                "message_loop_end", loop_data=self.loop_data
+                            )
 
             # exceptions outside message loop:
             except InterventionException as e:
@@ -504,7 +512,8 @@ class Agent:
             finally:
                 self.context.streaming_agent = None  # unset current streamer
                 # call monologue_end extensions
-                await self.call_extensions("monologue_end", loop_data=self.loop_data)  # type: ignore
+                if self.context.task and self.context.task.is_alive(): # don't call extensions post mortem
+                    await self.call_extensions("monologue_end", loop_data=self.loop_data)  # type: ignore
 
     async def prepare_prompt(self, loop_data: LoopData) -> list[BaseMessage]:
         self.context.log.set_progress("Building prompt")
@@ -628,7 +637,8 @@ class Agent:
     def read_prompt(self, file: str, **kwargs) -> str:
         dirs = subagents.get_paths(self, "prompts")
         prompt = files.read_prompt_file(file, _directories=dirs, _agent=self, **kwargs)
-        prompt = files.remove_code_fences(prompt)
+        if files.is_full_json_template(prompt):
+            prompt = files.remove_code_fences(prompt)
         return prompt
 
     def get_data(self, field: str):
@@ -829,8 +839,8 @@ class Agent:
         tool_request = extract_tools.json_parse_dirty(msg)
 
         if tool_request is not None:
-            raw_tool_name = tool_request.get("tool_name", "")  # Get the raw tool name
-            tool_args = tool_request.get("tool_args", {})
+            raw_tool_name = tool_request.get("tool_name", tool_request.get("tool",""))  # Get the raw tool name
+            tool_args = tool_request.get("tool_args", tool_request.get("args", {}))
 
             tool_name = raw_tool_name  # Initialize tool_name with raw_tool_name
             tool_method = None  # Initialize tool_method
@@ -907,14 +917,14 @@ class Agent:
                 self.hist_add_warning(error_detail)
                 PrintStyle(font_color="red", padding=True).print(error_detail)
                 self.context.log.log(
-                    type="error", content=f"{self.agent_name}: {error_detail}"
+                    type="warning", content=f"{self.agent_name}: {error_detail}"
                 )
         else:
             warning_msg_misformat = self.read_prompt("fw.msg_misformat.md")
             self.hist_add_warning(warning_msg_misformat)
             PrintStyle(font_color="red", padding=True).print(warning_msg_misformat)
             self.context.log.log(
-                type="error",
+                type="warning",
                 content=f"{self.agent_name}: Message misformat, no valid tool request found.",
             )
 

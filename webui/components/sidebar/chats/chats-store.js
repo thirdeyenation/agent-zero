@@ -4,7 +4,6 @@ import {
   getContext,
   setContext,
   poll as triggerPoll,
-  updateAfterScroll,
   toastFetchError,
   toast,
   justToast,
@@ -57,9 +56,6 @@ const model = {
 
     // Trigger immediate poll
     triggerPoll();
-
-    // Update scroll
-    updateAfterScroll();
   },
 
   // Delete a chat
@@ -129,9 +125,7 @@ const model = {
       // Increment reset counter
       if (typeof globalThis.resetCounter === 'number') {
         globalThis.resetCounter = globalThis.resetCounter + 1;
-      }
-      
-      updateAfterScroll();
+      }      
     } catch (e) {
       toastFetchError("Error resetting chat", e);
     }
@@ -151,15 +145,6 @@ const model = {
         return;
       }
 
-
-      // if (globalThis.newContext) {
-      //   globalThis.newContext();
-      // }
-      // if (globalThis.updateAfterScroll) {
-      //   globalThis.updateAfterScroll();
-      // }
-      // // UX: scroll-to-top
-      // requestAnimationFrame(() => this._scrollChatsToTop());
     } catch (e) {
       toastFetchError("Error creating new chat", e);
     }

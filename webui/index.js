@@ -10,6 +10,8 @@ import { store as inputStore } from "/components/chat/input/input-store.js";
 import { store as chatsStore } from "/components/sidebar/chats/chats-store.js";
 import { store as tasksStore } from "/components/sidebar/tasks/tasks-store.js";
 import { store as chatTopStore } from "/components/chat/top-section/chat-top-store.js";
+import { store as _tooltipsStore } from "/components/tooltips/tooltip-store.js";
+import { store as messageQueueStore } from "/components/chat/message-queue/message-queue-store.js";
 
 globalThis.fetchApi = api.fetchApi; // TODO - backward compatibility for non-modular scripts, remove once refactored to alpine
 
@@ -44,7 +46,27 @@ export async function sendMessage() {
     const attachmentsWithUrls = attachmentsStore.getAttachmentsForSending();
     const hasAttachments = attachmentsWithUrls.length > 0;
 
+    // If empty input but has queued messages, send all queued
+    if (!message && !hasAttachments && messageQueueStore.hasQueue) {
+      await messageQueueStore.sendAll();
+      return;
+    }
+
     if (message || hasAttachments) {
+      // Check if agent is busy - queue instead of sending
+      if (chatTopStore.progressActive) {
+        const success = await messageQueueStore.addToQueue(message, attachmentsWithUrls);
+        if (success) {
+          chatInputEl.value = "";
+          attachmentsStore.clearAttachments();
+          adjustTextareaHeight();
+        }
+        return;
+      }
+
+      // Sending a message is an explicit user intent to go to the bottom
+      forceScrollChatToBottom();
+
       let response;
       const messageId = generateGUID();
 
@@ -58,12 +80,12 @@ export async function sendMessage() {
         const heading =
           attachmentsWithUrls.length > 0
             ? "Uploading attachments..."
-            : "User message";
+            : "";
 
         // Render user message with attachments
-        setMessage(messageId, "user", heading, message, false, {
+        setMessages([{ id: messageId, type: "user", heading, content: message, kvps: {
           // attachments: attachmentsWithUrls, // skip here, let the backend properly log them
-        });
+        }}]);
 
         // sleep one frame to render the message before upload starts - better UX
         sleep(0);
@@ -110,6 +132,17 @@ export async function sendMessage() {
   }
 }
 globalThis.sendMessage = sendMessage;
+
+function getChatHistoryEl() {
+  return document.getElementById("chat-history");
+}
+
+function forceScrollChatToBottom() {
+  const chatHistoryEl = getChatHistoryEl();
+  if (!chatHistoryEl) return;
+  chatHistoryEl.scrollTop = chatHistoryEl.scrollHeight;
+}
+globalThis.forceScrollChatToBottom = forceScrollChatToBottom;
 
 export function toastFetchError(text, error) {
   console.error(text, error);
@@ -184,13 +217,8 @@ async function updateUserTime() {
 updateUserTime();
 setInterval(updateUserTime, 1000);
 
-function setMessage(id, type, heading, content, temp, kvps = null) {
-  const result = msgs.setMessage(id, type, heading, content, temp, kvps);
-  const chatHistoryEl = document.getElementById("chat-history");
-  if (preferencesStore.autoScroll && chatHistoryEl) {
-    chatHistoryEl.scrollTop = chatHistoryEl.scrollHeight;
-  }
-  return result;
+function setMessages(...params) {
+  return msgs.setMessages(...params);
 }
 
 globalThis.loadKnowledge = async function () {
@@ -300,17 +328,7 @@ export async function poll() {
 
     if (lastLogVersion != response.log_version) {
       updated = true;
-      for (const log of response.logs) {
-        const messageId = log.id || log.no; // Use log.id if available
-        setMessage(
-          messageId,
-          log.type,
-          log.heading,
-          log.content,
-          log.temp,
-          log.kvps
-        );
-      }
+      setMessages(response.logs);
       afterMessagesUpdate(response.logs);
     }
 
@@ -318,6 +336,12 @@ export async function poll() {
     lastLogGuid = response.log_guid;
 
     updateProgress(response.log_progress, response.log_progress_active);
+    
+    // Update agent busy state for queue logic
+    chatTopStore.progressActive = response.log_progress_active;
+    
+    // Update message queue from poll
+    messageQueueStore.updateFromPoll(response.message_queue);
 
     // Update notifications from response
     notificationStore.updateFromPoll(response);
@@ -437,16 +461,21 @@ function updateProgress(progress, active) {
   if (!progressBarEl) return;
   if (!progress) progress = "";
 
-  if (!active) {
-    removeClassFromElement(progressBarEl, "shiny-text");
-  } else {
-    addClassToElement(progressBarEl, "shiny-text");
-  }
+  setProgressBarShine(progressBarEl, active);
 
   progress = msgs.convertIcons(progress);
 
   if (progressBarEl.innerHTML != progress) {
     progressBarEl.innerHTML = progress;
+  }
+}
+
+function setProgressBarShine(progressBarEl, active) {
+  if (!progressBarEl) return;
+  if (!active) {
+    removeClassFromElement(progressBarEl, "shiny-text");
+  } else {
+    addClassToElement(progressBarEl, "shiny-text");
   }
 }
 
@@ -549,27 +578,13 @@ export function toast(text, type = "info", timeout = 5000) {
 }
 globalThis.toast = toast;
 
-// OLD: hideToast function removed - now using new notification system
 
-function scrollChanged(isAtBottom) {
-  // Reflect scroll state into preferences store; UI is bound via x-model
-  preferencesStore.autoScroll = isAtBottom;
-}
+import { store as _chatNavigationStore } from "/components/chat/navigation/chat-navigation-store.js";
 
-export function updateAfterScroll() {
-  // const toleranceEm = 1; // Tolerance in em units
-  // const tolerancePx = toleranceEm * parseFloat(getComputedStyle(document.documentElement).fontSize); // Convert em to pixels
-  const tolerancePx = 10;
-  const chatHistory = document.getElementById("chat-history");
-  if (!chatHistory) return;
 
-  const isAtBottom =
-    chatHistory.scrollHeight - chatHistory.scrollTop <=
-    chatHistory.clientHeight + tolerancePx;
+// Navigation logic in chat-navigation-store.js
+// forceScrollChatToBottom is kept here as it is used by system events
 
-  scrollChanged(isAtBottom);
-}
-globalThis.updateAfterScroll = updateAfterScroll;
 
 // setInterval(poll, 250);
 
@@ -613,11 +628,6 @@ document.addEventListener("DOMContentLoaded", function () {
   autoScrollSwitch = document.getElementById("auto-scroll-switch");
   timeDate = document.getElementById("time-date-container");
 
-  // Sidebar and input event listeners are now handled by their respective stores
-
-  if (chatHistory) {
-    chatHistory.addEventListener("scroll", updateAfterScroll);
-  }
 
   // Start polling for updates
   startPolling();
@@ -631,61 +641,3 @@ document.addEventListener("DOMContentLoaded", function () {
  * - Both lists are sorted by creation time (newest first)
  * - Tasks use the same context system as chats for communication with the backend
  */
-
-// Open the scheduler detail view for a specific task
-function openTaskDetail(taskId) {
-  // Wait for Alpine.js to be fully loaded
-  if (globalThis.Alpine) {
-    // Get the settings modal button and click it to ensure all init logic happens
-    const settingsButton = document.getElementById("settings");
-    if (settingsButton) {
-      // Programmatically click the settings button
-      settingsButton.click();
-
-      // Now get a reference to the modal element
-      const modalEl = document.getElementById("settingsModal");
-      if (!modalEl) {
-        console.error("Settings modal element not found after clicking button");
-        return;
-      }
-
-      // Get the Alpine.js data for the modal
-      const modalData = globalThis.Alpine ? Alpine.$data(modalEl) : null;
-
-      // Use a timeout to ensure the modal is fully rendered
-      setTimeout(() => {
-        // Switch to the scheduler tab first
-        modalData.switchTab("scheduler");
-
-        // Use another timeout to ensure the scheduler component is initialized
-        setTimeout(() => {
-          // Get the scheduler component
-          const schedulerComponent = document.querySelector(
-            '[x-data="schedulerSettings"]'
-          );
-          if (!schedulerComponent) {
-            console.error("Scheduler component not found");
-            return;
-          }
-
-          // Get the Alpine.js data for the scheduler component
-          const schedulerData = globalThis.Alpine
-            ? Alpine.$data(schedulerComponent)
-            : null;
-
-          // Show the task detail view for the specific task
-          schedulerData.showTaskDetail(taskId);
-
-          console.log("Task detail view opened for task:", taskId);
-        }, 50); // Give time for the scheduler tab to initialize
-      }, 25); // Give time for the modal to render
-    } else {
-      console.error("Settings button not found");
-    }
-  } else {
-    console.error("Alpine.js not loaded");
-  }
-}
-
-// Make the function available globally
-globalThis.openTaskDetail = openTaskDetail;

@@ -18,7 +18,7 @@
 
 chat:
   a0_venice:
-    name: Agent Zero Venice.ai
+    name: Agent Zero API
     litellm_provider: openai
     kwargs:
       api_base: https://api.agent-zero.ai/venice/v1
@@ -40,6 +40,7 @@ chat:
       extra_headers:
         "Editor-Version": "vscode/1.85.1"
         "Copilot-Integration-Id": "vscode-chat"
+        "Copilot-Vision-Request": "true"
   google:
     name: Google
     litellm_provider: gemini
