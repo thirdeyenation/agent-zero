@@ -794,15 +794,16 @@ export function drawMessageUser({
   kvps = null,
   ...additional
 }) {
+
+  // end last process group on any user message
+  completeLastProcessGroup();
+
   const messageContainer = getOrCreateMessageContainer(
     id,
     "right",
     ["user-container"],
     true,
   );
-
-  // end last process group on any user message
-  completeLastProcessGroup();
 
   // Find existing message div or create new one
   let messageDiv = messageContainer.querySelector(".message");
@@ -1644,8 +1645,10 @@ function createProcessGroup(id) {
     <span class="step-badge GEN">GEN</span>
     <span class="group-metrics">
       <span class="metric-time" title="Start time"><span class="material-symbols-outlined">schedule</span><span class="metric-value">--:--</span></span>
-      <span class="metric-steps" title="Steps"><span class="material-symbols-outlined">footprint</span><span class="metric-value">0</span></span>
+      <span class="metric-steps display-none" title="Steps"><span class="material-symbols-outlined">footprint</span><span class="metric-value">0</span></span>
       <span class="metric-notifications" title="Warnings/Info/Hint" hidden><span class="material-symbols-outlined">priority_high</span><span class="metric-value">0</span></span>
+      <span class="metric-duration display-none" title="Duration"><span class="material-symbols-outlined">timer</span><span class="metric-value">--</span></span>
+
     </span>
   `;
 
@@ -1914,13 +1917,18 @@ function updateProcessGroupHeader(group) {
   }
 
   // Update step count in metrics - All GEN steps from all agents per process group
-  const stepsMetricEl = metricsEl?.querySelector(".metric-steps .metric-value");
-  if (stepsMetricEl) {
-    const genSteps = group.querySelectorAll('.process-step[data-type="agent"]');
-    stepsMetricEl.textContent = genSteps.length.toString();
+  const stepMetricContainerEl = metricsEl?.querySelector(".metric-steps");
+  const stepsMetricValEl = stepMetricContainerEl?.querySelector(".metric-value");
+  if (stepsMetricValEl) {
+    let genSteps = group.querySelectorAll('.process-step[data-log-type="agent"]').length;
+    genSteps -= 1; // don't count response as step
+    stepsMetricValEl.textContent = genSteps.toString();
+    if (genSteps <= 0) stepMetricContainerEl.classList.add("display-none"); // hide when no steps
+    else stepMetricContainerEl.classList.remove("display-none");
   }
 
   // Update time metric
+  const timeMetricContainerEl = metricsEl?.querySelector(".metric-time");
   const timeMetricEl = metricsEl?.querySelector(".metric-time .metric-value");
   const startTimestamp = group.getAttribute("data-start-timestamp");
   if (timeMetricEl && startTimestamp) {
@@ -1928,6 +1936,14 @@ function updateProcessGroupHeader(group) {
     const hours = String(date.getHours()).padStart(2, "0");
     const minutes = String(date.getMinutes()).padStart(2, "0");
     timeMetricEl.textContent = `${hours}:${minutes}`;
+    if (timeMetricContainerEl) {
+      const fullDateTime = date.toLocaleString(undefined, {
+        dateStyle: "medium",
+        timeStyle: "short",
+      });
+      timeMetricContainerEl.title = timeMetricContainerEl.dataset.bsOriginalTitle =
+        fullDateTime;
+    }
   }
 
   const firstTimestampMs = parseInt(
@@ -1946,39 +1962,27 @@ function updateProcessGroupHeader(group) {
     lastTimestampMs > 0 &&
     formatDuration(Math.max(0, lastTimestampMs - firstTimestampMs));
 
-  const durationMetricEl =
-    durationText &&
-    (() => {
-      const container = ensureChild(
-        metricsEl,
-        ".metric-duration",
-        "span",
-        "metric-duration",
-      );
-      container.title = "Duration";
-      const icon = ensureChild(
-        container,
-        ".material-symbols-outlined",
-        "span",
-        "material-symbols-outlined",
-      );
-      icon.textContent = "timer";
-      return ensureChild(container, ".metric-value", "span", "metric-value");
-    })();
-  durationMetricEl && (durationMetricEl.textContent = durationText);
+  const durationMetricContainerEl = metricsEl?.querySelector(".metric-duration");
+  const durationMetricValEl = durationMetricContainerEl?.querySelector(".metric-value");
+  if (durationMetricContainerEl && durationMetricValEl && durationText) {
+    durationMetricValEl.textContent = durationText;
+    durationMetricContainerEl.classList.remove("display-none");
+  } else if (durationMetricContainerEl) {
+    durationMetricContainerEl.classList.add("display-none");
+  }
 
   if (notificationsEl) {
-    const counts = { warning: 0, info: 0, hint: 0 };
+    const counts = { warning: 0, info: 0 };
     steps.forEach((step) => {
-      const stepType = step.getAttribute("data-type");
+      const stepType = step.getAttribute("data-log-type");
       if (Object.prototype.hasOwnProperty.call(counts, stepType)) {
         counts[stepType] += 1;
       }
     });
 
-    const totalNotifications = counts.warning + counts.info + counts.hint;
+    const totalNotifications = counts.warning + counts.info;
     const countEl = notificationsEl.querySelector(".metric-value");
-    notificationsEl.classList.remove("status-wrn", "status-inf", "status-hnt");
+    notificationsEl.classList.remove("status-wrn", "status-inf");
 
     if (totalNotifications > 0) {
       if (countEl) {
@@ -1988,11 +1992,9 @@ function updateProcessGroupHeader(group) {
         notificationsEl.classList.add("status-wrn");
       } else if (counts.info > 0) {
         notificationsEl.classList.add("status-inf");
-      } else {
-        notificationsEl.classList.add("status-hnt");
       }
       notificationsEl.hidden = false;
-      notificationsEl.title = `Warnings: ${counts.warning}, Info: ${counts.info}, Hints: ${counts.hint}`;
+      notificationsEl.title = `Warnings: ${counts.warning}, Info: ${counts.info}`;
     } else {
       notificationsEl.hidden = true;
     }

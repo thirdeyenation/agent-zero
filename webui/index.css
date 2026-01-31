@@ -1558,3 +1558,7 @@ nav ul li a img {
 }
 
 .light-mode .dropdown-item:hover { background-color: var(--color-background-hover); }
+
+.display-none{
+  display: none !important;
+}
