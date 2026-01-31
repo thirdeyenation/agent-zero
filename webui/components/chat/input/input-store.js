@@ -1,9 +1,40 @@
 import { createStore } from "/js/AlpineStore.js";
 import * as shortcuts from "/js/shortcuts.js";
 import { store as fileBrowserStore } from "/components/modals/file-browser/file-browser-store.js";
+import { store as messageQueueStore } from "/components/chat/message-queue/message-queue-store.js";
+import { store as chatTopStore } from "/components/chat/top-section/chat-top-store.js";
+import { store as attachmentsStore } from "/components/chat/attachments/attachmentsStore.js";
 
 const model = {
   paused: false,
+
+  // Computed: send button icon type
+  get sendButtonIcon() {
+    const input = document.getElementById("chat-input");
+    const hasInput = input?.value?.trim() || attachmentsStore?.attachments?.length > 0;
+    const hasQueue = messageQueueStore?.hasQueue;
+    const running = chatTopStore?.running;
+
+    if (hasQueue && !hasInput) return "send-all";
+    if (running && hasInput) return "queue";
+    return "send";
+  },
+
+  // Computed: send button CSS class
+  get sendButtonClass() {
+    const icon = this.sendButtonIcon;
+    if (icon === "send-all") return "send-queue";
+    if (icon === "queue") return "send-queue";
+    return "";
+  },
+
+  // Computed: send button title
+  get sendButtonTitle() {
+    const icon = this.sendButtonIcon;
+    if (icon === "send-all") return "Send all queued messages";
+    if (icon === "queue") return "Add to queue";
+    return "Send message";
+  },
 
   init() {
     console.log("Input store initialized");

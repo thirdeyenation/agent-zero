@@ -35,17 +35,21 @@
             <!-- Send button -->
             <button class="chat-button" id="send-button" aria-label="Send message"
                     @click="$store.chatInput.sendMessage()"
-                    :class="{ 'send-queue': $store.messageQueue?.hasQueue }"
-                    :title="$store.messageQueue?.hasQueue ? 'Send queued messages' : 'Send message'">
-                <!-- Normal send icon -->
-                <template x-if="!$store.messageQueue?.hasQueue">
+                    :class="$store.chatInput.sendButtonClass"
+                    :title="$store.chatInput.sendButtonTitle">
+                <!-- Send all queued: double arrow -->
+                <template x-if="$store.chatInput.sendButtonIcon === 'send-all'">
+                    <span class="material-symbols-outlined">keyboard_double_arrow_right</span>
+                </template>
+                <!-- Queue message: schedule send -->
+                <template x-if="$store.chatInput.sendButtonIcon === 'queue'">
+                    <span class="material-symbols-outlined">schedule_send</span>
+                </template>
+                <!-- Normal send -->
+                <template x-if="$store.chatInput.sendButtonIcon === 'send'">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
                         <path d="M25 20 L75 50 L25 80" fill="none" stroke="currentColor" stroke-width="15"></path>
                     </svg>
-                </template>
-                <!-- Spinning loader when queue has messages -->
-                <template x-if="$store.messageQueue?.hasQueue">
-                    <span class="send-queue-spinner"></span>
                 </template>
             </button>
 
@@ -123,19 +127,7 @@
     #send-button.send-queue:hover { background-color: #d35400; }
     #send-button:active { -webkit-transform: scale(1); transform: scale(1); transform-origin: center; background-color: #2b309c; }
     .chat-button svg { width: 1.5rem; height: 1.5rem; }
-    
-    /* Queue spinner in send button */
-    .send-queue-spinner {
-      width: 18px;
-      height: 18px;
-      border: 3px solid rgba(255,255,255,0.3);
-      border-top-color: white;
-      border-radius: 50%;
-      animation: send-queue-spin 0.8s linear infinite;
-    }
-    @keyframes send-queue-spin {
-      to { transform: rotate(360deg); }
-    }
+    #send-button .material-symbols-outlined { font-size: 1.5rem; }
     
     /* Microphone button */
     .chat-button.mic-inactive svg { /* Add specific styles if needed */ }

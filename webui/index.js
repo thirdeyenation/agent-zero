@@ -54,7 +54,7 @@ export async function sendMessage() {
 
     if (message || hasAttachments) {
       // Check if agent is busy - queue instead of sending
-      if (chatTopStore.progressActive) {
+      if (chatTopStore.running) {
         const success = await messageQueueStore.addToQueue(message, attachmentsWithUrls);
         if (success) {
           chatInputEl.value = "";
@@ -338,7 +338,7 @@ export async function poll() {
     updateProgress(response.log_progress, response.log_progress_active);
     
     // Update agent busy state for queue logic
-    chatTopStore.progressActive = response.log_progress_active;
+    chatTopStore.running = response.running;
     
     // Update message queue from poll
     messageQueueStore.updateFromPoll(response.message_queue);
