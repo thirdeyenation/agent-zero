@@ -17,6 +17,51 @@ export class Scroller {
       parseFloat(getComputedStyle(document.documentElement).fontSize);
     this.wasAtBottom = this.isAtBottom();
     this._scrollListener = null;
+
+    this._resizeObserver = null;
+    this._lastClientHeight = null;
+
+    this._initScrollStabilization();
+  }
+
+  _initScrollStabilization() {
+    if (!this.element) return;
+
+    const hasStabilizationFlag =
+      this.element?.dataset?.scrollStabilization != null;
+    if (hasStabilizationFlag) return;
+
+    if (typeof ResizeObserver === "undefined") return;
+
+    this._lastClientHeight = this.element.clientHeight;
+    this._resizeObserver = new ResizeObserver(() => {
+      const prevHeight = this._lastClientHeight;
+      const nextHeight = this.element.clientHeight;
+
+      if (prevHeight == null) {
+        this._lastClientHeight = nextHeight;
+        return;
+      }
+
+      if (nextHeight === prevHeight) return;
+
+      const delta = nextHeight - prevHeight;
+      this._lastClientHeight = nextHeight;
+
+      if (this.wasAtBottom) {
+        this.scrollToBottom();
+        return;
+      }
+
+      if (delta !== 0) {
+        this._clearScrollingTo();
+        this.element.scrollTop = Math.max(0, this.element.scrollTop - delta);
+      }
+    });
+
+    this._resizeObserver.observe(this.element);
+
+    this.element.dataset.scrollStabilization = "1";
   }
 
   _getEffectiveScrollTop() {
