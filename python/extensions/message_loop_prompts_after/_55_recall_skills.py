@@ -6,6 +6,7 @@ from agent import LoopData
 from python.helpers.memory import Memory
 from python.helpers import files
 from python.helpers import skills as skills_helper
+from python.helpers import projects
 
 
 class RecallSkills(Extension):
@@ -28,6 +29,9 @@ class RecallSkills(Extension):
         ).strip()
         if not user_instruction or len(user_instruction) < 8:
             return
+
+        # Get active project for project-scoped skill discovery
+        project_name = projects.get_context_project_name(self.agent.context) if self.agent.context else None
 
         try:
             db = await Memory.get(self.agent)
@@ -56,8 +60,8 @@ class RecallSkills(Extension):
                     break
 
         if not recalled:
-            # cheap lexical fallback
-            matches = skills_helper.search_skills(user_instruction, limit=6)
+            # cheap lexical fallback (includes project skills when project is active)
+            matches = skills_helper.search_skills(user_instruction, limit=6, project_name=project_name)
             for s in matches:
                 recalled.append(str(s.skill_md_path))
 
@@ -75,7 +79,7 @@ class RecallSkills(Extension):
                 text = abs_path.read_text(encoding="utf-8", errors="replace")
                 fm, body = skills_helper.split_frontmatter(text)
 
-                # Infer source if possible (custom/builtin/shared), else "unknown"
+                # Infer source if possible (custom/builtin/shared/project), else "unknown"
                 source = "unknown"
                 try:
                     rel = abs_path.resolve().relative_to(base_skills_dir)
@@ -83,6 +87,14 @@ class RecallSkills(Extension):
                         source = rel.parts[0]
                 except Exception:
                     pass
+                if source == "unknown" and project_name:
+                    try:
+                        from python.helpers.skills_import import get_project_skills_folder
+                        proj_skills = get_project_skills_folder(project_name)
+                        abs_path.resolve().relative_to(proj_skills.resolve())
+                        source = "project"
+                    except Exception:
+                        pass
 
                 name = str(fm.get("name") or abs_path.parent.name).strip()
                 desc = str(fm.get("description") or "").strip()

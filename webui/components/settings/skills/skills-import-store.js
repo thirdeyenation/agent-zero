@@ -41,6 +41,10 @@ const model = {
   onClose() {
     this.resetState();
     this.skillsFile = null;
+    this.namespace = "";
+    this.dest = "shared";
+    this.conflict = "skip";
+    this.projectName = "";
   },
 
   async loadProjects() {

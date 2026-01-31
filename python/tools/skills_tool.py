@@ -1,13 +1,11 @@
 from __future__ import annotations
 
-import json
-import re
-import shlex
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import List
 
 from python.helpers.tool import Tool, Response
 from python.helpers import files
+from python.helpers import projects
 from python.helpers import skills as skills_helper
 
 
@@ -20,17 +18,13 @@ class SkillsTool(Tool):
       - search (query)
       - load (skill_name)
       - read_file (skill_name, file_path)
-      - execute_script (skill_name, script_path, script_args, arg_style)
 
-    arg_style options for execute_script:
-      - "positional" (default): Pass values as positional args (sys.argv[1], sys.argv[2])
-        Example: {"input": "file.pdf", "output": "/tmp"} → sys.argv = ['script.py', 'file.pdf', '/tmp']
-      - "named": Pass as --key value pairs (for argparse/click scripts)
-        Example: {"input": "file.pdf", "output": "/tmp"} → sys.argv = ['script.py', '--input', 'file.pdf', '--output', '/tmp']
-      - "env": Only use environment variables (SKILL_ARG_INPUT, SKILL_ARG_OUTPUT)
-
-    Environment variables (SKILL_ARG_*) are always set regardless of arg_style.
+    Script execution is handled by code_execution_tool directly.
     """
+
+    def _get_project_name(self) -> str | None:
+        ctx = getattr(self.agent, "context", None)
+        return projects.get_context_project_name(ctx) if ctx else None
 
     async def execute(self, **kwargs) -> Response:
         method = (
@@ -52,20 +46,11 @@ class SkillsTool(Tool):
                 skill_name = str(kwargs.get("skill_name") or "").strip()
                 file_path = str(kwargs.get("file_path") or "").strip()
                 return Response(message=self._read_file(skill_name, file_path), break_loop=False)
-            if method == "execute_script":
-                skill_name = str(kwargs.get("skill_name") or "").strip()
-                script_path = str(kwargs.get("script_path") or "").strip()
-                script_args = kwargs.get("script_args") or {}
-                if not isinstance(script_args, dict):
-                    script_args = {}
-                # arg_style: "positional" (default), "named" (--key value), or "env" (env vars only)
-                arg_style = str(kwargs.get("arg_style") or "positional").strip().lower()
-                return await self._execute_script(skill_name, script_path, script_args, arg_style)
 
             return Response(
                 message=(
                     "Error: missing/invalid 'method'. Supported methods: "
-                    "list, search, load, read_file, execute_script."
+                    "list, search, load, read_file."
                 ),
                 break_loop=False,
             )
@@ -73,7 +58,7 @@ class SkillsTool(Tool):
             return Response(message=f"Error in skills_tool: {e}", break_loop=False)
 
     def _list(self) -> str:
-        skills = skills_helper.list_skills(include_content=False, dedupe=True)
+        skills = skills_helper.list_skills(include_content=False, dedupe=True, project_name=self._get_project_name())
         if not skills:
             return "No skills found. Expected SKILL.md files under: skills/{custom,builtin,shared}."
 
@@ -97,7 +82,7 @@ class SkillsTool(Tool):
         if not query:
             return "Error: 'query' is required for method=search."
 
-        results = skills_helper.search_skills(query, limit=25)
+        results = skills_helper.search_skills(query, limit=25, project_name=self._get_project_name())
         if not results:
             return f"No skills matched query: {query!r}"
 
@@ -116,7 +101,7 @@ class SkillsTool(Tool):
         if not skill_name:
             return "Error: 'skill_name' is required for method=load."
 
-        skill = skills_helper.find_skill(skill_name, include_content=True)
+        skill = skills_helper.find_skill(skill_name, include_content=True, project_name=self._get_project_name())
         if not skill:
             return f"Error: skill not found: {skill_name!r}. Try skills_tool method=list or method=search."
 
@@ -166,7 +151,7 @@ class SkillsTool(Tool):
         if not file_path:
             return "Error: 'file_path' is required for method=read_file."
 
-        skill = skills_helper.find_skill(skill_name, include_content=False)
+        skill = skills_helper.find_skill(skill_name, include_content=False, project_name=self._get_project_name())
         if not skill:
             return f"Error: skill not found: {skill_name!r}."
 
@@ -185,134 +170,6 @@ class SkillsTool(Tool):
 
         text = content.decode("utf-8", errors="replace")
         return f"File: {file_path}\n\n{text}"
-
-    async def _execute_script(
-        self, skill_name: str, script_path: str, script_args: Dict[str, Any],
-        arg_style: str = "positional"
-    ) -> Response:
-        if not skill_name:
-            return Response(message="Error: 'skill_name' is required for method=execute_script.", break_loop=False)
-        if not script_path:
-            return Response(message="Error: 'script_path' is required for method=execute_script.", break_loop=False)
-
-        skill = skills_helper.find_skill(skill_name, include_content=False)
-        if not skill:
-            return Response(message=f"Error: skill not found: {skill_name!r}.", break_loop=False)
-
-        try:
-            script_abs = skills_helper.safe_path_within_dir(skill.path, script_path)
-        except Exception as e:
-            return Response(message=f"Error: invalid script_path: {e}", break_loop=False)
-
-        if not script_abs.exists() or not script_abs.is_file():
-            return Response(message=f"Error: script not found: {script_path!r} (within skill {skill.name})", break_loop=False)
-
-        ext = script_abs.suffix.lower()
-        runtime: str
-        code: str
-
-        # Use /a0 paths for remote (SSH) execution inside the container; use local absolute paths otherwise.
-        if self.agent.config.code_exec_ssh_enabled:
-            script_runtime_path = files.normalize_a0_path(str(script_abs))
-            script_runtime_dir = files.normalize_a0_path(str(script_abs.parent))
-        else:
-            script_runtime_path = str(script_abs)
-            script_runtime_dir = str(script_abs.parent)
-
-        # Build environment variables (SKILL_ARG_*) - always set as fallback
-        env_vars: Dict[str, str] = {}
-        for k, v in (script_args or {}).items():
-            env_key = f"SKILL_ARG_{re.sub(r'[^A-Za-z0-9_]', '_', str(k).upper())}"
-            env_vars[env_key] = str(v)
-
-        # Build CLI args based on arg_style:
-        # - "positional": ['value1', 'value2'] - for scripts using sys.argv[1], sys.argv[2]
-        # - "named": ['--key1', 'value1', '--key2', 'value2'] - for argparse/click scripts
-        # - "env": [] - only use environment variables, no CLI args
-        cli_args: List[str] = []
-        if arg_style == "positional":
-            cli_args = [str(v) for v in (script_args or {}).values()]
-        elif arg_style == "named":
-            for k, v in (script_args or {}).items():
-                cli_args.append(f"--{k}")
-                cli_args.append(str(v))
-        # "env" style: cli_args stays empty, only env vars are used
-
-        if ext == ".py":
-            runtime = "python"
-            # Set env vars (always available as fallback)
-            env_lines = [f"os.environ[{json.dumps(k)}] = {json.dumps(v)}" for k, v in env_vars.items()]
-            env_setup = "\n".join(env_lines) if env_lines else "pass"
-            # Set sys.argv: ['script.py', ...cli_args]
-            argv_list = [script_runtime_path] + cli_args
-            argv_setup = f"sys.argv = {json.dumps(argv_list)}"
-            code = (
-                "import os, sys, runpy\n"
-                f"os.chdir({json.dumps(script_runtime_dir)})\n"
-                f"{env_setup}\n"
-                f"{argv_setup}\n"
-                f"runpy.run_path({json.dumps(script_runtime_path)}, run_name='__main__')\n"
-            )
-        elif ext == ".js":
-            runtime = "nodejs"
-            # Set process.env (always available as fallback)
-            env_lines = [f"process.env[{json.dumps(k)}] = {json.dumps(v)};" for k, v in env_vars.items()]
-            env_setup = "\n".join(env_lines) if env_lines else ""
-            # Node.js argv: ['node', 'script.js', ...cli_args]
-            argv_list = ["node", script_runtime_path] + cli_args
-            code = (
-                f"process.chdir({json.dumps(script_runtime_dir)});\n"
-                f"{env_setup}\n"
-                f"process.argv = {json.dumps(argv_list)};\n"
-                f"require({json.dumps(script_runtime_path)});\n"
-            )
-        elif ext == ".sh":
-            runtime = "terminal"
-            # Environment variables (always available as fallback)
-            env_parts = [f"{k}={shlex.quote(v)}" for k, v in env_vars.items()]
-            env_prefix = " ".join(env_parts)
-            # Pass CLI args to script
-            cli_args_str = " ".join(shlex.quote(a) for a in cli_args)
-            cd_cmd = f"cd {shlex.quote(script_runtime_dir)}"
-            run_cmd = f"bash {shlex.quote(script_runtime_path)}"
-            if cli_args_str:
-                run_cmd = f"{run_cmd} {cli_args_str}"
-            if env_prefix:
-                code = f"{cd_cmd} && {env_prefix} {run_cmd}"
-            else:
-                code = f"{cd_cmd} && {run_cmd}"
-        else:
-            return Response(
-                message=f"Error: unsupported script type {ext!r}. Supported: .py, .js, .sh",
-                break_loop=False,
-            )
-
-        # Delegate actual execution to code_execution_tool (sandboxed)
-        from python.tools.code_execution_tool import CodeExecution
-
-        cet = CodeExecution(
-            agent=self.agent,
-            name="code_execution_tool",
-            method=None,
-            args={
-                "runtime": runtime,
-                "code": code,
-                "session": int(self.args.get("session", 0) or 0),
-            },
-            message=self.message,
-            loop_data=self.loop_data,
-        )
-
-        # Must call before_execution to initialize self.log before execute()
-        await cet.before_execution(**cet.args)
-        resp = await cet.execute(**cet.args)
-        # Wrap result to make it clear it was a skill script
-        wrapped = (
-            f"Executed script: {skill.name}/{script_path}\n"
-            f"Runtime: {runtime}\n\n"
-            f"{resp.message}"
-        )
-        return Response(message=wrapped, break_loop=False)
 
     def _list_skill_files(self, skill_dir: Path, *, max_files: int = 80) -> List[str]:
         if not skill_dir.exists():

@@ -335,15 +335,32 @@ class Memory:
                 filename_pattern="**/SKILL.md",
             )
 
+        # load project-scoped skills from all projects
+        try:
+            from python.helpers.skills_import import get_project_skills_folder
+            from python.helpers import projects as projects_helper
+            for proj in projects_helper.get_active_projects_list():
+                proj_skills_path = str(get_project_skills_folder(proj["name"]))
+                if os.path.isdir(proj_skills_path):
+                    index = knowledge_import.load_knowledge(
+                        log_item,
+                        proj_skills_path,
+                        index,
+                        {"area": Memory.Area.SKILLS.value},
+                        filename_pattern="**/SKILL.md",
+                    )
+        except Exception:
+            pass
+
         # load custom instruments descriptions
-        index = knowledge_import.load_knowledge(
-            log_item,
-            files.get_abs_path("usr/instruments"),
-            index,
-            {"area": Memory.Area.INSTRUMENTS.value},
-            filename_pattern="**/*.md",
-            recursive=True,
-        )
+        # index = knowledge_import.load_knowledge(
+        #     log_item,
+        #     files.get_abs_path("usr/instruments"),
+        #     index,
+        #     {"area": Memory.Area.INSTRUMENTS.value},
+        #     filename_pattern="**/*.md",
+        #     recursive=True,
+        # )
 
         return index
 

@@ -14,7 +14,7 @@ except Exception:  # pragma: no cover
     yaml = None  # type: ignore
 
 
-SkillSource = Literal["custom", "builtin", "shared"]
+SkillSource = Literal["custom", "builtin", "shared", "project"]
 
 
 @dataclass(slots=True)
@@ -42,10 +42,25 @@ def get_skills_base_dir() -> Path:
     return Path(files.get_abs_path("skills"))
 
 
-def get_skill_roots(order: Optional[List[SkillSource]] = None) -> List[Tuple[SkillSource, Path]]:
+def get_skill_roots(
+    order: Optional[List[SkillSource]] = None,
+    project_name: Optional[str] = None,
+) -> List[Tuple[SkillSource, Path]]:
     base = get_skills_base_dir()
     order = order or ["custom", "builtin", "shared"]
-    return [(src, base / src) for src in order]
+    roots: List[Tuple[SkillSource, Path]] = [(src, base / src) for src in order]
+
+    # Include project-scoped skills if a project is active
+    if project_name:
+        try:
+            from python.helpers.skills_import import get_project_skills_folder
+            project_skills = get_project_skills_folder(project_name)
+            if project_skills.exists():
+                roots.insert(0, ("project", project_skills))
+        except Exception:
+            pass
+
+    return roots
 
 
 def _is_hidden_path(path: Path) -> bool:
@@ -254,10 +269,11 @@ def list_skills(
     include_content: bool = False,
     dedupe: bool = True,
     root_order: Optional[List[SkillSource]] = None,
+    project_name: Optional[str] = None,
 ) -> List[Skill]:
     skills: List[Skill] = []
 
-    roots = get_skill_roots(order=root_order)
+    roots = get_skill_roots(order=root_order, project_name=project_name)
     for source, root in roots:
         for skill_md in discover_skill_md_files(root):
             s = skill_from_markdown(skill_md, source, include_content=include_content)
@@ -281,12 +297,13 @@ def find_skill(
     *,
     include_content: bool = False,
     root_order: Optional[List[SkillSource]] = None,
+    project_name: Optional[str] = None,
 ) -> Optional[Skill]:
     target = _normalize_name(skill_name)
     if not target:
         return None
 
-    roots = get_skill_roots(order=root_order)
+    roots = get_skill_roots(order=root_order, project_name=project_name)
     for source, root in roots:
         for skill_md in discover_skill_md_files(root):
             s = skill_from_markdown(skill_md, source, include_content=include_content)
@@ -297,13 +314,13 @@ def find_skill(
     return None
 
 
-def search_skills(query: str, *, limit: int = 25) -> List[Skill]:
+def search_skills(query: str, *, limit: int = 25, project_name: Optional[str] = None) -> List[Skill]:
     q = (query or "").strip().lower()
     if not q:
         return []
 
     terms = [t for t in re.split(r"\s+", q) if t]
-    candidates = list_skills(include_content=False, dedupe=True)
+    candidates = list_skills(include_content=False, dedupe=True, project_name=project_name)
 
     scored: List[Tuple[int, Skill]] = []
     for s in candidates:
