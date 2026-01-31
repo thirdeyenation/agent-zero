@@ -14,6 +14,13 @@ class EditWorkDirFile(ApiHandler):
     def get_methods(cls):
         return ["GET", "POST"]
 
+    def _extract_error_message(self, error_str: str) -> str:
+        """Extract user-friendly error message from exception string."""
+        for line in reversed(error_str.split('\n')):
+            if ': ' in line and ('Exception' in line or 'Error' in line):
+                return line.split(': ', 1)[1].strip()
+        return error_str.strip()
+
     async def process(self, input: Input, request: Request) -> Output:
         try:
             if request.method == "GET":
@@ -46,7 +53,9 @@ class EditWorkDirFile(ApiHandler):
 
             return {"ok": True}
         except Exception as e:
-            return {"error": str(e)}
+            # Extract clean error message from exception
+            # RPC calls may return full tracebacks in exception strings
+            return {"error": self._extract_error_message(str(e))}
 
 
 async def load_file(file_path: str) -> dict:

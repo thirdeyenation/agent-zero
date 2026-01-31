@@ -71,7 +71,8 @@ const model = {
       this.isEditLoading = false;
       this.scheduleEditorInit();
     } catch (error) {
-      const message = error?.message || "Failed to load file";
+      let message = error?.message || "Failed to load file";
+      message = this._extractErrorMessage(message);
       this.editError = message;
       this.isEditLoading = false;
       window.toastFrontendError(message, "File Edit Error");
@@ -196,6 +197,19 @@ const model = {
   },
 
   // --- Helpers -------------------------------------------------------------
+
+  _extractErrorMessage(msg) {
+    if (typeof msg !== 'string') return msg;
+    // Extract clean error from traceback strings
+    const lines = msg.split('\n');
+    for (let i = lines.length - 1; i >= 0; i--) {
+      const line = lines[i].trim();
+      if (line.includes(': ') && /Exception|Error/.test(line)) {
+        return line.split(': ').slice(1).join(': ').trim();
+      }
+    }
+    return msg;
+  },
 
   resetEditState() {
     if (this.editor?.destroy) {
