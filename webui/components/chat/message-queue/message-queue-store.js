@@ -105,7 +105,7 @@ const model = {
   },
 
   getAttachmentUrl(filename) {
-    return `/image_get?path=/a0/tmp/uploads/${encodeURIComponent(filename)}`;
+    return `/image_get?path=/a0/usr/uploads/${encodeURIComponent(filename)}`;
   },
 };
 
