@@ -387,20 +387,7 @@ export async function poll() {
         }
       }
     } else {
-      const welcomeStore =
-        globalThis.Alpine && typeof globalThis.Alpine.store === "function"
-          ? globalThis.Alpine.store("welcomeStore")
-          : null;
-      const welcomeVisible = Boolean(welcomeStore && welcomeStore.isVisible);
-
-      // No context selected, try to select the first available item unless welcome screen is active
-      if (!welcomeVisible && contexts.length > 0) {
-        const firstChatId = chatsStore.firstId();
-        if (firstChatId) {
-          setContext(firstChatId);
-          chatsStore.setSelected(firstChatId);
-        }
-      }
+      // No context selected: keep it that way so the welcome screen stays visible.
     }
 
     lastLogVersion = response.log_version;
@@ -528,7 +515,9 @@ export const deselectChat = function () {
   // Clear current context to show welcome screen
   setContext(null);
 
-  // Clear localStorage selections so we don't auto-restore
+  // Clear selections so we don't auto-restore
+  sessionStorage.removeItem("lastSelectedChat");
+  sessionStorage.removeItem("lastSelectedTask");
   localStorage.removeItem("lastSelectedChat");
   localStorage.removeItem("lastSelectedTask");
 

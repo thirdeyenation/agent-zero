@@ -27,11 +27,10 @@ const model = {
   },
 
   init() {
-    // Initialize from localStorage
-    const lastSelectedChat = localStorage.getItem("lastSelectedChat");
+    // Initialize from sessionStorage
+    const lastSelectedChat = sessionStorage.getItem("lastSelectedChat");
     if (lastSelectedChat) {
       this.selectChat(lastSelectedChat);
-      // this.selected = lastSelectedChat;
     }
   },
 
@@ -260,11 +259,15 @@ const model = {
 
   // Set selected context
   setSelected(contextId) {
-    this.selected = contextId;
-    this.selectedContext = this.contexts.find((ctx) => ctx.id === contextId);
+    this.selected = contextId || "";
+    this.selectedContext = this.contexts.find((ctx) => ctx.id === this.selected);
     // if not found in contexts, try to find in tasks < not nice, will need refactor later
-    if(!this.selectedContext) this.selectedContext = tasksStore.tasks.find((ctx) => ctx.id === contextId);
-    localStorage.setItem("lastSelectedChat", contextId);
+    if(!this.selectedContext) this.selectedContext = tasksStore.tasks.find((ctx) => ctx.id === this.selected);
+    if (this.selected) {
+      sessionStorage.setItem("lastSelectedChat", this.selected);
+    } else {
+      sessionStorage.removeItem("lastSelectedChat");
+    }
   },
 
   // Restart the backend
