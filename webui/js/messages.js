@@ -336,8 +336,7 @@ function drawProcessStep({
     stepDetail,
     ".process-step-detail-scroll",
     "div",
-    "process-step-detail-scroll",
-  );
+    "process-step-detail-scroll" );
 
   // set click handlers
   setupProcessStepHandlers(step, stepHeader);

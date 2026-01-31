@@ -54,13 +54,14 @@ export async function sendMessage() {
 
     if (message || hasAttachments) {
       // Check if agent is busy - queue instead of sending
-      if (chatTopStore.running) {
-        const success = await messageQueueStore.addToQueue(message, attachmentsWithUrls);
-        if (success) {
+      if (chatTopStore.running || messageQueueStore.hasQueue) {
+        const success = messageQueueStore.addToQueue(message, attachmentsWithUrls);
+        // no await for the queue
+        // if (success) {
           chatInputEl.value = "";
           attachmentsStore.clearAttachments();
           adjustTextareaHeight();
-        }
+        // }
         return;
       }
 

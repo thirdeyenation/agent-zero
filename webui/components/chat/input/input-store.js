@@ -16,7 +16,7 @@ const model = {
     const running = chatTopStore?.running;
 
     if (hasQueue && !hasInput) return "send-all";
-    if (running && hasInput) return "queue";
+    if ((running || hasQueue) && hasInput) return "queue";
     return "send";
   },
 
