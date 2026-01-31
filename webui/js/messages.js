@@ -462,8 +462,6 @@ function drawStandaloneMessage({
 
   // Collapsible with action buttons
   setupCollapsible(messageDiv, ".step-action-buttons", false, actionButtons);
-  // Collapsible with action buttons
-  setupCollapsible(messageDiv, ".step-action-buttons", false, actionButtons);
 
   return container;
 }
@@ -526,6 +524,7 @@ export function _drawMessage({
   }
 
   // reapply scroll position or autoscroll
+  bodyDiv.dataset.scrollStabilization = "1";
   const scroller = new Scroller(bodyDiv, { smooth: !isMassRender() });
 
   // Handle KVPs incrementally
@@ -599,8 +598,10 @@ export function _drawMessage({
     }
   }
 
-  // reapply scroll position or autoscroll
-  scroller.reApplyScroll();
+  // reapply scroll position or reset for collapsed
+  messageDiv.classList.contains("expanded")
+    ? scroller.reApplyScroll()
+    : (bodyDiv.scrollTop = 0);
 
   return messageDiv;
 }
@@ -2065,25 +2066,24 @@ function setupCollapsible(messageDiv, containerSelector, initialExpanded, action
     btn.classList.toggle("show-more-btn", !exp);
   };
   syncBtn();
-  btn.onclick = () => { messageDiv.classList.toggle("expanded"); syncBtn(); };
+  btn.onclick = () => {
+    messageDiv.classList.toggle("expanded");
+    syncBtn();
+    messageDiv.classList.contains("expanded")
+      || (messageDiv.querySelector(".message-body").scrollTop = 0);
+  };
 
   actionButtons.filter(Boolean).forEach((b) => container.appendChild(b));
 
-  // Detect overflow after render (skip if already detected to avoid scroll disruption)
-  if (!messageDiv.classList.contains("has-overflow")) {
-    requestAnimationFrame(() => {
-      const body = messageDiv.querySelector(".message-body");
-      if (!body) return;
-      
-      // calculate max height without touching DOM (no scroll jitter)
-      const fontSize = parseFloat(getComputedStyle(body).fontSize || "16");
-      const maxHeight = messageDiv.classList.contains("expanded") 
-        ? fontSize * 15 
-        : body.clientHeight;
-        
-      messageDiv.classList.toggle("has-overflow", body.scrollHeight > maxHeight);
-    });
-  }
+  // Detect overflow after render
+  requestAnimationFrame(() => {
+    const body = messageDiv.querySelector(".message-body");
+    const fontSize = parseFloat(getComputedStyle(body || document.documentElement).fontSize || "16");
+    const maxHeight = messageDiv.classList.contains("expanded")
+      ? fontSize * 15
+      : (body?.clientHeight || 0);
+    messageDiv.classList.toggle("has-overflow", (body?.scrollHeight || 0) > maxHeight);
+  });
 }
 
 // returns true if this is the initial render of a chat eg. when reloading window, switching chat or catching up after a break
