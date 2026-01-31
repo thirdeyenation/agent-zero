@@ -516,8 +516,8 @@
 
 .message-agent-response .msg-content img {
   margin: var(--spacing-xs);
-  max-width: 25em;
-  max-height: 25em;
+  max-width: 30rem;
+  max-height: 15rem;
   border-radius: var(--border-radius);
   background: repeating-linear-gradient(
     45deg,

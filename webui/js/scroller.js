@@ -134,17 +134,32 @@ export class Scroller {
     return parsed;
   }
 
+  _getReapplyScrollSnapshot() {
+    const raw = this.element?.dataset?.scrollerReapplySnapshot;
+    const parsed = raw == null ? null : Number(raw);
+    if (!Number.isFinite(parsed)) return null;
+    return parsed;
+  }
+
   _clearReapplyTimeout() {
     const id = this._getReapplyTimeoutId();
     if (id != null) clearTimeout(id);
     delete this.element.dataset.scrollerTimeout;
+    delete this.element.dataset.scrollerReapplySnapshot;
   }
 
   _scheduleReapplyScrollToBottom() {
     this._clearReapplyTimeout();
 
+    const snapshot = this._getEffectiveScrollTop();
+    this.element.dataset.scrollerReapplySnapshot = String(snapshot);
+
     const id = setTimeout(() => {
       delete this.element.dataset.scrollerTimeout;
+
+      const expected = this._getReapplyScrollSnapshot();
+      delete this.element.dataset.scrollerReapplySnapshot;
+      if (expected != null && this._getEffectiveScrollTop() !== expected) return;
 
       if (!this.wasAtBottom) return;
       if (!this.isAtBottom()) return;

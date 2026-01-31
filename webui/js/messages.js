@@ -76,17 +76,21 @@ export function setMessages(messages) {
   const massRender = historyEmpty || isLargeAppend;
 
   const mainScroller = new Scroller(history, { smooth: !massRender, toleranceRem: 4, reapplyDelayMs: 1000 });
+
+  const results = []
   
   // process messages
   for (let i = 0; i < messages.length; i++) {
     _massRender = historyEmpty || (isLargeAppend && i < cutoff);
-    setMessage(messages[i]);
+    results.push(setMessage(messages[i]) || {});
   }
 
   // reset _massRender flag
   _massRender = false;
 
-  mainScroller.reApplyScroll();
+  const shouldScroll = !results[results.length - 1]?.dontScroll;
+
+  if(shouldScroll) mainScroller.reApplyScroll();
 }
 
 // entrypoint called from poll/WS communication, this is how all messages are rendered and updated
@@ -1199,7 +1203,7 @@ export function drawMessageUtil({
       ].filter(Boolean)
     : [];
 
-  return drawProcessStep({
+  const result = drawProcessStep({
     id,
     title,
     code: "UTL",
@@ -1210,6 +1214,10 @@ export function drawMessageUtil({
     log: arguments[0],
     allowCompletedGroup: true,
   });
+
+
+  result.dontScroll = preferencesStore.showUtils;
+  return result;
 }
 
 export function drawMessageHint({
