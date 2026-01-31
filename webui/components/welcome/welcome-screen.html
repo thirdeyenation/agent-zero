@@ -397,22 +397,22 @@
             }
 
             .welcome-actions {
-                grid-template-columns: repeat(2, 1fr);
-                gap: 1rem;
-                margin-bottom: 2rem;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 0.75rem;
+                margin-bottom: 1.5rem;
             }
 
             .welcome-action-card {
-                padding: 1rem;
                 aspect-ratio: 1 / 1;
+                padding: 0.5rem;
             }
 
             .welcome-action-icon {
-                font-size: 2rem;
+                font-size: 1.6rem;
             }
 
             .welcome-action-title {
-                font-size: 1.1rem;
+                font-size: 0.85rem;
             }
 
             .welcome-banners {
@@ -429,6 +429,39 @@
 
             .welcome-banner-html {
                 font-size: 0.8rem;
+            }
+        }
+
+        @media (max-width: 520px) {
+            .welcome-actions {
+                grid-template-columns: 1fr;
+                gap: 0.5rem;
+            }
+
+            .welcome-action-card {
+                aspect-ratio: auto;
+                padding: 0.5rem 0.75rem;
+                flex-direction: row;
+                justify-content: flex-start;
+                align-items: center;
+                text-align: left;
+                border-radius: 10px;
+                min-height: 44px;
+            }
+
+            .welcome-action-icon {
+                margin-bottom: 0;
+                margin-right: 0.5rem;
+                font-size: 1.35rem;
+                line-height: 1;
+                display: flex;
+                align-items: center;
+            }
+
+            .welcome-action-title {
+                font-size: 0.95rem;
+                margin: 0;
+                line-height: 1.2;
             }
         }
     </style>

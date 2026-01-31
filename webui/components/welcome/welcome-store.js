@@ -93,12 +93,12 @@ const model = {
     const bannerMap = new Map();
     
     for (const banner of frontendBanners) {
-      if (banner.id && !dismissed.has(banner.id)) {
+      if (banner.id && (banner.dismissible === false || !dismissed.has(banner.id))) {
         bannerMap.set(banner.id, banner);
       }
     }
     for (const banner of backendBanners) {
-      if (banner.id && !dismissed.has(banner.id)) {
+      if (banner.id && (banner.dismissible === false || !dismissed.has(banner.id))) {
         bannerMap.set(banner.id, banner);
       }
     }

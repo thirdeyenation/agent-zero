@@ -393,6 +393,7 @@ class Agent:
                     await self.call_extensions(
                         "message_loop_start", loop_data=self.loop_data
                     )
+                    await self.handle_intervention()
 
                     try:
                         # prepare LLM chain (model, system, history)
@@ -402,6 +403,8 @@ class Agent:
                         await self.call_extensions(
                             "before_main_llm_call", loop_data=self.loop_data
                         )
+                        await self.handle_intervention()
+
 
                         async def reasoning_callback(chunk: str, full: str):
                             await self.handle_intervention()
@@ -444,11 +447,14 @@ class Agent:
                             response_callback=stream_callback,
                             reasoning_callback=reasoning_callback,
                         )
+                        await self.handle_intervention(agent_response)
 
                         # Notify extensions to finalize their stream filters
                         await self.call_extensions(
                             "reasoning_stream_end", loop_data=self.loop_data
                         )
+                        await self.handle_intervention(agent_response)
+
                         await self.call_extensions(
                             "response_stream_end", loop_data=self.loop_data
                         )
@@ -581,6 +587,7 @@ class Agent:
             "Critical error occurred, retrying..."
         )
         await asyncio.sleep(delay)
+        await self.handle_intervention()
         agent_facing_error = self.read_prompt(
             "fw.msg_critical_error.md", error_message=error_message
         )

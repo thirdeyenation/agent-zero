@@ -8,6 +8,17 @@ import { store as attachmentsStore } from "/components/chat/attachments/attachme
 const model = {
   paused: false,
 
+  get inputPlaceholder() {
+    const input = document.getElementById("chat-input");
+    const hasTypedText = !!input?.value?.trim();
+    const hasAttachments = (attachmentsStore?.attachments?.length || 0) > 0;
+    const hasQueue = !!messageQueueStore?.hasQueue;
+
+    if (hasQueue && !hasTypedText && !hasAttachments)
+      return "Press Enter to send queued messages";
+    return "Type your message here...";
+  },
+
   // Computed: send button icon type
   get sendButtonIcon() {
     const input = document.getElementById("chat-input");

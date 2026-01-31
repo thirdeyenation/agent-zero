@@ -5,6 +5,7 @@
         import { store as attachmentsStore } from "/components/chat/attachments/attachmentsStore.js";
         import { store as fullScreenStore } from "/components/modals/full-screen-input/full-screen-store.js";
         import { store as messageQueueStore } from "/components/chat/message-queue/message-queue-store.js";
+        import { store as chatInputStore } from "/components/chat/input/input-store.js";
     </script>
 </head>
 <body>
@@ -21,8 +22,9 @@
 
         <!-- Container for textarea and expand button -->
         <div id="chat-input-container" style="position: relative;">
-            <textarea id="chat-input" placeholder="Type your message here..." rows="1"
-+                     @keydown.enter="if (!$event.shiftKey && !$event.isComposing && $event.keyCode !== 229) { $event.preventDefault(); $store.chatInput.sendMessage(); }"
+            <textarea id="chat-input" :placeholder="$store.chatInput.inputPlaceholder" rows="1"
+                      x-effect="$el.placeholder = $store.chatInput.inputPlaceholder"
+                      @keydown.enter="if (!$event.shiftKey && !$event.isComposing && $event.keyCode !== 229) { $event.preventDefault(); $store.chatInput.sendMessage(); }"
                       @input="$store.chatInput.adjustTextareaHeight()"></textarea>
             <button id="expand-button" @click="$store.fullScreenInputModal.openModal()" aria-label="Expand input">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
