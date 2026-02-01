@@ -1,4 +1,4 @@
-<html>
+<html class="step-detail-modal">
 
 <head>
     <title>Step Details</title>
@@ -172,6 +172,15 @@
             padding: 1rem;
         }
 
+        .modal-inner.step-detail-modal .modal-scroll {
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+
+        .modal-inner.step-detail-modal .modal-scroll::-webkit-scrollbar {
+            display: none;
+        }
+
         .raw-json-section {
             height: 100%;
             display: flex;
@@ -256,19 +265,6 @@
             border-top: 1px solid var(--color-border);
             opacity: 1;
             pointer-events: auto;
-        }
-
-        .modal-scroll::-webkit-scrollbar {
-            scrollbar-width: none;
-            -ms-overflow-style: none;
-        }
-
-        .modal-scroll::-webkit-scrollbar-track {
-            background: transparent;
-        }
-
-        .modal-scroll::-webkit-scrollbar-thumb {
-            background: transparent;
         }
 
         .modal-body::-webkit-scrollbar,

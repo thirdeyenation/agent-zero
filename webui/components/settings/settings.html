@@ -29,7 +29,7 @@
       <div x-show="$store.settingsStore.settings" class="settings-content">
         <!-- Tab Navigation -->
         <div class="settings-tabs-container">
-          <div class="settings-tabs">
+          <div class="settings-tabs no-scrollbar">
             <div class="settings-tab" 
                  :class="{'active': $store.settingsStore.activeTab === 'agent'}"
                  @click="$store.settingsStore.switchTab('agent')" 

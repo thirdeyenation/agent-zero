@@ -21,7 +21,7 @@
             </button>
           </div>
         </div>
-        <div class="queue-items">
+        <div class="queue-items no-scrollbar">
           <template x-for="(item, index) in $store.messageQueue.allItems" :key="item.id">
             <div class="queue-item" :class="{ 'queue-item-pending': item.pending }">
               <div class="queue-item-content">
@@ -118,16 +118,6 @@
       gap: 2px;
       max-height: 120px;
       overflow-y: auto;
-    }
-
-    .queue-items::-webkit-scrollbar {
-      flex: 1;
-      min-height: 0;
-      overflow: scroll;
-      scroll-behavior: smooth;
-      max-height: 100%;
-      scrollbar-width: none;
-      -ms-overflow-style: none;
     }
 
     .queue-item {

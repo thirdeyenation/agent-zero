@@ -39,7 +39,7 @@
               </div>
               <div class="file-edit-path" x-text="$store.fileEditor.editPathLabel()"></div>
             </div>
-            <div id="file-editor-container"></div>
+            <div id="file-editor-container" class="no-scrollbar"></div>
           </div>
         </template>
       </div>
@@ -121,12 +121,6 @@
       min-height: 55vh;
       border-radius: 0.4rem;
       overflow: auto;
-      scrollbar-gutter: stable;
-      scrollbar-width: thin;
-    }
-
-    #file-editor-container::-webkit-scrollbar {
-      width: 8px;
     }
 
     .ace_scrollbar-v {
