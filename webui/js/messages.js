@@ -1217,7 +1217,7 @@ export function drawMessageUtil({
   });
 
 
-  result.dontScroll = preferencesStore.showUtils;
+  result.dontScroll = !preferencesStore.showUtils;
   return result;
 }
 

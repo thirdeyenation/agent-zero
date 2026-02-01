@@ -6,6 +6,7 @@ from python.helpers.dirty_json import DirtyJson
 from agent import LoopData
 from python.helpers.log import LogItem
 from python.tools.memory_load import DEFAULT_THRESHOLD as DEFAULT_MEMORY_THRESHOLD
+from python.helpers.defer import DeferredTask, THREAD_BACKGROUND
 
 
 class MemorizeMemories(Extension):
@@ -25,10 +26,15 @@ class MemorizeMemories(Extension):
         )
 
         # memorize in background
-        task = asyncio.create_task(self.memorize(loop_data, log_item))
+        task = DeferredTask(thread_name=THREAD_BACKGROUND)
+        task.start_task(self.memorize, loop_data, log_item)
+        # task = asyncio.create_task(self.memorize(loop_data, log_item))
         return task
 
     async def memorize(self, loop_data: LoopData, log_item: LogItem, **kwargs):
+
+
+        await asyncio.sleep(15)
 
         set = settings.get_settings()
 
