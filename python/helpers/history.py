@@ -519,12 +519,15 @@ def group_messages_abab(messages: list[BaseMessage]) -> list[BaseMessage]:
 def output_langchain(messages: list[OutputMessage]):
     result = []
     for m in messages:
+        content = _output_content_langchain(content=m["content"])
+        # Skip AI messages with empty/whitespace-only content
+        # (API spec requires assistant messages to have content or tool_calls)
         if m["ai"]:
-            # result.append(AIMessage(content=serialize_content(m["content"])))
-            result.append(AIMessage(_output_content_langchain(content=m["content"])))  # type: ignore
+            if not content or (isinstance(content, str) and not content.strip()):
+                continue
+            result.append(AIMessage(content))  # type: ignore
         else:
-            # result.append(HumanMessage(content=serialize_content(m["content"])))
-            result.append(HumanMessage(_output_content_langchain(content=m["content"])))  # type: ignore
+            result.append(HumanMessage(content))  # type: ignore
     # ensure message type alternation
     result = group_messages_abab(result)
     return result
