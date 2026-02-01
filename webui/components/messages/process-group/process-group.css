@@ -470,16 +470,15 @@
 
 .process-step-detail,
 .process-step-detail-scroll {
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE/Edge */
+  scrollbar-width: thin; /* Firefox */
+  -ms-overflow-style: thin; /* IE/Edge */
 }
 
 /* Hide scrollbar for Chrome/Safari/Webkit */
 .process-step-detail::-webkit-scrollbar,
 .process-step-detail-scroll::-webkit-scrollbar {
-  display: none;
-  width: 0;
-  height: 0;
+  width: thin;
+  height: thin;
 }
 
 .process-step:not(.expanded) > .process-step-detail {
@@ -514,13 +513,16 @@
   box-sizing: content-box;
   border-radius: var(--border-radius-sm);
   -webkit-overflow-scrolling: touch; 
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-  scrollbar-color: transparent;
+  scrollbar-width: thin;
+  -ms-overflow-style: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
   /* overscroll-behavior: contain; */
 }
 
 .process-step.expanded > .process-step-detail > .process-step-detail-scroll > .process-step-detail-scroll {
+  scrollbar-width: thin;
+  -ms-overflow-style: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
 }
 
 .process-step-detail-scroll {
