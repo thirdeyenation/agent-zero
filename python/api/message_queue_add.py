@@ -1,6 +1,7 @@
 from python.helpers.api import ApiHandler, Request, Response
 from python.helpers import message_queue as mq
 from agent import AgentContext
+from python.helpers.state_monitor_integration import mark_dirty_for_context
 
 
 class MessageQueueAdd(ApiHandler):
@@ -13,9 +14,11 @@ class MessageQueueAdd(ApiHandler):
 
         text = input.get("text", "").strip()
         attachments = input.get("attachments", [])  # filenames from /upload API
+        item_id = input.get("item_id")
 
         if not text and not attachments:
             return Response("Empty message", status=400)
 
-        item = mq.add(context, text, attachments)
+        item = mq.add(context, text, attachments, item_id)
+        mark_dirty_for_context(context.id, reason="message_queue_add")
         return {"ok": True, "item_id": item["id"], "queue_length": len(mq.get_queue(context))}

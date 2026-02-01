@@ -1462,7 +1462,7 @@ function drawKvpsIncremental(container, kvps, latex) {
     }
   } else {
     // Remove table if kvps is null/empty
-    if (table) existingTable.remove();
+    if (table) table.remove();
     return null;
   }
   return table;

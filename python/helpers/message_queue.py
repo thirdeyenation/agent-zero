@@ -1,6 +1,7 @@
 import os
 import uuid
 from typing import TYPE_CHECKING
+from python.helpers import guids
 
 if TYPE_CHECKING:
     from agent import AgentContext
@@ -41,7 +42,12 @@ def _sync_output(context: "AgentContext"):
     context.set_output_data(QUEUE_KEY, truncated)
 
 
-def add(context: "AgentContext", text: str, attachments: list[str] | None = None) -> dict:
+def add(
+    context: "AgentContext",
+    text: str,
+    attachments: list[str] | None = None,
+    item_id: str | None = None,
+) -> dict:
     """Add message to queue. Attachments should be filenames, will be converted to full paths."""
     queue = get_queue(context)
     
@@ -54,7 +60,7 @@ def add(context: "AgentContext", text: str, attachments: list[str] | None = None
             full_paths.append(f"{UPLOAD_FOLDER}/{att}")
     
     item = {
-        "id": str(uuid.uuid4())[:8],
+        "id": item_id or guids.generate_id(),
         "seq": _get_next_seq(context),
         "text": text,
         "attachments": full_paths,

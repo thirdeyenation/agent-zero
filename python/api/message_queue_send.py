@@ -1,7 +1,7 @@
 from python.helpers.api import ApiHandler, Request, Response
 from python.helpers import message_queue as mq
 from agent import AgentContext
-
+from python.helpers.state_monitor_integration import mark_dirty_for_context
 
 class MessageQueueSend(ApiHandler):
     """Send queued message(s) immediately."""
@@ -27,4 +27,5 @@ class MessageQueueSend(ApiHandler):
             return Response("Item not found", status=404)
 
         mq.send_message(context, item)
+        mark_dirty_for_context(context.id, reason="message_queue_send")
         return {"ok": True, "sent_item_id": item["id"]}
