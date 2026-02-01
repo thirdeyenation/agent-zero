@@ -464,10 +464,21 @@
   transition: grid-template-rows 0.2s ease-out, opacity 0.15s ease-out, margin-top 0.2s ease-out;
   overflow: hidden;
   -webkit-overflow-scrolling: touch; /* smooth scrolling on iOS */
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE/Edge */
   overscroll-behavior: contain; /* avoid scroll chaining */
   max-width: 100%;
+}
+
+.process-step-detail,
+.process-step-detail-scroll {
+  scrollbar-width: thin; /* Firefox */
+  -ms-overflow-style: thin; /* IE/Edge */
+}
+
+/* Hide scrollbar for Chrome/Safari/Webkit */
+.process-step-detail::-webkit-scrollbar,
+.process-step-detail-scroll::-webkit-scrollbar {
+  width: thin;
+  height: thin;
 }
 
 .process-step:not(.expanded) > .process-step-detail {
@@ -479,18 +490,6 @@
   margin-top: 0;
   max-height: 0;
   overflow: hidden;
-}
-  /* Hide scrollbar for Chrome/Safari/Webkit */
-.process-step-detail::-webkit-scrollbar {
-  display: none;
-  width: 0;
-  height: 0;
-}
-
-.process-step-detail-scroll::-webkit-scrollbar {
-  display: none;
-  width: 0;
-  height: 0;
 }
 
 .process-step-detail > .process-step-detail-scroll {
@@ -515,11 +514,15 @@
   border-radius: var(--border-radius-sm);
   -webkit-overflow-scrolling: touch; 
   scrollbar-width: thin;
-  scrollbar-color: rgba(255,255,255,0.2) transparent;
+  -ms-overflow-style: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
   /* overscroll-behavior: contain; */
 }
 
 .process-step.expanded > .process-step-detail > .process-step-detail-scroll > .process-step-detail-scroll {
+  scrollbar-width: thin;
+  -ms-overflow-style: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
 }
 
 .process-step-detail-scroll {
@@ -531,8 +534,6 @@
   font-size: var(--font-size-xs);
   line-height: 1.5;
   -webkit-overflow-scrolling: touch; /* smooth scrolling on iOS */
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE/Edge */
   overscroll-behavior-x: contain; /* avoid scroll chaining */
 }
 

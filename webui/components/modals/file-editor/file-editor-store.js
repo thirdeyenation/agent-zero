@@ -175,12 +175,13 @@ const model = {
         await this.onSaveSuccess();
       }
 
+      // Reset isSaving before closing so beforeCloseFileEditor() allows it
+      this.isSaving = false;
       this.closeFileEditor();
     } catch (error) {
       const message = error?.message || "Failed to save file";
       this.editSaveError = message;
       window.toastFrontendError(message, "Save File Error");
-    } finally {
       this.isSaving = false;
     }
   },

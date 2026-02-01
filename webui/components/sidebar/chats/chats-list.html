@@ -20,7 +20,7 @@
 
 
 
-        <ul class="config-list chats-config-list" x-show="$store.chats.contexts.length > 0">
+        <ul class="config-list chats-config-list no-scrollbar" x-show="$store.chats.contexts.length > 0">
           <template x-for="context in $store.chats.contexts" :key="context.id">
             <li>
               <div :class="{'chat-container': true, 'chat-selected': context.id === $store.chats.selected}"
@@ -76,15 +76,6 @@
       overflow: scroll;
       scroll-behavior: smooth;
       max-height: 100%;
-      scrollbar-width: none;
-      /* Firefox */
-      -ms-overflow-style: none;
-      /* IE/Edge */
-    }
-
-    /* Hide scrollbar for Chrome/Safari/Webkit */
-    .chats-config-list::-webkit-scrollbar {
-      display: none;
     }
 
     .chat-container {
