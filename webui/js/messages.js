@@ -88,7 +88,7 @@ export function setMessages(messages) {
   // reset _massRender flag
   _massRender = false;
 
-  const shouldScroll = !results[results.length - 1]?.dontScroll;
+  const shouldScroll = historyEmpty || !results[results.length - 1]?.dontScroll;
 
   if(shouldScroll) mainScroller.reApplyScroll();
 }
