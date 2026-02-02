@@ -19,7 +19,6 @@ def migrate_user_data() -> None:
     _move_dir("tmp/downloads", "usr/downloads")
     _move_dir("tmp/email", "usr/email")
     _move_dir("knowledge/custom", "usr/knowledge", overwrite=True)
-    _move_dir("skills/custom", "usr/skills/custom", overwrite=True)
 
     # --- Migrate Files -------------------------------------------------------------
     # Move specific configuration files to usr/
@@ -37,8 +36,6 @@ def migrate_user_data() -> None:
     # We use _merge_dir_contents because we want to move the *contents* of default/ 
     # into the parent directory, not move the default directory itself.
     _merge_dir_contents("knowledge/default", "knowledge")
-    _merge_dir_contents("skills/default", "usr/skills/default")
-    _merge_dir_contents("skills/builtin", "usr/skills/default")
 
     # --- Cleanup -------------------------------------------------------------------
     
@@ -105,9 +102,6 @@ def _cleanup_obsolete() -> None:
     """
     to_remove = [
         "knowledge/default",
-        "skills/default",
-        "skills/builtin",
-        "skills",
         "memory"
     ]
     for path in to_remove:

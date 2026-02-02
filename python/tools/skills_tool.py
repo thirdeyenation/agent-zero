@@ -22,10 +22,6 @@ class SkillsTool(Tool):
     Script execution is handled by code_execution_tool directly.
     """
 
-    def _get_project_name(self) -> str | None:
-        ctx = getattr(self.agent, "context", None)
-        return projects.get_context_project_name(ctx) if ctx else None
-
     async def execute(self, **kwargs) -> Response:
         method = (
             (kwargs.get("method") or self.args.get("method") or self.method or "")
@@ -60,8 +56,7 @@ class SkillsTool(Tool):
     def _list(self) -> str:
         skills = skills_helper.list_skills(
             include_content=False,
-            dedupe=True,
-            project_name=self._get_project_name(),
+            agent=self.agent,
         )
         if not skills:
             return (
@@ -70,7 +65,7 @@ class SkillsTool(Tool):
             )
 
         # Stable output: sort by name
-        skills_sorted = sorted(skills, key=lambda s: (s.name.lower(), s.source))
+        skills_sorted = sorted(skills, key=lambda s: s.name.lower())
 
         lines: List[str] = []
         lines.append(f"Available skills ({len(skills_sorted)}):")
@@ -80,7 +75,7 @@ class SkillsTool(Tool):
             desc = (s.description or "").strip()
             if len(desc) > 200:
                 desc = desc[:200].rstrip() + "…"
-            lines.append(f"- {s.name}{ver} [{s.source}]{tags}: {desc}")
+            lines.append(f"- {s.name}{ver}{tags}: {desc}")
         lines.append("")
         lines.append("Tip: use skills_tool method=search or method=load for details.")
         return "\n".join(lines)
@@ -92,7 +87,7 @@ class SkillsTool(Tool):
         results = skills_helper.search_skills(
             query,
             limit=25,
-            project_name=self._get_project_name(),
+            agent=self.agent,
         )
         if not results:
             return f"No skills matched query: {query!r}"
@@ -103,19 +98,24 @@ class SkillsTool(Tool):
             desc = (s.description or "").strip()
             if len(desc) > 200:
                 desc = desc[:200].rstrip() + "…"
-            lines.append(f"- {s.name} [{s.source}]: {desc}")
+            lines.append(f"- {s.name}: {desc}")
         lines.append("")
         lines.append("Tip: use skills_tool method=load skill_name=<name> to load full instructions.")
         return "\n".join(lines)
 
     def _load(self, skill_name: str) -> str:
+
+        skill_name = skill_name.strip() 
+        if skill_name.startswith("**") and skill_name.endswith("**"):
+            skill_name = skill_name[2:-2] # remove markdown bold markers if used by agent
+
         if not skill_name:
-            return "Error: 'skill_name' is required for method=load."
+            return "Error: 'skill_name' is required for method=load."        
 
         skill = skills_helper.find_skill(
             skill_name,
             include_content=True,
-            project_name=self._get_project_name(),
+            agent=self.agent,
         )
         if not skill:
             return f"Error: skill not found: {skill_name!r}. Try skills_tool method=list or method=search."
@@ -130,7 +130,6 @@ class SkillsTool(Tool):
 
         lines: List[str] = []
         lines.append(f"Skill: {skill.name}")
-        lines.append(f"Source: {skill.source}")
         lines.append(f"Path: {rel_skill_dir}")
         lines.append(f"Runtime path: {runtime_path}")
         if skill.version:
@@ -176,7 +175,7 @@ class SkillsTool(Tool):
         skill = skills_helper.find_skill(
             skill_name,
             include_content=False,
-            project_name=self._get_project_name(),
+            agent=self.agent,
         )
         if not skill:
             return f"Error: skill not found: {skill_name!r}."

@@ -2,15 +2,14 @@
 # Project‑specific exclusions / re‑includes
 ###############################################################################
 
-# Large / generated data
+# Obsolete
 memory/**
+instruments/**
 
 # Logs, tmp, usr
 logs/*
 tmp/*
 usr/*
-!usr/skills/
-!usr/skills/**
 
 # Knowledge directory – keep only default/
 knowledge/**

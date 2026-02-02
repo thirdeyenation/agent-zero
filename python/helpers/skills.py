@@ -4,17 +4,17 @@ import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Literal, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Literal, Optional, Tuple, TYPE_CHECKING
 
-from python.helpers import files
+from python.helpers import files, subagents
+
+if TYPE_CHECKING:
+    from agent import Agent
 
 try:
     import yaml  # type: ignore
 except Exception:  # pragma: no cover
     yaml = None  # type: ignore
-
-
-SkillSource = Literal["custom", "default", "project"]
 
 
 @dataclass(slots=True)
@@ -23,8 +23,6 @@ class Skill:
     description: str
     path: Path
     skill_md_path: Path
-    source: SkillSource
-
     version: str = ""
     author: str = ""
     tags: List[str] = field(default_factory=list)
@@ -44,24 +42,20 @@ def get_skills_base_dir() -> Path:
 
 
 def get_skill_roots(
-    order: Optional[List[SkillSource]] = None,
-    project_name: Optional[str] = None,
-) -> List[Tuple[SkillSource, Path]]:
-    base = get_skills_base_dir()
-    order = order or ["custom", "default"]
-    roots: List[Tuple[SkillSource, Path]] = [(src, base / src) for src in order]
+    agent: Agent|None=None,
+) -> List[str]:
 
-    # Include project-scoped skills if a project is active
-    if project_name:
-        try:
-            from python.helpers.skills_import import get_project_skills_folder
-            project_skills = get_project_skills_folder(project_name)
-            if project_skills.exists():
-                roots.insert(0, ("project", project_skills))
-        except Exception:
-            pass
+    if agent:
+        # skill roots available to agent
+        paths = subagents.get_paths(agent, "skills")
+    else:
+        # skill roots available globally
+        pr_ag = files.find_existing_paths_by_pattern("projects/*/.a0proj/agents/*/skills") # agents in projects
+        projects = files.find_existing_paths_by_pattern("projects/*/.a0proj/skills") # projects
+        agents = files.find_existing_paths_by_pattern("agents/*/skills") # agents
+        paths = [files.get_abs_path("skills"), files.get_abs_path("usr/skills")] + pr_ag + projects + agents # full scope
 
-    return roots
+    return paths
 
 
 def _is_hidden_path(path: Path) -> bool:
@@ -223,7 +217,6 @@ def parse_frontmatter(frontmatter_text: str) -> Tuple[Dict[str, Any], List[str]]
 
 def skill_from_markdown(
     skill_md_path: Path,
-    source: SkillSource,
     *,
     include_content: bool = False,
     validate: bool = True,
@@ -272,7 +265,6 @@ def skill_from_markdown(
         description=description,
         path=skill_dir,
         skill_md_path=skill_md_path,
-        source=source,
         version=version,
         author=author,
         tags=tags,
@@ -292,25 +284,21 @@ def skill_from_markdown(
 
 
 def list_skills(
-    *,
+    agent:Agent|None=None,
     include_content: bool = False,
-    dedupe: bool = True,
-    root_order: Optional[List[SkillSource]] = None,
-    project_name: Optional[str] = None,
 ) -> List[Skill]:
     skills: List[Skill] = []
 
-    roots = get_skill_roots(
-        order=root_order,
-        project_name=project_name,
-    )
-    for source, root in roots:
-        for skill_md in discover_skill_md_files(root):
-            s = skill_from_markdown(skill_md, source, include_content=include_content)
+    roots = get_skill_roots(agent)
+
+    for root in roots:
+        for skill_md in discover_skill_md_files(Path(root)):
+            s = skill_from_markdown(skill_md, include_content=include_content)
             if s:
                 skills.append(s)
 
-    if not dedupe:
+    # no deduplication for global skills
+    if not agent:
         return skills
 
     # Dedupe by normalized name, preserving root_order priority (earlier wins)
@@ -324,22 +312,18 @@ def list_skills(
 
 def find_skill(
     skill_name: str,
-    *,
+    agent:Agent|None=None,
     include_content: bool = False,
-    root_order: Optional[List[SkillSource]] = None,
-    project_name: Optional[str] = None,
 ) -> Optional[Skill]:
     target = _normalize_name(skill_name)
     if not target:
         return None
 
-    roots = get_skill_roots(
-        order=root_order,
-        project_name=project_name,
-    )
-    for source, root in roots:
-        for skill_md in discover_skill_md_files(root):
-            s = skill_from_markdown(skill_md, source, include_content=include_content)
+    roots = get_skill_roots(agent)
+
+    for root in roots:
+        for skill_md in discover_skill_md_files(Path(root)):
+            s = skill_from_markdown(skill_md, include_content=include_content)
             if not s:
                 continue
             if _normalize_name(s.name) == target or _normalize_name(s.path.name) == target:
@@ -349,20 +333,15 @@ def find_skill(
 
 def search_skills(
     query: str,
-    *,
     limit: int = 25,
-    project_name: Optional[str] = None,
+    agent: Agent|None=None,
 ) -> List[Skill]:
     q = (query or "").strip().lower()
     if not q:
         return []
 
     terms = [t for t in re.split(r"\s+", q) if t]
-    candidates = list_skills(
-        include_content=False,
-        dedupe=True,
-        project_name=project_name,
-    )
+    candidates = list_skills(agent)
 
     scored: List[Tuple[int, Skill]] = []
     for s in candidates:
@@ -419,7 +398,7 @@ def validate_skill(skill: Skill) -> List[str]:
     return issues
 
 
-def validate_skill_md(skill_md_path: Path, source: SkillSource) -> List[str]:
+def validate_skill_md(skill_md_path: Path) -> List[str]:
     try:
         text = _read_text(skill_md_path)
     except Exception:
@@ -430,7 +409,7 @@ def validate_skill_md(skill_md_path: Path, source: SkillSource) -> List[str]:
         return fm_errors
 
     skill = skill_from_markdown(
-        skill_md_path, source, include_content=False, validate=False
+        skill_md_path, include_content=False, validate=False
     )
     if not skill:
         return ["Unable to parse SKILL.md frontmatter"]

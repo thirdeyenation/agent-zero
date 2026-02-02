@@ -1,5 +1,6 @@
-# Relevant Skills (SKILL.md)
-- The following Skills may be useful for the current task.
-- Use `skills_tool` to list/search/load skills and progressively read supporting files/scripts.
+# Available skills 
+- skills in "**name** description" format 
+- use skills_tool to load with **skill_name** when relevant
+
 
 {{skills}}
