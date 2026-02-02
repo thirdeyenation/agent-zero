@@ -187,7 +187,7 @@ def import_skills(
     project_name: Optional[str] = None,
 ) -> ImportResult:
     """
-    Import external Skills into skills/<dest_subdir>/<namespace>/...
+    Import external Skills into usr/skills/<dest_subdir>/<namespace>/...
 
     If dest_subdir is "project", imports into the project's .a0proj/skills/ folder.
 
@@ -208,7 +208,7 @@ def import_skills(
             raise ValueError("project_name is required when dest_subdir is 'project'")
         dest_root = get_project_skills_folder(project_name)
     else:
-        dest_root = Path(files.get_abs_path("skills", dest_subdir))
+        dest_root = Path(files.get_abs_path("usr", "skills", dest_subdir))
     dest_root.mkdir(parents=True, exist_ok=True)
 
     extracted_root: Optional[Path] = None

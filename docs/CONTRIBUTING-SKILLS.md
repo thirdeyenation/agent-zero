@@ -17,13 +17,13 @@ Welcome to the Agent Zero Skills ecosystem! This guide will help you create, tes
 
 ## What is a Skill?
 
-A **Skill** is a contextual expertise module that provides the AI agent with specialized knowledge and procedures for specific tasks. Unlike tools (which are always loaded), skills are **semantically recalled** when relevant, making them token-efficient and context-aware.
+A **Skill** is a contextual expertise module that provides the AI agent with specialized knowledge and procedures for specific tasks. Unlike tools (which are always loaded), skills are **surfaced via description/tag matching** when relevant, making them token-efficient and context-aware.
 
 ### Skills vs Tools vs Knowledge
 
 | Aspect | Skills | Tools | Knowledge |
 |--------|--------|-------|-----------|
-| **Loading** | Semantic recall | Always in prompt | Semantic recall |
+| **Loading** | Description/tag matching | Always in prompt | Semantic recall |
 | **Purpose** | Procedures & expertise | Actions & functions | Facts & data |
 | **Format** | SKILL.md (YAML + Markdown) | Python/code | Text/documents |
 | **When to use** | "How to do X" | "Do X now" | "What is X" |
@@ -62,7 +62,7 @@ python -m python.helpers.skills_cli search "keyword"
 
 ### Manual Creation
 
-1. Create a folder in `skills/custom/` with your skill name
+1. Create a folder in `usr/skills/custom/` with your skill name
 2. Add a `SKILL.md` file with YAML frontmatter
 3. Optionally add supporting scripts (`.py`, `.sh`, `.js`)
 
@@ -175,8 +175,8 @@ Ask yourself:
 python -m python.helpers.skills_cli create my-awesome-skill
 
 # Or manually
-mkdir -p skills/custom/my-awesome-skill
-touch skills/custom/my-awesome-skill/SKILL.md
+mkdir -p usr/skills/custom/my-awesome-skill
+touch usr/skills/custom/my-awesome-skill/SKILL.md
 ```
 
 ### Step 3: Write the SKILL.md
@@ -338,12 +338,12 @@ def test_skill_has_required_fields():
 2. **Create Your Skill:**
    ```bash
    python -m python.helpers.skills_cli create my-skill
-   # Edit skills/custom/my-skill/SKILL.md
+   # Edit usr/skills/custom/my-skill/SKILL.md
    ```
 
 3. **Move to Builtin (for contribution):**
    ```bash
-   mv skills/custom/my-skill skills/builtin/my-skill
+   mv usr/skills/custom/my-skill usr/skills/builtin/my-skill
    ```
 
 4. **Create a Pull Request:**
@@ -433,15 +433,15 @@ my-skills-collection/
 
 ### Q: Where should I put my skills?
 
-**A:** During development, use `skills/custom/`. For contribution, move to `skills/builtin/`.
+**A:** During development, use `usr/skills/custom/`. For contribution, move to `usr/skills/builtin/`.
 
 ### Q: How are skills discovered?
 
-**A:** Skills are indexed in a vector database. When you ask the agent something, it searches for relevant skills based on semantic similarity to your query.
+**A:** Skills are matched against their name, description, and tags for the current query. They are not indexed into vector memory.
 
 ### Q: Can I use skills from other platforms?
 
-**A:** Yes! The SKILL.md standard is cross-platform. Skills from Claude Code, Cursor, or other compatible platforms can be copied directly to `skills/shared/`.
+**A:** Yes! The SKILL.md standard is cross-platform. Skills from Claude Code, Cursor, or other compatible platforms can be copied directly to `usr/skills/shared/`.
 
 ### Q: How do I update a skill?
 
@@ -455,7 +455,7 @@ my-skills-collection/
 
 ## Example Skills to Learn From
 
-Check out these well-structured skills in `skills/builtin/`:
+Check out these well-structured skills in `usr/skills/builtin/`:
 
 - `brainstorming/` - Requirements exploration workflow
 - `debugging/` - Systematic debugging methodology

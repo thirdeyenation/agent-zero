@@ -25,6 +25,8 @@ logs/*
 # Handle tmp and usr directory
 tmp/*
 usr/*
+!usr/skills/
+!usr/skills/**
 
 # Handle knowledge directory
 knowledge/**
@@ -33,16 +35,11 @@ knowledge/**
 !knowledge/default/
 !knowledge/default/**
 
-# Handle skills directory (SKILL.md standard)
-skills/**
-!skills/**/
-# Explicitly allow the builtin folder in skills
-!skills/builtin/
-!skills/builtin/**
-
 # Global rule to include .gitkeep files anywhere
 !**/.gitkeep
 
 # for browser-use
 agent_history.gif
 
+.agent/**
+.claude/**

@@ -87,7 +87,7 @@ The following user guide provides instructions for installing and running Agent 
   - `/agents` - Specialized agents with their prompts and tools
   - `/memory` - Agent's memory and learned information
   - `/knowledge` - Knowledge base
-  - `/skills` - Skills using the open SKILL.md standard
+  - `/usr/skills` - Skills using the open SKILL.md standard
   - `/prompts` - Prompt files
   - `.env` - Your API keys
   - `/tmp/settings.json` - Your Agent Zero settings
@@ -374,7 +374,7 @@ For developers or users who need to run Agent Zero directly on their system,see 
 - To update to the new Docker runtime version, you might want to backup the following files and directories:
   - `/memory` - Agent's memory
   - `/knowledge` - Custom knowledge base (if you imported any custom knowledge files)
-  - `/skills` - Custom skills using SKILL.md format (if you created any)
+  - `/usr/skills` - Custom skills using SKILL.md format (if you created any)
   - `/tmp/settings.json` - Your Agent Zero settings
   - `/tmp/chats/` - Your chat history
 - Once you have saved these files and directories, you can proceed with the Docker runtime [installation instructions above](#windows-macos-and-linux-setup-guide) setup guide.

@@ -42,7 +42,7 @@ This architecture ensures:
 | --- | --- |
 | `/docker` | Docker-related files for runtime container |
 | `/docs` | Documentation files and guides |
-| `/skills` | Skills using the open SKILL.md standard (contextual expertise) |
+| `/usr/skills` | Skills using the open SKILL.md standard (contextual expertise) |
 | `/knowledge` | Knowledge base storage |
 | `/logs` | HTML CLI-style chat logs |
 | `/memory` | Persistent agent memory storage |
@@ -298,19 +298,19 @@ Your detailed instructions here...
 #### Directory Structure
 | Directory | Description |
 |-----------|-------------|
-| `/skills/builtin` | Built-in skills included with Agent Zero |
-| `/skills/custom` | Your custom skills (create folders here) |
-| `/skills/shared` | Skills shared across agents |
+| `/usr/skills/builtin` | Built-in skills included with Agent Zero |
+| `/usr/skills/custom` | Your custom skills (create folders here) |
+| `/usr/skills/shared` | Skills shared across agents |
 
 #### Adding Skills
-1. Create folder in `skills/custom` (e.g., `skills/custom/my-skill`)
+1. Create folder in `usr/skills/custom` (e.g., `usr/skills/custom/my-skill`)
 2. Add `SKILL.md` file with YAML frontmatter (required)
 3. Optionally add supporting scripts (`.sh`, `.py`, etc.)
 4. Optionally add `docs/` subfolder for additional documentation
-5. The agent will automatically discover and index the skill
+5. The agent will automatically discover the skill for list/search
 
 #### Using Skills
-Skills are automatically recalled from memory when relevant to a task. You can also use the `skills_tool` to:
+Skills are surfaced via description/tag matching. You can also use the `skills_tool` to:
 - List all available skills
 - Load a specific skill by name
 - Read files from within a skill directory

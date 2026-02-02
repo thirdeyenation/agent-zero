@@ -47,7 +47,7 @@ class Skill:
 
 def get_skills_dirs() -> List[Path]:
     """Get all skill directories"""
-    base = Path(files.get_abs_path("skills"))
+    base = Path(files.get_abs_path("usr", "skills"))
     return [
         base / "builtin",
         base / "custom",
@@ -156,7 +156,7 @@ def validate_skill(skill: Skill) -> List[str]:
 def create_skill(name: str, description: str = "", author: str = "") -> Path:
     """Create a new skill from template"""
     # Use custom directory for user-created skills
-    custom_dir = Path(files.get_abs_path("skills/custom"))
+    custom_dir = Path(files.get_abs_path("usr", "skills", "custom"))
     custom_dir.mkdir(parents=True, exist_ok=True)
 
     skill_dir = custom_dir / name

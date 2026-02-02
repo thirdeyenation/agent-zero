@@ -1,20 +1,14 @@
-import os
-from pathlib import Path
-
 from python.helpers.extension import Extension
 from agent import LoopData
-from python.helpers.memory import Memory
-from python.helpers import files
 from python.helpers import skills as skills_helper
-from python.helpers import projects
+from python.helpers import projects, frameworks
 
 
 class RecallSkills(Extension):
     """
     Surface relevant SKILL.md-based Skills into the prompt (token-efficient).
 
-    The Memory subsystem already indexes `skills/**/SKILL.md` into area "skills".
-    This extension does a lightweight similarity lookup and injects a small
+    Uses lightweight lexical matching and injects a compact
     "relevant skills" list into extras for the current user message.
     """
 
@@ -30,89 +24,30 @@ class RecallSkills(Extension):
         if not user_instruction or len(user_instruction) < 8:
             return
 
-        # Get active project for project-scoped skill discovery
-        project_name = projects.get_context_project_name(self.agent.context) if self.agent.context else None
+        # Get active project + framework for scoped discovery
+        project_name = (
+            projects.get_context_project_name(self.agent.context)
+            if self.agent.context
+            else None
+        )
+        framework = frameworks.get_active_framework(self.agent.context)
+        framework_id = framework.id if framework else None
 
-        try:
-            db = await Memory.get(self.agent)
-            docs = await db.search_similarity_threshold(
-                query=user_instruction,
-                limit=12,
-                threshold=0.55,
-                filter=f"area == '{Memory.Area.SKILLS.value}'",
-            )
-        except Exception:
-            docs = []
-
-        # Fallback: simple keyword search over discovered skills if vector recall yields nothing
-        recalled = []
-        if docs:
-            seen = set()
-            for doc in docs:
-                src = (doc.metadata or {}).get("source_path") or ""
-                if not src:
-                    continue
-                if src in seen:
-                    continue
-                seen.add(src)
-                recalled.append(src)
-                if len(recalled) >= 6:
-                    break
-
-        if not recalled:
-            # cheap lexical fallback (includes project skills when project is active)
-            matches = skills_helper.search_skills(user_instruction, limit=6, project_name=project_name)
-            for s in matches:
-                recalled.append(str(s.skill_md_path))
-
-        if not recalled:
+        matches = skills_helper.search_skills(
+            user_instruction,
+            limit=6,
+            project_name=project_name,
+            framework_id=framework_id,
+        )
+        if not matches:
             return
 
-        # Build compact metadata list
-        base_skills_dir = Path(files.get_abs_path("skills")).resolve()
         lines = []
-        for src_path in recalled[:6]:
-            try:
-                p = Path(src_path)
-                # Some docs may store /a0/... paths; map to dev path when needed
-                abs_path = Path(files.fix_dev_path(str(p)))
-                text = abs_path.read_text(encoding="utf-8", errors="replace")
-                fm, body = skills_helper.split_frontmatter(text)
-
-                # Infer source if possible (custom/builtin/shared/project), else "unknown"
-                source = "unknown"
-                try:
-                    rel = abs_path.resolve().relative_to(base_skills_dir)
-                    if rel.parts and rel.parts[0] in ("custom", "builtin", "shared"):
-                        source = rel.parts[0]
-                except Exception:
-                    pass
-                if source == "unknown" and project_name:
-                    try:
-                        from python.helpers.skills_import import get_project_skills_folder
-                        proj_skills = get_project_skills_folder(project_name)
-                        abs_path.resolve().relative_to(proj_skills.resolve())
-                        source = "project"
-                    except Exception:
-                        pass
-
-                name = str(fm.get("name") or abs_path.parent.name).strip()
-                desc = str(fm.get("description") or "").strip()
-                if not desc:
-                    # fallback to first non-empty line of body
-                    for line in (body or "").splitlines():
-                        if line.strip():
-                            desc = line.strip()
-                            break
-                if len(desc) > 220:
-                    desc = desc[:220].rstrip() + "…"
-
-                lines.append(f"- {name} [{source}]: {desc}")
-            except Exception:
-                continue
-
-        if not lines:
-            return
+        for s in matches:
+            desc = (s.description or "").strip() or "(no description)"
+            if len(desc) > 220:
+                desc = desc[:220].rstrip() + "…"
+            lines.append(f"- {s.name} [{s.source}]: {desc}")
 
         skills_block = "\n".join(lines)
         loop_data.extras_temporary["skills"] = self.agent.parse_prompt(

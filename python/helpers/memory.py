@@ -57,7 +57,7 @@ class Memory:
         MAIN = "main"
         FRAGMENTS = "fragments"
         SOLUTIONS = "solutions"
-        SKILLS = "skills"  # Open SKILL.md standard (replaces legacy instruments)
+        INSTRUMENTS = "instruments"
 
     index: dict[str, "MyFaiss"] = {}
 
@@ -323,44 +323,54 @@ class Memory:
                     recursive=True,
                 )
 
-        # load skills from custom, builtin, and shared directories (SKILL.md standard)
-        skills_dirs = ["custom", "builtin", "shared"]
-        for skills_subdir in skills_dirs:
-            skills_path = files.get_abs_path("skills", skills_subdir)
-            index = knowledge_import.load_knowledge(
-                log_item,
-                skills_path,
-                index,
-                {"area": Memory.Area.SKILLS.value},
-                filename_pattern="**/SKILL.md",
-            )
+        # NOTE: Skills indexing into Memory is intentionally disabled for now.
+        # If we decide to replace instruments with skills in memory, re-enable this block:
+        # skills_dirs = ["custom", "builtin", "shared"]
+        # for skills_subdir in skills_dirs:
+        #     skills_path = files.get_abs_path("usr", "skills", skills_subdir)
+        #     index = knowledge_import.load_knowledge(
+        #         log_item,
+        #         skills_path,
+        #         index,
+        #         {"area": Memory.Area.SKILLS.value},
+        #         filename_pattern="**/SKILL.md",
+        #     )
+        #
+        # try:
+        #     from python.helpers.skills_import import get_project_skills_folder
+        #     from python.helpers import projects as projects_helper
+        #     for proj in projects_helper.get_active_projects_list():
+        #         proj_skills_path = str(get_project_skills_folder(proj["name"]))
+        #         if os.path.isdir(proj_skills_path):
+        #             index = knowledge_import.load_knowledge(
+        #                 log_item,
+        #                 proj_skills_path,
+        #                 index,
+        #                 {"area": Memory.Area.SKILLS.value},
+        #                 filename_pattern="**/SKILL.md",
+        #             )
+        # except Exception:
+        #     pass
 
-        # load project-scoped skills from all projects
-        try:
-            from python.helpers.skills_import import get_project_skills_folder
-            from python.helpers import projects as projects_helper
-            for proj in projects_helper.get_active_projects_list():
-                proj_skills_path = str(get_project_skills_folder(proj["name"]))
-                if os.path.isdir(proj_skills_path):
-                    index = knowledge_import.load_knowledge(
-                        log_item,
-                        proj_skills_path,
-                        index,
-                        {"area": Memory.Area.SKILLS.value},
-                        filename_pattern="**/SKILL.md",
-                    )
-        except Exception:
-            pass
+        # load instruments descriptions
+        index = knowledge_import.load_knowledge(
+            log_item,
+            files.get_abs_path("instruments"),
+            index,
+            {"area": Memory.Area.INSTRUMENTS.value},
+            filename_pattern="**/*.md",
+            recursive=True,
+        )
 
         # load custom instruments descriptions
-        # index = knowledge_import.load_knowledge(
-        #     log_item,
-        #     files.get_abs_path("usr/instruments"),
-        #     index,
-        #     {"area": Memory.Area.INSTRUMENTS.value},
-        #     filename_pattern="**/*.md",
-        #     recursive=True,
-        # )
+        index = knowledge_import.load_knowledge(
+            log_item,
+            files.get_abs_path("usr/instruments"),
+            index,
+            {"area": Memory.Area.INSTRUMENTS.value},
+            filename_pattern="**/*.md",
+            recursive=True,
+        )
 
         return index
 

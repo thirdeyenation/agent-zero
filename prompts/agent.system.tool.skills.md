@@ -188,7 +188,6 @@ Example: running a shell script from a skill
     }
 }
 ~~~
-
 ## Best Practices
 
 ### When to use skills vs other tools
@@ -249,7 +248,6 @@ When skill loading fails:
 - Verify skill exists using list method
 - Check for typos in skill_name
 - Ensure skill system is enabled in settings
-
 ## Notes
 
 - Skills metadata already loaded in your system prompt

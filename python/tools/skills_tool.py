@@ -7,6 +7,7 @@ from python.helpers.tool import Tool, Response
 from python.helpers import files
 from python.helpers import projects
 from python.helpers import skills as skills_helper
+from python.helpers import frameworks
 
 
 class SkillsTool(Tool):
@@ -26,6 +27,12 @@ class SkillsTool(Tool):
         ctx = getattr(self.agent, "context", None)
         return projects.get_context_project_name(ctx) if ctx else None
 
+    def _get_framework_id(self) -> str | None:
+        try:
+            framework = frameworks.get_active_framework(self.agent.context)
+            return framework.id if framework else None
+        except Exception:
+            return None
     async def execute(self, **kwargs) -> Response:
         method = (
             (kwargs.get("method") or self.args.get("method") or self.method or "")
@@ -58,9 +65,17 @@ class SkillsTool(Tool):
             return Response(message=f"Error in skills_tool: {e}", break_loop=False)
 
     def _list(self) -> str:
-        skills = skills_helper.list_skills(include_content=False, dedupe=True, project_name=self._get_project_name())
+        skills = skills_helper.list_skills(
+            include_content=False,
+            dedupe=True,
+            project_name=self._get_project_name(),
+            framework_id=self._get_framework_id(),
+        )
         if not skills:
-            return "No skills found. Expected SKILL.md files under: skills/{custom,builtin,shared}."
+            return (
+                "No skills found. Expected SKILL.md files under: "
+                "usr/skills/{custom,builtin,shared} or project .a0proj/skills."
+            )
 
         # Stable output: sort by name
         skills_sorted = sorted(skills, key=lambda s: (s.name.lower(), s.source))
@@ -82,7 +97,12 @@ class SkillsTool(Tool):
         if not query:
             return "Error: 'query' is required for method=search."
 
-        results = skills_helper.search_skills(query, limit=25, project_name=self._get_project_name())
+        results = skills_helper.search_skills(
+            query,
+            limit=25,
+            project_name=self._get_project_name(),
+            framework_id=self._get_framework_id(),
+        )
         if not results:
             return f"No skills matched query: {query!r}"
 
@@ -101,24 +121,36 @@ class SkillsTool(Tool):
         if not skill_name:
             return "Error: 'skill_name' is required for method=load."
 
-        skill = skills_helper.find_skill(skill_name, include_content=True, project_name=self._get_project_name())
+        skill = skills_helper.find_skill(
+            skill_name,
+            include_content=True,
+            project_name=self._get_project_name(),
+            framework_id=self._get_framework_id(),
+        )
         if not skill:
             return f"Error: skill not found: {skill_name!r}. Try skills_tool method=list or method=search."
 
         # Enumerate files under the skill directory for progressive disclosure
         referenced_files = self._list_skill_files(skill.path, max_files=80)
         rel_skill_dir = Path(files.deabsolute_path(str(skill.path)))
+        if self.agent.config.code_exec_ssh_enabled:
+            runtime_path = files.normalize_a0_path(str(skill.path))
+        else:
+            runtime_path = str(skill.path)
 
         lines: List[str] = []
         lines.append(f"Skill: {skill.name}")
         lines.append(f"Source: {skill.source}")
         lines.append(f"Path: {rel_skill_dir}")
+        lines.append(f"Runtime path: {runtime_path}")
         if skill.version:
             lines.append(f"Version: {skill.version}")
         if skill.author:
             lines.append(f"Author: {skill.author}")
         if skill.license:
             lines.append(f"License: {skill.license}")
+        if skill.compatibility:
+            lines.append(f"Compatibility: {skill.compatibility}")
         if skill.tags:
             lines.append(f"Tags: {', '.join(skill.tags)}")
         if skill.allowed_tools:
@@ -151,7 +183,12 @@ class SkillsTool(Tool):
         if not file_path:
             return "Error: 'file_path' is required for method=read_file."
 
-        skill = skills_helper.find_skill(skill_name, include_content=False, project_name=self._get_project_name())
+        skill = skills_helper.find_skill(
+            skill_name,
+            include_content=False,
+            project_name=self._get_project_name(),
+            framework_id=self._get_framework_id(),
+        )
         if not skill:
             return f"Error: skill not found: {skill_name!r}."
 

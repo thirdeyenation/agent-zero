@@ -14,7 +14,7 @@ except Exception:  # pragma: no cover
     yaml = None  # type: ignore
 
 
-SkillSource = Literal["custom", "builtin", "shared", "project"]
+SkillSource = Literal["custom", "builtin", "shared", "project", "framework"]
 
 
 @dataclass(slots=True)
@@ -31,6 +31,7 @@ class Skill:
     triggers: List[str] = field(default_factory=list)
     allowed_tools: List[str] = field(default_factory=list)
     license: str = ""
+    compatibility: str = ""
     metadata: Dict[str, Any] = field(default_factory=dict)
 
     # Optional heavy fields (only set when requested)
@@ -39,16 +40,23 @@ class Skill:
 
 
 def get_skills_base_dir() -> Path:
-    return Path(files.get_abs_path("skills"))
+    return Path(files.get_abs_path("usr", "skills"))
 
 
 def get_skill_roots(
     order: Optional[List[SkillSource]] = None,
     project_name: Optional[str] = None,
+    framework_id: Optional[str] = None,
 ) -> List[Tuple[SkillSource, Path]]:
     base = get_skills_base_dir()
     order = order or ["custom", "builtin", "shared"]
     roots: List[Tuple[SkillSource, Path]] = [(src, base / src) for src in order]
+
+    # Framework skills take priority when active
+    if framework_id and framework_id != "none":
+        fw_path = base / "frameworks" / framework_id
+        if fw_path.exists():
+            roots.insert(0, ("framework", fw_path))
 
     # Include project-scoped skills if a project is active
     if project_name:
@@ -99,8 +107,11 @@ def _coerce_list(value: Any) -> List[str]:
     if isinstance(value, tuple):
         return [str(v).strip() for v in list(value) if str(v).strip()]
     if isinstance(value, str):
-        # Support comma-separated strings
-        parts = [p.strip() for p in value.split(",")]
+        # Support comma-separated or space-delimited strings
+        if "," in value:
+            parts = [p.strip() for p in value.split(",")]
+        else:
+            parts = [p.strip() for p in re.split(r"\s+", value)]
         return [p for p in parts if p]
     return [str(value).strip()] if str(value).strip() else []
 
@@ -235,11 +246,14 @@ def skill_from_markdown(
     )
 
     tags = _coerce_list(fm.get("tags") or fm.get("tag"))
-    allowed_tools = _coerce_list(fm.get("allowed_tools") or fm.get("tools"))
+    allowed_tools = _coerce_list(
+        fm.get("allowed-tools") or fm.get("allowed_tools") or fm.get("tools")
+    )
 
     version = str(fm.get("version") or "").strip()
     author = str(fm.get("author") or "").strip()
     license_ = str(fm.get("license") or "").strip()
+    compatibility = str(fm.get("compatibility") or "").strip()
 
     meta = fm.get("metadata")
     if not isinstance(meta, dict):
@@ -258,6 +272,7 @@ def skill_from_markdown(
         allowed_tools=allowed_tools,
         license=license_,
         metadata=dict(meta),
+        compatibility=compatibility,
         raw_frontmatter=fm if include_content else {},
         content=body if include_content else "",
     )
@@ -270,10 +285,15 @@ def list_skills(
     dedupe: bool = True,
     root_order: Optional[List[SkillSource]] = None,
     project_name: Optional[str] = None,
+    framework_id: Optional[str] = None,
 ) -> List[Skill]:
     skills: List[Skill] = []
 
-    roots = get_skill_roots(order=root_order, project_name=project_name)
+    roots = get_skill_roots(
+        order=root_order,
+        project_name=project_name,
+        framework_id=framework_id,
+    )
     for source, root in roots:
         for skill_md in discover_skill_md_files(root):
             s = skill_from_markdown(skill_md, source, include_content=include_content)
@@ -298,12 +318,17 @@ def find_skill(
     include_content: bool = False,
     root_order: Optional[List[SkillSource]] = None,
     project_name: Optional[str] = None,
+    framework_id: Optional[str] = None,
 ) -> Optional[Skill]:
     target = _normalize_name(skill_name)
     if not target:
         return None
 
-    roots = get_skill_roots(order=root_order, project_name=project_name)
+    roots = get_skill_roots(
+        order=root_order,
+        project_name=project_name,
+        framework_id=framework_id,
+    )
     for source, root in roots:
         for skill_md in discover_skill_md_files(root):
             s = skill_from_markdown(skill_md, source, include_content=include_content)
@@ -314,13 +339,24 @@ def find_skill(
     return None
 
 
-def search_skills(query: str, *, limit: int = 25, project_name: Optional[str] = None) -> List[Skill]:
+def search_skills(
+    query: str,
+    *,
+    limit: int = 25,
+    project_name: Optional[str] = None,
+    framework_id: Optional[str] = None,
+) -> List[Skill]:
     q = (query or "").strip().lower()
     if not q:
         return []
 
     terms = [t for t in re.split(r"\s+", q) if t]
-    candidates = list_skills(include_content=False, dedupe=True, project_name=project_name)
+    candidates = list_skills(
+        include_content=False,
+        dedupe=True,
+        project_name=project_name,
+        framework_id=framework_id,
+    )
 
     scored: List[Tuple[int, Skill]] = []
     for s in candidates:
@@ -342,6 +378,46 @@ def search_skills(query: str, *, limit: int = 25, project_name: Optional[str] = 
 
     scored.sort(key=lambda pair: (-pair[0], pair[1].name))
     return [s for _score, s in scored[:limit]]
+
+
+_NAME_RE = re.compile(r"^[a-z0-9-]+$")
+
+
+def validate_skill(skill: Skill) -> List[str]:
+    issues: List[str] = []
+    name = (skill.name or "").strip()
+    desc = (skill.description or "").strip()
+
+    if not name:
+        issues.append("Missing required field: name")
+    else:
+        if not (1 <= len(name) <= 64):
+            issues.append("name must be 1-64 characters")
+        if not _NAME_RE.match(name):
+            issues.append("name must use lowercase letters, numbers, and hyphens only")
+        if name.startswith("-") or name.endswith("-"):
+            issues.append("name must not start or end with a hyphen")
+        if "--" in name:
+            issues.append("name must not contain consecutive hyphens")
+        if skill.path and _normalize_name(skill.path.name) != _normalize_name(name):
+            issues.append("name should match the parent directory name")
+
+    if not desc:
+        issues.append("Missing required field: description")
+    elif len(desc) > 1024:
+        issues.append("description must be <= 1024 characters")
+
+    if skill.compatibility and len(skill.compatibility) > 500:
+        issues.append("compatibility must be <= 500 characters")
+
+    return issues
+
+
+def validate_skill_md(skill_md_path: Path, source: SkillSource) -> List[str]:
+    skill = skill_from_markdown(skill_md_path, source, include_content=False)
+    if not skill:
+        return ["Unable to parse SKILL.md frontmatter"]
+    return validate_skill(skill)
 
 
 def safe_path_within_dir(base_dir: Path, rel_path: str) -> Path:
