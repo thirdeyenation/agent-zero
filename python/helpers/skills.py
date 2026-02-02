@@ -124,29 +124,28 @@ def _read_text(path: Path) -> str:
     return path.read_text(encoding="utf-8", errors="replace")
 
 
-def split_frontmatter(markdown: str) -> Tuple[Dict[str, Any], str]:
+def split_frontmatter(markdown: str) -> Tuple[Dict[str, Any], str, List[str]]:
     """
-    Splits a SKILL.md into (frontmatter_dict, body_text).
-
-    If no YAML frontmatter is present, returns ({}, full_text).
+    Splits a SKILL.md into (frontmatter_dict, body_text, errors).
+    Enforces YAML frontmatter at the top for spec compatibility.
     """
+    errors: List[str] = []
     text = markdown or ""
-    if not text.lstrip().startswith("---"):
-        return {}, text.strip()
-
-    # We require frontmatter fence at the start (allow leading whitespace/newlines).
     lines = text.splitlines()
-    # find first '---' line
+
+    # Require frontmatter fence at the start (allow leading whitespace/newlines).
     start_idx = None
     for i, line in enumerate(lines):
         if line.strip() == "---":
             start_idx = i
             break
-        if line.strip():  # non-empty before fence => not frontmatter
-            return {}, text.strip()
+        if line.strip():  # non-empty before fence => invalid
+            errors.append("Frontmatter must start at the top of the file")
+            return {}, text.strip(), errors
 
     if start_idx is None:
-        return {}, text.strip()
+        errors.append("Missing YAML frontmatter")
+        return {}, text.strip(), errors
 
     end_idx = None
     for j in range(start_idx + 1, len(lines)):
@@ -155,29 +154,18 @@ def split_frontmatter(markdown: str) -> Tuple[Dict[str, Any], str]:
             break
 
     if end_idx is None:
-        return {}, text.strip()
+        errors.append("Unterminated YAML frontmatter")
+        return {}, text.strip(), errors
 
     fm_text = "\n".join(lines[start_idx + 1 : end_idx]).strip()
     body = "\n".join(lines[end_idx + 1 :]).strip()
-    fm = parse_frontmatter(fm_text)
-    return fm, body
+    fm, fm_errors = parse_frontmatter(fm_text)
+    errors.extend(fm_errors)
+    return fm, body, errors
 
 
-def parse_frontmatter(frontmatter_text: str) -> Dict[str, Any]:
-    """
-    Parse YAML frontmatter. Uses PyYAML if available, otherwise a minimal fallback parser.
-    """
-    if not frontmatter_text.strip():
-        return {}
-
-    if yaml is not None:
-        try:
-            parsed = yaml.safe_load(frontmatter_text)  # type: ignore[attr-defined]
-            return parsed if isinstance(parsed, dict) else {}
-        except Exception:
-            return {}
-
-    # Fallback: very small YAML subset (key: value, lists with '- item')
+def _parse_frontmatter_fallback(frontmatter_text: str) -> Dict[str, Any]:
+    # Minimal YAML subset: key: value, lists with "- item"
     data: Dict[str, Any] = {}
     current_key: Optional[str] = None
     for raw in frontmatter_text.splitlines():
@@ -193,7 +181,6 @@ def parse_frontmatter(frontmatter_text: str) -> Dict[str, Any]:
             if val == "":
                 data[key] = []
             else:
-                # strip surrounding quotes
                 if (val.startswith('"') and val.endswith('"')) or (
                     val.startswith("'") and val.endswith("'")
                 ):
@@ -212,8 +199,33 @@ def parse_frontmatter(frontmatter_text: str) -> Dict[str, Any]:
                 data[current_key] = []
             data[current_key].append(item)
             continue
-
     return data
+
+
+def parse_frontmatter(frontmatter_text: str) -> Tuple[Dict[str, Any], List[str]]:
+    """
+    Parse YAML frontmatter with PyYAML when available,
+    falling back to a minimal subset parser.
+    """
+    errors: List[str] = []
+    if not frontmatter_text.strip():
+        return {}, errors
+
+    if yaml is not None:
+        try:
+            parsed = yaml.safe_load(frontmatter_text)  # type: ignore[attr-defined]
+        except Exception:
+            parsed = None
+        if parsed is not None:
+            if not isinstance(parsed, dict):
+                errors.append("Frontmatter must be a mapping")
+                return {}, errors
+            return parsed, errors
+
+    parsed = _parse_frontmatter_fallback(frontmatter_text)
+    if not parsed:
+        errors.append("Invalid YAML frontmatter")
+    return parsed, errors
 
 
 def skill_from_markdown(
@@ -221,16 +233,19 @@ def skill_from_markdown(
     source: SkillSource,
     *,
     include_content: bool = False,
+    validate: bool = True,
 ) -> Optional[Skill]:
     try:
         text = _read_text(skill_md_path)
     except Exception:
         return None
 
-    fm, body = split_frontmatter(text)
+    fm, body, fm_errors = split_frontmatter(text)
+    if fm_errors:
+        return None
     skill_dir = skill_md_path.parent
 
-    name = str(fm.get("name") or fm.get("skill") or skill_dir.name).strip()
+    name = str(fm.get("name") or fm.get("skill") or "").strip()
     description = str(
         fm.get("description") or fm.get("when_to_use") or fm.get("summary") or ""
     ).strip()
@@ -276,6 +291,10 @@ def skill_from_markdown(
         raw_frontmatter=fm if include_content else {},
         content=body if include_content else "",
     )
+    if validate:
+        issues = validate_skill(skill)
+        if issues:
+            return None
     return skill
 
 
@@ -414,7 +433,18 @@ def validate_skill(skill: Skill) -> List[str]:
 
 
 def validate_skill_md(skill_md_path: Path, source: SkillSource) -> List[str]:
-    skill = skill_from_markdown(skill_md_path, source, include_content=False)
+    try:
+        text = _read_text(skill_md_path)
+    except Exception:
+        return ["Unable to read SKILL.md"]
+
+    _fm, _body, fm_errors = split_frontmatter(text)
+    if fm_errors:
+        return fm_errors
+
+    skill = skill_from_markdown(
+        skill_md_path, source, include_content=False, validate=False
+    )
     if not skill:
         return ["Unable to parse SKILL.md frontmatter"]
     return validate_skill(skill)
