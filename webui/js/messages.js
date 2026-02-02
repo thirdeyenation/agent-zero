@@ -786,10 +786,7 @@ export function drawMessageResponse({
     : [];
   setupCollapsible(messageDiv, ":scope > .step-action-buttons", !isMassRender(), responseActionButtons);
 
-  if (group) {
-    updateProcessGroupHeader(group);
-    markProcessGroupComplete(group, heading);
-  }
+  if (group) updateProcessGroupHeader(group);
 
   return container;
 }
