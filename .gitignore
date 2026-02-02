@@ -25,6 +25,8 @@ logs/*
 # Handle tmp and usr directory
 tmp/*
 usr/*
+!usr/skills/
+!usr/skills/**
 
 # Handle knowledge directory
 knowledge/**
@@ -33,16 +35,11 @@ knowledge/**
 !knowledge/default/
 !knowledge/default/**
 
-# Handle instruments directory
-instruments/**
-!instruments/**/
-# Explicitly allow the default folder in instruments
-!instruments/default/
-!instruments/default/**
-
 # Global rule to include .gitkeep files anywhere
 !**/.gitkeep
 
 # for browser-use
 agent_history.gif
 
+.agent/**
+.claude/**

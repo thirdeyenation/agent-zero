@@ -2,8 +2,9 @@
 # Project‑specific exclusions / re‑includes
 ###############################################################################
 
-# Large / generated data
+# Obsolete
 memory/**
+instruments/**
 
 # Logs, tmp, usr
 logs/*
@@ -14,11 +15,6 @@ usr/*
 knowledge/**
 !knowledge/default/
 !knowledge/default/**
-
-# Instruments directory – keep only default/
-instruments/**
-!instruments/default/
-!instruments/default/**
 
 # Keep .gitkeep markers anywhere
 !**/.gitkeep
