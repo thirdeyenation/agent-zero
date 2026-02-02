@@ -16,7 +16,7 @@ const model = {
   error: "",
 
   skillsFile: null,
-  dest: "shared", // shared|custom|project
+  dest: "custom", // custom|project
   namespace: "",
   conflict: "skip", // skip|overwrite|rename
   projectName: "", // selected project name when dest is "project"
@@ -42,7 +42,7 @@ const model = {
     this.resetState();
     this.skillsFile = null;
     this.namespace = "";
-    this.dest = "shared";
+    this.dest = "custom";
     this.conflict = "skip";
     this.projectName = "";
   },

@@ -74,7 +74,7 @@ class SkillsTool(Tool):
         if not skills:
             return (
                 "No skills found. Expected SKILL.md files under: "
-                "usr/skills/{custom,builtin,shared} or project .a0proj/skills."
+                "usr/skills/{custom,default} or project .a0proj/skills."
             )
 
         # Stable output: sort by name

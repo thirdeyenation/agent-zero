@@ -341,9 +341,9 @@ def test_skill_has_required_fields():
    # Edit usr/skills/custom/my-skill/SKILL.md
    ```
 
-3. **Move to Builtin (for contribution):**
+3. **Move to Default (for contribution):**
    ```bash
-   mv usr/skills/custom/my-skill usr/skills/builtin/my-skill
+   mv usr/skills/custom/my-skill usr/skills/default/my-skill
    ```
 
 4. **Create a Pull Request:**
@@ -433,7 +433,7 @@ my-skills-collection/
 
 ### Q: Where should I put my skills?
 
-**A:** During development, use `usr/skills/custom/`. For contribution, move to `usr/skills/builtin/`.
+**A:** During development, use `usr/skills/custom/`. For contribution, move to `usr/skills/default/`.
 
 ### Q: How are skills discovered?
 
@@ -441,7 +441,7 @@ my-skills-collection/
 
 ### Q: Can I use skills from other platforms?
 
-**A:** Yes! The SKILL.md standard is cross-platform. Skills from Claude Code, Cursor, or other compatible platforms can be copied directly to `usr/skills/shared/`.
+**A:** Yes! The SKILL.md standard is cross-platform. Skills from Claude Code, Cursor, or other compatible platforms can be copied directly to `usr/skills/custom/`.
 
 ### Q: How do I update a skill?
 
@@ -455,7 +455,7 @@ my-skills-collection/
 
 ## Example Skills to Learn From
 
-Check out these well-structured skills in `usr/skills/builtin/`:
+Check out these well-structured skills in `usr/skills/default/`:
 
 - `brainstorming/` - Requirements exploration workflow
 - `debugging/` - Systematic debugging methodology

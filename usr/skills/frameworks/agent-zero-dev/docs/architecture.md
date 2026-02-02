@@ -168,7 +168,7 @@ Skills follow the SKILL.md standard:
 
 ```
 usr/skills/
-├── builtin/      # System skills (loaded first)
+├── default/      # System skills (loaded first)
 ├── custom/       # User-created skills
 └── frameworks/   # Multi-phase framework skills
 ```

@@ -14,7 +14,7 @@ except Exception:  # pragma: no cover
     yaml = None  # type: ignore
 
 
-SkillSource = Literal["custom", "builtin", "shared", "project", "framework"]
+SkillSource = Literal["custom", "default", "project", "framework"]
 
 
 @dataclass(slots=True)
@@ -49,7 +49,7 @@ def get_skill_roots(
     framework_id: Optional[str] = None,
 ) -> List[Tuple[SkillSource, Path]]:
     base = get_skills_base_dir()
-    order = order or ["custom", "builtin", "shared"]
+    order = order or ["custom", "default"]
     roots: List[Tuple[SkillSource, Path]] = [(src, base / src) for src in order]
 
     # Framework skills take priority when active

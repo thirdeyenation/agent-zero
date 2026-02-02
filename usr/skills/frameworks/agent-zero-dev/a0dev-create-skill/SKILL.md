@@ -20,7 +20,7 @@ Skills are reusable instruction bundles that guide the agent through specific ta
 
 ```
 usr/skills/
-├── builtin/           # System skills (don't modify)
+├── default/           # System skills (don't modify)
 ├── custom/            # Your skills go here
 │   └── my-skill/
 │       ├── SKILL.md   # Required: Main skill file

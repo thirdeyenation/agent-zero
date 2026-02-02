@@ -53,7 +53,7 @@ Agent Zero Framework
 │   ├── api/            # FastAPI endpoints (inherit from ApiHandler)
 │   └── helpers/        # Utility functions and base classes
 ├── usr/skills/
-│   ├── builtin/        # Built-in skills
+│   ├── default/        # Default skills
 │   ├── custom/         # Your skills go here
 │   └── frameworks/     # Multi-phase framework skills
 ├── agents/             # Subordinate profiles

@@ -14,7 +14,7 @@ from python.helpers.skills import discover_skill_md_files
 
 
 ConflictPolicy = Literal["skip", "overwrite", "rename"]
-DestSubdir = Literal["shared", "custom", "project"]
+DestSubdir = Literal["custom", "project"]
 
 # Project skills folder name (inside .a0proj)
 PROJECT_SKILLS_DIR = "skills"
@@ -180,7 +180,7 @@ def get_project_skills_folder(project_name: str) -> Path:
 def import_skills(
     source_path: str,
     *,
-    dest_subdir: DestSubdir = "shared",
+    dest_subdir: DestSubdir = "custom",
     namespace: Optional[str] = None,
     conflict: ConflictPolicy = "skip",
     dry_run: bool = False,

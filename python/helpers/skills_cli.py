@@ -43,9 +43,8 @@ def get_skills_dirs() -> List[Path]:
     """Get all skill directories"""
     base = Path(files.get_abs_path("usr", "skills"))
     return [
-        base / "builtin",
         base / "custom",
-        base / "shared",
+        base / "default",
     ]
 
 

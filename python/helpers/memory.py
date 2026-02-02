@@ -325,7 +325,7 @@ class Memory:
 
         # NOTE: Skills indexing into Memory is intentionally disabled for now.
         # If we decide to replace instruments with skills in memory, re-enable this block:
-        # skills_dirs = ["custom", "builtin", "shared"]
+        # skills_dirs = ["custom", "default"]
         # for skills_subdir in skills_dirs:
         #     skills_path = files.get_abs_path("usr", "skills", skills_subdir)
         #     index = knowledge_import.load_knowledge(

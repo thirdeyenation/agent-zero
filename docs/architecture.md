@@ -298,9 +298,8 @@ Your detailed instructions here...
 #### Directory Structure
 | Directory | Description |
 |-----------|-------------|
-| `/usr/skills/builtin` | Built-in skills included with Agent Zero |
+| `/usr/skills/default` | Default skills included with Agent Zero |
 | `/usr/skills/custom` | Your custom skills (create folders here) |
-| `/usr/skills/shared` | Skills shared across agents |
 
 #### Adding Skills
 1. Create folder in `usr/skills/custom` (e.g., `usr/skills/custom/my-skill`)

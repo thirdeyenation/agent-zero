@@ -14,7 +14,7 @@ from werkzeug.utils import secure_filename
 
 class SkillsImport(ApiHandler):
     """
-    Import an external skills pack (.zip) into skills/shared/<namespace>/...
+    Import an external skills pack (.zip) into usr/skills/custom/<namespace>/...
     Performs the actual import (not dry-run).
     """
 
@@ -31,9 +31,9 @@ class SkillsImport(ApiHandler):
             return {"success": False, "error": "No context id provided"}
         _context = self.use_context(ctxid)
 
-        dest = (request.form.get("dest", "shared") or "shared").strip().lower()
-        if dest not in ("shared", "custom", "project"):
-            dest = "shared"
+        dest = (request.form.get("dest", "custom") or "custom").strip().lower()
+        if dest not in ("custom", "project"):
+            dest = "custom"
 
         conflict = (request.form.get("conflict", "skip") or "skip").strip().lower()
         if conflict not in ("skip", "overwrite", "rename"):

@@ -59,5 +59,5 @@ curl "http://localhost:5001/api/data_api?context=test&param=value"
 
 - Read the full [SKILL.md](../SKILL.md) for comprehensive documentation
 - Explore existing tools in `/a0/python/tools/`
-- Check out built-in skills in `/a0/usr/skills/builtin/`
+- Check out default skills in `/a0/usr/skills/default/`
 - Review the Superpowers framework for development workflows
