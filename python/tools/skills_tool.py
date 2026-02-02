@@ -7,7 +7,6 @@ from python.helpers.tool import Tool, Response
 from python.helpers import files
 from python.helpers import projects
 from python.helpers import skills as skills_helper
-from python.helpers import frameworks
 
 
 class SkillsTool(Tool):
@@ -27,12 +26,6 @@ class SkillsTool(Tool):
         ctx = getattr(self.agent, "context", None)
         return projects.get_context_project_name(ctx) if ctx else None
 
-    def _get_framework_id(self) -> str | None:
-        try:
-            framework = frameworks.get_active_framework(self.agent.context)
-            return framework.id if framework else None
-        except Exception:
-            return None
     async def execute(self, **kwargs) -> Response:
         method = (
             (kwargs.get("method") or self.args.get("method") or self.method or "")
@@ -69,7 +62,6 @@ class SkillsTool(Tool):
             include_content=False,
             dedupe=True,
             project_name=self._get_project_name(),
-            framework_id=self._get_framework_id(),
         )
         if not skills:
             return (
@@ -101,7 +93,6 @@ class SkillsTool(Tool):
             query,
             limit=25,
             project_name=self._get_project_name(),
-            framework_id=self._get_framework_id(),
         )
         if not results:
             return f"No skills matched query: {query!r}"
@@ -125,7 +116,6 @@ class SkillsTool(Tool):
             skill_name,
             include_content=True,
             project_name=self._get_project_name(),
-            framework_id=self._get_framework_id(),
         )
         if not skill:
             return f"Error: skill not found: {skill_name!r}. Try skills_tool method=list or method=search."
@@ -187,7 +177,6 @@ class SkillsTool(Tool):
             skill_name,
             include_content=False,
             project_name=self._get_project_name(),
-            framework_id=self._get_framework_id(),
         )
         if not skill:
             return f"Error: skill not found: {skill_name!r}."

@@ -14,7 +14,7 @@ except Exception:  # pragma: no cover
     yaml = None  # type: ignore
 
 
-SkillSource = Literal["custom", "default", "project", "framework"]
+SkillSource = Literal["custom", "default", "project"]
 
 
 @dataclass(slots=True)
@@ -46,17 +46,10 @@ def get_skills_base_dir() -> Path:
 def get_skill_roots(
     order: Optional[List[SkillSource]] = None,
     project_name: Optional[str] = None,
-    framework_id: Optional[str] = None,
 ) -> List[Tuple[SkillSource, Path]]:
     base = get_skills_base_dir()
     order = order or ["custom", "default"]
     roots: List[Tuple[SkillSource, Path]] = [(src, base / src) for src in order]
-
-    # Framework skills take priority when active
-    if framework_id and framework_id != "none":
-        fw_path = base / "frameworks" / framework_id
-        if fw_path.exists():
-            roots.insert(0, ("framework", fw_path))
 
     # Include project-scoped skills if a project is active
     if project_name:
@@ -304,14 +297,12 @@ def list_skills(
     dedupe: bool = True,
     root_order: Optional[List[SkillSource]] = None,
     project_name: Optional[str] = None,
-    framework_id: Optional[str] = None,
 ) -> List[Skill]:
     skills: List[Skill] = []
 
     roots = get_skill_roots(
         order=root_order,
         project_name=project_name,
-        framework_id=framework_id,
     )
     for source, root in roots:
         for skill_md in discover_skill_md_files(root):
@@ -337,7 +328,6 @@ def find_skill(
     include_content: bool = False,
     root_order: Optional[List[SkillSource]] = None,
     project_name: Optional[str] = None,
-    framework_id: Optional[str] = None,
 ) -> Optional[Skill]:
     target = _normalize_name(skill_name)
     if not target:
@@ -346,7 +336,6 @@ def find_skill(
     roots = get_skill_roots(
         order=root_order,
         project_name=project_name,
-        framework_id=framework_id,
     )
     for source, root in roots:
         for skill_md in discover_skill_md_files(root):
@@ -363,7 +352,6 @@ def search_skills(
     *,
     limit: int = 25,
     project_name: Optional[str] = None,
-    framework_id: Optional[str] = None,
 ) -> List[Skill]:
     q = (query or "").strip().lower()
     if not q:
@@ -374,7 +362,6 @@ def search_skills(
         include_content=False,
         dedupe=True,
         project_name=project_name,
-        framework_id=framework_id,
     )
 
     scored: List[Tuple[int, Skill]] = []

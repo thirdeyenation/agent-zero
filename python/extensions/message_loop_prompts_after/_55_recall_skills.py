@@ -1,7 +1,7 @@
 from python.helpers.extension import Extension
 from agent import LoopData
 from python.helpers import skills as skills_helper
-from python.helpers import projects, frameworks
+from python.helpers import projects
 
 
 class RecallSkills(Extension):
@@ -24,20 +24,17 @@ class RecallSkills(Extension):
         if not user_instruction or len(user_instruction) < 8:
             return
 
-        # Get active project + framework for scoped discovery
+        # Get active project for scoped discovery
         project_name = (
             projects.get_context_project_name(self.agent.context)
             if self.agent.context
             else None
         )
-        framework = frameworks.get_active_framework(self.agent.context)
-        framework_id = framework.id if framework else None
 
         matches = skills_helper.search_skills(
             user_instruction,
             limit=6,
             project_name=project_name,
-            framework_id=framework_id,
         )
         if not matches:
             return

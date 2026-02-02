@@ -37,7 +37,6 @@ class BasicProjectData(TypedDict):
         "own", "global"
     ]  # in the future we can add cutom and point to another existing folder
     file_structure: FileStructureInjectionSettings
-    dev_framework: str  # "" = use global setting, or specific framework ID
 
 class EditProjectData(BasicProjectData):
     name: str
@@ -113,7 +112,6 @@ def _normalizeBasicData(data: BasicProjectData):
             "file_structure",
             _default_file_structure_settings(),
         ),
-        dev_framework=data.get("dev_framework", ""),
     )
 
 
@@ -134,7 +132,6 @@ def _normalizeEditData(data: EditProjectData):
             _default_file_structure_settings(),
         ),
         subagents=data.get("subagents", {}),
-        dev_framework=data.get("dev_framework", ""),
     )
 
 

@@ -59,17 +59,6 @@
                     </div>
                 </div>
 
-                <div class="projects-form-group">
-                    <label class="projects-form-label">Framework</label>
-                    <span class="projects-form-description">Override the global framework for this project.
-                        Framework skills will be prioritized when working on this project.</span>
-                    <select class="projects-form-select" x-model="$store.projects.selectedProject.dev_framework">
-                        <template x-for="option in $store.projects.frameworkOptions" :key="option.value">
-                            <option :value="option.value" x-text="option.label"
-                                :selected="option.value === ($store.projects.selectedProject.dev_framework || '')"></option>
-                        </template>
-                    </select>
-                </div>
             </div>
 
 

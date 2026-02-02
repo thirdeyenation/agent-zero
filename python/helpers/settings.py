@@ -151,8 +151,6 @@ class Settings(TypedDict):
 
     update_check_enabled: bool
 
-    # Development framework selection
-    dev_framework: str
 
 class PartialSettings(Settings, total=False):
     pass
@@ -203,7 +201,6 @@ class SettingsOutputAdditional(TypedDict):
     agent_subdirs: list[FieldOption]
     knowledge_subdirs: list[FieldOption]
     stt_models: list[FieldOption]
-    framework_options: list[FieldOption]
     is_dockerized: bool
     runtime_settings: dict[str, Any]
 
@@ -237,8 +234,6 @@ def _ensure_option_present(options: list[OptionT] | None, current_value: str | N
     return opts
 
 def convert_out(settings: Settings) -> SettingsOutput:
-    from python.helpers import frameworks
-
     out = SettingsOutput(
         settings = settings.copy(),
         additional = SettingsOutputAdditional(
@@ -260,7 +255,6 @@ def convert_out(settings: Settings) -> SettingsOutput:
                 {"value": "turbo", "label": "Turbo (Multilingual)"},
             ],
             runtime_settings={},
-            framework_options=cast(list[FieldOption], frameworks.get_framework_options()),
         ),
     )
 
@@ -287,7 +281,6 @@ def convert_out(settings: Settings) -> SettingsOutput:
     additional["agent_subdirs"] = _ensure_option_present(additional.get("agent_subdirs"), current.get("agent_profile"))
     additional["knowledge_subdirs"] = _ensure_option_present(additional.get("knowledge_subdirs"), current.get("agent_knowledge_subdir"))
     additional["stt_models"] = _ensure_option_present(additional.get("stt_models"), current.get("stt_model_size"))
-    additional["framework_options"] = _ensure_option_present(additional.get("framework_options"), current.get("dev_framework"))
 
     # masked api keys
     providers = get_providers("chat") + get_providers("embedding")
@@ -567,7 +560,6 @@ def get_default_settings() -> Settings:
         secrets="",
         litellm_global_kwargs=get_default_value("litellm_global_kwargs", {}),
         update_check_enabled=get_default_value("update_check_enabled", True),
-        dev_framework=get_default_value("dev_framework", "none"),
     )
 
 
