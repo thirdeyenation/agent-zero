@@ -1,5 +1,5 @@
 ---
-name: "database_design"
+name: "database-design"
 description: "Database design, schema optimization, and query best practices. Use when designing schemas, optimizing queries, or working with databases."
 version: "1.0.0"
 author: "Agent Zero Team"

@@ -1,5 +1,5 @@
 ---
-name: "docker_devops"
+name: "docker-devops"
 description: "Docker and DevOps best practices for containerization, orchestration, and CI/CD pipelines. Use when working with containers, deployments, or infrastructure."
 version: "1.0.0"
 author: "Agent Zero Team"

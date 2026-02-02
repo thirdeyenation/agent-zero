@@ -1,5 +1,5 @@
 ---
-name: "security_audit"
+name: "security-audit"
 description: "Security audit and vulnerability assessment skill. Use when reviewing code for security issues, hardening systems, or implementing security best practices."
 version: "1.0.0"
 author: "Agent Zero Team"

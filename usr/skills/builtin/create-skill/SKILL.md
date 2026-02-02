@@ -1,5 +1,5 @@
 ---
-name: "create_skill"
+name: "create-skill"
 description: "Wizard for creating new Agent Zero skills. Guides users through creating well-structured SKILL.md files. Use when users want to create custom skills."
 version: "1.0.0"
 author: "Agent Zero Team"

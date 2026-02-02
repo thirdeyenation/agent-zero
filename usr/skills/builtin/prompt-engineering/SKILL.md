@@ -1,5 +1,5 @@
 ---
-name: "prompt_engineering"
+name: "prompt-engineering"
 description: "Best practices for crafting effective prompts for LLMs. Use when designing prompts, creating system messages, or optimizing AI interactions."
 version: "1.0.0"
 author: "Agent Zero Team"

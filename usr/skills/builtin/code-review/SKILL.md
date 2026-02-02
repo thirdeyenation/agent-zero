@@ -1,5 +1,5 @@
 ---
-name: "code_review"
+name: "code-review"
 description: "Comprehensive code review skill for analyzing code quality, identifying issues, and suggesting improvements. Use when reviewing PRs or checking code quality."
 version: "1.0.0"
 author: "Agent Zero Team"

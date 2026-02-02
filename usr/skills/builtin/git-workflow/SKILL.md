@@ -1,5 +1,5 @@
 ---
-name: "git_workflow"
+name: "git-workflow"
 description: "Git workflow best practices for branching, committing, and collaboration. Use when working with version control."
 version: "1.0.0"
 author: "Agent Zero Team"

@@ -17,7 +17,7 @@ import yaml
 import re
 from pathlib import Path
 from typing import Optional, List, Dict, Any
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 
 # Add parent directory to path for imports
@@ -34,15 +34,9 @@ class Skill:
     path: Path
     version: str = "1.0.0"
     author: str = ""
-    tags: List[str] = None
-    trigger_patterns: List[str] = None
+    tags: List[str] = field(default_factory=list)
+    trigger_patterns: List[str] = field(default_factory=list)
     content: str = ""
-
-    def __post_init__(self):
-        if self.tags is None:
-            self.tags = []
-        if self.trigger_patterns is None:
-            self.trigger_patterns = []
 
 
 def get_skills_dirs() -> List[Path]:
@@ -134,8 +128,15 @@ def validate_skill(skill: Skill) -> List[str]:
         issues.append("Missing required field: description")
 
     # Name format
-    if skill.name and not re.match(r"^[a-z0-9_-]+$", skill.name):
-        issues.append(f"Invalid name format: '{skill.name}' (use lowercase, hyphens, underscores)")
+    if skill.name:
+        if not (1 <= len(skill.name) <= 64):
+            issues.append("Name must be 1-64 characters")
+        if not re.match(r"^[a-z0-9-]+$", skill.name):
+            issues.append(f"Invalid name format: '{skill.name}' (use lowercase letters, numbers, and hyphens)")
+        if skill.name.startswith("-") or skill.name.endswith("-"):
+            issues.append("Name must not start or end with a hyphen")
+        if "--" in skill.name:
+            issues.append("Name must not contain consecutive hyphens")
 
     # Description length
     if skill.description and len(skill.description) < 20:

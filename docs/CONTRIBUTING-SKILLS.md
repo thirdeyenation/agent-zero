@@ -460,8 +460,8 @@ Check out these well-structured skills in `usr/skills/builtin/`:
 - `brainstorming/` - Requirements exploration workflow
 - `debugging/` - Systematic debugging methodology
 - `tdd/` - Test-driven development process
-- `code_review/` - Comprehensive review checklist
-- `create_skill/` - Meta-skill for creating new skills
+- `code-review/` - Comprehensive review checklist
+- `create-skill/` - Meta-skill for creating new skills
 
 ---
 

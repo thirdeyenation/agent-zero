@@ -1,5 +1,5 @@
 ---
-name: "api_development"
+name: "api-development"
 description: "Best practices for designing and implementing RESTful and GraphQL APIs. Use when building, designing, or reviewing APIs."
 version: "1.0.0"
 author: "Agent Zero Team"
