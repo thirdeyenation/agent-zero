@@ -352,7 +352,7 @@ def find_file_in_dirs(_filename: str, _directories: list[str]):
     )
 
 
-def get_unique_filenames_in_dirs(dir_paths: list[str], type: Literal["file", "dir", "any"] = "file", pattern: str = "*"):
+def get_unique_filenames_in_dirs(dir_paths: list[str], pattern: str = "*", type: Literal["file", "dir", "any"] = "file"):
     # returns absolute paths for unique filenames, priority by order in dir_paths
     seen = set()
     result = []

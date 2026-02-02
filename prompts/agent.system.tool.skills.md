@@ -116,40 +116,10 @@ Security:
 - Only files within skill directory accessible
 - Supports markdown, text, code files
 
-### 4. search skills by query
-
-Searches skills by text matching in name, description, and tags
-Returns ranked results by relevance score
-Use when: looking for skills without knowing exact name
-
-~~~json
-{
-    "thoughts": [
-        "User needs web scraping capability",
-        "Not sure of exact skill name",
-        "Searching for web-related skills"
-    ],
-    "headline": "Searching for web scraping skills",
-    "tool_name": "skills_tool",
-    "tool_args": {
-        "method": "search",
-        "query": "web scraping html parsing"
-    }
-}
-~~~
-
-Required args:
-- query: search text (searches name, description, tags)
-
-Scoring:
-- Name match: +3 points
-- Description match: +2 points
-- Tag match: +1 point per tag
-- Results sorted by descending score
 
 ## Running skill scripts
 
-When a skill includes scripts (listed under its files), use code_execution_tool directly to run them.
+When a skill includes scripts (listed under its files), use code_execution_tool with runtime terminal directly to run them.
 The skill's "load" output shows the skill directory path and lists available scripts.
 Use read_file to inspect a script before running it if needed.
 
@@ -167,27 +137,12 @@ Example: running a Python script from a skill
     "headline": "Converting PDF to images",
     "tool_name": "code_execution_tool",
     "tool_args": {
-        "runtime": "python",
-        "code": "import subprocess\nsubprocess.run(['python', '/path/to/skill/scripts/convert_pdf_to_images.py', '/path/to/document.pdf', '/tmp/images'], check=True)"
+        "runtime": "terminal",
+        "code": "python /path/to/skill/scripts/convert_pdf_to_images.py /path/to/document.pdf /tmp/images"
     }
 }
 ~~~
 
-Example: running a shell script from a skill
-~~~json
-{
-    "thoughts": [
-        "Skill provides a shell script for data processing",
-        "Running it via terminal runtime"
-    ],
-    "headline": "Running data processing script",
-    "tool_name": "code_execution_tool",
-    "tool_args": {
-        "runtime": "terminal",
-        "code": "cd /path/to/skill && bash scripts/process.sh /data/input.csv /tmp/output"
-    }
-}
-~~~
 ## Best Practices
 
 ### When to use skills vs other tools

@@ -4,8 +4,7 @@ from pathlib import Path
 from typing import List
 
 from python.helpers.tool import Tool, Response
-from python.helpers import files
-from python.helpers import projects
+from python.helpers import projects, files, file_tree
 from python.helpers import skills as skills_helper
 
 
@@ -32,9 +31,9 @@ class SkillsTool(Tool):
         try:
             if method == "list":
                 return Response(message=self._list(), break_loop=False)
-            if method == "search":
-                query = str(kwargs.get("query") or "").strip()
-                return Response(message=self._search(query), break_loop=False)
+            # if method == "search":
+            #     query = str(kwargs.get("query") or "").strip()
+            #     return Response(message=self._search(query), break_loop=False)
             if method == "load":
                 skill_name = str(kwargs.get("skill_name") or "").strip()
                 return Response(message=self._load(skill_name), break_loop=False)
@@ -159,8 +158,7 @@ class SkillsTool(Tool):
 
         if referenced_files:
             lines.append("Files in skill directory (use skills_tool method=read_file to open):")
-            for p in referenced_files:
-                lines.append(f"- {p}")
+            lines.append(referenced_files)
         else:
             lines.append("No additional files found in skill directory.")
 
@@ -196,77 +194,21 @@ class SkillsTool(Tool):
         text = content.decode("utf-8", errors="replace")
         return f"File: {file_path}\n\n{text}"
 
-    def _list_skill_files(self, skill_dir: Path, *, max_files: int = 80) -> List[str]:
+    def _list_skill_files(self, skill_dir: Path, *, max_files: int = 80) -> str:
         if not skill_dir.exists():
             return []
 
-        results: List[str] = []
-
-        preferred_dirs = ["scripts", "references", "assets", "templates", "docs"]
-
-        # 1) Root-level files (excluding SKILL.md)
-        try:
-            for p in sorted(skill_dir.iterdir(), key=lambda x: x.name):
-                if len(results) >= max_files:
-                    return results
-                if p.name.startswith("."):
-                    continue
-                if p.is_file():
-                    if p.name == "SKILL.md":
-                        continue
-                    results.append(p.name)
-        except Exception:
-            pass
-
-        # 2) Preferred optional directories (one level deep)
-        for dname in preferred_dirs:
-            dpath = skill_dir / dname
-            if not dpath.exists() or not dpath.is_dir():
-                continue
-            try:
-                for p in sorted(dpath.iterdir(), key=lambda x: x.name):
-                    if len(results) >= max_files:
-                        return results
-                    if p.name.startswith("."):
-                        continue
-                    if p.is_file():
-                        results.append(f"{dname}/{p.name}")
-                    elif p.is_dir():
-                        # Show one nested level (common in assets/templates/*)
-                        nested_added = False
-                        try:
-                            for sub in sorted(p.iterdir(), key=lambda x: x.name):
-                                if sub.name.startswith("."):
-                                    continue
-                                if sub.is_file():
-                                    results.append(f"{dname}/{p.name}/{sub.name}")
-                                    nested_added = True
-                                    break
-                        except Exception:
-                            pass
-                        if not nested_added:
-                            results.append(f"{dname}/{p.name}/")
-            except Exception:
-                continue
-
-        # 3) Other directories (one level deep)
-        try:
-            for p in sorted(skill_dir.iterdir(), key=lambda x: x.name):
-                if len(results) >= max_files:
-                    return results
-                if p.name.startswith(".") or p.name in preferred_dirs:
-                    continue
-                if p.is_dir():
-                    for sub in sorted(p.iterdir(), key=lambda x: x.name):
-                        if len(results) >= max_files:
-                            return results
-                        if sub.name.startswith("."):
-                            continue
-                        if sub.is_file():
-                            results.append(f"{p.name}/{sub.name}")
-        except Exception:
-            pass
-
-        return results
+        tree = file_tree.file_tree(
+            str(skill_dir),
+            max_depth=10,
+            folders_first=True,
+            max_files=100,
+            max_folders=100,
+            output_mode="string",
+            max_lines=300,
+            ignore=files.read_file("conf/skill.default.gitignore")
+            )
+        return tree
+        
 
 
