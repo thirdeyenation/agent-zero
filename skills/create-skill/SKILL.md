@@ -172,7 +172,7 @@ If your skill needs scripts or templates:
 
 ```bash
 # Create directory structure
-mkdir -p usr/skills/custom/my-skill/{scripts,templates,docs}
+mkdir -p usr/skills/my-skill/{scripts,templates,docs}
 ```
 
 ## Example: Complete Skill
@@ -258,12 +258,12 @@ print(f"Took {elapsed:.4f} seconds")
 
 1. Create skill directory:
    ```bash
-   mkdir -p usr/skills/custom/my-skill
+   mkdir -p usr/skills/my-skill
    ```
 
 2. Create SKILL.md:
    ```bash
-   touch usr/skills/custom/my-skill/SKILL.md
+   touch usr/skills/my-skill/SKILL.md
    ```
 
 3. Add content and save
@@ -277,7 +277,7 @@ To share skills with others:
 1. Create a GitHub repository
 2. Include the skill directory structure
 3. Add a README with installation instructions
-4. Users can copy to their `usr/skills/custom/` directory
+4. Users can copy to their `usr/skills/` directory
 
 ## Testing Your Skill
 

@@ -208,7 +208,7 @@ def import_skills(
             raise ValueError("project_name is required when dest_subdir is 'project'")
         dest_root = get_project_skills_folder(project_name)
     else:
-        dest_root = Path(files.get_abs_path("usr", "skills", dest_subdir))
+        dest_root = Path(files.get_abs_path("usr", "skills"))
     dest_root.mkdir(parents=True, exist_ok=True)
 
     extracted_root: Optional[Path] = None

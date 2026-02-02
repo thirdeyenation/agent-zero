@@ -40,7 +40,9 @@ class SkillsTool(Tool):
             if method == "read_file":
                 skill_name = str(kwargs.get("skill_name") or "").strip()
                 file_path = str(kwargs.get("file_path") or "").strip()
-                return Response(message=self._read_file(skill_name, file_path), break_loop=False)
+                return Response(
+                    message=self._read_file(skill_name, file_path), break_loop=False
+                )
 
             return Response(
                 message=(
@@ -49,7 +51,9 @@ class SkillsTool(Tool):
                 ),
                 break_loop=False,
             )
-        except Exception as e:  # keep tool robust; return error instead of crashing loop
+        except (
+            Exception
+        ) as e:  # keep tool robust; return error instead of crashing loop
             return Response(message=f"Error in skills_tool: {e}", break_loop=False)
 
     def _list(self) -> str:
@@ -58,10 +62,7 @@ class SkillsTool(Tool):
             agent=self.agent,
         )
         if not skills:
-            return (
-                "No skills found. Expected SKILL.md files under: "
-                "usr/skills/{custom,default} or project .a0proj/skills."
-            )
+            return "No skills found."
 
         # Stable output: sort by name
         skills_sorted = sorted(skills, key=lambda s: s.name.lower())
@@ -99,17 +100,21 @@ class SkillsTool(Tool):
                 desc = desc[:200].rstrip() + "…"
             lines.append(f"- {s.name}: {desc}")
         lines.append("")
-        lines.append("Tip: use skills_tool method=load skill_name=<name> to load full instructions.")
+        lines.append(
+            "Tip: use skills_tool method=load skill_name=<name> to load full instructions."
+        )
         return "\n".join(lines)
 
     def _load(self, skill_name: str) -> str:
 
-        skill_name = skill_name.strip() 
+        skill_name = skill_name.strip()
         if skill_name.startswith("**") and skill_name.endswith("**"):
-            skill_name = skill_name[2:-2] # remove markdown bold markers if used by agent
+            skill_name = skill_name[
+                2:-2
+            ]  # remove markdown bold markers if used by agent
 
         if not skill_name:
-            return "Error: 'skill_name' is required for method=load."        
+            return "Error: 'skill_name' is required for method=load."
 
         skill = skills_helper.find_skill(
             skill_name,
@@ -157,7 +162,9 @@ class SkillsTool(Tool):
         lines.append("")
 
         if referenced_files:
-            lines.append("Files in skill directory (use skills_tool method=read_file to open):")
+            lines.append(
+                "Files in skill directory (use skills_tool method=read_file to open):"
+            )
             lines.append(referenced_files)
         else:
             lines.append("No additional files found in skill directory.")
@@ -206,9 +213,6 @@ class SkillsTool(Tool):
             max_folders=100,
             output_mode="string",
             max_lines=300,
-            ignore=files.read_file("conf/skill.default.gitignore")
-            )
+            ignore=files.read_file("conf/skill.default.gitignore"),
+        )
         return tree
-        
-
-

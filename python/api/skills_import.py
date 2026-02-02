@@ -14,7 +14,7 @@ from werkzeug.utils import secure_filename
 
 class SkillsImport(ApiHandler):
     """
-    Import an external skills pack (.zip) into usr/skills/custom/<namespace>/...
+    Import an external skills pack (.zip) into usr/skills/<namespace>/...
     Performs the actual import (not dry-run).
     """
 

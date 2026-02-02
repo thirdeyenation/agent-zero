@@ -62,7 +62,7 @@ python -m python.helpers.skills_cli search "keyword"
 
 ### Manual Creation
 
-1. Create a folder in `usr/skills/custom/` with your skill name
+1. Create a folder in `usr/skills/` with your skill name
 2. Add a `SKILL.md` file with YAML frontmatter
 3. Optionally add supporting scripts (`.py`, `.sh`, `.js`)
 
@@ -175,8 +175,8 @@ Ask yourself:
 python -m python.helpers.skills_cli create my-awesome-skill
 
 # Or manually
-mkdir -p usr/skills/custom/my-awesome-skill
-touch usr/skills/custom/my-awesome-skill/SKILL.md
+mkdir -p usr/skills/my-awesome-skill
+touch usr/skills/my-awesome-skill/SKILL.md
 ```
 
 ### Step 3: Write the SKILL.md
@@ -338,12 +338,12 @@ def test_skill_has_required_fields():
 2. **Create Your Skill:**
    ```bash
    python -m python.helpers.skills_cli create my-skill
-   # Edit usr/skills/custom/my-skill/SKILL.md
+   # Edit usr/skills/my-skill/SKILL.md
    ```
 
 3. **Move to Default (for contribution):**
    ```bash
-   mv usr/skills/custom/my-skill usr/skills/default/my-skill
+   mv usr/skills/my-skill skills/my-skill
    ```
 
 4. **Create a Pull Request:**
@@ -433,7 +433,7 @@ my-skills-collection/
 
 ### Q: Where should I put my skills?
 
-**A:** During development, use `usr/skills/custom/`. For contribution, move to `usr/skills/default/`.
+**A:** During development, use `usr/skills/`. For contribution, move to `skills/`.
 
 ### Q: How are skills discovered?
 
@@ -441,7 +441,7 @@ my-skills-collection/
 
 ### Q: Can I use skills from other platforms?
 
-**A:** Yes! The SKILL.md standard is cross-platform. Skills from Claude Code, Cursor, or other compatible platforms can be copied directly to `usr/skills/custom/`.
+**A:** Yes! The SKILL.md standard is cross-platform. Skills from Claude Code, Cursor, or other compatible platforms can be copied directly to `usr/skills/`.
 
 ### Q: How do I update a skill?
 
@@ -455,7 +455,7 @@ my-skills-collection/
 
 ## Example Skills to Learn From
 
-Check out these well-structured skills in `usr/skills/default/`:
+Check out these well-structured skills in `skills/`:
 
 - `brainstorming/` - Requirements exploration workflow
 - `debugging/` - Systematic debugging methodology

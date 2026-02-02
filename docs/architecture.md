@@ -298,11 +298,11 @@ Your detailed instructions here...
 #### Directory Structure
 | Directory | Description |
 |-----------|-------------|
-| `/usr/skills/default` | Default skills included with Agent Zero |
-| `/usr/skills/custom` | Your custom skills (create folders here) |
+| `/skills` | Default skills included with Agent Zero |
+| `/usr/skills` | Your custom skills (create folders here) |
 
 #### Adding Skills
-1. Create folder in `usr/skills/custom` (e.g., `usr/skills/custom/my-skill`)
+1. Create folder in `usr/skills` (e.g., `usr/skills/my-skill`)
 2. Add `SKILL.md` file with YAML frontmatter (required)
 3. Optionally add supporting scripts (`.sh`, `.py`, etc.)
 4. Optionally add `docs/` subfolder for additional documentation

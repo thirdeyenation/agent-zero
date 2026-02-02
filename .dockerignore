@@ -5,16 +5,13 @@
 # Obsolete
 memory/**
 instruments/**
+knowledge/custom/**
 
 # Logs, tmp, usr
 logs/*
 tmp/*
 usr/*
 
-# Knowledge directory – keep only default/
-knowledge/**
-!knowledge/default/
-!knowledge/default/**
 
 # Keep .gitkeep markers anywhere
 !**/.gitkeep
