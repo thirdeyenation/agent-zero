@@ -384,8 +384,8 @@ def validate_skill(skill: Skill) -> List[str]:
             issues.append("name must not start or end with a hyphen")
         if "--" in name:
             issues.append("name must not contain consecutive hyphens")
-        if skill.path and _normalize_name(skill.path.name) != _normalize_name(name):
-            issues.append("name should match the parent directory name")
+        # if skill.path and _normalize_name(skill.path.name) != _normalize_name(name):
+        #     issues.append("name should match the parent directory name")
 
     if not desc:
         issues.append("Missing required field: description")

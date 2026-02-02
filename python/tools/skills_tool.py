@@ -5,7 +5,7 @@ from typing import List
 
 from python.helpers.tool import Tool, Response
 from python.helpers import projects, files, file_tree
-from python.helpers import skills as skills_helper
+from python.helpers import skills as skills_helper, runtime
 
 
 class SkillsTool(Tool):
@@ -134,8 +134,8 @@ class SkillsTool(Tool):
 
         lines: List[str] = []
         lines.append(f"Skill: {skill.name}")
-        lines.append(f"Path: {rel_skill_dir}")
-        lines.append(f"Runtime path: {runtime_path}")
+        # lines.append(f"Path: {rel_skill_dir}")
+        lines.append(f"Path: {runtime_path}")
         if skill.version:
             lines.append(f"Version: {skill.version}")
         if skill.author:
@@ -203,9 +203,9 @@ class SkillsTool(Tool):
 
     def _list_skill_files(self, skill_dir: Path, *, max_files: int = 80) -> str:
         if not skill_dir.exists():
-            return []
+            return ""
 
-        tree = file_tree.file_tree(
+        tree = str(file_tree.file_tree(
             str(skill_dir),
             max_depth=10,
             folders_first=True,
@@ -214,5 +214,11 @@ class SkillsTool(Tool):
             output_mode="string",
             max_lines=300,
             ignore=files.read_file("conf/skill.default.gitignore"),
-        )
-        return tree
+        ))
+
+        # replace absolute path with runtime path (for dev env only)
+        if tree and runtime.is_development():
+            runtime_path = files.normalize_a0_path(str(skill_dir))
+            tree = tree.replace(str(skill_dir), runtime_path)
+
+        return str(tree)
