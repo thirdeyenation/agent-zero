@@ -100,13 +100,24 @@ def clone_git_project(name: str, git_url: str, git_token: str, data: BasicProjec
     try:
         # Clone with token via http.extraHeader (token never in URL or git config)
         git.clone_repo(git_url, abs_path, token=git_token)
-        
-        # Store clean URL only (in case user provided URL with auth)
         clean_url = git.strip_auth_from_url(git_url)
-        create_project_meta_folders(actual_name)
-        data = _normalizeBasicData(data)
-        data["git_url"] = clean_url
-        save_project_header(actual_name, data)
+        
+        # Check if cloned repo already has .a0proj
+        meta_path = os.path.join(abs_path, PROJECT_META_DIR, PROJECT_HEADER_FILE)
+        if os.path.exists(meta_path):
+            # Merge: keep cloned content, override only user-specified fields
+            cloned_header = dirty_json.parse(files.read_file(meta_path))
+            cloned_header["title"] = data.get("title") or cloned_header.get("title", "")
+            cloned_header["color"] = data.get("color") or cloned_header.get("color", "")
+            cloned_header["git_url"] = clean_url
+            save_project_header(actual_name, cloned_header)
+        else:
+            # New project: create meta folders and save header
+            create_project_meta_folders(actual_name)
+            data = _normalizeBasicData(data)
+            data["git_url"] = clean_url
+            save_project_header(actual_name, data)
+        
         return actual_name
     except Exception as e:
         try:
