@@ -25,6 +25,17 @@
                             placeholder="https://github.com/user/repo.git">
                     </div>
 
+                    <template x-if="$store.projects.selectedProject.git_url && $store.projects.selectedProject.git_url.trim()">
+                        <div class="projects-form-group">
+                            <label class="projects-form-label">Access Token (optional)</label>
+                            <span class="projects-form-description">For private repositories. Token is used only for cloning and will not be stored.</span>
+                            <input class="projects-form-input" type="password" 
+                                x-model="$store.projects.selectedProject.git_token"
+                                :disabled="$store.projects.selectedProject._cloning"
+                                placeholder="ghp_xxxx or glpat-xxxx">
+                        </div>
+                    </template>
+
                     <div class="buttons-right">
                         <button type="button" class="button cancel"
                             @click="$store.projects.cancelCreate()"

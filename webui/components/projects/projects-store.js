@@ -139,6 +139,7 @@ const model = {
           title: project.title,
           color: project.color,
           git_url: project.git_url,
+          git_token: project.git_token || "",
         },
       });
 
@@ -386,6 +387,7 @@ const model = {
       description: "",
       color: "",
       git_url: "",
+      git_token: "",
     };
   },
 

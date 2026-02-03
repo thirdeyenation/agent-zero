@@ -1,7 +1,24 @@
 from git import Repo
 from datetime import datetime
 import os
+import subprocess
+import base64
+from urllib.parse import urlparse, urlunparse
 from python.helpers import files
+
+
+def strip_auth_from_url(url: str) -> str:
+    """Remove any authentication info from URL."""
+    if not url:
+        return url
+    parsed = urlparse(url)
+    if not parsed.hostname:
+        return url
+    clean_netloc = parsed.hostname
+    if parsed.port:
+        clean_netloc += f":{parsed.port}"
+    return urlunparse((parsed.scheme, clean_netloc, parsed.path, '', '', ''))
+
 
 def get_git_info():
     # Get the current working directory (assuming the repo is in the same folder as the script)
@@ -57,13 +74,28 @@ def get_version():
         return "unknown"
 
 
-def clone_repo(url: str, dest: str, progress_callback=None):
-    """Clone a git repository to destination."""
-    class Progress:
-        def __call__(self, op_code, cur_count, max_count=None, message=''):
-            if progress_callback and max_count:
-                progress_callback(cur_count, max_count, message)
-    return Repo.clone_from(url, dest, progress=Progress() if progress_callback else None)
+def clone_repo(url: str, dest: str, token: str | None = None):
+    """Clone a git repository. Uses http.extraHeader for token auth (never stored in URL/config)."""
+    cmd = ['git']
+    
+    if token:
+        # GitHub Git HTTP requires Basic Auth, not Bearer
+        auth_string = f"x-access-token:{token}"
+        auth_base64 = base64.b64encode(auth_string.encode()).decode()
+        cmd.extend(['-c', f'http.extraHeader=Authorization: Basic {auth_base64}'])
+    
+    cmd.extend(['clone', '--progress', '--', url, dest])
+    
+    env = os.environ.copy()
+    env['GIT_TERMINAL_PROMPT'] = '0'
+    
+    result = subprocess.run(cmd, capture_output=True, text=True, env=env)
+    
+    if result.returncode != 0:
+        error_msg = result.stderr.strip() or result.stdout.strip() or 'Unknown error'
+        raise Exception(f"Git clone failed: {error_msg}")
+    
+    return Repo(dest)
 
 
 # Files to ignore when checking dirty status (A0 project metadata)
@@ -77,11 +109,11 @@ def get_repo_status(repo_path: str) -> dict:
         if repo.bare:
             return {"is_git_repo": False, "error": "Repository is bare"}
         
-        # Remote URL
+        # Remote URL (always strip auth info for security)
         remote_url = ""
         try:
             if repo.remotes:
-                remote_url = repo.remotes.origin.url
+                remote_url = strip_auth_from_url(repo.remotes.origin.url)
         except Exception:
             pass
         

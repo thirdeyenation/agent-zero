@@ -88,8 +88,8 @@ def create_project(name: str, data: BasicProjectData):
     return name
 
 
-def clone_git_project(name: str, git_url: str, data: BasicProjectData):
-    """Clone a git repository as a new A0 project."""
+def clone_git_project(name: str, git_url: str, git_token: str, data: BasicProjectData):
+    """Clone a git repository as a new A0 project. Token is used only for cloning via http header."""
     from python.helpers import git
     
     abs_path = files.create_dir_safe(
@@ -98,10 +98,14 @@ def clone_git_project(name: str, git_url: str, data: BasicProjectData):
     actual_name = files.basename(abs_path)
     
     try:
-        git.clone_repo(git_url, abs_path)
+        # Clone with token via http.extraHeader (token never in URL or git config)
+        git.clone_repo(git_url, abs_path, token=git_token)
+        
+        # Store clean URL only (in case user provided URL with auth)
+        clean_url = git.strip_auth_from_url(git_url)
         create_project_meta_folders(actual_name)
         data = _normalizeBasicData(data)
-        data["git_url"] = git_url
+        data["git_url"] = clean_url
         save_project_header(actual_name, data)
         return actual_name
     except Exception as e:
