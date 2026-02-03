@@ -41,16 +41,21 @@ class MemorizeSolutions(Extension):
         msgs_text = self.agent.concat_messages(self.agent.history)
 
         # log query streamed by LLM
-        async def log_callback(content):
-            log_item.stream(content=content)
+        # async def log_callback(content):
+        #     log_item.stream(content=content)
 
         # call util llm to find solutions in history
         solutions_json = await self.agent.call_utility_model(
             system=system,
             message=msgs_text,
-            callback=log_callback,
+            # callback=log_callback,
             background=True,
         )
+
+        # log query < no need for streaming utility messages
+        log_item.update(content=solutions_json)
+
+
 
         # Add validation and error handling for solutions_json
         if not solutions_json or not isinstance(solutions_json, str):

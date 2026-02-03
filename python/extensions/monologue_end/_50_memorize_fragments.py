@@ -44,17 +44,20 @@ class MemorizeMemories(Extension):
         system = self.agent.read_prompt("memory.memories_sum.sys.md")
         msgs_text = self.agent.concat_messages(self.agent.history)
 
-        # log query streamed by LLM
-        async def log_callback(content):
-            log_item.stream(content=content)
+        # # log query streamed by LLM
+        # async def log_callback(content):
+        #     log_item.stream(content=content)
 
         # call util llm to find info in history
         memories_json = await self.agent.call_utility_model(
             system=system,
             message=msgs_text,
-            callback=log_callback,
+            # callback=log_callback,
             background=True,
         )
+
+        # log data < no need for streaming utility messages
+        log_item.update(content=memories_json)
 
         # Add validation and error handling for memories_json
         if not memories_json or not isinstance(memories_json, str):
