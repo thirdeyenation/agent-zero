@@ -1,5 +1,6 @@
 from python.helpers.api import ApiHandler, Input, Output, Request, Response
 from python.helpers import projects
+from python.helpers.notification import NotificationManager, NotificationType, NotificationPriority
 
 
 class Projects(ApiHandler):
@@ -17,6 +18,8 @@ class Projects(ApiHandler):
                 data = self.load_project(input.get("name", None))
             elif action == "create":
                 data = self.create_project(input.get("project", None))
+            elif action == "clone":
+                data = self.clone_project(input.get("project", None))
             elif action == "update":
                 data = self.update_project(input.get("project", None))
             elif action == "delete":
@@ -49,6 +52,49 @@ class Projects(ApiHandler):
         data = projects.BasicProjectData(**project)
         name = projects.create_project(project["name"], data)
         return projects.load_edit_project_data(name)
+
+    def clone_project(self, project: dict|None):
+        if project is None:
+            raise Exception("Project data is required")
+        git_url = project.get("git_url", "")
+        if not git_url:
+            raise Exception("Git URL is required")
+        
+        # Progress notification
+        notification = NotificationManager.send_notification(
+            NotificationType.PROGRESS,
+            NotificationPriority.NORMAL,
+            f"Cloning repository...",
+            "Git Clone",
+            display_time=999,
+            group="git_clone"
+        )
+        
+        try:
+            data = projects.BasicProjectData(**project)
+            name = projects.clone_git_project(project["name"], git_url, data)
+            
+            # Success notification
+            NotificationManager.send_notification(
+                NotificationType.SUCCESS,
+                NotificationPriority.NORMAL,
+                f"Repository cloned successfully",
+                "Git Clone",
+                display_time=3,
+                group="git_clone"
+            )
+            return projects.load_edit_project_data(name)
+        except Exception as e:
+            # Error notification
+            NotificationManager.send_notification(
+                NotificationType.ERROR,
+                NotificationPriority.HIGH,
+                f"Clone failed: {str(e)}",
+                "Git Clone",
+                display_time=5,
+                group="git_clone"
+            )
+            raise
 
     def load_project(self, name: str|None):
         if name is None:

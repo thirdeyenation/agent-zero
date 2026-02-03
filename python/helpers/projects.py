@@ -33,10 +33,20 @@ class BasicProjectData(TypedDict):
     description: str
     instructions: str
     color: str
+    git_url: str
     memory: Literal[
         "own", "global"
     ]  # in the future we can add cutom and point to another existing folder
     file_structure: FileStructureInjectionSettings
+
+class GitStatusData(TypedDict, total=False):
+    is_git_repo: bool
+    remote_url: str
+    current_branch: str
+    is_dirty: bool
+    untracked_count: int
+    last_commit: dict
+    error: str
 
 class EditProjectData(BasicProjectData):
     name: str
@@ -45,6 +55,7 @@ class EditProjectData(BasicProjectData):
     variables: str
     secrets: str
     subagents: dict[str, SubAgentSettings]
+    git_status: GitStatusData
 
 
 
@@ -77,6 +88,30 @@ def create_project(name: str, data: BasicProjectData):
     return name
 
 
+def clone_git_project(name: str, git_url: str, data: BasicProjectData):
+    """Clone a git repository as a new A0 project."""
+    from python.helpers import git
+    
+    abs_path = files.create_dir_safe(
+        files.get_abs_path(PROJECTS_PARENT_DIR, name), rename_format="{name}_{number}"
+    )
+    actual_name = files.basename(abs_path)
+    
+    try:
+        git.clone_repo(git_url, abs_path)
+        create_project_meta_folders(actual_name)
+        data = _normalizeBasicData(data)
+        data["git_url"] = git_url
+        save_project_header(actual_name, data)
+        return actual_name
+    except Exception as e:
+        try:
+            files.delete_dir(abs_path)
+        except Exception:
+            pass
+        raise e
+
+
 def load_project_header(name: str):
     abs_path = files.get_abs_path(
         PROJECTS_PARENT_DIR, name, PROJECT_META_DIR, PROJECT_HEADER_FILE
@@ -107,6 +142,7 @@ def _normalizeBasicData(data: BasicProjectData):
         description=data.get("description", ""),
         instructions=data.get("instructions", ""),
         color=data.get("color", ""),
+        git_url=data.get("git_url", ""),
         memory=data.get("memory", "own"),
         file_structure=data.get(
             "file_structure",
@@ -123,6 +159,7 @@ def _normalizeEditData(data: EditProjectData):
         instructions=data.get("instructions", ""),
         variables=data.get("variables", ""),
         color=data.get("color", ""),
+        git_status=data.get("git_status", {"is_git_repo": False}),
         instruction_files_count=data.get("instruction_files_count", 0),
         knowledge_files_count=data.get("knowledge_files_count", 0),
         secrets=data.get("secrets", ""),
@@ -169,14 +206,16 @@ def load_basic_project_data(name: str) -> BasicProjectData:
 
 
 def load_edit_project_data(name: str) -> EditProjectData:
+    from python.helpers import git
+    
     data = load_basic_project_data(name)
-    additional_instructions = get_additional_instructions_files(
-        name
-    )  # for additional info
+    additional_instructions = get_additional_instructions_files(name)
     variables = load_project_variables(name)
     secrets = load_project_secrets_masked(name)
     subagents = load_project_subagents(name)
     knowledge_files_count = get_knowledge_files_count(name)
+    git_status = git.get_repo_status(get_project_folder(name))
+    
     data = EditProjectData(
         **data,
         name=name,
@@ -185,6 +224,7 @@ def load_edit_project_data(name: str) -> EditProjectData:
         variables=variables,
         secrets=secrets,
         subagents=subagents,
+        git_status=git_status,
     )
     data = _normalizeEditData(data)
     return data
@@ -308,6 +348,7 @@ def build_system_prompt_vars(name: str):
         "project_description": project_data.get("description", ""),
         "project_instructions": complete_instructions or "",
         "project_path": files.normalize_a0_path(get_project_folder(name)),
+        "project_git_url": project_data.get("git_url", ""),
     }
 
 
