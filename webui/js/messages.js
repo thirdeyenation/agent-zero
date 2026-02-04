@@ -79,6 +79,7 @@ export function setMessages(messages) {
     smooth: !massRender,
     toleranceRem: 4,
     reapplyDelayMs: 1000,
+    applyStabilization: true,
   });
 
   const results = [];
@@ -303,7 +304,7 @@ function drawProcessStep({
 
     //expand all
     if (detailMode === "expanded") {
-      step.classList.add("expanded");
+      toggleStepCollapse(step, true);
       // expand current step and schedule collapse of previous
     } else if (
       detailMode === "current" &&
@@ -323,7 +324,7 @@ function drawProcessStep({
           );
           scheduleStepCollapse(expandedStep, delay);
         });
-      step.classList.add("expanded");
+      toggleStepCollapse(step, true);
     }
 
     // create step header
@@ -441,6 +442,26 @@ function drawProcessStep({
     actionButtons: stepActionBtns,
     isExpanded,
   };
+}
+
+function toggleStepCollapse(step, expanded) {
+  if (!step) return;
+
+  let nextExpanded = expanded;
+  if (nextExpanded === undefined || nextExpanded === null) {
+    nextExpanded = !step.classList.contains("expanded");
+  }
+  nextExpanded = Boolean(nextExpanded);
+
+  // scroll to top when collapsing
+  if (!nextExpanded) {
+    setTimeout(() => {
+      const scroller = step.querySelector(".process-step-detail-scroll");
+      if (scroller) scroller.scrollTop = 0;
+    }, 100);
+  }
+
+  step.classList.toggle("expanded", nextExpanded);
 }
 
 function drawStandaloneMessage({
@@ -1797,7 +1818,7 @@ function scheduleStepCollapse(
     }
 
     console.log(`Collapse step: ${stepElement.id}`);
-    stepElement.classList.remove("expanded");
+    toggleStepCollapse(stepElement, false);
   }, delayMs);
 
   // Store the timeout ID
@@ -1824,7 +1845,7 @@ function setupProcessStepHandlers(stepElement, stepHeader) {
       e.stopPropagation();
       cancelStepCollapse(stepElement);
       stepElement.dataset.clicked = "true";
-      stepElement.classList.toggle("expanded");
+      toggleStepCollapse(stepElement);
     });
   }
 }

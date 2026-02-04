@@ -6,6 +6,7 @@ export class Scroller {
       toleranceRem = 2,
       reapplyDelayMs = 0,
       reapplyToleranceRatio = 0,
+      applyStabilization = false,
     } = {},
   ) {
     this.element = element;
@@ -21,7 +22,7 @@ export class Scroller {
     this._resizeObserver = null;
     this._lastClientHeight = null;
 
-    this._initScrollStabilization();
+    if (applyStabilization) this._initScrollStabilization();
   }
 
   _initScrollStabilization() {
