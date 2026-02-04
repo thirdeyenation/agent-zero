@@ -50,6 +50,25 @@
                         </div>
                     </div>
 
+                    <div class="welcome-actions-footer">
+                        <button type="button"
+                                class="welcome-refresh-button"
+                                @click="refreshBanners(true)"
+                                :disabled="bannersLoading"
+                                title="Refresh banners">
+                            <span class="material-symbols-outlined" :class="{ 'welcome-spin': bannersLoading }">refresh</span>
+                        </button>
+
+                        <button type="button"
+                                class="welcome-refresh-button"
+                                @click="undismissBanners()"
+                                x-show="hasDismissedBanners"
+                                :disabled="bannersLoading"
+                                title="Undismiss all banners">
+                            <span class="material-symbols-outlined">undo</span>
+                        </button>
+                    </div>
+
                     <!-- Banner Section -->
                     <div class="welcome-banners" x-show="banners && banners.length > 0">
                         <template x-for="banner in sortedBanners" :key="banner.id">
@@ -174,6 +193,53 @@
             max-width: 640px;
             width: 100%;
             margin: 1.5rem 0;
+        }
+
+        .welcome-actions-footer {
+            max-width: 640px;
+            width: 100%;
+            display: flex;
+            justify-content: flex-start;
+            gap: 0.5rem;
+            margin-top: -0.75rem;
+        }
+
+        .welcome-refresh-button {
+            width: 38px;
+            height: 38px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            border: 1px solid var(--color-border);
+            border-radius: 10px;
+            color: var(--color-secondary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .welcome-refresh-button:hover {
+            border-color: var(--color-primary);
+            background: var(--color-message-bg);
+            color: var(--color-text);
+        }
+
+        .welcome-refresh-button:disabled {
+            opacity: 0.6;
+            cursor: default;
+        }
+
+        .welcome-refresh-button .material-symbols-outlined {
+            font-size: 1.25rem;
+        }
+
+        .welcome-spin {
+            animation: welcome-spin 0.9s linear infinite;
+        }
+
+        @keyframes welcome-spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
         }
 
         .welcome-action-card {

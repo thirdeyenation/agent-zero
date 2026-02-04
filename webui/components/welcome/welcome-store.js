@@ -12,6 +12,7 @@ const model = {
   banners: [],
   bannersLoading: false,
   lastBannerRefresh: 0,
+  hasDismissedBanners: false,
 
   init() {
     // Initialize visibility based on current context
@@ -107,9 +108,9 @@ const model = {
   },
 
   // Refresh banners: frontend checks → backend checks → merge
-  async refreshBanners() {
+  async refreshBanners(force = false) {
     const now = Date.now();
-    if (now - this.lastBannerRefresh < 1000) return;
+    if (!force && now - this.lastBannerRefresh < 1000) return;
     this.lastBannerRefresh = now;
     this.bannersLoading = true;
     
@@ -117,10 +118,20 @@ const model = {
       const frontendContext = this.buildFrontendContext();
       const frontendBanners = this.runFrontendBannerChecks();
       const backendBanners = await this.runBackendBannerChecks(frontendBanners, frontendContext);
+
+      const dismissed = this.getDismissedBannerIds();
+      const loadIds = new Set(
+        [...frontendBanners, ...backendBanners]
+          .filter(b => b?.id && b.dismissible !== false)
+          .map(b => b.id)
+      );
+      this.hasDismissedBanners = Array.from(loadIds).some(id => dismissed.has(id));
+
       this.banners = this.mergeBanners(frontendBanners, backendBanners);
     } catch (error) {
       console.error("Failed to refresh banners:", error);
       this.banners = this.runFrontendBannerChecks();
+      this.hasDismissedBanners = false;
     } finally {
       this.bannersLoading = false;
     }
@@ -151,6 +162,15 @@ const model = {
       dismissed.push(bannerId);
       storage.setItem('dismissed_banners', JSON.stringify(dismissed));
     }
+
+    this.hasDismissedBanners = this.getDismissedBannerIds().size > 0;
+  },
+
+  undismissBanners() {
+    localStorage.removeItem("dismissed_banners");
+    sessionStorage.removeItem("dismissed_banners");
+    this.hasDismissedBanners = false;
+    this.refreshBanners(true);
   },
 
   getBannerClass(type) {

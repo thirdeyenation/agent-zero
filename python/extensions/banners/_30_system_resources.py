@@ -10,15 +10,25 @@ class SystemResourcesCheck(Extension):
         except Exception:
             cpu_percent = None
 
+        try:
+            cpu_cores = psutil.cpu_count(logical=True)
+        except Exception:
+            cpu_cores = None
+
         load_avg = self._get_load_average()
 
         try:
             vm = psutil.virtual_memory()
             ram_percent = vm.percent
+            ram_used_gb = vm.used / (1024 ** 3)
+            ram_total_gb = vm.total / (1024 ** 3)
         except Exception:
             ram_percent = None
 
-        disk_percent, disk_path = self._get_disk_usage_percent()
+            ram_used_gb = None
+            ram_total_gb = None
+
+        disk_percent, disk_used_gb, disk_total_gb, disk_path = self._get_disk_usage()
 
         try:
             net = psutil.net_io_counters()
@@ -33,12 +43,21 @@ class SystemResourcesCheck(Extension):
             la1, la5, la15 = load_avg
             load_value = f"{la1:.2f} / {la5:.2f} / {la15:.2f}"
 
-        disk_value = "N/A"
-        if disk_percent is not None:
-            disk_value = f"{disk_percent:.0f}% ({disk_path})"
+        if disk_percent is None or disk_used_gb is None or disk_total_gb is None:
+            disk_value = "N/A"
+        else:
+            disk_value = f"{disk_used_gb:.2f}/{disk_total_gb:.2f} GB"
 
-        cpu_value = "N/A" if cpu_percent is None else f"{cpu_percent:.0f}%"
-        ram_value = "N/A" if ram_percent is None else f"{ram_percent:.0f}%"
+        if cpu_percent is None:
+            cpu_value = "N/A"
+        else:
+            cores_value = "" if cpu_cores is None else f" ({cpu_cores} cores)"
+            cpu_value = f"{cpu_percent:.0f}%{cores_value}"
+
+        if ram_percent is None or ram_used_gb is None or ram_total_gb is None:
+            ram_value = "N/A"
+        else:
+            ram_value = f"{ram_used_gb:.2f}/{ram_total_gb:.2f} GB"
 
         cpu_bar = self._bar_html(cpu_percent)
         ram_bar = self._bar_html(ram_percent)
@@ -50,20 +69,32 @@ class SystemResourcesCheck(Extension):
             "priority": 10,
             "title": "System Resources",
             "html": (
-                "<div style=\"display:grid;grid-template-columns:1fr 1fr;gap:12px 14px;\">"
-                "<div style=\"grid-column:1 / -1;display:grid;grid-template-columns:max-content 1fr;gap:6px 14px;align-items:center;\">"
-                f"<div style=\"font-size:12px;letter-spacing:.08em;text-transform:uppercase;opacity:.7\">CPU</div>"
-                f"<div style=\"display:flex;gap:10px;align-items:center;\"><div style=\"font-weight:700\">{cpu_value}</div>{cpu_bar}</div>"
-                f"<div style=\"font-size:12px;letter-spacing:.08em;text-transform:uppercase;opacity:.7\">RAM</div>"
-                f"<div style=\"display:flex;gap:10px;align-items:center;\"><div style=\"font-weight:700\">{ram_value}</div>{ram_bar}</div>"
-                f"<div style=\"font-size:12px;letter-spacing:.08em;text-transform:uppercase;opacity:.7\">Disk</div>"
-                f"<div style=\"display:flex;gap:10px;align-items:center;\"><div style=\"font-weight:700\">{disk_value}</div>{disk_bar}</div>"
+                "<div style=\"display:flex;flex-direction:column;gap:14px;padding-top:6px;\">"
+                "<div style=\"display:grid;grid-template-columns:140px 1fr;row-gap:12px;column-gap:12px;align-items:center;\">"
+                "<div style=\"display:flex;flex-direction:column;gap:6px;\">"
+                "<div style=\"font-size:12px;letter-spacing:.10em;text-transform:uppercase;opacity:.65;line-height:1.1\">CPU</div>"
+                f"<div style=\"font-weight:750;font-variant-numeric:tabular-nums;letter-spacing:.02em;line-height:1.1\">{cpu_value}</div>"
                 "</div>"
-                f"<div style=\"padding-top:2px;\"><div style=\"font-size:12px;letter-spacing:.08em;text-transform:uppercase;opacity:.7;margin-bottom:4px;\">Load (1/5/15)</div><div style=\"font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;opacity:.85\">{load_value}</div></div>"
-                f"<div style=\"padding-top:2px;\"><div style=\"font-size:12px;letter-spacing:.08em;text-transform:uppercase;opacity:.7;margin-bottom:4px;\">Net (since boot)</div><div style=\"font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;opacity:.85\">{net_sent} sent / {net_recv} recv</div></div>"
+                f"{cpu_bar}"
+                "<div style=\"display:flex;flex-direction:column;gap:6px;\">"
+                "<div style=\"font-size:12px;letter-spacing:.10em;text-transform:uppercase;opacity:.65;line-height:1.1\">RAM</div>"
+                f"<div style=\"font-weight:750;font-variant-numeric:tabular-nums;letter-spacing:.02em;line-height:1.1\">{ram_value}</div>"
+                "</div>"
+                f"{ram_bar}"
+                "<div style=\"display:flex;flex-direction:column;gap:6px;\">"
+                "<div style=\"font-size:12px;letter-spacing:.10em;text-transform:uppercase;opacity:.65;line-height:1.1\">Disk</div>"
+                f"<div style=\"font-weight:750;font-variant-numeric:tabular-nums;letter-spacing:.02em;line-height:1.1\">{disk_value}</div>"
+                "</div>"
+                f"{disk_bar}"
+                "</div>"
+                "<div style=\"height:1px;background:rgba(255,255,255,.08);\"></div>"
+                "<div style=\"display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;\">"
+                f"<div><div style=\"font-size:12px;letter-spacing:.10em;text-transform:uppercase;opacity:.65;margin-bottom:6px;\">Load (1/5/15)</div><div style=\"font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;opacity:.85;font-variant-numeric:tabular-nums\">{load_value}</div></div>"
+                f"<div><div style=\"font-size:12px;letter-spacing:.10em;text-transform:uppercase;opacity:.65;margin-bottom:6px;\">Net (since boot)</div><div style=\"font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;opacity:.85;font-variant-numeric:tabular-nums\">{net_sent} sent / {net_recv} recv</div></div>"
+                "</div>"
                 "</div>"
             ),
-            "dismissible": False,
+            "dismissible": True,
             "source": "backend",
         })
 
@@ -80,8 +111,8 @@ class SystemResourcesCheck(Extension):
             color = "#22c55e"
 
         return (
-            "<div style=\"flex:1;min-width:120px;max-width:220px;height:8px;border-radius:999px;"
-            "background:rgba(255,255,255,.10);overflow:hidden;\">"
+            "<div style=\"flex:1;min-width:140px;max-width:260px;height:10px;border-radius:999px;"
+            "background:rgba(255,255,255,.10);overflow:hidden;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);\">"
             f"<div style=\"height:100%;width:{p:.0f}%;background:{color};border-radius:999px;\"></div>"
             "</div>"
         )
@@ -92,14 +123,16 @@ class SystemResourcesCheck(Extension):
         except Exception:
             return None
 
-    def _get_disk_usage_percent(self) -> tuple[float | None, str]:
+    def _get_disk_usage(self) -> tuple[float | None, float | None, float | None, str]:
         for path in ["/", os.path.expanduser("~")]:
             try:
                 usage = psutil.disk_usage(path)
-                return usage.percent, path
+                used_gb = usage.used / (1024 ** 3)
+                total_gb = usage.total / (1024 ** 3)
+                return usage.percent, used_gb, total_gb, path
             except Exception:
                 continue
-        return None, "/"
+        return None, None, None, "/"
 
     def _format_bytes(self, value: int) -> str:
         size = float(value)
