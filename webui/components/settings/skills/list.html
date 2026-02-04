@@ -61,18 +61,6 @@
                             <div class="skill-header">
                                 <div class="skill-title" x-text="skill.name || '(unnamed skill)'"></div>
                                 <div class="skill-actions">
-                                    <template x-if="skill.enabled">
-                                        <button type="button" class="button cancel" title="Disable" style="width:9em"
-                                            @click="$store.skillsListStore.toggleSkill(skill, false)">
-                                            <span class="icon material-symbols-outlined">close</span> Disable
-                                        </button>
-                                    </template>
-                                    <template x-if="!skill.enabled">
-                                        <button type="button" class="button confirm" title="Enable" style="width:9em"
-                                            @click="$store.skillsListStore.toggleSkill(skill, true)">
-                                            <span class="icon material-symbols-outlined">play_arrow</span> Enable
-                                        </button>
-                                    </template>
                                     <button type="button" class="button confirm" title="Open in browser"
                                         @click="$store.skillsListStore.openSkill(skill)">
                                         <span class="icon material-symbols-outlined">folder_open</span> Open

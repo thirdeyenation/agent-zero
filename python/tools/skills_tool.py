@@ -60,7 +60,6 @@ class SkillsTool(Tool):
         skills = skills_helper.list_skills(
             agent=self.agent,
             include_content=False,
-            enabled_only=True,
         )
         if not skills:
             return "No skills found."

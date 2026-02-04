@@ -89,35 +89,6 @@ const model = {
     }
   },
 
-  async toggleSkill(skill, enabled) {
-    if (!skill) return;
-    const previous = skill.enabled;
-    skill.enabled = enabled;
-    try {
-      const response = await fetchApi("/skills", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "toggle",
-          skill_id: skill.skill_id,
-          enabled,
-          project_name: this.projectName || null,
-          profile_name: this.profileName || null,
-        }),
-      });
-      const result = await response.json().catch(() => ({}));
-      if (!result.ok) {
-        throw new Error(result.error || "Toggle failed");
-      }
-    } catch (e) {
-      skill.enabled = previous;
-      const msg = e?.message || "Toggle failed";
-      if (window.toastFrontendError) {
-        window.toastFrontendError(msg, "Skills");
-      }
-    }
-  },
-
   async deleteSkill(skill) {
     if (!skill) return;
     try {
