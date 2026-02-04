@@ -590,7 +590,7 @@ class Agent:
         error_message = errors.format_error(e)
         
         self.context.log.log(
-            type="warning", content="Critical error occurred, retrying..."
+            type="warning", heading="Critical error occurred, retrying...", content=error_message
         )
         PrintStyle(font_color="orange", padding=True).print(
             "Critical error occurred, retrying..."
@@ -626,9 +626,7 @@ class Agent:
             PrintStyle(font_color="red", padding=True).print(error_message)
             self.context.log.log(
                 type="error",
-                heading="Error",
                 content=error_message,
-                kvps={"text": error_text},
             )
             PrintStyle(font_color="red", padding=True).print(
                 f"{self.agent_name}: {error_text}"

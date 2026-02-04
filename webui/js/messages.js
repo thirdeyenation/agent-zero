@@ -15,9 +15,9 @@ import { Scroller } from "./scroller.js";
 
 // Delay before collapsing previous steps when a new step is added
 const STEP_COLLAPSE_DELAY = {
-  "agent": 2000,
-  "other": 4000, // tools should stay longer as next gen step is placed quickly
-}
+  agent: 2000,
+  other: 4000, // tools should stay longer as next gen step is placed quickly
+};
 // delay collapse when hovering
 const STEP_COLLAPSE_HOVER_DELAY_MS = 5000;
 
@@ -75,10 +75,14 @@ export function setMessages(messages) {
   const cutoff = isLargeAppend ? Math.max(0, messages.length - 2) : 0;
   const massRender = historyEmpty || isLargeAppend;
 
-  const mainScroller = new Scroller(history, { smooth: !massRender, toleranceRem: 4, reapplyDelayMs: 1000 });
+  const mainScroller = new Scroller(history, {
+    smooth: !massRender,
+    toleranceRem: 4,
+    reapplyDelayMs: 1000,
+  });
 
-  const results = []
-  
+  const results = [];
+
   // process messages
   for (let i = 0; i < messages.length; i++) {
     _massRender = historyEmpty || (isLargeAppend && i < cutoff);
@@ -90,7 +94,7 @@ export function setMessages(messages) {
 
   const shouldScroll = historyEmpty || !results[results.length - 1]?.dontScroll;
 
-  if(shouldScroll) mainScroller.reApplyScroll();
+  if (shouldScroll) mainScroller.reApplyScroll();
 }
 
 // entrypoint called from poll/WS communication, this is how all messages are rendered and updated
@@ -246,7 +250,11 @@ function drawProcessStep({
   const isGroupComplete = isProcessGroupComplete(group);
 
   // Set start timestamp on group when first step is created
-  if (isNewStep && !group.hasAttribute("data-start-timestamp") && log.timestamp) {
+  if (
+    isNewStep &&
+    !group.hasAttribute("data-start-timestamp") &&
+    log.timestamp
+  ) {
     group.setAttribute("data-start-timestamp", String(log.timestamp));
   }
 
@@ -260,10 +268,13 @@ function drawProcessStep({
     step.setAttribute("data-log-type", log.type);
     step.setAttribute("data-step-id", id);
     step.setAttribute("data-agent-number", log.agentno);
-    
+
     // set timestamp attribute (convert to milliseconds for duration calculation)
     if (log.timestamp) {
-      step.setAttribute("data-timestamp", String(Math.round(log.timestamp * 1000)));
+      step.setAttribute(
+        "data-timestamp",
+        String(Math.round(log.timestamp * 1000)),
+      );
     }
 
     // apply step classes
@@ -302,8 +313,14 @@ function drawProcessStep({
       stepsContainer
         .querySelectorAll(".process-step.expanded")
         .forEach((expandedStep) => {
-          const delay = STEP_COLLAPSE_DELAY[expandedStep.getAttribute("data-log-type")] || STEP_COLLAPSE_DELAY.other;
-          console.log("collapsing", expandedStep.getAttribute("data-log-type"), delay);
+          const delay =
+            STEP_COLLAPSE_DELAY[expandedStep.getAttribute("data-log-type")] ||
+            STEP_COLLAPSE_DELAY.other;
+          console.log(
+            "collapsing",
+            expandedStep.getAttribute("data-log-type"),
+            delay,
+          );
           scheduleStepCollapse(expandedStep, delay);
         });
       step.classList.add("expanded");
@@ -340,7 +357,8 @@ function drawProcessStep({
     stepDetail,
     ".process-step-detail-scroll",
     "div",
-    "process-step-detail-scroll" );
+    "process-step-detail-scroll",
+  );
 
   // set click handlers
   setupProcessStepHandlers(step, stepHeader);
@@ -367,7 +385,8 @@ function drawProcessStep({
 
   // auto-scroller of the step detail
   const detailScroller = new Scroller(stepDetailScroll, {
-    smooth: !isMassRender(), toleranceRem: 4
+    smooth: !isMassRender(),
+    toleranceRem: 4,
   }); // scroller for step detail content
 
   // update KVPs of the step detail
@@ -489,7 +508,8 @@ export function _drawMessage({
 
   // Update message classes (preserve collapsible state)
   const preserve = ["message-collapsible", "expanded", "has-overflow"]
-    .filter((c) => messageDiv.classList.contains(c)).join(" ");
+    .filter((c) => messageDiv.classList.contains(c))
+    .join(" ");
   messageDiv.className = `message ${mainClass} ${messageClasses.join(" ")} ${preserve}`;
 
   // Handle heading (important for error/rate_limit messages that show context)
@@ -718,7 +738,7 @@ export function drawMessageResponse({
 }) {
   // response of subordinate agent - render as process step
   if (agentno && agentno > 0) {
-    const title = getStepTitle(heading, kvps, type);
+    const title = getStepTitle(heading, content, type);
     const contentText = String(content ?? "");
     const actionButtons = contentText.trim()
       ? [
@@ -773,7 +793,7 @@ export function drawMessageResponse({
     markdown: true,
     latex: true,
     mainClass: "message-agent-response",
-    smoothStream: false ,// smooth render disabled, not reliable yet !isMassRender(), // stream smoothly if not in mass render mode
+    smoothStream: false, // smooth render disabled, not reliable yet !isMassRender(), // stream smoothly if not in mass render mode
   });
 
   // Collapsible with action buttons
@@ -784,7 +804,12 @@ export function drawMessageResponse({
         createActionButton("copy", "", () => copyToClipboard(responseText)),
       ].filter(Boolean)
     : [];
-  setupCollapsible(messageDiv, ":scope > .step-action-buttons", !isMassRender(), responseActionButtons);
+  setupCollapsible(
+    messageDiv,
+    ":scope > .step-action-buttons",
+    !isMassRender(),
+    responseActionButtons,
+  );
 
   if (group) updateProcessGroupHeader(group);
 
@@ -798,7 +823,6 @@ export function drawMessageUser({
   kvps = null,
   ...additional
 }) {
-
   // end last process group on any user message
   completeLastProcessGroup();
 
@@ -940,11 +964,10 @@ export function drawMessageTool({
   agentno = 0,
   ...additional
 }) {
-
   const tool_name = kvps?._tool_name || "";
 
-  if(!tool_name){
-   return drawMessageToolSimple({ ...arguments[0] }); 
+  if (!tool_name) {
+    return drawMessageToolSimple({ ...arguments[0] });
   } else if (kvps._tool_name === "skills_tool") {
     return drawMessageToolSimple({ ...arguments[0], code: "SKL" });
   } else if (kvps._tool_name === "vision_load") {
@@ -958,7 +981,6 @@ export function drawMessageTool({
   } else {
     return drawMessageToolSimple({ ...arguments[0] });
   }
-
 }
 
 export function drawMessageToolSimple({
@@ -1249,7 +1271,6 @@ export function drawMessageUtil({
     allowCompletedGroup: true,
   });
 
-
   result.dontScroll = !preferencesStore.showUtils;
   return result;
 }
@@ -1264,7 +1285,7 @@ export function drawMessageHint({
   agentno = 0,
   ...additional
 }) {
-  const title = getStepTitle(heading, kvps, type);
+  const title = getStepTitle(heading, content, type);
   const contentText = String(content ?? "");
   const actionButtons = contentText.trim()
     ? [
@@ -1316,12 +1337,13 @@ export function drawMessageProgress({
 
 export function drawMessageWarning({
   id,
+  type,
   heading,
   content,
   kvps = null,
   ...additional
 }) {
-  const title = cleanStepTitle(heading || content);
+  const title = getStepTitle(heading, content, type);
   let displayKvps = { ...kvps };
   const contentText = String(content ?? "");
   const actionButtons = contentText.trim()
@@ -1331,39 +1353,46 @@ export function drawMessageWarning({
       ].filter(Boolean)
     : [];
 
-  //TODO: if process group is running, append there instead
-  // return drawProcessStep({
-  //   id,
-  //   title,
-  //   code: "WRN",
-  //   classes: null,
-  //   kvps: displayKvps,
-  //   content,
-  //   // contentClasses: [],
-  //   log: arguments[0],
-  // });
+  //if process group is running, append there
+  const group = getLastProcessGroup(false);
+  if (group) {
+    return drawProcessStep({
+      id,
+      title,
+      code: "WRN",
+      // classes: null,
+      kvps: displayKvps,
+      content,
+      // contentClasses: [],
+      actionButtons,
+      log: arguments[0],
+    });
+  }
+
+  // if no process group is running, draw as standalone
   return drawStandaloneMessage({
     id,
-    heading,
+    title,
     content,
     position: "mid",
     containerClasses: ["ai-container", "center-container"],
     mainClass: "message-warning",
-    kvps,
+    kvps: displayKvps,
     actionButtons,
   });
 }
 
 export function drawMessageError({
   id,
+  type,
   heading,
   content,
   kvps = null,
   ...additional
 }) {
   const contentText = String(content ?? "");
-  const errorText = kvps?.text || "Error";
-  const errorHeading = errorText ? `Error - ${errorText}` : "Error";
+  let title = getStepTitle(heading, content, type);
+  let displayKvps = { ...kvps };
   const actionButtons = [
     createActionButton("detail", "", () =>
       stepDetailStore.showStepDetail(
@@ -1377,11 +1406,12 @@ export function drawMessageError({
 
   return drawStandaloneMessage({
     id,
-    heading: errorHeading,
-    content,
+    heading: title,
+    content: contentText,
     position: "mid",
     containerClasses: ["ai-container", "center-container"],
     mainClass: "message-error",
+    kvps: displayKvps,
     actionButtons,
   });
 }
@@ -1541,7 +1571,6 @@ function convertImgFilePaths(str) {
 function convertFilePaths(str) {
   return str.replace(/file:\/\//g, "/download_work_dir_file?path=");
 }
-
 
 function escapeHTML(str) {
   const escapeChars = {
@@ -1743,7 +1772,10 @@ function getNestedContainer(parentStep) {
  * Schedule a step to collapse after a delay
  * Automatically handles cancellation on click and reset on hover
  */
-function scheduleStepCollapse(stepElement, delayMs=STEP_COLLAPSE_DELAY.other) {
+function scheduleStepCollapse(
+  stepElement,
+  delayMs = STEP_COLLAPSE_DELAY.other,
+) {
   // skip if any existing timeout for this step
   if (stepElement.hasAttribute("data-collapse-timeout-id")) return;
   // skip already collapsed steps
@@ -1830,33 +1862,14 @@ function findParentDelegationStep(group, agentno) {
 /**
  * Get a concise title for a process step
  */
-function getStepTitle(heading, kvps, type) {
+function getStepTitle(heading, content, type) {
   // Try to get a meaningful title from heading or kvps
   if (heading && heading.trim()) {
-    return cleanStepTitle(heading, 100);
+    return cleanStepTitle(heading, 60);
   }
 
-  // For warnings/errors without heading, use content preview as title
-  if (type === "warning" || type === "error") {
-    // We'll show full content in detail, so just use type as title
-    return type === "warning" ? "Warning" : "Error";
-  }
-
-  if (kvps) {
-    // Try common fields for title
-    if (kvps.tool_name) {
-      const headline = kvps.headline ? cleanStepTitle(kvps.headline, 60) : "";
-      return `${kvps.tool_name}${headline ? ": " + headline : ""}`;
-    }
-    if (kvps.headline) {
-      return cleanStepTitle(kvps.headline, 100);
-    }
-    if (kvps.query) {
-      return truncateText(kvps.query, 100);
-    }
-    if (kvps.thoughts) {
-      return truncateText(String(kvps.thoughts), 100);
-    }
+  if (content && content.trim()) {
+    return cleanStepTitle(content, 60);
   }
 
   // Fallback: capitalize type (backend is source of truth)
@@ -1898,14 +1911,10 @@ export function convertIcons(html, classes = "") {
  */
 function cleanStepTitle(text, maxLength = 100) {
   if (!text) return "";
-  let cleaned = String(text);
-
-  // Remove icon:// patterns (e.g., "icon://network_intelligence" or "icon://network_intelligence[Tooltip]")
-  cleaned = cleaned.replace(/icon:\/\/[a-zA-Z0-9_]+(\[(?:\\.|[^\]])*\])?\s*/g, "");
-
-  // Trim whitespace
-  cleaned = cleaned.trim();
-
+  let cleaned = String(text)
+    .replace(/icon:\/\/[a-zA-Z0-9_]+(\[(?:\\.|[^\]])*\])?\s*/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
   return truncateText(cleaned, maxLength);
 }
 
@@ -1959,12 +1968,16 @@ function updateProcessGroupHeader(group) {
 
   // Update step count in metrics - All GEN steps from all agents per process group
   const stepMetricContainerEl = metricsEl?.querySelector(".metric-steps");
-  const stepsMetricValEl = stepMetricContainerEl?.querySelector(".metric-value");
+  const stepsMetricValEl =
+    stepMetricContainerEl?.querySelector(".metric-value");
   if (stepsMetricValEl) {
-    let genSteps = group.querySelectorAll('.process-step[data-log-type="agent"]').length;
+    let genSteps = group.querySelectorAll(
+      '.process-step[data-log-type="agent"]',
+    ).length;
     genSteps -= 1; // don't count response as step
     stepsMetricValEl.textContent = genSteps.toString();
-    if (genSteps <= 0) stepMetricContainerEl.classList.add("display-none"); // hide when no steps
+    if (genSteps <= 0)
+      stepMetricContainerEl.classList.add("display-none"); // hide when no steps
     else stepMetricContainerEl.classList.remove("display-none");
   }
 
@@ -1982,8 +1995,8 @@ function updateProcessGroupHeader(group) {
         dateStyle: "medium",
         timeStyle: "short",
       });
-      timeMetricContainerEl.title = timeMetricContainerEl.dataset.bsOriginalTitle =
-        fullDateTime;
+      timeMetricContainerEl.title =
+        timeMetricContainerEl.dataset.bsOriginalTitle = fullDateTime;
     }
   }
 
@@ -2003,8 +2016,10 @@ function updateProcessGroupHeader(group) {
     lastTimestampMs > 0 &&
     formatDuration(Math.max(0, lastTimestampMs - firstTimestampMs));
 
-  const durationMetricContainerEl = metricsEl?.querySelector(".metric-duration");
-  const durationMetricValEl = durationMetricContainerEl?.querySelector(".metric-value");
+  const durationMetricContainerEl =
+    metricsEl?.querySelector(".metric-duration");
+  const durationMetricValEl =
+    durationMetricContainerEl?.querySelector(".metric-value");
   if (durationMetricContainerEl && durationMetricValEl && durationText) {
     durationMetricValEl.textContent = durationText;
     durationMetricContainerEl.classList.remove("display-none");
@@ -2084,11 +2099,21 @@ function ensureChild(parent, selector, tagName, ...classNames) {
 }
 
 // Setup collapsible message with expand button and action buttons
-function setupCollapsible(messageDiv, containerSelector, initialExpanded, actionButtons = []) {
+function setupCollapsible(
+  messageDiv,
+  containerSelector,
+  initialExpanded,
+  actionButtons = [],
+) {
   messageDiv.classList.add("message-collapsible");
   messageDiv.classList.toggle("expanded", initialExpanded);
 
-  const container = ensureChild(messageDiv, containerSelector, "div", "step-action-buttons");
+  const container = ensureChild(
+    messageDiv,
+    containerSelector,
+    "div",
+    "step-action-buttons",
+  );
   container.textContent = "";
 
   const btn = ensureChild(container, ".expand-btn", "button", "expand-btn");
@@ -2102,8 +2127,8 @@ function setupCollapsible(messageDiv, containerSelector, initialExpanded, action
   btn.onclick = () => {
     messageDiv.classList.toggle("expanded");
     syncBtn();
-    messageDiv.classList.contains("expanded")
-      || (messageDiv.querySelector(".message-body").scrollTop = 0);
+    messageDiv.classList.contains("expanded") ||
+      (messageDiv.querySelector(".message-body").scrollTop = 0);
   };
 
   actionButtons.filter(Boolean).forEach((b) => container.appendChild(b));
@@ -2111,11 +2136,16 @@ function setupCollapsible(messageDiv, containerSelector, initialExpanded, action
   // Detect overflow after render
   requestAnimationFrame(() => {
     const body = messageDiv.querySelector(".message-body");
-    const fontSize = parseFloat(getComputedStyle(body || document.documentElement).fontSize || "16");
+    const fontSize = parseFloat(
+      getComputedStyle(body || document.documentElement).fontSize || "16",
+    );
     const maxHeight = messageDiv.classList.contains("expanded")
       ? fontSize * 15
-      : (body?.clientHeight || 0);
-    messageDiv.classList.toggle("has-overflow", (body?.scrollHeight || 0) > maxHeight);
+      : body?.clientHeight || 0;
+    messageDiv.classList.toggle(
+      "has-overflow",
+      (body?.scrollHeight || 0) > maxHeight,
+    );
   });
 }
 
@@ -2129,7 +2159,7 @@ function isMassRender() {
 function smoothRender(element, newContent, delay = 350) {
   // skip on mass render
   if (isMassRender()) {
-    element.innerHTML = newContent; 
+    element.innerHTML = newContent;
     return;
   }
 

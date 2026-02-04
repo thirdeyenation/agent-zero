@@ -286,6 +286,24 @@
   margin-bottom: var(--spacing-sm);
 }
 
+/* Warning messages styled like process groups */
+.message-warning .msg-heading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: var(--spacing-xs);
+}
+
+.message-warning .msg-heading h4 {
+  display: flex;
+  align-items: center;
+  font-size: var(--font-size-medium);
+  font-weight: 500;
+  color: var(--color-warning-text);
+  opacity: 0.9;
+  margin-bottom: var(--spacing-sm);
+}
+
 /* Terminal styling moved to new terminal block above */
 
 /* Agent and AI Info */

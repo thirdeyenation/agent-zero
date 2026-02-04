@@ -24,6 +24,7 @@
   --color-input-focus-dark: #101010;
   --color-chat-background-dark: #212121;
   --color-error-text-dark:#e72323;
+  --color-warning-text-dark:#e79c23;
   --color-table-row-dark: #272727;
 
   /* Light mode */
@@ -42,6 +43,7 @@
   --color-input-focus-light: #dadada;
   --color-chat-background-light: #fafafa;
   --color-error-text-light:#920000;
+  --color-warning-text-light:#936214;
   --color-table-row-light: #edededf3;
 
 
@@ -62,6 +64,7 @@
   --color-background-hover: color-mix(in srgb, var(--color-border) 50%, transparent);
   --color-chat-background: var(--color-chat-background-dark);
   --color-error-text:var(--color-error-text-dark);
+  --color-warning-text:var(--color-warning-text-dark);
   --color-table-row: var(--color-table-row-dark);
 
   /* Spacing variables */
@@ -108,6 +111,7 @@
   --color-background-hover: color-mix(in srgb, var(--color-border) 50%, transparent);
   --color-chat-background: var(--color-chat-background-light);
   --color-error-text:var(--color-error-text-light);
+  --color-warning-text:var(--color-warning-text-light);
   --color-table-row: var(--color-table-row-light);
 } 
 
