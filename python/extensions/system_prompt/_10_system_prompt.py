@@ -85,7 +85,7 @@ def get_project_prompt(agent: Agent):
     return result
 
 def get_skills_prompt(agent: Agent):
-    available = skills.list_skills(agent)
+    available = skills.list_skills(agent=agent, enabled_only=True)
     result = []
     for skill in available:
         name = skill.name.strip().replace("\n", " ")[:100]

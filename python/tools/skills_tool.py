@@ -58,8 +58,9 @@ class SkillsTool(Tool):
 
     def _list(self) -> str:
         skills = skills_helper.list_skills(
-            include_content=False,
             agent=self.agent,
+            include_content=False,
+            enabled_only=True,
         )
         if not skills:
             return "No skills found."

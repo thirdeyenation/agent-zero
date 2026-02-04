@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Literal, Optional, Tuple, TYPE_CHECKING
 
-from python.helpers import files, subagents
+from python.helpers import files, subagents, dirty_json, projects
 
 if TYPE_CHECKING:
     from agent import Agent
@@ -286,7 +286,9 @@ def skill_from_markdown(
 def list_skills(
     agent:Agent|None=None,
     include_content: bool = False,
+    enabled_only: bool = False,
 ) -> List[Skill]:
+    """List skills, optionally filtered by agent scope and enabled status."""
     skills: List[Skill] = []
 
     roots = get_skill_roots(agent)
@@ -299,6 +301,8 @@ def list_skills(
 
     # no deduplication for global skills
     if not agent:
+        if enabled_only:
+            skills = filter_enabled_skills(skills, agent=None)
         return skills
 
     # Dedupe by normalized name, preserving root_order priority (earlier wins)
@@ -307,7 +311,268 @@ def list_skills(
         key = _normalize_name(s.name) or _normalize_name(s.path.name)
         if key and key not in by_name:
             by_name[key] = s
-    return list(by_name.values())
+    
+    result = list(by_name.values())
+    
+    if enabled_only:
+        result = filter_enabled_skills(result, agent=agent)
+    
+    return result
+
+
+def _get_activation_file(project_name: str | None, profile_name: str | None) -> str:
+    """Get the activation file path for the given scope."""
+    if project_name and profile_name:
+        return files.deabsolute_path(
+            projects.get_project_meta_folder(project_name, "agents", profile_name, "skills.json")
+        )
+    elif project_name:
+        return files.deabsolute_path(
+            projects.get_project_meta_folder(project_name, "skills.json")
+        )
+    elif profile_name:
+        return files.get_abs_path(subagents.USER_AGENTS_DIR, profile_name, "skills.json")
+    return files.get_abs_path(subagents.USER_DIR, "skills", "skills.json")
+
+
+def _load_activation_map(path: str) -> Dict[str, bool]:
+    try:
+        if not files.exists(path):
+            return {}
+        parsed = dirty_json.parse(files.read_file(path))
+        if not isinstance(parsed, dict):
+            return {}
+        result: Dict[str, bool] = {}
+        for key, value in parsed.items():
+            result[str(key)] = bool(value)
+        return result
+    except Exception:
+        return {}
+
+
+def _write_activation_map(path: str, data: Dict[str, bool]) -> None:
+    content = dirty_json.stringify(data, indent=2)
+    files.write_file(path, content)
+
+
+def _get_skill_roots_for_list(
+    project_name: str | None = None,
+    profile_name: str | None = None,
+) -> List[str]:
+    """Get skill root directories for the specified scope."""
+    roots: List[str] = []
+
+    # global roots
+    roots.append(files.get_abs_path("skills"))
+    roots.append(files.get_abs_path("usr", "skills"))
+
+    # project roots
+    if project_name:
+        if profile_name:
+            roots.append(projects.get_project_meta_folder(project_name, "agents", profile_name, "skills"))
+        roots.append(projects.get_project_meta_folder(project_name, "skills"))
+
+    # agent roots
+    if profile_name:
+        roots.append(files.get_abs_path(subagents.USER_AGENTS_DIR, profile_name, "skills"))
+        roots.append(files.get_abs_path(subagents.DEFAULT_AGENTS_DIR, profile_name, "skills"))
+
+    # dedupe and filter existing
+    seen: set[str] = set()
+    result: List[str] = []
+    for root in roots:
+        if root in seen or not os.path.isdir(root):
+            continue
+        seen.add(root)
+        result.append(root)
+    return result
+
+
+def _get_scope_info(root: str, project_name: str | None, profile_name: str | None) -> Dict[str, str]:
+    """Determine scope metadata for a skill root."""
+    # determine origin
+    origin = "default"
+    if files.is_in_base_dir(root):
+        rel = files.deabsolute_path(root)
+        if rel.startswith("usr/") or rel.startswith("projects/"):
+            origin = "user"
+            if rel.startswith("projects/"):
+                origin = "project"
+
+    # determine scope
+    scope = "global"
+    scope_name = "global"
+
+    if project_name and profile_name and ".a0proj" in root and "agents" in root:
+        scope = "project_agent"
+        scope_name = f"{project_name}:{profile_name}"
+    elif project_name and ".a0proj" in root:
+        scope = "project"
+        scope_name = project_name
+    elif profile_name and f"agents/{profile_name}" in root:
+        scope = "agent"
+        scope_name = profile_name
+
+    return {
+        "scope": scope,
+        "scope_name": scope_name,
+        "origin": origin,
+    }
+
+
+def get_skills_list(
+    project_name: str | None = None,
+    profile_name: str | None = None,
+) -> List[Dict[str, Any]]:
+    """Get list of all skills with activation status."""
+    roots = _get_skill_roots_for_list(project_name, profile_name)
+    activation_file = _get_activation_file(project_name, profile_name)
+    activation_map = _load_activation_map(activation_file)
+
+    entries: List[Dict[str, Any]] = []
+    for root in roots:
+        scope_info = _get_scope_info(root, project_name, profile_name)
+
+        for skill_md in discover_skill_md_files(Path(root)):
+            skill = skill_from_markdown(skill_md, include_content=False)
+            if not skill:
+                continue
+
+            # generate skill_id
+            rel_path = os.path.relpath(str(skill.path), root).replace("\\", "/")
+            skill_id = f"{root}:{rel_path}"
+            enabled = activation_map.get(skill_id, True)
+
+            entries.append(
+                {
+                    "skill_id": skill_id,
+                    "name": skill.name,
+                    "description": skill.description,
+                    "location": files.normalize_a0_path(str(skill.path)),
+                    "root": files.normalize_a0_path(root),
+                    "scope": scope_info["scope"],
+                    "scope_name": scope_info["scope_name"],
+                    "origin": scope_info["origin"],
+                    "enabled": bool(enabled),
+                }
+            )
+    return entries
+
+
+def set_skill_activation(
+    skill_id: str,
+    enabled: bool,
+    project_name: str | None = None,
+    profile_name: str | None = None,
+) -> None:
+    """Toggle skill activation."""
+    if not skill_id or ":" not in skill_id:
+        raise ValueError("Invalid skill_id")
+
+    root, _ = skill_id.split(":", 1)
+    allowed_roots = _get_skill_roots_for_list(project_name, profile_name)
+
+    if root not in allowed_roots:
+        raise ValueError("Skill root not in current scope")
+
+    activation_file = _get_activation_file(project_name, profile_name)
+    activation_map = _load_activation_map(activation_file)
+
+    if enabled:
+        activation_map.pop(skill_id, None)
+    else:
+        activation_map[skill_id] = False
+
+    _write_activation_map(activation_file, activation_map)
+
+
+def delete_skill(
+    skill_id: str,
+    project_name: str | None = None,
+    profile_name: str | None = None,
+) -> None:
+    """Delete a skill directory."""
+    if not skill_id or ":" not in skill_id:
+        raise ValueError("Invalid skill_id")
+
+    root, rel_path = skill_id.split(":", 1)
+    if not rel_path or rel_path in ("", "."):
+        raise ValueError("Cannot delete root directory")
+
+    allowed_roots = _get_skill_roots_for_list(project_name, profile_name)
+    if root not in allowed_roots:
+        raise ValueError("Skill root not in current scope")
+
+    # construct and validate path (prevent directory traversal)
+    root_abs = os.path.abspath(root)
+    skill_path = os.path.abspath(os.path.join(root, rel_path))
+    
+    # security check: ensure skill_path is within root
+    if not skill_path.startswith(root_abs + os.sep) and skill_path != root_abs:
+        raise ValueError("Invalid path: directory traversal detected")
+    
+    if not os.path.isdir(skill_path):
+        raise FileNotFoundError("Skill directory not found")
+
+    # delete directory
+    files.delete_dir(skill_path)
+
+    # clean up activation map
+    activation_file = _get_activation_file(project_name, profile_name)
+    activation_map = _load_activation_map(activation_file)
+    activation_map.pop(skill_id, None)
+    _write_activation_map(activation_file, activation_map)
+
+
+def filter_enabled_skills(skills: List[Skill], agent: Agent|None=None) -> List[Skill]:
+    """Filter skills based on activation status."""
+    if not skills:
+        return skills
+
+    roots = get_skill_roots(agent)
+    if not roots:
+        return skills
+
+    # sort by path length (longest first) for proper matching
+    roots.sort(key=len, reverse=True)
+
+    # cache activation files to avoid repeated reads
+    activation_cache: Dict[str, Dict[str, bool]] = {}
+
+    enabled_skills: List[Skill] = []
+    for skill in skills:
+        # find matching root
+        skill_root = None
+        for root in roots:
+            try:
+                Path(str(skill.path)).relative_to(Path(root))
+                skill_root = root
+                break
+            except Exception:
+                continue
+
+        if not skill_root:
+            # skill not in any known root, include by default
+            enabled_skills.append(skill)
+            continue
+
+        # determine which activation file to use for this root
+        # note: we use global scope here since agent context doesn't map cleanly to project/profile
+        activation_file = _get_activation_file(None, None)
+        
+        if activation_file not in activation_cache:
+            activation_cache[activation_file] = _load_activation_map(activation_file)
+        
+        activation_map = activation_cache[activation_file]
+
+        # check activation
+        rel_path = os.path.relpath(str(skill.path), skill_root).replace("\\", "/")
+        skill_id = f"{skill_root}:{rel_path}"
+
+        if activation_map.get(skill_id, True):
+            enabled_skills.append(skill)
+
+    return enabled_skills
 
 
 def find_skill(
@@ -414,16 +679,4 @@ def validate_skill_md(skill_md_path: Path) -> List[str]:
     if not skill:
         return ["Unable to parse SKILL.md frontmatter"]
     return validate_skill(skill)
-
-
-def safe_path_within_dir(base_dir: Path, rel_path: str) -> Path:
-    """
-    Resolve rel_path inside base_dir, preventing directory traversal.
-    """
-    base = base_dir.resolve()
-    candidate = (base / rel_path).resolve()
-    if os.path.commonpath([str(candidate), str(base)]) != str(base):
-        raise ValueError("Path escapes skill directory")
-    return candidate
-
 
