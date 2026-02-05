@@ -48,10 +48,7 @@ class SkillsTool(Tool):
             #     )
 
             return Response(
-                message=(
-                    "Error: missing/invalid 'method'. Supported methods: "
-                    "list, load."
-                ),
+                message="Error: missing/invalid 'method'. Supported: list, load.",
                 break_loop=False,
             )
         except (
@@ -111,164 +108,21 @@ class SkillsTool(Tool):
     def _load(self, skill_name: str) -> str:
         skill_name = skill_name.strip()
         if skill_name.startswith("**") and skill_name.endswith("**"):
-            skill_name = skill_name[
-                2:-2
-            ]  # remove markdown bold markers if used by agent
+            skill_name = skill_name[2:-2]
 
         if not skill_name:
             return "Error: 'skill_name' is required for method=load."
 
-        self.agent.data[DATA_NAME_LOADED_SKILLS] = [skill_name]
+        # Verify skill exists
+        skill = skills_helper.find_skill(
+            skill_name,
+            include_content=False,
+            agent=self.agent,
+        )
+        if not skill:
+            return f"Error: skill not found: {skill_name!r}. Try skills_tool method=list or method=search."
 
-        # skill = skills_helper.find_skill(
-        #     skill_name,
-        #     include_content=True,
-        #     agent=self.agent,
-        # )
-        # if not skill:
-        #     return f"Error: skill not found: {skill_name!r}. Try skills_tool method=list or method=search."
+        # Store skill name for fresh loading each turn
+        self.agent.data[DATA_NAME_LOADED_SKILLS] = [skill.name]
 
-        # # Build skill content block
-        # files_tree = self._list_skill_files(skill.path, max_files=80)
-        # if self.agent.config.code_exec_ssh_enabled:
-        #     runtime_path = files.normalize_a0_path(str(skill.path))
-        # else:
-        #     runtime_path = str(skill.path)
-
-        # content_block = self._build_loaded_skill_block(
-        #     skill=skill,
-        #     runtime_path=runtime_path,
-        #     files_tree=files_tree,
-        # )
-
-        # # Store single skill in agent.data (replaces previous)
-        # self.agent.data[DATA_NAME_LOADED_SKILL] = {
-        #     "name": skill.name,
-        #     "content": content_block,
-        # }
-
-        return f"Loaded skill '{skill_name}' into EXTRAS."
-
-    def _build_loaded_skill_block(
-        self, *, skill: skills_helper.Skill, runtime_path: str, files_tree: str
-    ) -> str:
-        lines: List[str] = []
-        lines.append(f"Skill: {skill.name}")
-        lines.append(f"Path: {runtime_path}")
-        if skill.version:
-            lines.append(f"Version: {skill.version}")
-        if skill.author:
-            lines.append(f"Author: {skill.author}")
-        if skill.license:
-            lines.append(f"License: {skill.license}")
-        if skill.compatibility:
-            lines.append(f"Compatibility: {skill.compatibility}")
-        if skill.tags:
-            lines.append(f"Tags: {', '.join(skill.tags)}")
-        if skill.allowed_tools:
-            lines.append(f"Allowed tools: {', '.join(skill.allowed_tools)}")
-        if skill.triggers:
-            lines.append(f"Triggers: {', '.join(skill.triggers)}")
-
-        lines.append("")
-        if skill.description:
-            lines.append("Description:")
-            lines.append(skill.description.strip())
-            lines.append("")
-
-        lines.append("Content (SKILL.md body):")
-        lines.append(skill.content.strip() or "(empty)")
-        lines.append("")
-
-        if files_tree:
-            lines.append(
-                "Files in skill directory (use skills_tool method=read_file to open):"
-            )
-            lines.append(files_tree)
-        else:
-            lines.append("No additional files found in skill directory.")
-
-        return "\n".join(lines)
-
-    # def _read_file(self, skill_name: str, file_path: str) -> str:
-    #     if not skill_name:
-    #         return "Error: 'skill_name' is required for method=read_file."
-    #     if not file_path:
-    #         return "Error: 'file_path' is required for method=read_file."
-
-    #     skill = skills_helper.find_skill(
-    #         skill_name,
-    #         include_content=False,
-    #         agent=self.agent,
-    #     )
-    #     if not skill:
-    #         return f"Error: skill not found: {skill_name!r}."
-
-    #     try:
-    #         target = skills_helper.safe_path_within_dir(skill.path, file_path)
-    #     except Exception as e:
-    #         return f"Error: invalid file_path: {e}"
-
-    #     if not target.exists() or not target.is_file():
-    #         return f"Error: file not found: {file_path!r} (within skill {skill.name})"
-
-    #     # Basic binary guard: if null byte present, do not dump
-    #     content = target.read_bytes()
-    #     if b"\x00" in content[:4096]:
-    #         return f"Error: file appears to be binary; refusing to print raw bytes ({file_path})."
-
-    #     text = content.decode("utf-8", errors="replace")
-    #     return f"File: {file_path}\n\n{text}"
-
-    def _list_skill_files(self, skill_dir: Path, *, max_files: int = 80) -> str:
-        if not skill_dir.exists():
-            return ""
-
-        tree = str(file_tree.file_tree(
-            str(skill_dir),
-            max_depth=10,
-            folders_first=True,
-            max_files=100,
-            max_folders=100,
-            output_mode="string",
-            max_lines=300,
-            ignore=files.read_file("conf/skill.default.gitignore"),
-        ))
-
-        # replace absolute path with runtime path (for dev env only)
-        if tree and runtime.is_development():
-            runtime_path = files.normalize_a0_path(str(skill_dir))
-            tree = tree.replace(str(skill_dir), runtime_path)
-
-        return str(tree)
-
-
-    # def _read_file(self, skill_name: str, file_path: str) -> str:
-    #     if not skill_name:
-    #         return "Error: 'skill_name' is required for method=read_file."
-    #     if not file_path:
-    #         return "Error: 'file_path' is required for method=read_file."
-
-    #     skill = skills_helper.find_skill(
-    #         skill_name,
-    #         include_content=False,
-    #         agent=self.agent,
-    #     )
-    #     if not skill:
-    #         return f"Error: skill not found: {skill_name!r}."
-
-    #     try:
-    #         target = skills_helper.safe_path_within_dir(skill.path, file_path)
-    #     except Exception as e:
-    #         return f"Error: invalid file_path: {e}"
-
-    #     if not target.exists() or not target.is_file():
-    #         return f"Error: file not found: {file_path!r} (within skill {skill.name})"
-
-    #     # Basic binary guard: if null byte present, do not dump
-    #     content = target.read_bytes()
-    #     if b"\x00" in content[:4096]:
-    #         return f"Error: file appears to be binary; refusing to print raw bytes ({file_path})."
-
-    #     text = content.decode("utf-8", errors="replace")
-    #     return f"File: {file_path}\n\n{text}"
+        return f"Loaded skill '{skill.name}' into persistent extras."

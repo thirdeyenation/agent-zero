@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Literal, Optional, Tuple, TYPE_CHECKING
 
-from python.helpers import files, subagents, projects
+from python.helpers import files, subagents, projects, file_tree, runtime
 
 if TYPE_CHECKING:
     from agent import Agent
@@ -356,12 +356,74 @@ def find_skill(
 
 def load_skill_for_agent(
     skill_name: str,
-    agent:Agent|None=None,
+    agent: Agent | None = None,
 ) -> str:
+    """Load skill and format it as a complete string for agent context."""
     skill = find_skill(skill_name, agent=agent, include_content=True)
     if not skill:
-        return "TODO"
-    return "TODO"
+        return f"Error: skill '{skill_name}' not found"
+
+    # Get runtime path
+    if agent and agent.config.code_exec_ssh_enabled:
+        runtime_path = files.normalize_a0_path(str(skill.path))
+    else:
+        runtime_path = str(skill.path)
+
+    lines = [f"Skill: {skill.name}", f"Path: {runtime_path}"]
+
+    # Metadata
+    metadata = [
+        ("Version", skill.version),
+        ("Author", skill.author),
+        ("License", skill.license),
+        ("Compatibility", skill.compatibility),
+        ("Tags", ", ".join(skill.tags) if skill.tags else None),
+        ("Allowed tools", ", ".join(skill.allowed_tools) if skill.allowed_tools else None),
+        ("Triggers", ", ".join(skill.triggers) if skill.triggers else None),
+    ]
+    lines.extend(f"{label}: {value}" for label, value in metadata if value)
+
+    # Description and content
+    if skill.description:
+        lines.extend(["", "Description:", skill.description.strip()])
+
+    lines.extend(["", "Content (SKILL.md body):", skill.content.strip() or "(empty)"])
+
+    # File tree
+    files_tree = _get_skill_files(skill.path)
+    lines.append("")
+    if files_tree:
+        lines.append("Files (use skills_tool method=read_file to open):")
+        lines.append(files_tree)
+    else:
+        lines.append("No additional files found.")
+
+    return "\n".join(lines)
+
+
+def _get_skill_files(skill_dir: Path) -> str:
+    """Get file tree for skill directory."""
+    if not skill_dir.exists():
+        return ""
+
+    tree = str(
+        file_tree.file_tree(
+            str(skill_dir),
+            max_depth=10,
+            folders_first=True,
+            max_files=100,
+            max_folders=100,
+            output_mode="string",
+            max_lines=300,
+            ignore=files.read_file("conf/skill.default.gitignore"),
+        )
+    )
+
+    if tree and runtime.is_development():
+        runtime_path = files.normalize_a0_path(str(skill_dir))
+        tree = tree.replace(str(skill_dir), runtime_path)
+
+    return str(tree)
 
 def search_skills(
     query: str,
