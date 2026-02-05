@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Literal, Optional, Tuple, TYPE_CHECKING
 
-from python.helpers import files, subagents, dirty_json, projects
+from python.helpers import files, subagents, projects
 
 if TYPE_CHECKING:
     from agent import Agent
