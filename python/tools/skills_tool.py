@@ -125,4 +125,4 @@ class SkillsTool(Tool):
         # Store skill name for fresh loading each turn
         self.agent.data[DATA_NAME_LOADED_SKILLS] = [skill.name]
 
-        return f"Loaded skill '{skill.name}' into persistent extras."
+        return f"Loaded skill '{skill.name}' into EXTRAS."

@@ -18,8 +18,10 @@ class IncludeLoadedSkills(Extension):
         for skill_name in skill_names:
             skill_data = skills.load_skill_for_agent(skill_name=skill_name, agent=self.agent)
             content += "\n\n" + skill_data
+        content = content.strip()
         if not content:
             return
+
 
         # Inject into extras
         extras["loaded_skills"] = self.agent.read_prompt(

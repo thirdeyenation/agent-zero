@@ -328,11 +328,12 @@ class WebSocketManager:
                         f"Failed to register handler {handler.identifier}: {exc}"
                     )
                     raise
-
-                PrintStyle.info(
-                    "Registered WebSocket handler %s namespace=%s for events: %s"
-                    % (handler.identifier, namespace, ", ".join(validated_events))
-                )
+                
+                if runtime.is_development():
+                    PrintStyle.info(
+                        "Registered WebSocket handler %s namespace=%s for events: %s"
+                        % (handler.identifier, namespace, ", ".join(validated_events))
+                    )
                 for event_type in validated_events:
                     existing = self.handlers[namespace].get(event_type)
                     if existing:
