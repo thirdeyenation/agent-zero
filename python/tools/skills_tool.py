@@ -8,6 +8,9 @@ from python.helpers import projects, files, file_tree
 from python.helpers import skills as skills_helper, runtime
 
 
+DATA_NAME_LOADED_SKILL = "loaded_skill"
+
+
 class SkillsTool(Tool):
     """
     Manage and use SKILL.md-based Skills (Anthropic open standard).
@@ -106,7 +109,6 @@ class SkillsTool(Tool):
         return "\n".join(lines)
 
     def _load(self, skill_name: str) -> str:
-
         skill_name = skill_name.strip()
         if skill_name.startswith("**") and skill_name.endswith("**"):
             skill_name = skill_name[
@@ -124,17 +126,32 @@ class SkillsTool(Tool):
         if not skill:
             return f"Error: skill not found: {skill_name!r}. Try skills_tool method=list or method=search."
 
-        # Enumerate files under the skill directory for progressive disclosure
-        referenced_files = self._list_skill_files(skill.path, max_files=80)
-        rel_skill_dir = Path(files.deabsolute_path(str(skill.path)))
+        # Build skill content block
+        files_tree = self._list_skill_files(skill.path, max_files=80)
         if self.agent.config.code_exec_ssh_enabled:
             runtime_path = files.normalize_a0_path(str(skill.path))
         else:
             runtime_path = str(skill.path)
 
+        content_block = self._build_loaded_skill_block(
+            skill=skill,
+            runtime_path=runtime_path,
+            files_tree=files_tree,
+        )
+
+        # Store single skill in agent.data (replaces previous)
+        self.agent.data[DATA_NAME_LOADED_SKILL] = {
+            "name": skill.name,
+            "content": content_block,
+        }
+
+        return f"Loaded skill '{skill.name}' into persistent extras."
+
+    def _build_loaded_skill_block(
+        self, *, skill: skills_helper.Skill, runtime_path: str, files_tree: str
+    ) -> str:
         lines: List[str] = []
         lines.append(f"Skill: {skill.name}")
-        # lines.append(f"Path: {rel_skill_dir}")
         lines.append(f"Path: {runtime_path}")
         if skill.version:
             lines.append(f"Version: {skill.version}")
@@ -161,11 +178,11 @@ class SkillsTool(Tool):
         lines.append(skill.content.strip() or "(empty)")
         lines.append("")
 
-        if referenced_files:
+        if files_tree:
             lines.append(
                 "Files in skill directory (use skills_tool method=read_file to open):"
             )
-            lines.append(referenced_files)
+            lines.append(files_tree)
         else:
             lines.append("No additional files found in skill directory.")
 
