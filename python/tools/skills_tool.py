@@ -40,17 +40,17 @@ class SkillsTool(Tool):
             if method == "load":
                 skill_name = str(kwargs.get("skill_name") or "").strip()
                 return Response(message=self._load(skill_name), break_loop=False)
-            if method == "read_file":
-                skill_name = str(kwargs.get("skill_name") or "").strip()
-                file_path = str(kwargs.get("file_path") or "").strip()
-                return Response(
-                    message=self._read_file(skill_name, file_path), break_loop=False
-                )
+            # if method == "read_file":
+            #     skill_name = str(kwargs.get("skill_name") or "").strip()
+            #     file_path = str(kwargs.get("file_path") or "").strip()
+            #     return Response(
+            #         message=self._read_file(skill_name, file_path), break_loop=False
+            #     )
 
             return Response(
                 message=(
                     "Error: missing/invalid 'method'. Supported methods: "
-                    "list, search, load, read_file."
+                    "list, load."
                 ),
                 break_loop=False,
             )
@@ -118,7 +118,7 @@ class SkillsTool(Tool):
         if not skill_name:
             return "Error: 'skill_name' is required for method=load."
 
-        self.agent.data[DATA_NAME_LOADED_SKILL] = [skill_name]
+        self.agent.data[DATA_NAME_LOADED_SKILLS] = [skill_name]
 
         # skill = skills_helper.find_skill(
         #     skill_name,
@@ -190,35 +190,6 @@ class SkillsTool(Tool):
 
         return "\n".join(lines)
 
-    def _read_file(self, skill_name: str, file_path: str) -> str:
-        if not skill_name:
-            return "Error: 'skill_name' is required for method=read_file."
-        if not file_path:
-            return "Error: 'file_path' is required for method=read_file."
-
-        skill = skills_helper.find_skill(
-            skill_name,
-            include_content=False,
-            agent=self.agent,
-        )
-        if not skill:
-            return f"Error: skill not found: {skill_name!r}."
-
-        try:
-            target = skills_helper.safe_path_within_dir(skill.path, file_path)
-        except Exception as e:
-            return f"Error: invalid file_path: {e}"
-
-        if not target.exists() or not target.is_file():
-            return f"Error: file not found: {file_path!r} (within skill {skill.name})"
-
-        # Basic binary guard: if null byte present, do not dump
-        content = target.read_bytes()
-        if b"\x00" in content[:4096]:
-            return f"Error: file appears to be binary; refusing to print raw bytes ({file_path})."
-
-        text = content.decode("utf-8", errors="replace")
-        return f"File: {file_path}\n\n{text}"
 
     def _list_skill_files(self, skill_dir: Path, *, max_files: int = 80) -> str:
         if not skill_dir.exists():
@@ -241,3 +212,34 @@ class SkillsTool(Tool):
             tree = tree.replace(str(skill_dir), runtime_path)
 
         return str(tree)
+
+
+    # def _read_file(self, skill_name: str, file_path: str) -> str:
+    #     if not skill_name:
+    #         return "Error: 'skill_name' is required for method=read_file."
+    #     if not file_path:
+    #         return "Error: 'file_path' is required for method=read_file."
+
+    #     skill = skills_helper.find_skill(
+    #         skill_name,
+    #         include_content=False,
+    #         agent=self.agent,
+    #     )
+    #     if not skill:
+    #         return f"Error: skill not found: {skill_name!r}."
+
+    #     try:
+    #         target = skills_helper.safe_path_within_dir(skill.path, file_path)
+    #     except Exception as e:
+    #         return f"Error: invalid file_path: {e}"
+
+    #     if not target.exists() or not target.is_file():
+    #         return f"Error: file not found: {file_path!r} (within skill {skill.name})"
+
+    #     # Basic binary guard: if null byte present, do not dump
+    #     content = target.read_bytes()
+    #     if b"\x00" in content[:4096]:
+    #         return f"Error: file appears to be binary; refusing to print raw bytes ({file_path})."
+
+    #     text = content.decode("utf-8", errors="replace")
+    #     return f"File: {file_path}\n\n{text}"
