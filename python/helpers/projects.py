@@ -1,5 +1,5 @@
 import os
-from typing import Literal, TypedDict, TYPE_CHECKING
+from typing import Literal, TypedDict, TYPE_CHECKING, cast
 
 from python.helpers import files, dirty_json, persist_chat, file_tree
 from python.helpers.print_style import PrintStyle
@@ -106,7 +106,7 @@ def clone_git_project(name: str, git_url: str, git_token: str, data: BasicProjec
         meta_path = os.path.join(abs_path, PROJECT_META_DIR, PROJECT_HEADER_FILE)
         if os.path.exists(meta_path):
             # Merge: keep cloned content, override only user-specified fields
-            cloned_header = dirty_json.parse(files.read_file(meta_path))
+            cloned_header: BasicProjectData = dirty_json.parse(files.read_file(meta_path)) # type: ignore
             cloned_header["title"] = data.get("title") or cloned_header.get("title", "")
             cloned_header["color"] = data.get("color") or cloned_header.get("color", "")
             cloned_header["git_url"] = clean_url
@@ -151,48 +151,63 @@ def _default_file_structure_settings():
     )
 
 
-def _normalizeBasicData(data: BasicProjectData):
-    return BasicProjectData(
-        title=data.get("title", ""),
-        description=data.get("description", ""),
-        instructions=data.get("instructions", ""),
-        color=data.get("color", ""),
-        git_url=data.get("git_url", ""),
-        memory=data.get("memory", "own"),
-        file_structure=data.get(
+def _normalizeBasicData(data: BasicProjectData) -> BasicProjectData:
+    return {
+        "title": data.get("title", ""),
+        "description": data.get("description", ""),
+        "instructions": data.get("instructions", ""),
+        "color": data.get("color", ""),
+        "git_url": data.get("git_url", ""),
+        "memory": data.get("memory", "own"),
+        "file_structure": data.get(
             "file_structure",
             _default_file_structure_settings(),
         ),
-    )
+    }
 
 
-def _normalizeEditData(data: EditProjectData):
-    return EditProjectData(
-        name=data.get("name", ""),
-        title=data.get("title", ""),
-        description=data.get("description", ""),
-        instructions=data.get("instructions", ""),
-        variables=data.get("variables", ""),
-        color=data.get("color", ""),
-        git_status=data.get("git_status", {"is_git_repo": False}),
-        instruction_files_count=data.get("instruction_files_count", 0),
-        knowledge_files_count=data.get("knowledge_files_count", 0),
-        secrets=data.get("secrets", ""),
-        memory=data.get("memory", "own"),
-        file_structure=data.get(
+def _normalizeEditData(data: EditProjectData) -> EditProjectData:
+    normalized: EditProjectData = {
+        "name": data.get("name", ""),
+        "title": data.get("title", ""),
+        "description": data.get("description", ""),
+        "instructions": data.get("instructions", ""),
+        "variables": data.get("variables", ""),
+        "color": data.get("color", ""),
+        "git_url": data.get("git_url", ""),
+        "git_status": data.get("git_status", {"is_git_repo": False}),
+        "instruction_files_count": data.get("instruction_files_count", 0),
+        "knowledge_files_count": data.get("knowledge_files_count", 0),
+        "secrets": data.get("secrets", ""),
+        "memory": data.get("memory", "own"),
+        "file_structure": data.get(
             "file_structure",
             _default_file_structure_settings(),
         ),
-        subagents=data.get("subagents", {}),
-    )
+        "subagents": data.get("subagents", {}),
+    }
+    return normalized
 
 
 def _edit_data_to_basic_data(data: EditProjectData):
     return _normalizeBasicData(data)
 
 
-def _basic_data_to_edit_data(data: BasicProjectData):
-    return _normalizeEditData(data)  # type: ignore
+def _basic_data_to_edit_data(data: BasicProjectData) -> EditProjectData:
+    base: EditProjectData = cast(
+        EditProjectData,
+        {
+            **data,
+            "name": "",
+            "instruction_files_count": 0,
+            "knowledge_files_count": 0,
+            "variables": "",
+            "secrets": "",
+            "subagents": {},
+            "git_status": {"is_git_repo": False},
+        },
+    )
+    return _normalizeEditData(base)
 
 
 def update_project(name: str, data: EditProjectData):
@@ -215,7 +230,7 @@ def update_project(name: str, data: EditProjectData):
 
 
 def load_basic_project_data(name: str) -> BasicProjectData:
-    data = BasicProjectData(**load_project_header(name))
+    data = cast(BasicProjectData, load_project_header(name))
     normalized = _normalizeBasicData(data)
     return normalized
 
@@ -229,17 +244,20 @@ def load_edit_project_data(name: str) -> EditProjectData:
     secrets = load_project_secrets_masked(name)
     subagents = load_project_subagents(name)
     knowledge_files_count = get_knowledge_files_count(name)
-    git_status = git.get_repo_status(get_project_folder(name))
+    git_status = cast(GitStatusData, git.get_repo_status(get_project_folder(name)))
     
-    data = EditProjectData(
-        **data,
-        name=name,
-        instruction_files_count=len(additional_instructions),
-        knowledge_files_count=knowledge_files_count,
-        variables=variables,
-        secrets=secrets,
-        subagents=subagents,
-        git_status=git_status,
+    data = cast(
+        EditProjectData,
+        {
+            **data,
+            "name": name,
+            "instruction_files_count": len(additional_instructions),
+            "knowledge_files_count": knowledge_files_count,
+            "variables": variables,
+            "secrets": secrets,
+            "subagents": subagents,
+            "git_status": git_status,
+        },
     )
     data = _normalizeEditData(data)
     return data

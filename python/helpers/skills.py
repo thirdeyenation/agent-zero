@@ -50,11 +50,18 @@ def get_skill_roots(
         paths = subagents.get_paths(agent, "skills")
     else:
         # skill roots available globally
-        pr_ag = files.find_existing_paths_by_pattern("projects/*/.a0proj/agents/*/skills") # agents in projects
-        projects = files.find_existing_paths_by_pattern("projects/*/.a0proj/skills") # projects
+        project_agents = files.find_existing_paths_by_pattern("usr/projects/*/.a0proj/agents/*/skills") # agents in projects
+        projects = files.find_existing_paths_by_pattern("usr/projects/*/.a0proj/skills") # projects
+        usr_agents = files.find_existing_paths_by_pattern("usr/agents/*/skills") # agents
         agents = files.find_existing_paths_by_pattern("agents/*/skills") # agents
-        paths = [files.get_abs_path("skills"), files.get_abs_path("usr/skills")] + pr_ag + projects + agents # full scope
-
+        paths = [
+            files.get_abs_path("skills"), 
+            files.get_abs_path("usr/skills"),
+            *project_agents,
+            *projects,
+            *usr_agents,
+            *agents 
+        ]
     return paths
 
 
@@ -364,10 +371,9 @@ def load_skill_for_agent(
         return f"Error: skill '{skill_name}' not found"
 
     # Get runtime path
-    if agent and agent.config.code_exec_ssh_enabled:
+    runtime_path = str(skill.path)
+    if runtime.is_development():
         runtime_path = files.normalize_a0_path(str(skill.path))
-    else:
-        runtime_path = str(skill.path)
 
     lines = [f"Skill: {skill.name}", f"Path: {runtime_path}"]
 
