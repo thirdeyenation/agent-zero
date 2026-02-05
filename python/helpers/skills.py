@@ -464,6 +464,14 @@ def find_skill(
                 return s
     return None
 
+def load_skill_for_agent(
+    skill_name: str,
+    agent:Agent|None=None,
+) -> str:
+    skill = find_skill(skill_name, agent=agent, include_content=True)
+    if not skill:
+        return "TODO"
+    return "TODO"
 
 def search_skills(
     query: str,

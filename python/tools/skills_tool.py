@@ -8,7 +8,7 @@ from python.helpers import projects, files, file_tree
 from python.helpers import skills as skills_helper, runtime
 
 
-DATA_NAME_LOADED_SKILL = "loaded_skill"
+DATA_NAME_LOADED_SKILLS = "loaded_skills"
 
 
 class SkillsTool(Tool):
@@ -118,34 +118,36 @@ class SkillsTool(Tool):
         if not skill_name:
             return "Error: 'skill_name' is required for method=load."
 
-        skill = skills_helper.find_skill(
-            skill_name,
-            include_content=True,
-            agent=self.agent,
-        )
-        if not skill:
-            return f"Error: skill not found: {skill_name!r}. Try skills_tool method=list or method=search."
+        self.agent.data[DATA_NAME_LOADED_SKILL] = [skill_name]
 
-        # Build skill content block
-        files_tree = self._list_skill_files(skill.path, max_files=80)
-        if self.agent.config.code_exec_ssh_enabled:
-            runtime_path = files.normalize_a0_path(str(skill.path))
-        else:
-            runtime_path = str(skill.path)
+        # skill = skills_helper.find_skill(
+        #     skill_name,
+        #     include_content=True,
+        #     agent=self.agent,
+        # )
+        # if not skill:
+        #     return f"Error: skill not found: {skill_name!r}. Try skills_tool method=list or method=search."
 
-        content_block = self._build_loaded_skill_block(
-            skill=skill,
-            runtime_path=runtime_path,
-            files_tree=files_tree,
-        )
+        # # Build skill content block
+        # files_tree = self._list_skill_files(skill.path, max_files=80)
+        # if self.agent.config.code_exec_ssh_enabled:
+        #     runtime_path = files.normalize_a0_path(str(skill.path))
+        # else:
+        #     runtime_path = str(skill.path)
 
-        # Store single skill in agent.data (replaces previous)
-        self.agent.data[DATA_NAME_LOADED_SKILL] = {
-            "name": skill.name,
-            "content": content_block,
-        }
+        # content_block = self._build_loaded_skill_block(
+        #     skill=skill,
+        #     runtime_path=runtime_path,
+        #     files_tree=files_tree,
+        # )
 
-        return f"Loaded skill '{skill.name}' into persistent extras."
+        # # Store single skill in agent.data (replaces previous)
+        # self.agent.data[DATA_NAME_LOADED_SKILL] = {
+        #     "name": skill.name,
+        #     "content": content_block,
+        # }
+
+        return f"Loaded skill '{skill_name}' into EXTRAS."
 
     def _build_loaded_skill_block(
         self, *, skill: skills_helper.Skill, runtime_path: str, files_tree: str

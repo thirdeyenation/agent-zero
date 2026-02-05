@@ -1,5 +1,4 @@
-# Loaded skill
-- The following skill was explicitly loaded via skills_tool
-- Full content persists here each turn to survive history compression
+# loaded skills
+- the following skills were explicitly loaded via skills_tool
 
 {{skills}}

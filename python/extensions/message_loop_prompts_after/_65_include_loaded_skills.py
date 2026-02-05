@@ -1,24 +1,23 @@
 from python.helpers.extension import Extension
+from python.helpers import skills
+from python.tools.skills_tool import DATA_NAME_LOADED_SKILLS
 from agent import LoopData
-
-
-DATA_NAME_LOADED_SKILL = "loaded_skill"
 
 
 class IncludeLoadedSkills(Extension):
     async def execute(self, loop_data: LoopData = LoopData(), **kwargs):
         extras = loop_data.extras_persistent
 
-        # Clear previous
-        if "loaded_skills" in extras:
-            del extras["loaded_skills"]
-
-        # Get single loaded skill
-        skill_data = self.agent.data.get(DATA_NAME_LOADED_SKILL)
-        if not skill_data or not isinstance(skill_data, dict):
+        # Get loaded skills names
+        skill_names = self.agent.data.get(DATA_NAME_LOADED_SKILLS)
+        if not skill_names:
             return
 
-        content = str(skill_data.get("content") or "").strip()
+        # load skill text here
+        content = ""
+        for skill_name in skill_names:
+            skill_data = skills.load_skill_for_agent(skill_name=skill_name, agent=self.agent)
+            content += "\n\n" + skill_data
         if not content:
             return
 
