@@ -8,6 +8,9 @@ from python.helpers import projects, files, file_tree
 from python.helpers import skills as skills_helper, runtime
 
 
+DATA_NAME_LOADED_SKILL = "loaded_skill"
+
+
 class SkillsTool(Tool):
     """
     Manage and use SKILL.md-based Skills (Anthropic open standard).
@@ -106,70 +109,25 @@ class SkillsTool(Tool):
         return "\n".join(lines)
 
     def _load(self, skill_name: str) -> str:
-
         skill_name = skill_name.strip()
         if skill_name.startswith("**") and skill_name.endswith("**"):
-            skill_name = skill_name[
-                2:-2
-            ]  # remove markdown bold markers if used by agent
+            skill_name = skill_name[2:-2]
 
         if not skill_name:
             return "Error: 'skill_name' is required for method=load."
 
         skill = skills_helper.find_skill(
             skill_name,
-            include_content=True,
+            include_content=False,
             agent=self.agent,
         )
         if not skill:
             return f"Error: skill not found: {skill_name!r}. Try skills_tool method=list or method=search."
 
-        # Enumerate files under the skill directory for progressive disclosure
-        referenced_files = self._list_skill_files(skill.path, max_files=80)
-        rel_skill_dir = Path(files.deabsolute_path(str(skill.path)))
-        if self.agent.config.code_exec_ssh_enabled:
-            runtime_path = files.normalize_a0_path(str(skill.path))
-        else:
-            runtime_path = str(skill.path)
+        # Store skill name for fresh loading each turn
+        self.agent.data[DATA_NAME_LOADED_SKILL] = skill.name
 
-        lines: List[str] = []
-        lines.append(f"Skill: {skill.name}")
-        # lines.append(f"Path: {rel_skill_dir}")
-        lines.append(f"Path: {runtime_path}")
-        if skill.version:
-            lines.append(f"Version: {skill.version}")
-        if skill.author:
-            lines.append(f"Author: {skill.author}")
-        if skill.license:
-            lines.append(f"License: {skill.license}")
-        if skill.compatibility:
-            lines.append(f"Compatibility: {skill.compatibility}")
-        if skill.tags:
-            lines.append(f"Tags: {', '.join(skill.tags)}")
-        if skill.allowed_tools:
-            lines.append(f"Allowed tools: {', '.join(skill.allowed_tools)}")
-        if skill.triggers:
-            lines.append(f"Triggers: {', '.join(skill.triggers)}")
-
-        lines.append("")
-        if skill.description:
-            lines.append("Description:")
-            lines.append(skill.description.strip())
-            lines.append("")
-
-        lines.append("Content (SKILL.md body):")
-        lines.append(skill.content.strip() or "(empty)")
-        lines.append("")
-
-        if referenced_files:
-            lines.append(
-                "Files in skill directory (use skills_tool method=read_file to open):"
-            )
-            lines.append(referenced_files)
-        else:
-            lines.append("No additional files found in skill directory.")
-
-        return "\n".join(lines)
+        return f"Loaded skill '{skill.name}' into persistent extras."
 
     def _read_file(self, skill_name: str, file_path: str) -> str:
         if not skill_name:
