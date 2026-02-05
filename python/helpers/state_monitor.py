@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import threading
 import time
 from dataclasses import dataclass, field
@@ -20,6 +21,17 @@ if TYPE_CHECKING:  # pragma: no cover - hints only
 
 
 ConnectionIdentity = tuple[str, str]  # (namespace, sid)
+
+
+def _ws_debug_enabled() -> bool:
+    value = os.getenv("A0_WS_DEBUG", "").strip().lower()
+    return value in {"1", "true", "yes", "on"}
+
+
+def _debug_log(message: str) -> None:
+    if not _ws_debug_enabled():
+        return
+    PrintStyle.debug(message)
 
 
 @dataclass
@@ -61,10 +73,9 @@ class StateMonitor:
             # Use the manager's dispatcher loop for all scheduling so mark_dirty can be
             # invoked safely from non-async contexts and other threads.
             self._dispatcher_loop = getattr(manager, "_dispatcher_loop", None)
-        if runtime.is_development():
-            PrintStyle.debug(
-                f"[StateMonitor] bind_manager handler_id={handler_id or self._emit_handler_id}"
-            )
+        _debug_log(
+            f"[StateMonitor] bind_manager handler_id={handler_id or self._emit_handler_id}"
+        )
 
     def register_sid(self, namespace: str, sid: str) -> None:
         identity: ConnectionIdentity = (namespace, sid)
@@ -72,8 +83,7 @@ class StateMonitor:
             self._projections.setdefault(
                 identity, ConnectionProjection(namespace=namespace, sid=sid)
             )
-        if runtime.is_development():
-            PrintStyle.debug(f"[StateMonitor] register_sid namespace={namespace} sid={sid}")
+        _debug_log(f"[StateMonitor] register_sid namespace={namespace} sid={sid}")
 
     def unregister_sid(self, namespace: str, sid: str) -> None:
         identity: ConnectionIdentity = (namespace, sid)
@@ -85,14 +95,11 @@ class StateMonitor:
             if task is not None:
                 task.cancel()
             self._projections.pop(identity, None)
-        if runtime.is_development():
-            PrintStyle.debug(
-                f"[StateMonitor] unregister_sid namespace={namespace} sid={sid}"
-            )
+        _debug_log(f"[StateMonitor] unregister_sid namespace={namespace} sid={sid}")
 
     def mark_dirty_all(self, *, reason: str | None = None) -> None:
         wave_id = None
-        if runtime.is_development():
+        if _ws_debug_enabled():
             with self._lock:
                 self._dirty_wave_seq += 1
                 wave_id = f"all_{self._dirty_wave_seq}"
@@ -106,7 +113,7 @@ class StateMonitor:
             return
         target = context_id.strip()
         wave_id = None
-        if runtime.is_development():
+        if _ws_debug_enabled():
             with self._lock:
                 self._dirty_wave_seq += 1
                 wave_id = f"ctx_{self._dirty_wave_seq}"
@@ -135,12 +142,11 @@ class StateMonitor:
             projection.request = request
             projection.seq_base = seq_base
             projection.seq = seq_base
-        if runtime.is_development():
-            PrintStyle.debug(
-                f"[StateMonitor] update_projection namespace={namespace} sid={sid} context={request.context!r} "
-                f"log_from={request.log_from} notifications_from={request.notifications_from} "
-                f"timezone={request.timezone!r} seq_base={seq_base}"
-            )
+        _debug_log(
+            f"[StateMonitor] update_projection namespace={namespace} sid={sid} context={request.context!r} "
+            f"log_from={request.log_from} notifications_from={request.notifications_from} "
+            f"timezone={request.timezone!r} seq_base={seq_base}"
+        )
 
     def mark_dirty(
         self,
@@ -215,13 +221,12 @@ class StateMonitor:
                 self.debounce_seconds, self._on_debounce_fire, identity
             )
             self._debounce_handles[identity] = handle
-            if runtime.is_development():
-                PrintStyle.debug(
-                    f"[StateMonitor] schedule_push namespace={projection.namespace} sid={projection.sid} "
-                    f"delay_s={self.debounce_seconds} "
-                    f"dirty={projection.dirty_version} pushed={projection.pushed_version} "
-                    f"reason={projection.dirty_reason!r} wave={projection.dirty_wave_id!r}"
-                )
+            _debug_log(
+                f"[StateMonitor] schedule_push namespace={projection.namespace} sid={projection.sid} "
+                f"delay_s={self.debounce_seconds} "
+                f"dirty={projection.dirty_version} pushed={projection.pushed_version} "
+                f"reason={projection.dirty_reason!r} wave={projection.dirty_wave_id!r}"
+            )
 
     def _on_debounce_fire(self, identity: ConnectionIdentity) -> None:
         with self._lock:
@@ -288,17 +293,16 @@ class StateMonitor:
             }
 
             try:
-                if runtime.is_development():
-                    logs_len = (
-                        len(snapshot.get("logs", []))
-                        if isinstance(snapshot.get("logs"), list)
-                        else None
-                    )
-                    PrintStyle.debug(
-                        f"[StateMonitor] emit state_push namespace={namespace} sid={sid} seq={seq} "
-                        f"context={request.context!r} logs_len={logs_len} "
-                        f"reason={dirty_reason!r} wave={dirty_wave_id!r}"
-                    )
+                logs_len = (
+                    len(snapshot.get("logs", []))
+                    if isinstance(snapshot.get("logs"), list)
+                    else None
+                )
+                _debug_log(
+                    f"[StateMonitor] emit state_push namespace={namespace} sid={sid} seq={seq} "
+                    f"context={request.context!r} logs_len={logs_len} "
+                    f"reason={dirty_reason!r} wave={dirty_wave_id!r}"
+                )
                 await manager.emit_to(
                     namespace,
                     sid,
@@ -308,17 +312,15 @@ class StateMonitor:
                 )
             except ConnectionNotFoundError:
                 # Sid was removed before the emit; treat as benign.
-                if runtime.is_development():
-                    PrintStyle.debug(
-                        f"[StateMonitor] emit skipped: sid not found namespace={namespace} sid={sid}"
-                    )
+                _debug_log(
+                    f"[StateMonitor] emit skipped: sid not found namespace={namespace} sid={sid}"
+                )
                 return
             except RuntimeError:
                 # Dispatcher loop may be closing (e.g., during shutdown or test teardown).
-                if runtime.is_development():
-                    PrintStyle.debug(
-                        f"[StateMonitor] emit skipped: dispatcher closing namespace={namespace} sid={sid}"
-                    )
+                _debug_log(
+                    f"[StateMonitor] emit skipped: dispatcher closing namespace={namespace} sid={sid}"
+                )
                 return
         finally:
             follow_up = False
@@ -339,10 +341,9 @@ class StateMonitor:
         if not follow_up:
             return
 
-        if runtime.is_development():
-            PrintStyle.debug(
-                f"[StateMonitor] follow_up_push namespace={namespace} sid={sid} dirty={dirty_version} pushed={pushed_version}"
-            )
+        _debug_log(
+            f"[StateMonitor] follow_up_push namespace={namespace} sid={sid} dirty={dirty_version} pushed={pushed_version}"
+        )
         try:
             loop = self._dispatcher_loop or asyncio.get_running_loop()
         except RuntimeError:
