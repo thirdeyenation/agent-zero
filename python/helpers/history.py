@@ -521,7 +521,7 @@ def output_langchain(messages: list[OutputMessage]):
     for m in messages:
         content = _output_content_langchain(content=m["content"])
         if not content or (isinstance(content, str) and not content.strip()):
-            continue
+            continue # skip empty messages, models 
         if m["ai"]:
             result.append(AIMessage(content))  # type: ignore
         else:
