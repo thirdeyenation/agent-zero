@@ -61,19 +61,14 @@
                         <!-- Single-item actions (Edit/Rename/...) are grouped under a dropdown -->
                         <div
                           class="dropdown file-actions-dropdown"
-                          x-data="{
-                            open: false,
-                            toggle() { this.open = !this.open; },
-                            close() { this.open = false; }
-                          }"
-                          @click.outside="close()"
-                          @keydown.escape.window="close()"
+                          @click.outside="$store.fileBrowser.closeDropdown()"
+                          @keydown.escape.window="$store.fileBrowser.closeDropdown()"
                         >
                           <button
                             type="button"
                             class="btn-icon-action dropdown-trigger"
-                            @click.stop="toggle()"
-                            :aria-expanded="open.toString()"
+                            @click.stop="$store.fileBrowser.toggleDropdown(file.path)"
+                            :aria-expanded="$store.fileBrowser.isDropdownOpen(file.path).toString()"
                             aria-label="More actions"
                             title="More actions"
                           >
@@ -82,11 +77,11 @@
 
                           <div
                             class="dropdown-menu"
-                            x-show="open"
+                            x-show="$store.fileBrowser.isDropdownOpen(file.path)"
                             x-transition
                             :class="{ 'bottom': $el.getBoundingClientRect().bottom > window.innerHeight - 100 }"
                             style="display: none;"
-                            @click="close()"
+                            @click="$store.fileBrowser.closeDropdown()"
                           >
                             <button
                               type="button"

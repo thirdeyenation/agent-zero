@@ -23,6 +23,7 @@ const model = {
   renameMode: "rename",
   isRenaming: false,
   renameError: null,
+  openDropdownPath: null, // Track which dropdown is currently open
 
   // --- Lifecycle -----------------------------------------------------------
   init() {
@@ -71,6 +72,7 @@ const model = {
     this.history = [];
     this.initialPath = "";
     this.browser.entries = [];
+    this.openDropdownPath = null;
     this.resetRenameState();
   },
 
@@ -181,6 +183,20 @@ const model = {
           return 0;
       }
     });
+  },
+
+  // --- Dropdown Management -------------------------------------------------
+  toggleDropdown(filePath) {
+    // Toggle: if already open, close it; otherwise open this one (closing any other)
+    this.openDropdownPath = this.openDropdownPath === filePath ? null : filePath;
+  },
+
+  isDropdownOpen(filePath) {
+    return this.openDropdownPath === filePath;
+  },
+
+  closeDropdown() {
+    this.openDropdownPath = null;
   },
 
   // --- Navigation ----------------------------------------------------------
