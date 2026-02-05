@@ -520,11 +520,9 @@ def output_langchain(messages: list[OutputMessage]):
     result = []
     for m in messages:
         content = _output_content_langchain(content=m["content"])
-        # Skip AI messages with empty/whitespace-only content
-        # (API spec requires assistant messages to have content or tool_calls)
+        if not content or (isinstance(content, str) and not content.strip()):
+            continue # skip empty messages, models 
         if m["ai"]:
-            if not content or (isinstance(content, str) and not content.strip()):
-                continue
             result.append(AIMessage(content))  # type: ignore
         else:
             result.append(HumanMessage(content))  # type: ignore

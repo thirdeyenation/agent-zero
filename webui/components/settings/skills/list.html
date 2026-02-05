@@ -56,7 +56,7 @@
                 </template>
 
                 <div class="skills-list">
-                    <template x-for="skill in $store.skillsListStore.skills" :key="skill.skill_id">
+                    <template x-for="skill in $store.skillsListStore.skills" :key="skill.path">
                         <div class="skill-card">
                             <div class="skill-header">
                                 <div class="skill-title" x-text="skill.name || '(unnamed skill)'"></div>
@@ -74,7 +74,7 @@
                             <div class="skill-description" x-text="skill.description || 'No description provided.'"></div>
                             <div class="skill-location">
                                 <span>Location:</span>
-                                <code x-text="skill.location"></code>
+                                <code x-text="skill.path"></code>
                             </div>
                         </div>
                     </template>

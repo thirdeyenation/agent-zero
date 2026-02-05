@@ -97,9 +97,7 @@ const model = {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "delete",
-          skill_id: skill.skill_id,
-          project_name: this.projectName || null,
-          profile_name: this.profileName || null,
+          skill_path: skill.path,
         }),
       });
       const result = await response.json().catch(() => ({}));

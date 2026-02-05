@@ -49,7 +49,13 @@ export class Scroller {
       const delta = nextHeight - prevHeight;
       this._lastClientHeight = nextHeight;
 
-      if (this.wasAtBottom) {
+      const scrollTop = this._getEffectiveScrollTop();
+      const bottomDistanceBefore =
+        this.element.scrollHeight - scrollTop - prevHeight;
+      const wasAtBottom = bottomDistanceBefore <= this.tolerance;
+      this.wasAtBottom = wasAtBottom;
+
+      if (wasAtBottom) {
         this.scrollToBottom();
         return;
       }
