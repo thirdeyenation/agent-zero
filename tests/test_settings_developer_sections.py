@@ -20,7 +20,7 @@ def test_websocket_harness_entrypoint_is_present_in_developer_settings_template(
     content = dev_template_path.read_text(encoding="utf-8")
     assert "websocket-tester.html" in content
     assert "websocket-event-console.html" in content
-    assert "!$store.settingsStore.additional?.is_dockerized" in content
+    assert "!$store.settings.additional?.is_dockerized" in content
 
 
 def test_websocket_harness_template_is_gated_by_runtime():

@@ -5,7 +5,7 @@
 
   <body>
     <div x-data>
-      <template x-if="$store.settingsStore.settings">
+      <template x-if="$store.settings.settings">
         <div>
           <div class="section-title">Development</div>
           <div class="section-description">
@@ -20,15 +20,15 @@
               </div>
             </div>
             <div class="field-control">
-              <select x-model="$store.settingsStore.settings.shell_interface">
-                <template x-for="option in $store.settingsStore.additional?.shell_interfaces" :key="option.value">
-                  <option :value="option.value" :selected="option.value === $store.settingsStore.settings.shell_interface" x-text="option.label"></option>
+              <select x-model="$store.settings.settings.shell_interface">
+                <template x-for="option in $store.settings.additional?.shell_interfaces" :key="option.value">
+                  <option :value="option.value" :selected="option.value === $store.settings.settings.shell_interface" x-text="option.label"></option>
                 </template>
               </select>
             </div>
           </div>
 
-          <template x-if="!$store.settingsStore.additional?.is_dockerized">
+          <template x-if="!$store.settings.additional?.is_dockerized">
             <div>
               <div class="field">
                 <div class="field-label">
@@ -38,7 +38,7 @@
                   </div>
                 </div>
                 <div class="field-control">
-                  <input type="text" x-model="$store.settingsStore.settings.rfc_url" />
+                  <input type="text" x-model="$store.settings.settings.rfc_url" />
                 </div>
               </div>
             </div>
@@ -52,11 +52,11 @@
               </div>
             </div>
             <div class="field-control">
-              <input type="password" autocomplete="off" x-model="$store.settingsStore.settings.rfc_password" />
+              <input type="password" autocomplete="off" x-model="$store.settings.settings.rfc_password" />
             </div>
           </div>
 
-          <template x-if="!$store.settingsStore.additional?.is_dockerized">
+          <template x-if="!$store.settings.additional?.is_dockerized">
             <div>
               <div class="field">
                 <div class="field-label">
@@ -64,7 +64,7 @@
                   <div class="field-description">HTTP port for dockerized instance of A0.</div>
                 </div>
                 <div class="field-control">
-                  <input type="number" x-model.number="$store.settingsStore.settings.rfc_port_http" />
+                  <input type="number" x-model.number="$store.settings.settings.rfc_port_http" />
                 </div>
               </div>
 
@@ -74,7 +74,7 @@
                   <div class="field-description">SSH port for dockerized instance of A0.</div>
                 </div>
                 <div class="field-control">
-                  <input type="number" x-model.number="$store.settingsStore.settings.rfc_port_ssh" />
+                  <input type="number" x-model.number="$store.settings.settings.rfc_port_ssh" />
                 </div>
               </div>
             </div>
@@ -89,7 +89,7 @@
             </div>
             <div class="field-control">
               <label class="toggle">
-                <input type="checkbox" x-model="$store.settingsStore.settings.websocket_server_restart_enabled" />
+                <input type="checkbox" x-model="$store.settings.settings.websocket_server_restart_enabled" />
                 <span class="toggler"></span>
               </label>
             </div>
@@ -102,9 +102,9 @@
                 Temporarily enable uvicorn access logs for debugging WebSocket transport issues (default off).
               </div>
               <template
-                x-if="$store.settingsStore.additional?.runtime_settings &&
-                  $store.settingsStore.settings?.uvicorn_access_logs_enabled !==
-                    $store.settingsStore.additional.runtime_settings.uvicorn_access_logs_enabled"
+                x-if="$store.settings.additional?.runtime_settings &&
+                  $store.settings.settings?.uvicorn_access_logs_enabled !==
+                    $store.settings.additional.runtime_settings.uvicorn_access_logs_enabled"
               >
                 <div class="field-description">
                   Applies after backend restart.
@@ -113,13 +113,13 @@
             </div>
             <div class="field-control">
               <label class="toggle">
-                <input type="checkbox" x-model="$store.settingsStore.settings.uvicorn_access_logs_enabled" />
+                <input type="checkbox" x-model="$store.settings.settings.uvicorn_access_logs_enabled" />
                 <span class="toggler"></span>
               </label>
             </div>
           </div>
 
-          <template x-if="!$store.settingsStore.additional?.is_dockerized">
+          <template x-if="!$store.settings.additional?.is_dockerized">
             <div>
               <div class="section-title">Testing</div>
               <div class="section-description">

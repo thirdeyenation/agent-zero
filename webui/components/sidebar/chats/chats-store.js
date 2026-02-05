@@ -1,4 +1,5 @@
 import { createStore } from "/js/AlpineStore.js";
+import { callJsonApi } from "/js/api.js";
 import {
   sendJsonData,
   getContext,
@@ -16,6 +17,7 @@ const model = {
   contexts: [],
   selected: "",
   selectedContext: null,
+  loggedIn: false,
 
   // for convenience
   getSelectedChatId() {
@@ -27,6 +29,7 @@ const model = {
   },
 
   init() {
+    this.loggedIn = Boolean(window.runtimeInfo && window.runtimeInfo.loggedIn);
     // Initialize from sessionStorage
     const lastSelectedChat = sessionStorage.getItem("lastSelectedChat");
     if (lastSelectedChat) {
@@ -333,6 +336,27 @@ const model = {
     // Do not wait on /health - recovery is driven by WebSocket CSRF preflight + reconnect.
     try {
       await sendJsonData("/restart", {});
+    } catch (_e) {
+      // ignore
+    }
+  },
+
+  async logout() {
+    try {
+      await callJsonApi("/logout", {});
+    } catch (_e) {
+      // ignore
+    }
+
+    try {
+      sessionStorage.removeItem("lastSelectedChat");
+      sessionStorage.removeItem("lastSelectedTask");
+    } catch (_e) {
+      // ignore
+    }
+
+    try {
+      window.location.reload();
     } catch (_e) {
       // ignore
     }

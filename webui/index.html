@@ -67,7 +67,8 @@
         globalThis.runtimeInfo = {
             ...(globalThis.runtimeInfo || {}),
             id: "{{runtime_id}}",
-            isDevelopment: {{runtime_is_development}},
+            isDevelopment: "{{runtime_is_development}}" === "true",
+            loggedIn: "{{logged_in}}" === "true",
         };
     </script>
 </head>

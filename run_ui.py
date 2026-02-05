@@ -218,6 +218,7 @@ async def serve_index():
         version_time=gitinfo["commit_time"],
         runtime_id=runtime.get_runtime_id(),
         runtime_is_development=("true" if runtime.is_development() else "false"),
+        logged_in=("true" if login.get_credentials_hash() else "false"),
     )
     return index
 
