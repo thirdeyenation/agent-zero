@@ -1,5 +1,5 @@
 from python.helpers.api import ApiHandler, Input, Output, Request, Response
-from python.helpers import skills
+from python.helpers import skills, projects, files
 
 
 class Skills(ApiHandler):
@@ -25,24 +25,28 @@ class Skills(ApiHandler):
             }
 
     def list_skills(self, input: Input):
-        project_name = (input.get("project_name") or "").strip() or None
-        profile_name = (input.get("profile_name") or "").strip() or None
-        return skills.get_skills_list(
-            project_name=project_name,
-            profile_name=profile_name
-        )
+        skill_list = skills.list_skills()
+
+        # filter by project
+        if project_name := (input.get("project_name") or "").strip() or None:
+            project_folder = projects.get_project_folder(project_name)
+            skill_list = [
+                s for s in skill_list if files.is_in_dir(str(s.path), project_folder)
+            ]
+
+        result = []
+        for skill in skill_list:
+            result.append({
+                "name": skill.name,
+                "description": skill.description,
+                "path": str(skill.path),
+            })
+        return result
 
     def delete_skill(self, input: Input):
-        skill_id = str(input.get("skill_id") or "").strip()
-        if not skill_id:
-            raise Exception("skill_id is required")
+        skill_path = str(input.get("skill_path") or "").strip()
+        if not skill_path:
+            raise Exception("skill_path is required")
 
-        project_name = (input.get("project_name") or "").strip() or None
-        profile_name = (input.get("profile_name") or "").strip() or None
-
-        skills.delete_skill(
-            skill_id,
-            project_name=project_name,
-            profile_name=profile_name,
-        )
-        return {"skill_id": skill_id}
+        skills.delete_skill(skill_path)
+        return {"ok": True, "skill_path": skill_path}

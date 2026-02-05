@@ -312,131 +312,21 @@ def list_skills(
     return list(by_name.values())
 
 
-def _get_skill_roots_for_list(
-    project_name: str | None = None,
-    profile_name: str | None = None,
-) -> List[str]:
-    """Get skill root directories for the specified scope."""
-    roots: List[str] = []
-
-    # global roots
-    roots.append(files.get_abs_path("skills"))
-    roots.append(files.get_abs_path("usr", "skills"))
-
-    # project roots
-    if project_name:
-        if profile_name:
-            roots.append(projects.get_project_meta_folder(project_name, "agents", profile_name, "skills"))
-        roots.append(projects.get_project_meta_folder(project_name, "skills"))
-
-    # agent roots
-    if profile_name:
-        roots.append(files.get_abs_path(subagents.USER_AGENTS_DIR, profile_name, "skills"))
-        roots.append(files.get_abs_path(subagents.DEFAULT_AGENTS_DIR, profile_name, "skills"))
-
-    # dedupe and filter existing
-    seen: set[str] = set()
-    result: List[str] = []
-    for root in roots:
-        if root in seen or not os.path.isdir(root):
-            continue
-        seen.add(root)
-        result.append(root)
-    return result
-
-
-def _get_scope_info(root: str, project_name: str | None, profile_name: str | None) -> Dict[str, str]:
-    """Determine scope metadata for a skill root."""
-    # determine origin
-    origin = "default"
-    if files.is_in_base_dir(root):
-        rel = files.deabsolute_path(root)
-        if rel.startswith("usr/") or rel.startswith("projects/"):
-            origin = "user"
-            if rel.startswith("projects/"):
-                origin = "project"
-
-    # determine scope
-    scope = "global"
-    scope_name = "global"
-
-    if project_name and profile_name and ".a0proj" in root and "agents" in root:
-        scope = "project_agent"
-        scope_name = f"{project_name}:{profile_name}"
-    elif project_name and ".a0proj" in root:
-        scope = "project"
-        scope_name = project_name
-    elif profile_name and f"agents/{profile_name}" in root:
-        scope = "agent"
-        scope_name = profile_name
-
-    return {
-        "scope": scope,
-        "scope_name": scope_name,
-        "origin": origin,
-    }
-
-
-def get_skills_list(
-    project_name: str | None = None,
-    profile_name: str | None = None,
-) -> List[Dict[str, Any]]:
-    """Get list of all skills."""
-    roots = _get_skill_roots_for_list(project_name, profile_name)
-
-    entries: List[Dict[str, Any]] = []
-    for root in roots:
-        scope_info = _get_scope_info(root, project_name, profile_name)
-
-        for skill_md in discover_skill_md_files(Path(root)):
-            skill = skill_from_markdown(skill_md, include_content=False)
-            if not skill:
-                continue
-
-            # generate skill_id
-            rel_path = os.path.relpath(str(skill.path), root).replace("\\", "/")
-            skill_id = f"{root}:{rel_path}"
-
-            entries.append(
-                {
-                    "skill_id": skill_id,
-                    "name": skill.name,
-                    "description": skill.description,
-                    "location": files.normalize_a0_path(str(skill.path)),
-                    "root": files.normalize_a0_path(root),
-                    "scope": scope_info["scope"],
-                    "scope_name": scope_info["scope_name"],
-                    "origin": scope_info["origin"],
-                }
-            )
-    return entries
-
-
 def delete_skill(
-    skill_id: str,
-    project_name: str | None = None,
-    profile_name: str | None = None,
+    skill_path: str,
 ) -> None:
     """Delete a skill directory."""
-    if not skill_id or ":" not in skill_id:
-        raise ValueError("Invalid skill_id")
 
-    root, rel_path = skill_id.split(":", 1)
-    if not rel_path or rel_path in ("", "."):
-        raise ValueError("Cannot delete root directory")
+    skill_path = files.get_abs_path(skill_path)
 
-    allowed_roots = _get_skill_roots_for_list(project_name, profile_name)
-    if root not in allowed_roots:
+    allowed_roots = get_skill_roots()
+    for root in allowed_roots:
+        if files.is_in_dir(skill_path, root):
+            break
+    else:
         raise ValueError("Skill root not in current scope")
 
-    # construct and validate path (prevent directory traversal)
-    root_abs = os.path.abspath(root)
-    skill_path = os.path.abspath(os.path.join(root, rel_path))
-    
-    # security check: ensure skill_path is within root
-    if not skill_path.startswith(root_abs + os.sep) and skill_path != root_abs:
-        raise ValueError("Invalid path: directory traversal detected")
-    
+        
     if not os.path.isdir(skill_path):
         raise FileNotFoundError("Skill directory not found")
 
