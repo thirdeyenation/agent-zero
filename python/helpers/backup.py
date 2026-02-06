@@ -43,7 +43,7 @@ class BackupService:
 
         return {
             "backup_name": f"agent-zero-backup-{timestamp[:10]}",
-            "include_hidden": False,
+            "include_hidden": True,
             "include_patterns": include_patterns,
             "exclude_patterns": exclude_patterns,
             "backup_config": {
@@ -64,8 +64,8 @@ class BackupService:
 # All persistent user data is now centralized in /usr for easier backup and restore
 {agent_root}/usr/**
 
-# Explicitly include .env
-{agent_root}/usr/.env
+# Root folder
+/root/**
 """
 
     def _get_agent_zero_version(self) -> str:
@@ -247,7 +247,7 @@ class BackupService:
         """Test backup patterns and return list of matched files"""
         include_patterns = metadata.get("include_patterns", [])
         exclude_patterns = metadata.get("exclude_patterns", [])
-        include_hidden = metadata.get("include_hidden", False)
+        include_hidden = metadata.get("include_hidden", True)
 
         # Convert to patterns string for pathspec
         patterns_string = self._patterns_to_string(include_patterns, exclude_patterns)
@@ -332,7 +332,7 @@ class BackupService:
         self,
         include_patterns: List[str],
         exclude_patterns: List[str],
-        include_hidden: bool = False,
+        include_hidden: bool = True,
         backup_name: str = "agent-zero-backup"
     ) -> str:
         """Create backup archive and return path to created file"""
@@ -807,7 +807,7 @@ class BackupService:
         # Use user-edited patterns for what to clean
         user_include_patterns = user_metadata.get("include_patterns", [])
         user_exclude_patterns = user_metadata.get("exclude_patterns", [])
-        include_hidden = user_metadata.get("include_hidden", False)
+        include_hidden = user_metadata.get("include_hidden", True)
 
         if not user_include_patterns:
             return []

@@ -10,6 +10,7 @@ import threading
 import uvicorn
 from flask import Flask, request, Response, session, redirect, url_for, render_template_string
 from werkzeug.wrappers.response import Response as BaseResponse
+from werkzeug.wrappers.request import Request as WerkzeugRequest
 
 import initialize
 from python.helpers import files, git, mcp_server, fasta2a_server, settings as settings_helper
@@ -43,12 +44,21 @@ if hasattr(time, 'tzset'):
 # initialize the internal Flask server
 webapp = Flask("app", static_folder=get_abs_path("./webui"), static_url_path="/")
 webapp.secret_key = os.getenv("FLASK_SECRET_KEY") or secrets.token_hex(32)
+
+UPLOAD_LIMIT_BYTES = 5 * 1024 * 1024 * 1024
+
+# Werkzeug's default max_form_memory_size is 500_000 bytes which can trigger 413 for multipart requests
+# with larger non-file fields. Raise it to match our intended upload limit.
+WerkzeugRequest.max_form_memory_size = UPLOAD_LIMIT_BYTES
+
 webapp.config.update(
     JSON_SORT_KEYS=False,
     SESSION_COOKIE_NAME="session_" + runtime.get_runtime_id(),  # bind the session cookie name to runtime id to prevent session collision on same host
     SESSION_COOKIE_SAMESITE="Strict",
     SESSION_PERMANENT=True,
-    PERMANENT_SESSION_LIFETIME=timedelta(days=1)
+    PERMANENT_SESSION_LIFETIME=timedelta(days=1),
+    MAX_CONTENT_LENGTH=int(os.getenv("FLASK_MAX_CONTENT_LENGTH", str(UPLOAD_LIMIT_BYTES))),
+    MAX_FORM_MEMORY_SIZE=int(os.getenv("FLASK_MAX_FORM_MEMORY_SIZE", str(UPLOAD_LIMIT_BYTES))),
 )
 
 lock = threading.RLock()
