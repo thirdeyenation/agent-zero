@@ -14,6 +14,8 @@ class Projects(ApiHandler):
         try:
             if action == "list":
                 data = self.get_active_projects_list()
+            elif action == "list_options":
+                data = self.get_active_projects_options()
             elif action == "load":
                 data = self.load_project(input.get("name", None))
             elif action == "create":
@@ -45,6 +47,14 @@ class Projects(ApiHandler):
 
     def get_active_projects_list(self):
         return projects.get_active_projects_list()
+
+    def get_active_projects_options(self):
+        items = projects.get_active_projects_list() or []
+        return [
+            {"key": p.get("name", ""), "label": p.get("title", "") or p.get("name", "")}
+            for p in items
+            if p.get("name")
+        ]
 
     def create_project(self, project: dict|None):
         if project is None:

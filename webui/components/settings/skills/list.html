@@ -15,30 +15,37 @@
                     Browse skills across global and project scopes. Duplicates are shown individually.
                 </div>
 
-                <div class="skills-list-controls">
-                    <div class="field">
-                        <div class="field-label">
-                            <div class="field-title">Filter by project</div>
-                            <!-- <div class="field-description">
-                                Includes global skills plus the selected project.
-                            </div> -->
-                        </div>
-                        <div class="field-control">
+                <div class="skills-toolbar">
+                    <div class="skills-toolbar-row">
+                        <label class="skills-toolbar-item">
+                            <span class="skills-toolbar-label">Project</span>
                             <select x-model="$store.skillsListStore.projectName"
                                 @change="$store.skillsListStore.loadSkills()">
-                                <option value="">No project</option>
-                                <template x-for="project in $store.skillsListStore.projects" :key="project.name">
-                                    <option :value="project.name" x-text="project.title || project.name"></option>
+                                <option value="">All</option>
+                                <template x-for="project in $store.skillsListStore.projects" :key="project.key">
+                                    <option :value="project.key" x-text="project.label"></option>
                                 </template>
                             </select>
+                        </label>
+
+                        <label class="skills-toolbar-item">
+                            <span class="skills-toolbar-label">Agent profile</span>
+                            <select x-model="$store.skillsListStore.agentProfileKey"
+                                @change="$store.skillsListStore.loadSkills()">
+                                <option value="">All</option>
+                                <template x-for="agentProfile in $store.skillsListStore.agentProfiles" :key="agentProfile.key">
+                                    <option :value="agentProfile.key" x-text="agentProfile.label"></option>
+                                </template>
+                            </select>
+                        </label>
+
+                        <div class="skills-toolbar-actions">
+                            <button type="button" class="button confirm" title="Refresh"
+                                @click="$store.skillsListStore.loadSkills()"
+                                :disabled="$store.skillsListStore.loading">
+                                <span class="icon material-symbols-outlined">refresh</span> Refresh
+                            </button>
                         </div>
-                    </div>
-                    <div class="skills-list-actions">
-                        <button type="button" class="button confirm" title="Refresh"
-                            @click="$store.skillsListStore.loadSkills()"
-                            :disabled="$store.skillsListStore.loading">
-                            <span class="icon material-symbols-outlined">refresh</span> Refresh
-                        </button>
                     </div>
                 </div>
 
@@ -59,9 +66,12 @@
                     <template x-for="skill in $store.skillsListStore.skills" :key="skill.path">
                         <div class="skill-card">
                             <div class="skill-header">
-                                <div class="skill-title" x-text="skill.name || '(unnamed skill)'"></div>
+                                <div class="skill-heading">
+                                    <div class="skill-title" x-text="skill.name || '(unnamed skill)'"></div>
+                                    <code class="skill-path" x-text="skill.path"></code>
+                                </div>
                                 <div class="skill-actions">
-                                    <button type="button" class="button confirm" title="Open in browser"
+                                    <button type="button" class="button" title="Open in browser"
                                         @click="$store.skillsListStore.openSkill(skill)">
                                         <span class="icon material-symbols-outlined">folder_open</span> Open
                                     </button>
@@ -72,10 +82,6 @@
                                 </div>
                             </div>
                             <div class="skill-description" x-text="skill.description || 'No description provided.'"></div>
-                            <div class="skill-location">
-                                <span>Location:</span>
-                                <code x-text="skill.path"></code>
-                            </div>
                         </div>
                     </template>
                 </div>
@@ -85,16 +91,63 @@
     </div>
 
     <style>
-        .skills-list-controls {
+        .skills-toolbar {
             display: flex;
-            align-items: flex-end;
-            justify-content: space-between;
-            gap: 1rem;
+            flex-direction: column;
+            gap: 0.35rem;
+            margin-top: 0.5rem;
+        }
+
+        .skills-toolbar-row {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
             flex-wrap: wrap;
         }
 
-        .skills-list-actions {
+        .skills-toolbar-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex: 1 1 18rem;
+            min-width: 12rem;
+            margin: 0;
+        }
+
+        .skills-toolbar-label {
+            font-weight: 600;
+            color: var(--color-text-secondary);
+            white-space: nowrap;
+        }
+
+        .skills-toolbar-item select {
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+
+        .skills-toolbar-actions {
             margin-left: auto;
+            flex: 0 0 auto;
+        }
+
+        @media (max-width: 640px) {
+            .skills-toolbar-row {
+                gap: 0.5rem;
+            }
+
+            .skills-toolbar-item {
+                flex-basis: 100%;
+                min-width: 0;
+            }
+
+            .skills-toolbar-actions {
+                width: 100%;
+                margin-left: 0;
+            }
+
+            .skills-toolbar-actions .button {
+                width: 100%;
+            }
         }
 
         .skills-list {
@@ -114,12 +167,22 @@
             align-items: flex-start;
             justify-content: space-between;
             gap: 1rem;
-            flex-wrap: wrap;
+            flex-wrap: nowrap;
+            min-width: 0;
+        }
+
+        .skill-heading {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            flex: 1 1 auto;
         }
 
         .skill-title {
             font-weight: 600;
             font-size: 1rem;
+            min-width: 0;
+            flex: 1 1 auto;
         }
 
         .skill-actions {
@@ -128,21 +191,27 @@
             gap: 0.5rem;
             padding-bottom: var(--spacing-sm);
             flex-wrap: wrap;
+            min-width: 0;
+            flex: 0 1 11.5rem;
+            max-width: 100%;
+            justify-content: flex-end;
         }
 
         .skill-description {
             margin-top: 0.35rem;
             color: var(--color-text-secondary);
+            font-size: var(--font-size-small);
         }
 
-        .skill-location {
+        .skill-path {
             margin-top: 0.35rem;
             font-size: 0.85rem;
-            color: var(--color-text-secondary);
-            display: flex;
-            gap: 0.5rem;
-            align-items: center;
-            flex-wrap: wrap;
+            color: var(--color-text-muted);
+            min-width: 0;
+            max-width: 100%;
+            white-space: pre-wrap;
+            word-break: break-word;
+            overflow-wrap: anywhere;
         }
 
         .skills-empty {

@@ -31,20 +31,13 @@ class SkillsImportPreview(ApiHandler):
             return {"success": False, "error": "No context id provided"}
         _context = self.use_context(ctxid)
 
-        dest = (request.form.get("dest", "custom") or "custom").strip().lower()
-        if dest not in ("custom", "project"):
-            dest = "custom"
-
         conflict = (request.form.get("conflict", "skip") or "skip").strip().lower()
         if conflict not in ("skip", "overwrite", "rename"):
             conflict = "skip"
 
         namespace = (request.form.get("namespace", "") or "").strip() or None
         project_name = (request.form.get("project_name", "") or "").strip() or None
-
-        # If dest is "project", project_name is required
-        if dest == "project" and not project_name:
-            return {"success": False, "error": "project_name is required when dest is 'project'"}
+        agent_profile = (request.form.get("agent_profile", "") or "").strip() or None
 
         # Save upload to a temp file so we can pass a filesystem path to the importer
         tmp_dir = Path(files.get_abs_path("tmp", "uploads"))
@@ -60,11 +53,11 @@ class SkillsImportPreview(ApiHandler):
         try:
             result = import_skills(
                 str(tmp_path),
-                dest_subdir=dest,  # type: ignore[arg-type]
                 namespace=namespace,
                 conflict=conflict,  # type: ignore[arg-type]
                 dry_run=True,
                 project_name=project_name,
+                agent_profile=agent_profile,
             )
 
             imported = [files.deabsolute_path(str(p)) for p in result.imported]

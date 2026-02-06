@@ -1,6 +1,5 @@
 import { createStore } from "/js/AlpineStore.js";
-
-const fetchApi = globalThis.fetchApi;
+import * as api from "/js/api.js";
 
 function sanitizeNamespace(text) {
   if (!text) return "";
@@ -16,11 +15,12 @@ const model = {
   error: "",
 
   skillsFile: null,
-  dest: "custom", // custom|project
   namespace: "",
   conflict: "skip", // skip|overwrite|rename
-  projectName: "", // selected project name when dest is "project"
-  projects: [], // available projects list
+  projectKey: "", // selected project key, empty means All
+  agentProfileKey: "", // selected agent profile key, empty means All
+  projects: [], // available projects options [{key,label}]
+  agentProfiles: [], // available agent profile options [{key,label}]
 
   preview: null,
   result: null,
@@ -28,6 +28,7 @@ const model = {
   init() {
     this.resetState();
     this.loadProjects();
+    this.loadAgentProfiles();
   },
 
   resetState() {
@@ -42,23 +43,28 @@ const model = {
     this.resetState();
     this.skillsFile = null;
     this.namespace = "";
-    this.dest = "custom";
     this.conflict = "skip";
-    this.projectName = "";
+    this.projectKey = "";
+    this.agentProfileKey = "";
   },
 
   async loadProjects() {
     try {
-      const response = await fetchApi("/projects", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "list" }),
-      });
-      const data = await response.json();
+      const data = await api.callJsonApi("/projects", { action: "list_options" });
       this.projects = data.ok ? (data.data || []) : [];
     } catch (e) {
       console.error("Failed to load projects:", e);
       this.projects = [];
+    }
+  },
+
+  async loadAgentProfiles() {
+    try {
+      const data = await api.callJsonApi("/agents", { action: "list" });
+      this.agentProfiles = data.ok ? (data.data || []) : [];
+    } catch (e) {
+      console.error("Failed to load agent profiles:", e);
+      this.agentProfiles = [];
     }
   },
 
@@ -86,11 +92,15 @@ const model = {
     const formData = new FormData();
     formData.append("skills_file", this.skillsFile);
     formData.append("ctxid", globalThis.getContext ? globalThis.getContext() : "");
-    formData.append("dest", this.dest);
     formData.append("namespace", sanitizeNamespace(this.namespace));
     formData.append("conflict", this.conflict);
-    if (this.dest === "project" && this.projectName) {
-      formData.append("project_name", this.projectName);
+
+    if (this.projectKey) {
+      formData.append("project_name", this.projectKey);
+    }
+
+    if (this.agentProfileKey) {
+      formData.append("agent_profile", this.agentProfileKey);
     }
     return formData;
   },
@@ -101,18 +111,13 @@ const model = {
       return;
     }
 
-    if (this.dest === "project" && !this.projectName) {
-      this.error = "Please select a project";
-      return;
-    }
-
     try {
       this.loading = true;
       this.loadingMessage = "Previewing skills import...";
       this.error = "";
       this.preview = null;
 
-      const response = await fetchApi("/skills_import_preview", {
+      const response = await api.fetchApi("/skills_import_preview", {
         method: "POST",
         body: this.buildFormData(),
       });
@@ -140,18 +145,13 @@ const model = {
       return;
     }
 
-    if (this.dest === "project" && !this.projectName) {
-      this.error = "Please select a project";
-      return;
-    }
-
     try {
       this.loading = true;
       this.loadingMessage = "Importing skills...";
       this.error = "";
       this.result = null;
 
-      const response = await fetchApi("/skills_import", {
+      const response = await api.fetchApi("/skills_import", {
         method: "POST",
         body: this.buildFormData(),
       });

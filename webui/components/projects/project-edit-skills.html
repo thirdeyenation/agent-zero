@@ -7,16 +7,7 @@
     </script>
 </head>
 <body>
-    <div x-data="{
-        openSkillsImport() {
-            // Pre-configure the skills import for this project
-            if ($store.skillsImportStore) {
-                $store.skillsImportStore.dest = 'project';
-                $store.skillsImportStore.projectName = $store.projects.selectedProject.name;
-            }
-            openModal('settings/skills/import.html');
-        }
-    }">
+    <div x-data>
         <template x-if="$store.projects && $store.projects.selectedProject">
             <div class="project-skills-section">
                 <p class="skills-description">
@@ -25,15 +16,20 @@
                 </p>
 
                 <div class="skills-actions">
-                    <button type="button" class="button" @click="openSkillsImport()">
+                    <button type="button" class="button" @click="$store.projects.openSelectedProjectSkillsImport()">
+                        <span class="icon material-symbols-outlined">upload</span>
                         Import Skills
+                    </button>
+                    <button type="button" class="button" @click="$store.projects.openSelectedProjectSkillsFolder()">
+                        <span class="icon material-symbols-outlined">folder_open</span>
+                        Open Folder
                     </button>
                 </div>
 
                 <div class="skills-info">
                     <p>
                         <strong>Project Skills Location:</strong><br>
-                        <code x-text="'usr/projects/' + $store.projects.selectedProject.name + '/.a0proj/skills/'"></code>
+                        <code x-text="$store.projects.getSelectedProjectSkillsPath()"></code>
                     </p>
                     <p class="skills-note">
                         Use the global Settings &gt; Skills tab for custom skills available to all projects.

@@ -14,7 +14,6 @@ from python.helpers.skills import discover_skill_md_files
 
 
 ConflictPolicy = Literal["skip", "overwrite", "rename"]
-DestSubdir = Literal["custom", "project"]
 
 # Project skills folder name (inside .a0proj)
 PROJECT_SKILLS_DIR = "skills"
@@ -177,19 +176,39 @@ def get_project_skills_folder(project_name: str) -> Path:
     return Path(get_project_meta_folder(project_name, PROJECT_SKILLS_DIR))
 
 
+def get_agent_profile_skills_folder(profile_name: str) -> Path:
+    return Path(files.get_abs_path("usr", "agents", profile_name, "skills"))
+
+
+def get_project_agent_profile_skills_folder(project_name: str, profile_name: str) -> Path:
+    from python.helpers.projects import get_project_meta_folder
+    return Path(get_project_meta_folder(project_name, "agents", profile_name, "skills"))
+
+
+def resolve_skills_destination_root(
+    project_name: Optional[str],
+    agent_profile: Optional[str],
+) -> Path:
+    if project_name and agent_profile:
+        return get_project_agent_profile_skills_folder(project_name, agent_profile)
+    if project_name:
+        return get_project_skills_folder(project_name)
+    if agent_profile:
+        return get_agent_profile_skills_folder(agent_profile)
+    return Path(files.get_abs_path("usr", "skills"))
+
+
 def import_skills(
     source_path: str,
     *,
-    dest_subdir: DestSubdir = "custom",
     namespace: Optional[str] = None,
     conflict: ConflictPolicy = "skip",
     dry_run: bool = False,
     project_name: Optional[str] = None,
+    agent_profile: Optional[str] = None,
 ) -> ImportResult:
     """
-    Import external Skills into usr/skills/<dest_subdir>/<namespace>/...
-
-    If dest_subdir is "project", imports into the project's .a0proj/skills/ folder.
+    Import external Skills into usr/skills/<namespace>/...
 
     - source_path can be a directory or a .zip file
     - Uses heuristics to detect the Skills root(s)
@@ -202,13 +221,7 @@ def import_skills(
     if not src.exists():
         raise FileNotFoundError(f"Source not found: {src}")
 
-    # Determine destination root based on dest_subdir
-    if dest_subdir == "project":
-        if not project_name:
-            raise ValueError("project_name is required when dest_subdir is 'project'")
-        dest_root = get_project_skills_folder(project_name)
-    else:
-        dest_root = Path(files.get_abs_path("usr", "skills"))
+    dest_root = resolve_skills_destination_root(project_name, agent_profile)
     dest_root.mkdir(parents=True, exist_ok=True)
 
     extracted_root: Optional[Path] = None

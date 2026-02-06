@@ -1,5 +1,5 @@
 from python.helpers.api import ApiHandler, Input, Output, Request, Response
-from python.helpers import skills, projects, files
+from python.helpers import runtime, skills, projects, files
 
 
 class Skills(ApiHandler):
@@ -30,8 +30,27 @@ class Skills(ApiHandler):
         # filter by project
         if project_name := (input.get("project_name") or "").strip() or None:
             project_folder = projects.get_project_folder(project_name)
+            if runtime.is_development():
+                project_folder = files.normalize_a0_path(project_folder)
             skill_list = [
                 s for s in skill_list if files.is_in_dir(str(s.path), project_folder)
+            ]
+
+        # filter by agent profile
+        if agent_profile := (input.get("agent_profile") or "").strip() or None:
+            roots: list[str] = [
+                files.get_abs_path("agents", agent_profile, "skills"),
+                files.get_abs_path("usr", "agents", agent_profile, "skills"),
+            ]
+            if project_name:
+                roots.append(
+                    projects.get_project_meta_folder(project_name, "agents", agent_profile, "skills")
+                )
+
+            skill_list = [
+                s
+                for s in skill_list
+                if any(files.is_in_dir(str(s.path), r) for r in roots)
             ]
 
         result = []
@@ -41,6 +60,7 @@ class Skills(ApiHandler):
                 "description": skill.description,
                 "path": str(skill.path),
             })
+        result.sort(key=lambda x: (x["name"], x["path"]))
         return result
 
     def delete_skill(self, input: Input):

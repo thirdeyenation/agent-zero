@@ -25,21 +25,23 @@
 
                 <div class="options" x-show="$store.skillsImportStore.skillsFile">
                     <label class="policy-label">
-                        <span class="policy-label-text">Destination:</span>
-                        <select x-model="$store.skillsImportStore.dest" class="policy-dropdown"
+                        <span class="policy-label-text">Limit to project:</span>
+                        <select x-model="$store.skillsImportStore.projectKey" class="policy-dropdown"
                             @change="$store.skillsImportStore.previewImport()">
-                            <option value="custom">Custom</option>
-                            <option value="project">Project</option>
+                            <option value="">All</option>
+                            <template x-for="project in $store.skillsImportStore.projects" :key="project.key">
+                                <option :value="project.key" x-text="project.label"></option>
+                            </template>
                         </select>
                     </label>
 
-                    <label class="policy-label" x-show="$store.skillsImportStore.dest === 'project'">
-                        <span class="policy-label-text">Project:</span>
-                        <select x-model="$store.skillsImportStore.projectName" class="policy-dropdown"
+                    <label class="policy-label">
+                        <span class="policy-label-text">Limit to agent profile:</span>
+                        <select x-model="$store.skillsImportStore.agentProfileKey" class="policy-dropdown"
                             @change="$store.skillsImportStore.previewImport()">
-                            <option value="">Select a project...</option>
-                            <template x-for="project in $store.skillsImportStore.projects" :key="project.name">
-                                <option :value="project.name" x-text="project.title || project.name"></option>
+                            <option value="">All</option>
+                            <template x-for="agentProfile in $store.skillsImportStore.agentProfiles" :key="agentProfile.key">
+                                <option :value="agentProfile.key" x-text="agentProfile.label"></option>
                             </template>
                         </select>
                     </label>
@@ -80,7 +82,6 @@
                 <div x-show="$store.skillsImportStore.preview" class="preview">
                     <h4>Preview</h4>
                     <div class="preview-meta">
-                        <div>Destination: <code x-text="$store.skillsImportStore.preview?.destination"></code></div>
                         <div>Namespace: <code x-text="$store.skillsImportStore.preview?.namespace"></code></div>
                         <div>Would import: <span x-text="$store.skillsImportStore.preview?.imported_count || 0"></span></div>
                         <div>Would skip: <span x-text="$store.skillsImportStore.preview?.skipped_count || 0"></span></div>
@@ -135,16 +136,18 @@
         }
 
         .policy-label {
-            display: flex;
+            display: grid;
+            grid-template-columns: minmax(10rem, 14rem) 1fr;
             align-items: center;
-            gap: 0.5rem;
+            column-gap: 0.75rem;
+            row-gap: 0.25rem;
             margin: 0.5rem 0;
         }
 
         .policy-label-text {
             font-weight: 600;
-            white-space: nowrap;
-            width: 9rem;
+            white-space: normal;
+            width: auto;
         }
 
         .policy-dropdown, .text-input {
@@ -213,6 +216,17 @@
             margin-top: 0.5rem;
             font-size: 0.9rem;
             color: var(--color-text-secondary);
+        }
+
+        @media (max-width: 700px) {
+            .policy-label {
+                grid-template-columns: 1fr;
+            }
+
+            .policy-label-text {
+                width: auto;
+                white-space: normal;
+            }
         }
     </style>
 </body>

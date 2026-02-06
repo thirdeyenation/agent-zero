@@ -4,6 +4,7 @@ import * as modals from "/js/modals.js";
 import * as notifications from "/components/notifications/notification-store.js";
 import { store as chatsStore } from "/components/sidebar/chats/chats-store.js";
 import { store as browserStore } from "/components/modals/file-browser/file-browser-store.js";
+import { store as skillsImportStore } from "/components/settings/skills/skills-import-store.js";
 import * as shortcuts from "/js/shortcuts.js";
 import { showConfirmDialog } from "/js/confirmDialog.js";
 
@@ -63,6 +64,27 @@ const model = {
       .replace(/^-+|-+$/g, "") // remove any leading and trailing underscores
       .replace(/^_+|_+$/g, "");
     return s;
+  },
+
+  getSelectedProjectSkillsPath() {
+    const projectName = this.selectedProject?.name;
+    if (!projectName) return "";
+    return `usr/projects/${projectName}/.a0proj/skills/`;
+  },
+
+  async openSelectedProjectSkillsImport() {
+    const projectName = this.selectedProject?.name;
+    if (!projectName) return;
+
+    skillsImportStore.projectKey = projectName;
+    skillsImportStore.agentProfileKey = "";
+    await modals.openModal("settings/skills/import.html");
+  },
+
+  async openSelectedProjectSkillsFolder() {
+    const path = this.getSelectedProjectSkillsPath();
+    if (!path) return;
+    await browserStore.open(path);
   },
 
   async openProjectsModal() {

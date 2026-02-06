@@ -1,7 +1,5 @@
 import { createStore } from "/js/AlpineStore.js";
 import { store as fileBrowserStore } from "/components/modals/file-browser/file-browser-store.js";
-import { store as settingsStore } from "/components/settings/settings-store.js";
-import { store as chatsStore } from "/components/sidebar/chats/chats-store.js";
 
 const fetchApi = globalThis.fetchApi;
 
@@ -11,12 +9,12 @@ const model = {
   skills: [],
   projects: [],
   projectName: "",
-  profileName: "",
+  agentProfiles: [],
+  agentProfileKey: "",
 
   async init() {
     this.resetState();
-    await this.loadProjects();
-    this.setDefaultProject();
+    await Promise.all([this.loadProjects(), this.loadAgentProfiles()]);
     await this.loadSkills();
   },
 
@@ -26,23 +24,27 @@ const model = {
     this.skills = [];
     this.projects = [];
     this.projectName = "";
-    this.profileName = "";
+    this.agentProfiles = [];
+    this.agentProfileKey = "";
   },
 
   onClose() {
     this.resetState();
   },
 
-  setDefaultProject() {
-    if (this.projectName) return;
-    const active = chatsStore?.selectedContext?.project?.name;
-    if (active) {
-      this.projectName = active;
+  async loadAgentProfiles() {
+    try {
+      const response = await fetchApi("/agents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "list" }),
+      });
+      const data = await response.json().catch(() => ({}));
+      this.agentProfiles = data.ok ? (data.data || []) : [];
+    } catch (e) {
+      console.error("Failed to load agent profiles:", e);
+      this.agentProfiles = [];
     }
-  },
-
-  refreshProfileName() {
-    this.profileName = settingsStore?.settings?.agent_profile || "";
   },
 
   async loadProjects() {
@@ -50,7 +52,7 @@ const model = {
       const response = await fetchApi("/projects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "list" }),
+        body: JSON.stringify({ action: "list_options" }),
       });
       const data = await response.json().catch(() => ({}));
       this.projects = data.ok ? (data.data || []) : [];
@@ -61,7 +63,6 @@ const model = {
   },
 
   async loadSkills() {
-    this.refreshProfileName();
     try {
       this.loading = true;
       this.error = "";
@@ -71,7 +72,7 @@ const model = {
         body: JSON.stringify({
           action: "list",
           project_name: this.projectName || null,
-          profile_name: this.profileName || null,
+          agent_profile: this.agentProfileKey || null,
         }),
       });
       const result = await response.json().catch(() => ({}));
@@ -117,8 +118,7 @@ const model = {
   },
 
   async openSkill(skill) {
-    if (!skill?.location) return;
-    await fileBrowserStore.open(skill.location);
+    await fileBrowserStore.open(skill.path);
   },
 };
 

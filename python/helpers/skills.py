@@ -236,7 +236,7 @@ def skill_from_markdown(
     fm, body, fm_errors = split_frontmatter(text)
     if fm_errors:
         return None
-    skill_dir = skill_md_path.parent
+    skill_dir = Path(files.normalize_a0_path(str(skill_md_path.parent)))
 
     name = str(fm.get("name") or fm.get("skill") or "").strip()
     description = str(
@@ -325,6 +325,8 @@ def delete_skill(
     """Delete a skill directory."""
 
     skill_path = files.get_abs_path(skill_path)
+    if runtime.is_development():
+        skill_path = files.fix_dev_path(skill_path)
 
     allowed_roots = get_skill_roots()
     for root in allowed_roots:

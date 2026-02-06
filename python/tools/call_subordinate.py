@@ -16,7 +16,7 @@ class Delegation(Tool):
             config = initialize_agent()
 
             # set subordinate prompt profile if provided, if not, keep original
-            agent_profile = kwargs.get("profile")
+            agent_profile = kwargs.get("profile", kwargs.get("agent_profile", ""))
             if agent_profile:
                 config.profile = agent_profile
 

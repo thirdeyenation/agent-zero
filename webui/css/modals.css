@@ -200,7 +200,7 @@ some classes like modal-header are shared between the old and the new system */
 .section {
   margin-bottom: 2rem;
   padding: 1rem;
-  padding-bottom: 0;
+  /* padding-bottom: 0; */
   border: 1px solid var(--color-border);
   border-radius: 0.5rem;
 }
@@ -444,7 +444,7 @@ input[type="range"]::-moz-range-thumb {
   .section {
     margin-bottom: 1.5rem;
     padding: 1rem;
-    padding-bottom: 0;
+    /* padding-bottom: 0; */
     border: 1px solid var(--color-border);
     border-radius: 0.5rem;
   }
