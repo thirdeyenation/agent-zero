@@ -661,7 +661,7 @@ const model = {
     // Check Agent Zero version compatibility
     // Note: Both backup and current versions are obtained via git.get_git_info()
     const backupVersion = this.backupMetadata.agent_zero_version;
-    const currentVersion = "current"; // Retrieved from git.get_git_info() on backend
+    const currentVersion = globalThis.gitinfo.version; // Retrieved from git.get_git_info() on backend
 
     if (backupVersion !== currentVersion && backupVersion !== "development") {
       warnings.push(`Backup created with Agent Zero ${backupVersion}, current version is ${currentVersion}`);
