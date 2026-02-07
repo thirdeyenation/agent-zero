@@ -784,25 +784,34 @@ export function drawMessageResponse({
 
   // response of agent 0, render as response to user
   // get last process group or create new container (if first message)
+
   const group = getLastProcessGroup();
-  let container = null;
+  let container = document.getElementById(`message-${id}`); // first check for already existing message
 
-  if (group) {
-    // new response, collapse all previous steps once
-    if (!group.querySelector(".process-group-response")) {
-      if (preferencesStore.detailMode == "current")
-        group.querySelectorAll(".process-step").forEach((step) => {
-          scheduleStepCollapse(step);
-        });
+
+  // if no container found, add to previous process group if exists
+  if (!container) {
+    if (group) {
+      // new response, collapse all previous steps once
+      if (!group.querySelector(".process-group-response")) {
+        if (preferencesStore.detailMode == "current")
+          group.querySelectorAll(".process-step").forEach((step) => {
+            scheduleStepCollapse(step);
+          });
+      }
+
+      container = ensureChild(
+        group,
+        `#message-${id}.process-group-response`,
+        "div",
+        "process-group-response",
+      );
+      container.id = `message-${id}`;
     }
+  }
 
-    container = ensureChild(
-      group,
-      ".process-group-response",
-      "div",
-      "process-group-response",
-    );
-  } else container = getOrCreateMessageContainer(id, "left");
+  // no container or valid process group, create new container
+  if (!container) container = getOrCreateMessageContainer(id, "left");
 
   const messageDiv = _drawMessage({
     messageContainer: container,
