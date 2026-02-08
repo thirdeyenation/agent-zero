@@ -397,14 +397,18 @@ function drawProcessStep({
   const kvpsTable = drawKvpsIncremental(stepDetailScroll, kvps);
 
   // update content
-  const stepDetailContent = ensureChild(
+  let stepDetailContent;
+  if(content){
+  stepDetailContent = ensureChild(
     stepDetailScroll,
     ".process-step-detail-content",
     "p",
     "process-step-detail-content",
     ...(contentClasses || []),
   );
-  stepDetailContent.textContent = content;
+  const adjustedContent = adjustStepContent(content)
+  stepDetailContent.innerHTML = adjustedContent;
+  }
 
   // reapply scroll position (autoscroll if bottom) - only when expanded already and not mass rendering
   if (isExpanded) detailScroller.reApplyScroll();
@@ -445,6 +449,12 @@ function drawProcessStep({
     actionButtons: stepActionBtns,
     isExpanded,
   };
+}
+
+function adjustStepContent(content) {
+  content = escapeHTML(content);
+  content = convertPathsToLinks(content);
+  return content;
 }
 
 function toggleStepCollapse(step, expanded) {
