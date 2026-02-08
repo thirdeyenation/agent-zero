@@ -51,6 +51,8 @@ class IncludeWorkdirExtras(Extension):
             folder = set["workdir_path"]
             scan_path = files.get_abs_path_development(folder)
 
+            files.create_dir(scan_path)
+
             file_structure = str(
                 file_tree.file_tree(
                     scan_path,
