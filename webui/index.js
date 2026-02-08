@@ -60,6 +60,7 @@ export async function sendMessage() {
       }
 
       // Sending a message is an explicit user intent to go to the bottom
+      msgs.scrollOnNextProcessGroup();
       forceScrollChatToBottom();
 
       let response;

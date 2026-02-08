@@ -26,6 +26,11 @@ let _chatHistory = null;
 
 // state vars
 let _massRender = false;
+let _scrollOnNextProcessGroup = null;
+
+export function scrollOnNextProcessGroup() {
+  _scrollOnNextProcessGroup = "wait";
+}
 
 // handlers for log message rendering
 export function getMessageHandler(type) {
@@ -96,6 +101,13 @@ export function setMessages(messages) {
   const shouldScroll = historyEmpty || !results[results.length - 1]?.dontScroll;
 
   if (shouldScroll) mainScroller.reApplyScroll();
+
+  if (_scrollOnNextProcessGroup === "scroll") {
+    requestAnimationFrame(() => {
+      mainScroller.scrollToBottom();
+      _scrollOnNextProcessGroup = null;
+    });
+  }
 }
 
 // entrypoint called from poll/WS communication, this is how all messages are rendered and updated
@@ -212,6 +224,10 @@ function getOrCreateProcessGroup(id, allowCompleted = true) {
   const group = createProcessGroup(id);
   group.classList.add("embedded");
   messageContainer.appendChild(group);
+
+  if (_scrollOnNextProcessGroup === "wait") {
+    _scrollOnNextProcessGroup = "scroll";
+  }
 
   appendToMessageGroup(messageContainer, "left");
   return group;
