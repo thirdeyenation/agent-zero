@@ -21,11 +21,14 @@ knowledge/custom/
 instruments/
 
 # Handle logs directory
-logs/*
+logs/**
+!logs/**/
 
 # Handle tmp and usr directory
-tmp/*
-usr/*
+tmp/**
+!tmp/**/
+usr/**
+!usr/**/
 
 # Handle knowledge directory
 

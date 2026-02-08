@@ -3,7 +3,7 @@ from dataclasses import dataclass
 import shlex
 import time
 from python.helpers.tool import Tool, Response
-from python.helpers import files, rfc_exchange, projects, runtime
+from python.helpers import files, rfc_exchange, projects, runtime, settings
 from python.helpers.print_style import PrintStyle
 from python.helpers.shell_local import LocalInteractiveSession
 from python.helpers.shell_ssh import SSHInteractiveSession
@@ -135,6 +135,7 @@ class CodeExecution(Tool):
 
         # initialize local or remote interactive shell interface for session 0 if needed
         if session is not None and session not in shells:
+            cwd = await self.ensure_cwd()
             if self.agent.config.code_exec_ssh_enabled:
                 pswd = (
                     self.agent.config.code_exec_ssh_pass
@@ -147,10 +148,10 @@ class CodeExecution(Tool):
                     self.agent.config.code_exec_ssh_port,
                     self.agent.config.code_exec_ssh_user,
                     pswd,
-                    cwd=self.get_cwd(),
+                    cwd=cwd,
                 )
             else:
-                shell = LocalInteractiveSession(cwd=self.get_cwd())
+                shell = LocalInteractiveSession(cwd=cwd)
 
             shells[session] = ShellWrap(id=session, session=shell, running=False)
             await shell.connect()
@@ -472,13 +473,24 @@ class CodeExecution(Tool):
         output = truncate_text_agent(agent=self.agent, output=output, threshold=1000000) # ~1MB, larger outputs should be dumped to file, not read from terminal
         return output
 
-    def get_cwd(self):
+    async def ensure_cwd(self) -> str | None:
         project_name = projects.get_context_project_name(self.agent.context)
-        if not project_name:
+        if project_name:
+            path = projects.get_project_folder(project_name)
+        else:
+            set = settings.get_settings()
+            path = set.get("workdir_path")
+
+        if not path:
             return None
-        project_path = projects.get_project_folder(project_name)
-        normalized = files.normalize_a0_path(project_path)
+
+        normalized = files.normalize_a0_path(path)
+        await runtime.call_development_function(make_dir, normalized)
         return normalized
+
+def make_dir(path: str):
+    import os
+    os.makedirs(path, exist_ok=True)
         
 
         

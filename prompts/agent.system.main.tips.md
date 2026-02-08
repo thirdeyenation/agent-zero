@@ -7,7 +7,7 @@ never assume success
 memory refers memory tools not own knowledge
 
 ## Files
-when not in project save files in /root
+when not in project save files in {{workdir_path}}
 don't use spaces in file names
 
 ## Skills

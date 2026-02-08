@@ -509,6 +509,19 @@ def get_abs_path(*relative_paths):
     "Convert relative paths to absolute paths based on the base directory."
     return os.path.join(get_base_dir(), *relative_paths)
 
+def get_abs_path_dockerized(*relative_paths):
+    "Ensures the abs path is dockerized (i.e. /a0/... path)"
+    abs = get_abs_path(*relative_paths)
+    from python.helpers import runtime
+    if runtime.is_dockerized():
+        return abs
+    return normalize_a0_path(abs)
+
+def get_abs_path_development(*relative_paths):
+    "Ensures the abs path is relevant for dev environment"
+    abs = get_abs_path(*relative_paths)
+    return fix_dev_path(abs)
+
 
 def deabsolute_path(path: str):
     "Convert absolute paths to relative paths based on the base directory."

@@ -5,7 +5,7 @@ place code in "code" arg; escape carefully and indent properly
 select "runtime" arg: "terminal" "python" "nodejs" "output"
 select "session" number, 0 default, others for multitasking
 if code runs long, use runtime "output" to wait
-use reset true on next call to kill previous process when stuck default false
+use argument reset true on next call to kill previous process when stuck default false
 use "pip" "npm" "apt-get" in "terminal" to install package
 to output, use print() or console.log()
 if tool outputs error, adjust code before retrying; 

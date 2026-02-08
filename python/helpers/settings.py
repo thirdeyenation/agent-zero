@@ -50,7 +50,6 @@ def get_default_value(name: str, value: T) -> T:
         )
         return value
 
-
 class Settings(TypedDict):
     version: str
 
@@ -95,6 +94,14 @@ class Settings(TypedDict):
     agent_profile: str
     agent_memory_subdir: str
     agent_knowledge_subdir: str
+
+    workdir_path: str
+    workdir_show: bool
+    workdir_max_depth: int
+    workdir_max_files: int
+    workdir_max_folders: int
+    workdir_max_lines: int
+    workdir_gitignore: str
 
     memory_recall_enabled: bool
     memory_recall_delayed: bool
@@ -479,6 +486,7 @@ def _write_sensitive_settings(settings: Settings):
 
 
 def get_default_settings() -> Settings:
+    gitignore = files.read_file(files.get_abs_path("conf/workdir.gitignore"))
     return Settings(
         version=_get_version(),
         chat_model_provider=get_default_value("chat_model_provider", "openrouter"),
@@ -536,6 +544,13 @@ def get_default_settings() -> Settings:
         agent_profile=get_default_value("agent_profile", "agent0"),
         agent_memory_subdir=get_default_value("agent_memory_subdir", "default"),
         agent_knowledge_subdir=get_default_value("agent_knowledge_subdir", "custom"),
+        workdir_path=get_default_value("workdir_path", files.get_abs_path_dockerized("usr/workdir")),
+        workdir_show=get_default_value("workdir_show", True),
+        workdir_max_depth=get_default_value("workdir_max_depth", 5),
+        workdir_max_files=get_default_value("workdir_max_files", 20),
+        workdir_max_folders=get_default_value("workdir_max_folders", 20),
+        workdir_max_lines=get_default_value("workdir_max_lines", 250),
+        workdir_gitignore=get_default_value("workdir_gitignore", gitignore),
         rfc_auto_docker=get_default_value("rfc_auto_docker", True),
         rfc_url=get_default_value("rfc_url", "localhost"),
         rfc_password="",

@@ -6,6 +6,7 @@ import socket
 import struct
 from functools import wraps
 import threading
+import asyncio
 
 import uvicorn
 from flask import Flask, request, Response, session, redirect, url_for, render_template_string
@@ -197,6 +198,7 @@ async def login_handler():
             session['authentication'] = login.get_credentials_hash()
             return redirect(url_for('serve_index'))
         else:
+            await asyncio.sleep(1)
             error = 'Invalid Credentials. Please try again.'
 
     login_page_content = files.read_file("webui/login.html")

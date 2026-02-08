@@ -27,6 +27,7 @@ const model = {
   error: null,
   settings: null,
   additional: null,
+  workdirFileStructureTestOutput: "",
   
   // Tab state
   _activeTab: DEFAULT_TAB,
@@ -149,6 +150,25 @@ const model = {
     const success = await this.saveSettings();
     if (success) {
       this.closeSettings();
+    }
+  },
+
+  async testWorkdirFileStructure() {
+    if (!this.settings) return;
+    try {
+      const response = await API.callJsonApi("settings_workdir_file_structure", {
+        workdir_path: this.settings.workdir_path,
+        workdir_max_depth: this.settings.workdir_max_depth,
+        workdir_max_files: this.settings.workdir_max_files,
+        workdir_max_folders: this.settings.workdir_max_folders,
+        workdir_max_lines: this.settings.workdir_max_lines,
+        workdir_gitignore: this.settings.workdir_gitignore,
+      });
+      this.workdirFileStructureTestOutput = response?.data || "";
+      window.openModal("settings/agent/workdir-file-structure-test.html");
+    } catch (e) {
+      console.error("Error testing workdir file structure:", e);
+      toast("Error testing workdir file structure", "error");
     }
   },
 
