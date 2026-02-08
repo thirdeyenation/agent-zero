@@ -282,11 +282,14 @@ function drawProcessStep({
     if (classes) step.classList.add(...classes);
 
     let appendTarget = stepsContainer;
-    const parentStep = findParentDelegationStep(group, log.agentno);
-    if (parentStep) {
-      appendTarget = getNestedContainer(parentStep);
-      step.classList.add("nested-step");
-    }
+    
+    // grouping subordinate chain under the delegation call
+    // for now disabled, let's keep the UI simple and unified for now
+    // const parentStep = findParentDelegationStep(group, log.agentno);
+    // if (parentStep) {
+    //   appendTarget = getNestedContainer(parentStep);
+    //   step.classList.add("nested-step");
+    // }
 
     // remove any existing shiny-text from group
     group
@@ -1881,7 +1884,7 @@ function findParentDelegationStep(group, agentno) {
     const stepAgent = Number(step.getAttribute("data-agent-number"));
     if (
       stepAgent === agentno - 1 &&
-      step.getAttribute("data-log-type") === "tool" // map to the last tool call of superior agent
+      step.getAttribute("data-log-type") === "subagent" // map to the last tool call of superior agent
     ) {
       return step;
     }
