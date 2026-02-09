@@ -56,6 +56,9 @@ chat:
   mistral:
     name: Mistral AI
     litellm_provider: mistral
+  moonshot:
+    name: Moonshot AI
+    litellm_provider: moonshot
   ollama:
     name: Ollama
     litellm_provider: ollama
