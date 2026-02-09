@@ -490,7 +490,7 @@ def get_default_settings() -> Settings:
     return Settings(
         version=_get_version(),
         chat_model_provider=get_default_value("chat_model_provider", "openrouter"),
-        chat_model_name=get_default_value("chat_model_name", "openai/gpt-5.2-chat"),
+        chat_model_name=get_default_value("chat_model_name", "moonshotai/kimi-k2.5"),
         chat_model_api_base=get_default_value("chat_model_api_base", ""),
         chat_model_kwargs=get_default_value("chat_model_kwargs", {"temperature": "0"}),
         chat_model_ctx_length=get_default_value("chat_model_ctx_length", 100000),
@@ -500,7 +500,7 @@ def get_default_settings() -> Settings:
         chat_model_rl_input=get_default_value("chat_model_rl_input", 0),
         chat_model_rl_output=get_default_value("chat_model_rl_output", 0),
         util_model_provider=get_default_value("util_model_provider", "openrouter"),
-        util_model_name=get_default_value("util_model_name", "google/gemini-3-flash-preview"),
+        util_model_name=get_default_value("util_model_name", "z-ai/glm-4.7-flash"),
         util_model_api_base=get_default_value("util_model_api_base", ""),
         util_model_ctx_length=get_default_value("util_model_ctx_length", 100000),
         util_model_ctx_input=get_default_value("util_model_ctx_input", 0.7),

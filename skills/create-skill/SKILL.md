@@ -67,16 +67,15 @@ Your skill instructions go here...
 
 ```
 /a0/usr/skills/
-└── custom/
-    └── my-skill/
-        ├── SKILL.md           # Required: Main skill file
-        ├── scripts/           # Optional: Helper scripts
-        │   ├── helper.py
-        │   └── process.sh
-        ├── templates/         # Optional: Templates
-        │   └── output.md
-        └── docs/              # Optional: Additional docs
-            └── examples.md
+└── my-skill/
+   ├── SKILL.md           # Required: Main skill file
+   ├── scripts/           # Optional: Helper scripts
+   │   ├── helper.py
+   │   └── process.sh
+   ├── templates/         # Optional: Templates
+   │   └── output.md
+   └── docs/              # Optional: Additional docs
+      └── examples.md
 ```
 
 ## Writing Good Skill Instructions
@@ -172,7 +171,7 @@ If your skill needs scripts or templates:
 
 ```bash
 # Create directory structure
-mkdir -p usr/skills/my-skill/{scripts,templates,docs}
+mkdir -p /a0/usr/skills/my-skill/{scripts,templates,docs}
 ```
 
 ## Example: Complete Skill
@@ -258,12 +257,12 @@ print(f"Took {elapsed:.4f} seconds")
 
 1. Create skill directory:
    ```bash
-   mkdir -p usr/skills/my-skill
+   mkdir -p /a0/usr/skills/my-skill
    ```
 
 2. Create SKILL.md:
    ```bash
-   touch usr/skills/my-skill/SKILL.md
+   touch /a0/usr/skills/my-skill/SKILL.md
    ```
 
 3. Add content and save
@@ -277,7 +276,7 @@ To share skills with others:
 1. Create a GitHub repository
 2. Include the skill directory structure
 3. Add a README with installation instructions
-4. Users can copy to their `usr/skills/` directory
+4. Users can copy to their `/a0/usr/skills/` directory
 
 ## Testing Your Skill
 
@@ -287,12 +286,3 @@ After creating a skill:
 2. Use one of your trigger patterns
 3. Verify the agent follows your instructions
 4. Iterate and improve based on results
-
-## Need Help?
-
-Use this skill by saying:
-- "Help me create a new skill for [purpose]"
-- "I want to create a skill that [does something]"
-- "Create a skill wizard for [task]"
-
-I'll guide you through each step!
