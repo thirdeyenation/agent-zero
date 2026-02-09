@@ -505,6 +505,8 @@
   overflow: hidden;
   margin-top: var(--spacing-xs);
   max-width: 100%;
+  padding-left: 17px;
+  padding-right: 1em;
 }
 
 .process-step.expanded > .process-step-detail > .process-step-detail-scroll {
@@ -518,8 +520,6 @@
   scrollbar-width: thin;
   -ms-overflow-style: thin;
   scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
-  padding-left: 17px;
-  padding-right: 1em;
   /* overscroll-behavior: contain; */
 }
 
