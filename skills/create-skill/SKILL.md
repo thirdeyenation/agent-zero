@@ -66,7 +66,7 @@ Your skill instructions go here...
 ## Skill Directory Structure
 
 ```
-usr/skills/
+/a0/usr/skills/
 └── custom/
     └── my-skill/
         ├── SKILL.md           # Required: Main skill file
