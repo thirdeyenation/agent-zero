@@ -3,7 +3,7 @@ from __future__ import annotations
 from python.helpers import runtime
 from python.helpers.print_style import PrintStyle
 from python.helpers.websocket import WebSocketHandler, WebSocketResult
-from python.helpers.state_monitor import get_state_monitor
+from python.helpers.state_monitor import get_state_monitor, _ws_debug_enabled
 from python.helpers.state_snapshot import (
     StateRequestValidationError,
     parse_state_request_payload,
@@ -19,11 +19,13 @@ class StateSyncHandler(WebSocketHandler):
         monitor = get_state_monitor()
         monitor.bind_manager(self.manager, handler_id=self.identifier)
         monitor.register_sid(self.namespace, sid)
-        PrintStyle.info(f"[StateSyncHandler] connect sid={sid}")
+        if _ws_debug_enabled():
+            PrintStyle.debug(f"[StateSyncHandler] connect sid={sid}")
 
     async def on_disconnect(self, sid: str) -> None:
         get_state_monitor().unregister_sid(self.namespace, sid)
-        PrintStyle.info(f"[StateSyncHandler] disconnect sid={sid}")
+        if _ws_debug_enabled():
+            PrintStyle.debug(f"[StateSyncHandler] disconnect sid={sid}")
 
     async def process_event(self, event_type: str, data: dict, sid: str) -> dict | WebSocketResult | None:
         correlation_id = data.get("correlationId")
@@ -39,11 +41,12 @@ class StateSyncHandler(WebSocketHandler):
                 correlation_id=correlation_id,
             )
 
-        PrintStyle.debug(
-            f"[StateSyncHandler] state_request sid={sid} context={request.context!r} "
-            f"log_from={request.log_from} notifications_from={request.notifications_from} timezone={request.timezone!r} "
-            f"correlation_id={correlation_id}"
-        )
+        if _ws_debug_enabled():
+            PrintStyle.debug(
+                f"[StateSyncHandler] state_request sid={sid} context={request.context!r} "
+                f"log_from={request.log_from} notifications_from={request.notifications_from} timezone={request.timezone!r} "
+                f"correlation_id={correlation_id}"
+            )
 
         # Baseline sequence must be reset on every state_request (new sync period).
         # V1 policy: seq_base starts >0 to allow simple gating checks.
@@ -61,7 +64,8 @@ class StateSyncHandler(WebSocketHandler):
             sid,
             reason="state_sync_handler.StateSyncHandler.state_request",
         )
-        PrintStyle.debug(f"[StateSyncHandler] state_request accepted sid={sid} seq_base={seq_base}")
+        if _ws_debug_enabled():
+            PrintStyle.debug(f"[StateSyncHandler] state_request accepted sid={sid} seq_base={seq_base}")
 
         return self.result_ok(
             {

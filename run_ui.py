@@ -500,7 +500,7 @@ def run():
         asgi_app,
         host=host,
         port=port,
-        log_level="error",
+        log_level="info",
         access_log=_settings.get("uvicorn_access_logs_enabled", False),
         ws="wsproto",
     )

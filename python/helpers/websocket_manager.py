@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import asyncio
+import asyncio, os
 import time
 import threading
 from collections import defaultdict, deque
@@ -15,6 +15,7 @@ from python.helpers.defer import DeferredTask
 from python.helpers.print_style import PrintStyle
 from python.helpers import runtime
 from python.helpers.websocket import ConnectionNotFoundError, WebSocketHandler, WebSocketResult
+from python.helpers.state_monitor import _ws_debug_enabled
 
 BUFFER_MAX_SIZE = 100
 BUFFER_TTL = timedelta(hours=1)
@@ -79,7 +80,8 @@ class WebSocketManager:
 
     # Internal: development-only debug logging to avoid noise in production
     def _debug(self, message: str) -> None:
-        if runtime.is_development():
+        value = os.getenv("A0_WS_DEBUG", "").strip().lower()
+        if value in {"1", "true", "yes", "on"}:
             PrintStyle.debug(message)
 
     def _ensure_dispatcher_loop(self) -> None:
@@ -329,7 +331,7 @@ class WebSocketManager:
                     )
                     raise
                 
-                if runtime.is_development():
+                if _ws_debug_enabled():
                     PrintStyle.info(
                         "Registered WebSocket handler %s namespace=%s for events: %s"
                         % (handler.identifier, namespace, ", ".join(validated_events))
@@ -389,7 +391,8 @@ class WebSocketManager:
             connection_count = sum(
                 1 for conn_identity in self.connections if conn_identity[0] == namespace
             )
-        PrintStyle.info(f"WebSocket connected: namespace={namespace} sid={sid}")
+        if _ws_debug_enabled():
+            PrintStyle.info(f"WebSocket connected: namespace={namespace} sid={sid}")
         await self._run_lifecycle(namespace, lambda h: h.on_connect(sid))
         await self._flush_buffer(identity)
         if self._server_restart_enabled:
@@ -405,9 +408,10 @@ class WebSocketManager:
                 },
                 handler_id=self._identifier,
             )
-            PrintStyle.info(
-                f"server_restart broadcast emitted to namespace={namespace} sid={sid}"
-            )
+            if _ws_debug_enabled():
+                PrintStyle.info(
+                    f"server_restart broadcast emitted to namespace={namespace} sid={sid}"
+                )
         lifecycle_payload = {
             "namespace": namespace,
             "sid": sid,
