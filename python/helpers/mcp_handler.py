@@ -284,10 +284,9 @@ class MCPServerRemote(BaseModel):
                         key = "url"  # remap serverUrl to url
 
                     setattr(self, key, value)
-            # We already run in an event loop, dont believe Pylance
-            return asyncio.run(self.__on_update())
+            return self
 
-    async def __on_update(self) -> "MCPServerRemote":
+    async def initialize(self) -> "MCPServerRemote":
         await self.__client.update_tools()  # type: ignore
         return self
 
@@ -361,10 +360,9 @@ class MCPServerLocal(BaseModel):
                     if key == "name":
                         value = normalize_name(value)
                     setattr(self, key, value)
-            # We already run in an event loop, dont believe Pylance
-            return asyncio.run(self.__on_update())
+            return self
 
-    async def __on_update(self) -> "MCPServerLocal":
+    async def initialize(self) -> "MCPServerLocal":
         await self.__client.update_tools()  # type: ignore
         return self
 
@@ -622,6 +620,24 @@ class MCPConfig(BaseModel):
                 self.disconnected_servers.append(
                     {"config": server_item, "error": error_msg, "name": server_name}
                 )
+
+        # Initialize all servers in parallel (fetch tools concurrently)
+        if self.servers:
+            async def _init_server(server):
+                try:
+                    await server.initialize()
+                except Exception as e:
+                    error_msg = str(e)
+                    PrintStyle(
+                        background_color="grey", font_color="red", padding=True
+                    ).print(
+                        f"MCPConfig::__init__: Failed to initialize MCPServer '{server.name}': {error_msg}"
+                    )
+
+            async def _init_all():
+                await asyncio.gather(*[_init_server(s) for s in self.servers])
+
+            asyncio.run(_init_all())
 
     def get_server_log(self, server_name: str) -> str:
         with self.__lock:
