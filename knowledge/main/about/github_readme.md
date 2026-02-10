@@ -198,7 +198,7 @@ docker run -p 50001:80 agent0ai/agent-zero
 - Subagents system with configurable agent profiles for different roles
 - Memory operations offloaded to deferred tasks for better performance
 - Environment variables can now configure settings via `A0_SET_*` prefix in `.env`
-- Automatic migration with overwrite support for `.env`, scheduler, knowledge, and instruments directories
+- Automatic migration with overwrite support for `.env`, scheduler, knowledge, and legacy instruments directories
 - Projects support extended to MCP, A2A, and external API
 - Workdir outside project support for more flexible file organization
 - Agent number tracking in backend and responses for multi-agent identification
