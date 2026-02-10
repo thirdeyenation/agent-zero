@@ -359,6 +359,7 @@ def get_settings() -> Settings:
     if not _settings:
         _settings = get_default_settings()
     norm = normalize_settings(_settings)
+    _load_sensitive_settings(norm)
     return norm
 
 
@@ -380,7 +381,7 @@ def set_settings(settings: Settings, apply: bool = True):
     _write_settings_file(_settings)
     if apply:
         _apply_settings(previous)
-    return _settings
+    return reload_settings()
 
 
 def set_settings_delta(delta: dict, apply: bool = True):
@@ -434,6 +435,29 @@ def _adjust_to_version(settings: Settings, default: Settings):
         if "agent_profile" not in settings or settings["agent_profile"] == "default":
             settings["agent_profile"] = "agent0"
 
+
+
+def _load_sensitive_settings(settings: Settings):
+    # load api keys from .env
+    providers = get_providers("chat") + get_providers("embedding")
+    for provider in providers:
+        provider_name = provider["value"]
+        api_key = settings["api_keys"].get(provider_name) or models.get_api_key(provider_name)
+        if api_key and api_key != "None":
+            settings["api_keys"][provider_name] = api_key
+
+    # load auth fields from .env
+    settings["auth_login"] = dotenv.get_dotenv_value(dotenv.KEY_AUTH_LOGIN) or ""
+    settings["auth_password"] = dotenv.get_dotenv_value(dotenv.KEY_AUTH_PASSWORD) or ""
+    settings["rfc_password"] = dotenv.get_dotenv_value(dotenv.KEY_RFC_PASSWORD) or ""
+    settings["root_password"] = dotenv.get_dotenv_value(dotenv.KEY_ROOT_PASSWORD) or ""
+
+    # load secrets raw content
+    secrets_manager = get_default_secrets_manager()
+    try:
+        settings["secrets"] = secrets_manager.read_secrets_raw()
+    except Exception:
+        settings["secrets"] = ""
 
 
 def _read_settings_file() -> Settings | None:
