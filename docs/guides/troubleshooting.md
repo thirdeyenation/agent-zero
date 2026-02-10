@@ -3,13 +3,13 @@ This page addresses frequently asked questions (FAQ) and provides troubleshootin
 
 ## Frequently Asked Questions
 **1. How do I ask Agent Zero to work directly on my files or dirs?**
-- Place the files/dirs in `/a0/work_dir`. Agent Zero will be able to perform tasks on them.
+- Place the files/dirs in `/a0/usr`. Agent Zero will be able to perform tasks on them.
 
 **2. When I input something in the chat, nothing happens. What's wrong?**
 - Check if you have set up API keys in the Settings page. If not, the application cannot call LLM providers.
 
 **3. I get “Invalid model ID.” What does that mean?**
-- Verify the **provider** and **model naming**. For example, `openai/gpt-4.1` is correct for OpenRouter, but **incorrect** for the native OpenAI provider.
+- Verify the **provider** and **model naming**. For example, `openai/gpt-5.3` is correct for OpenRouter, but **incorrect** for the native OpenAI provider, which goes without prefix.
 
 **4. Does ChatGPT Plus include API access?**
 - No. ChatGPT Plus does not include API credits. You must provide an OpenAI API key in Settings.
@@ -27,7 +27,7 @@ Refer to the [Choosing your LLMs](installation.md#installing-and-using-ollama-lo
 Use **Settings → Backup & Restore** and avoid mapping the entire `/a0` directory. See [How to update Agent Zero](installation.md#how-to-update-agent-zero).
 
 **8. My browser agent fails or is unreliable. What now?**
-The built-in browser agent is currently unstable on some systems. Use MCP alternatives such as Browser OS, Chrome DevTools, or Playwright. See [MCP Setup](mcp_setup.md).
+The built-in browser agent is currently unstable on some systems. Use Skills or MCP alternatives such as Browser OS, Chrome DevTools, or Vercel's Agent Browser. See [MCP Setup](mcp-setup.md).
 
 **9. My secrets disappeared after a backup restore.**
 Secrets are stored in `/a0/usr/secrets.env` and are not always included in backup archives. Copy them manually.
@@ -36,7 +36,7 @@ Secrets are stored in `/a0/usr/secrets.env` and are not always included in backu
 - Join the Agent Zero [Skool](https://www.skool.com/agent-zero) or [Discord](https://discord.gg/B8KZKNsPpj) community.
 
 **11. How do I adjust API rate limits?**
-Use the model rate limit fields in Settings (Chat/Utility/Embedding model sections) to set request/input/output limits. These map to the model config limits (for example `limit_requests`, `limit_input`, `limit_output`).
+Use the model rate limit fields in Settings (Chat/Utility/Browser model sections) to set request/input/output limits. These map to the model config limits (for example `limit_requests`, `limit_input`, `limit_output`).
 
 **12. My `code_execution_tool` doesn't work, what's wrong?**
 - Ensure Docker is installed and running.
@@ -44,7 +44,7 @@ Use the model rate limit fields in Settings (Chat/Utility/Embedding model sectio
 - Verify that the Docker image is updated.
 
 **13. Can Agent Zero interact with external APIs or services (e.g., WhatsApp)?**
-Yes, by creating custom tools or using MCP servers. See [Extensibility](extensibility.md) and [MCP Setup](mcp_setup.md).
+Yes, by creating custom tools or using MCP servers. See [Extensions](../developer/extensions.md) and [MCP Setup](mcp-setup.md).
 
 ## Troubleshooting
 

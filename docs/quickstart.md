@@ -12,7 +12,7 @@ Download and install Docker Desktop for your operating system:
 - **Linux:** Install Docker Desktop or docker-ce following the [official instructions](https://docs.docker.com/desktop/install/linux-install/)
 
 > [!TIP]
-> For complete OS-specific installation instructions, see the [full Installation Guide](getting-started/installation.md#step-1-install-docker-desktop).
+> For complete OS-specific installation instructions, see the [full Installation Guide](setup/installation.md#step-1-install-docker-desktop).
 
 ### Step 2: Pull the Agent Zero Image
 
@@ -43,11 +43,11 @@ Open your browser and navigate to `http://localhost:<PORT>`. The Web UI will sho
 Click **Add your API key** to open Settings and configure:
 
 - **Default Provider:** OpenRouter (supports most models with a single API key)
-- **Alternative Providers:** Anthropic, OpenAI, Ollama (local models), and many others
+- **Alternative Providers:** Anthropic, OpenAI, Ollama/LM Studio (local models), and many others
 - **Model Selection:** Choose your chat model (e.g., `anthropic/claude-sonnet-4-5` for OpenRouter)
 
 > [!NOTE]
-> Agent Zero supports any LLM provider, including local models via Ollama. For detailed provider configuration and local model setup, see the [Installation Guide](getting-started/installation.md#choosing-your-llms).
+> Agent Zero supports any LLM provider, including local models via Ollama. For detailed provider configuration and local model setup, see the [Installation Guide](setup/installation.md#choosing-your-llms).
 
 ### Step 5: Start Your First Chat
 
@@ -95,3 +95,7 @@ Now that you've run a simple task, you can experiment with more complex requests
 
 Provides more in-depth information on tools, projects, tasks, and backup/restore.
 
+## 🎓 Video Tutorials
+- [MCP Server Setup](https://youtu.be/pM5f4Vz3_IQ)
+- [Projects & Workspaces](https://youtu.be/RrTDp_v9V1c)
+- [Memory Management](https://youtu.be/sizjAq2-d9s)

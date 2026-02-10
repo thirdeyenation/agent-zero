@@ -12,12 +12,9 @@
 ## Documentation:
 
 [Introduction](#a-personal-organic-agentic-framework-that-grows-and-learns-with-you) •
-[Installation](./docs/getting-started/installation.md) •
-[Development](./docs/development/setup.md) •
-[WebSocket Infrastructure](./docs/advanced/websockets.md) •
-[Connectivity](./docs/advanced/connectivity.md) •
-[How to update](./docs/getting-started/installation.md#how-to-update-agent-zero) •
-[Documentation](./docs/README.md) •
+[Installation](./docs/setup/installation.md) •
+[How to update](./docs/setup/installation.md#how-to-update-agent-zero) <br>
+[Development Setup](./docs/setup/dev-setup.md) •
 [Usage](./docs/guides/usage.md)
 
 Or see DeepWiki generated documentation:
@@ -29,8 +26,12 @@ Or see DeepWiki generated documentation:
 
 <div align="center">
 
-> ### 🚨 **PROJECTS!** 🚨
-> Agent Zero now supports **Projects** – isolated workspaces with their own prompts, files, memory, and secrets, so you can create dedicated setups for each use case without mixing contexts.
+> ### 🚨 **AGENT ZERO SKILLS** 🚨
+> Agent Zero Instruments become **Skills** - portable, structured agent capabilities using the open `SKILL.md` standard (compatible with Claude Code, Codex and more).
+> 
+> **Plus:** Git-based Projects with authentication for public/private repositories - clone codebases directly into isolated workspaces.
+> 
+> See [Usage Guide](./docs/guides/usage.md) and [Projects Tutorial](./docs/guides/projects.md) to get started.
 </div>
 
 
@@ -46,6 +47,26 @@ Or see DeepWiki generated documentation:
 - Agent Zero is fully transparent, readable, comprehensible, customizable, and interactive.
 - Agent Zero uses the computer as a tool to accomplish its (your) tasks.
 
+# ⚙️ Installation
+
+Click to open a video to learn how to install Agent Zero:
+
+[![Easy Installation guide](/docs/res/easy_ins_vid.png)](https://www.youtube.com/watch?v=w5v5Kjx51hs)
+
+A detailed setup guide for Windows, macOS, and Linux with a video can be found in the Agent Zero Documentation at [this page](./docs/setup/installation.md).
+
+### ⚡ Quick Start
+
+```bash
+# Pull and run with Docker
+
+docker pull agent0ai/agent-zero
+docker run -p 50001:80 agent0ai/agent-zero
+
+# Visit http://localhost:50001 to start
+```
+
+
 # 💡 Key Features
 
 1. **General-purpose Assistant**
@@ -53,7 +74,7 @@ Or see DeepWiki generated documentation:
 - Agent Zero is not pre-programmed for specific tasks (but can be). It is meant to be a general-purpose personal assistant. Give it a task, and it will gather information, execute commands and code, cooperate with other agent instances, and do its best to accomplish it.
 - It has a persistent memory, allowing it to memorize previous solutions, code, facts, instructions, etc., to solve tasks faster and more reliably in the future.
 
-![Agent 0 Working](/docs/res/ui-screen-2.png)
+![Agent 0 Working](/docs/res/ui_screen2.png)
 
 2. **Computer as a Tool**
 
@@ -70,8 +91,7 @@ Or see DeepWiki generated documentation:
 - In the case of the first agent in the chain (Agent 0), the superior is the human user; the agent sees no difference.
 - Every agent can create its subordinate agent to help break down and solve subtasks. This helps all agents keep their context clean and focused.
 
-![Multi-agent](docs/res/physics.png)
-![Multi-agent 2](docs/res/physics-2.png)
+![Multi-agent](docs/res/usage/multi-agent.png)
 
 4. **Completely Customizable and Extensible**
 
@@ -82,7 +102,7 @@ Or see DeepWiki generated documentation:
 - Every default tool can be found in the **python/tools/** folder and changed or copied to create new predefined tools.
 - **Automated configuration** via `A0_SET_` environment variables for deployment automation and easy setup.
 
-![Prompts](/docs/res/prompts.png)
+![Prompts](/docs/res/profiles.png)
 
 5. **Communication is Key**
 
@@ -91,41 +111,21 @@ Or see DeepWiki generated documentation:
 - The terminal interface is real-time streamed and interactive. You can stop and intervene at any point. If you see your agent heading in the wrong direction, just stop and tell it right away.
 - There is a lot of freedom in this framework. You can instruct your agents to regularly report back to superiors asking for permission to continue. You can instruct them to use point-scoring systems when deciding when to delegate subtasks. Superiors can double-check subordinates' results and dispute. The possibilities are endless.
 
-## 🚀 Things you can build with Agent Zero
+## 🚀 Real-world use cases
 
-- **Development Projects** - `"Create a React dashboard with real-time data visualization"`
+- **Financial Analysis & Charting** - `"Find last month's Bitcoin/USD price trend, correlate with major cryptocurrency news events, generate annotated chart with highlighted key dates"`
 
-- **Data Analysis** - `"Analyze last quarter's NVIDIA sales data and create trend reports"`
+- **Excel Automation Pipeline** - `"Scan incoming directory for financial spreadsheets, validate and clean data, consolidate from multiple sources, generate executive reports with flagged anomalies"`
 
-- **Content Creation** - `"Write a technical blog post about microservices"`
+- **API Integration Without Code** - `"Use this Google Gemini API snippet to generate product images, remember the integration for future use"` - agent learns and stores the solution in memory
 
-- **System Admin** - `"Set up a monitoring system for our web servers"`
+- **Automated Server Monitoring** - `"Check server status every 30 minutes: CPU usage, disk space, memory. Alert if metrics exceed thresholds"` (scheduled task with project-scoped credentials)
 
-- **Research** - `"Gather and summarize five recent AI papers about CoT prompting"`
-
-
-# ⚙️ Installation
-
-Click to open a video to learn how to install Agent Zero:
-
-[![Easy Installation guide](/docs/res/easy_ins_vid.png)](https://www.youtube.com/watch?v=w5v5Kjx51hs)
-
-A detailed setup guide for Windows, macOS, and Linux with a video can be found in the Agent Zero Documentation at [this page](./docs/getting-started/installation.md).
-
-### ⚡ Quick Start
-
-```bash
-# Pull and run with Docker
-
-docker pull agent0ai/agent-zero
-docker run -p 50001:80 agent0ai/agent-zero
-
-# Visit http://localhost:50001 to start
-```
+- **Multi-Client Project Isolation** - Separate projects for each client with isolated memory, custom instructions, and dedicated secrets - prevents context bleed across sensitive work
 
 ## 🐳 Fully Dockerized, with Speech-to-Text and TTS
 
-![Settings](docs/res/settings-page-ui.png)
+![Settings](docs/res/settings-page-ui1.png)
 
 - Customizable settings allow users to tailor the agent's behavior and responses to their needs.
 - The Web UI output is very clean, fluid, colorful, readable, and interactive; nothing is hidden.
@@ -153,14 +153,15 @@ docker run -p 50001:80 agent0ai/agent-zero
 
 | Page | Description |
 |-------|-------------|
-| [Installation](./docs/getting-started/installation.md) | Installation, setup and configuration |
+| [Installation](./docs/setup/installation.md) | Installation, setup and configuration |
 | [Usage](./docs/guides/usage.md) | Basic and advanced usage |
-| [Development](./docs/development/setup.md) | Development and customization |
-| [WebSocket Infrastructure](./docs/advanced/websockets.md) | Real-time WebSocket handlers, client APIs, filtering semantics, envelopes |
-| [Extensibility](./docs/development/extensibility.md) | Extending Agent Zero |
-| [Connectivity](./docs/advanced/connectivity.md) | External API endpoints, MCP server connections, A2A protocol |
-| [Architecture](./docs/advanced/architecture.md) | System design and components |
-| [Contributing](./docs/development/contribution.md) | How to contribute |
+| [Guides](./docs/guides/) | Step-by-step guides: Usage, Projects, API Integration, MCP Setup, A2A Setup |
+| [Development Setup](./docs/setup/dev-setup.md) | Development and customization |
+| [WebSocket Infrastructure](./docs/developer/websockets.md) | Real-time WebSocket handlers, client APIs, filtering semantics, envelopes |
+| [Extensions](./docs/developer/extensions.md) | Extending Agent Zero |
+| [Connectivity](./docs/developer/connectivity.md) | External API endpoints, MCP server connections, A2A protocol |
+| [Architecture](./docs/developer/architecture.md) | System design and components |
+| [Contributing](./docs/guides/contribution.md) | How to contribute |
 | [Troubleshooting](./docs/guides/troubleshooting.md) | Common issues and their solutions |
 
 
