@@ -70,9 +70,11 @@ engines:
 
   - name: ahmia
     disabled: true
+    inactive: true
 
   - name: torch
     disabled: true
+    inactive: true
 # TODO enable radio_browser when it works again
 # currently it crashes on x86 on gethostbyaddr
 
