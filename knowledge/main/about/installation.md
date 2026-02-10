@@ -1,554 +1,594 @@
-# Users installation guide for Windows, macOS and Linux
+# Installation Guide
 
 Click to open a video to learn how to install Agent Zero:
 
-[![Easy Installation guide](/docs/res/easy_ins_vid.png)](https://www.youtube.com/watch?v=w5v5Kjx51hs)
+[![Easy Installation guide](../res/easy_ins_vid.png)](https://www.youtube.com/watch?v=w5v5Kjx51hs)
 
-The following user guide provides instructions for installing and running Agent Zero using Docker, which is the primary runtime environment for the framework. For developers and contributors, we also provide instructions for setting up the [full development environment](#in-depth-guide-for-full-binaries-installation).
-
-
-## Windows, macOS and Linux Setup Guide
+## **Goal:** Go from zero to a first working chat with minimal setup.
 
 
-1. **Install Docker Desktop:** 
-- Docker Desktop provides the runtime environment for Agent Zero, ensuring consistent behavior and security across platforms
-- The entire framework runs within a Docker container, providing isolation and easy deployment
-- Available as a user-friendly GUI application for all major operating systems
+## Step 1: Install Docker Desktop
 
-1.1. Go to the download page of Docker Desktop [here](https://www.docker.com/products/docker-desktop/). If the link does not work, just search the web for "docker desktop download".
+Docker Desktop provides the runtime environment for Agent Zero, ensuring consistent behavior and security across platforms. The entire framework runs within a Docker container, providing isolation and easy deployment.
 
-1.2. Download the version for your operating system. For Windows users, the Intel/AMD version is the main download button.
+**Choose your operating system:**
 
-<img src="res/setup/image-8.png" alt="docker download" width="200"/>
+<table>
+<tr>
+<td align="center" width="33%">
+<a href="#windows-installation">
+<img src="../res/setup/oses/windows.png" width="80" alt="Windows"/><br/>
+<b>Windows</b>
+</a>
+</td>
+<td align="center" width="33%">
+<a href="#macos-installation">
+<img src="../res/setup/oses/apple.png" width="80" alt="macOS"/><br/>
+<b>macOS</b>
+</a>
+</td>
+<td align="center" width="33%">
+<a href="#linux-installation">
+<img src="../res/setup/oses/linux.png" width="80" alt="Linux"/><br/>
+<b>Linux</b>
+</a>
+</td>
+</tr>
+</table>
+
+---
+
+<a name="windows-installation"></a>
+## <img src="../res/setup/oses/windows.png" width="30" alt="Windows"/> Windows Installation
+
+**1.1. Download Docker Desktop**
+
+Go to the [Docker Desktop download page](https://www.docker.com/products/docker-desktop/) and download the Windows version (Intel/AMD is the main download button).
+
+<img src="../res/setup/image-8.png" alt="docker download" width="200"/>
 <br><br>
+
+**1.2. Run the Installer**
+
+Run the installer with default settings.
+
+<img src="../res/setup/image-9.png" alt="docker install" width="300"/>
+<img src="../res/setup/image-10.png" alt="docker install" width="300"/>
+<br><br>
+
+**1.3. Launch Docker Desktop**
+
+Once installed, launch Docker Desktop from your Start menu or desktop shortcut.
+
+<img src="../res/setup/image-11.png" alt="docker installed" height="100"/>
+
+✅ **Docker is now installed!** 
+
+### Continue to [Step 2: Run Agent Zero](#step-2-run-agent-zero)
+
+---
+
+<a name="macos-installation"></a>
+## <img src="../res/setup/oses/apple.png" width="30" alt="macOS"/> macOS Installation
+
+**1.1. Download Docker Desktop**
+
+Go to the [Docker Desktop download page](https://www.docker.com/products/docker-desktop/) and download the macOS version (choose Apple Silicon or Intel based on your Mac).
+
+<img src="../res/setup/image-8.png" alt="docker download" width="200"/>
+<br><br>
+
+**1.2. Install Docker Desktop**
+
+Drag and drop the Docker application to your Applications folder.
+
+<img src="../res/setup/image-12.png" alt="docker install" width="300"/>
+<br><br>
+
+**1.3. Launch Docker Desktop**
+
+Open Docker Desktop from your Applications folder.
+
+<img src="../res/setup/image-13.png" alt="docker installed" height="100"/>
+<br><br>
+
+**1.4. Configure Docker Socket**
 
 > [!NOTE]
-> **Linux Users:** You can install either Docker Desktop or docker-ce (Community Edition). 
-> For Docker Desktop, follow the instructions for your specific Linux distribution [here](https://docs.docker.com/desktop/install/linux-install/). 
-> For docker-ce, follow the instructions [here](https://docs.docker.com/engine/install/).
->
-> If you're using docker-ce, you'll need to add your user to the `docker` group:
-> ```bash
-> sudo usermod -aG docker $USER
-> ```
-> Log out and back in, then run:
-> ```bash
-> docker login
-> ```
+> **Important macOS Configuration:** In Docker Desktop's preferences (Docker menu) → Settings → Advanced, enable "Allow the default Docker socket to be used (requires password)."
 
-1.3. Run the installer with default settings. On macOS, drag and drop the application to your Applications folder.
+![docker socket macOS](../res/setup/macsocket.png)
 
-<img src="res/setup/image-9.png" alt="docker install" width="300"/>
-<img src="res/setup/image-10.png" alt="docker install" width="300"/>
+✅ **Docker is now installed!** 
 
-<img src="res/setup/image-12.png" alt="docker install" width="300"/>
-<br><br>
+### Continue to [Step 2: Run Agent Zero](#step-2-run-agent-zero)
 
-1.4. Once installed, launch Docker Desktop: 
+---
 
-<img src="res/setup/image-11.png" alt="docker installed" height="100"/>
-<img src="res/setup/image-13.png" alt="docker installed" height="100"/>
-<br><br>
+<a name="linux-installation"></a>
+## <img src="../res/setup/oses/linux.png" width="30" alt="Linux"/> Linux Installation
 
-> [!IMPORTANT]  
-> **macOS Configuration:** In Docker Desktop's preferences (Docker menu) → Settings → 
-> Advanced, enable "Allow the default Docker socket to be used (requires password)."
+**1.1. Choose Installation Method**
 
-![docker socket macOS](res/setup/macsocket.png)
+You can install either Docker Desktop or docker-ce (Community Edition).
 
-2. **Run Agent Zero:**
+**Option A: Docker Desktop (Recommended for beginners)**
 
-- Note: Agent Zero also offers a Hacking Edition based on Kali linux with modified prompts for cybersecurity tasks. The setup is the same as the regular version, just use the agent0ai/agent-zero:hacking image instead of agent0ai/agent-zero.
+Follow the instructions for your specific Linux distribution [here](https://docs.docker.com/desktop/install/linux-install/).
 
-2.1. Pull the Agent Zero Docker image:
+**Option B: docker-ce (Lightweight alternative)**
+
+Follow the installation instructions [here](https://docs.docker.com/engine/install/).
+
+**1.2. Post-Installation Steps (docker-ce only)**
+
+If you installed docker-ce, add your user to the `docker` group:
+
+```bash
+sudo usermod -aG docker $USER
+```
+
+Log out and back in, then authenticate:
+
+```bash
+docker login
+```
+
+**1.3. Launch Docker**
+
+If you installed Docker Desktop, launch it from your applications menu.
+
+✅ **Docker is now installed!** 
+
+> [!TIP]
+> **Deploying on a VPS/Server?** For production deployments with reverse proxy, SSL, and domain configuration, see the [VPS Deployment Guide](vps-deployment.md).
+
+---
+
+## Step 2: Run Agent Zero
+
+### 2.1. Pull the Agent Zero Docker Image
+
+**Using Docker Desktop GUI:**
+
 - Search for `agent0ai/agent-zero` in Docker Desktop
 - Click the `Pull` button
 - The image will be downloaded to your machine in a few minutes
 
-![docker pull](res/setup/1-docker-image-search.png)
+![docker pull](../res/setup/1-docker-image-search.png)
+
+**Using Terminal:**
+
+```bash
+docker pull agent0ai/agent-zero
+```
+
+### 2.2. (Optional) Map Folders for Persistence
+
+Choose or create a folder on your computer where Agent Zero will save its data. 
+
+### Setting up persistence is needed only if you want your data and files to remain available even after you delete the container. 
+
+You can pick any location you find convenient:
+
+- **Windows:** `C:\agent-zero-data`
+- **macOS/Linux:** `/home/user/agent-zero-data`
+
+You can map just the `/a0/usr` directory (recommended) or individual subfolders of `/a0` to a local directory.
+
+> [!CAUTION]
+> Do **not** map the entire `/a0` directory: it contains the application code and can break upgrades.
 
 > [!TIP]
-> Alternatively, run the following command in your terminal:
->
-> ```bash
-> docker pull agent0ai/agent-zero
-> ```
+> Choose a location that's easy to access and backup. All your Agent Zero data will be directly accessible in this directory.
 
-2.2. Create a data directory for persistence:
-- Choose or create a directory on your machine where you want to store Agent Zero's data
-- This can be any location you prefer (e.g., `C:/agent-zero-data` or `/home/user/agent-zero-data`)
-- This directory will contain all your Agent Zero files, like the legacy root folder structure:
-  - `/memory` - Agent's memory and learned information
-  - `/knowledge` - Knowledge base
-  - `/instruments` - Instruments and functions
-  - `/prompts` - Prompt files
-  - `/work_dir` - Working directory
-  - `.env` - Your API keys
-  - `settings.json` - Your Agent Zero settings
+### 2.3. Run the Container
 
-> [!TIP]
-> Choose a location that's easy to access and backup. All your Agent Zero data 
-> will be directly accessible in this directory.
+**Using Docker Desktop GUI:**
 
-2.3. Run the container:
-- In Docker Desktop, go back to the "Images" tab
+- In Docker Desktop, go to the "Images" tab
 - Click the `Run` button next to the `agent0ai/agent-zero` image
 - Open the "Optional settings" menu
-- Set the port to `0` in the second "Host port" field (for automatic port assignment)
+- **Ensure at least one host port is mapped to container port `80`** (set host port to `0` for automatic assignment)
+- Click the `Run` button
 
-Optionally you can map local folders for file persistence:
-- Under "Volumes", configure:
-  - Host path: Your chosen directory (e.g., `C:\agent-zero-data`)
-  - Container path: `/a0`
+![docker port mapping](../res/setup/2-docker-image-run.png)
+![docker volume mapping](../res/setup/2-docker-image-run-3.png)
 
-![docker port mapping](res/setup/3-docker-port-mapping.png)
+The container will start and show in the "Containers" tab:
 
-- Click the `Run` button in the "Images" tab.
-- The container will start and show in the "Containers" tab
+![docker containers](../res/setup/4-docker-container-started.png)
 
-![docker containers](res/setup/4-docker-container-started.png)
+### 2.4. Access the Web UI
 
-> [!TIP]
-> Alternatively, run the following command in your terminal:
-> ```bash
-> docker run -p $PORT:80 -v /path/to/your/data:/a0 agent0ai/agent-zero
-> ```
-> - Replace `$PORT` with the port you want to use (e.g., `50080`)
-> - Replace `/path/to/your/data` with your chosen directory path
+The framework will take a few seconds to initialize. Find the mapped port in Docker Desktop (shown as `<PORT>:80`) or click the port right under the container ID:
 
-2.4. Access the Web UI:
-- The framework will take a few seconds to initialize and the Docker logs will look like the image below.
-- Find the mapped port in Docker Desktop (shown as `<PORT>:80`) or click the port right under the container ID as shown in the image below
+![docker logs](../res/setup/5-docker-click-to-open.png)
 
-![docker logs](res/setup/5-docker-click-to-open.png)
+Open `http://localhost:<PORT>` in your browser. The Web UI will open - Agent Zero is ready for configuration!
 
-- Open `http://localhost:<PORT>` in your browser
-- The Web UI will open. Agent Zero is ready for configuration!
-
-![docker ui](res/setup/6-docker-a0-running.png)
+![docker ui](../res/setup/6-docker-a0-running-new.png)
 
 > [!TIP]
-> You can also access the Web UI by clicking the ports right under the container ID in Docker Desktop.
+> You can also access the Web UI by clicking the port link directly under the container ID in Docker Desktop.
 
 > [!NOTE]
-> After starting the container, you'll find all Agent Zero files in your chosen 
-> directory. You can access and edit these files directly on your machine, and 
-> the changes will be immediately reflected in the running container.
+> After starting the container, you'll find all Agent Zero files in your chosen directory. You can access and edit these files directly on your machine, and the changes will be immediately reflected in the running container.
 
-3. Configure Agent Zero
-- Refer to the following sections for a full guide on how to configure Agent Zero.
+**Running A0 using Terminal?**
 
-## Settings Configuration
-Agent Zero provides a comprehensive settings interface to customize various aspects of its functionality. Access the settings by clicking the "Settings"button with a gear icon in the sidebar.
+```bash
+docker run -p 0:80 -v /path/to/your/work_dir:/a0/usr agent0ai/agent-zero
+```
+
+- Replace `0` with a fixed port if you prefer (e.g., `50080:80`)
+
+---
+
+## Step 3: Configure Agent Zero
+
+The UI will show a warning banner "Missing LLM API Key for current settings". Click on `Add your API key` to enter Settings and start configuring A0.
+
+### Settings Configuration
+
+Agent Zero provides a comprehensive settings interface to customize various aspects of its functionality. Access the settings by clicking the "Settings" button with a gear icon in the sidebar.
 
 ### Agent Configuration
-- **Prompts Subdirectory:** Choose the subdirectory within `/prompts` for agent behavior customization. The 'default' directory contains the standard prompts.
+
+- **Agent Profile:** Select the agent profile (e.g., `agent0`, `hacker`, `researcher`). Profiles can override prompts, tools, and extensions.
 - **Memory Subdirectory:** Select the subdirectory for agent memory storage, allowing separation between different instances.
 - **Knowledge Subdirectory:** Specify the location of custom knowledge files to enhance the agent's understanding.
 
-![settings](res/setup/settings/1-agentConfig.png)
+> [!NOTE]
+> Since v0.9.7, custom prompts belong in `/a0/agents/<agent_name>/prompts/` rather than a shared `/prompts` folder. See the [Extensions guide](../developer/extensions.md#prompts) for details.
+
+> [!NOTE]
+> The Hacker profile is included in the main image. After launch, choose the **hacker** agent profile in Settings if you want the security-focused prompts and tooling. The "hacker" branch is deprecated.
+
+![settings](../res/setup/settings/1-agentConfig.png)
 
 ### Chat Model Settings
-- **Provider:** Select the chat model provider (e.g., Ollama)
-- **Model Name:** Choose the specific model (e.g., llama3.2)
-- **Temperature:** Adjust response randomness (0 for deterministic, higher values for more creative responses)
+
+- **Provider:** Select the chat model provider (e.g., Anthropic)
+- **Model Name:** Choose the specific model (e.g., claude-sonnet-4-5)
 - **Context Length:** Set the maximum token limit for context window
 - **Context Window Space:** Configure how much of the context window is dedicated to chat history
 
-![chat model settings](res/setup/settings/2-chat-model.png)
+![chat model settings](../res/setup/settings/2-chat-model.png)
+
+**Model naming is provider-specific.**
+
+Use `claude-sonnet-4-5` for Anthropic, but use `anthropic/claude-sonnet-4-5` for OpenRouter. If you see "Invalid model ID," verify the provider and naming format on the provider website, or search the web for "<name-of-ai-model> model naming".
+
+> [!TIP]
+> **Context window tuning:** Set the total context window size first (for example, 100k), then adjust the chat history portion as a fraction of that total. A large fraction on a very large context window can still be enormous.
+
+> [!TIP]
+> **API URL:** URL of the API endpoint for the chat model - only needed for some providers like Ollama, LM Studio, Azure, etc.
 
 ### Utility Model Configuration
-- **Provider & Model:** Select a smaller, faster model for utility tasks like memory organization and summarization
+
+- **Provider & Model:** Select a model for utility tasks like memory organization and summarization
 - **Temperature:** Adjust the determinism of utility responses
 
-### Embedding Model Settings
+> [!NOTE]
+> Utility models need to be strong enough to extract and consolidate memory reliably. Very small models (e.g., 4B) often fail at this; 70B-class models or high-quality cloud "flash/mini" models work best.
+
+### Embedding Model Settings [Optional]
+
 - **Provider:** Choose the embedding model provider (e.g., OpenAI)
 - **Model Name:** Select the specific embedding model (e.g., text-embedding-3-small)
 
+> [!NOTE]
+> Agent Zero uses a local embedding model by default (runs on CPU), but you can switch to OpenAI embeddings like `text-embedding-3-small` or `text-embedding-3-large` if preferred.
+
 ### Speech to Text Options
+
 - **Model Size:** Choose the speech recognition model size
 - **Language Code:** Set the primary language for voice recognition
 - **Silence Settings:** Configure silence threshold, duration, and timeout parameters for voice input
 
 ### API Keys
-- Configure API keys for various service providers directly within the Web UI
-- Click `Save` to confirm your settings
+
+Configure API keys for various service providers directly within the Web UI. Click `Save` to confirm your settings.
+
+> [!NOTE]
+> **OpenAI API vs Plus subscription:** A ChatGPT Plus subscription does not include API credits. You must provide a separate API key for OpenAI usage in Agent Zero.
+
+> [!TIP]
+> For OpenAI-compatible providers (e.g., custom gateways or Z.AI/GLM), add the API key under **External Services → Other OpenAI-compatible API keys**, then select **OpenAI Compatible** as the provider in model settings.
+
+> [!CAUTION]
+> **GitHub Copilot Provider:** When using the GitHub Copilot provider, after selecting the model and entering your first prompt, the OAuth login procedure will begin. You'll find the authentication code and link in the output logs. Complete the authentication process by following the provided link and entering the code, then you may continue using Agent Zero.
 
 ### Authentication
+
 - **UI Login:** Set username for web interface access
 - **UI Password:** Configure password for web interface security
 - **Root Password:** Manage Docker container root password for SSH access
 
-![settings](res/setup/settings/3-auth.png)
+![settings](../res/setup/settings/3-auth.png)
 
 ### Development Settings
-- **RFC Parameters (local instances only):** configure URLs and ports for remote function calls between instances
+
+- **RFC Parameters (local instances only):** Configure URLs and ports for remote function calls between instances
 - **RFC Password:** Configure password for remote function calls
-Learn more about Remote Function Calls and their purpose [here](#7-configure-agent-zero-rfc).
+
+Learn more about Remote Function Calls in the [Development Setup guide](dev-setup.md#step-6-configure-ssh-and-rfc-connection).
 
 > [!IMPORTANT]
 > Always keep your API keys and passwords secure.
 
-# Choosing Your LLMs
-The Settings page is the control center for selecting the Large Language Models (LLMs) that power Agent Zero.  You can choose different LLMs for different roles:
+> [!NOTE]
+> On Windows host installs (non-Docker), you must use RFC to run shell code on the host system. The Docker runtime handles this automatically.
+
+---
+
+## Choosing Your LLMs
+
+The Settings page is the control center for selecting the Large Language Models (LLMs) that power Agent Zero. You can choose different LLMs for different roles:
 
 | LLM Role | Description |
 | --- | --- |
 | `chat_llm` | This is the primary LLM used for conversations and generating responses. |
-| `utility_llm` | This LLM handles internal tasks like summarizing messages, managing memory, and processing internal prompts.  Using a smaller, less expensive model here can improve efficiency. |
-| `embedding_llm` | This LLM is responsible for generating embeddings used for memory retrieval and knowledge base lookups. Changing the `embedding_llm` will re-index all of A0's memory. |
+| `utility_llm` | This LLM handles internal tasks like summarizing messages, managing memory, and processing internal prompts. Using a smaller, less expensive model here can improve efficiency. |
+| `browser_llm` | This LLM powers the browser agent for web navigation and interaction tasks. Vision support is recommended for better page understanding. |
+| `embedding_llm` | The embedding model shipped with A0 runs on CPU and is responsible for generating embeddings used for memory retrieval and knowledge base lookups. Changing the `embedding_llm` will re-index all of A0's memory. |
 
 **How to Change:**
+
 1. Open Settings page in the Web UI.
-2. Choose the provider for the LLM for each role (Chat model, Utility model, Embedding model) and write the model name.
+2. Choose the provider for the LLM for each role (Chat model, Utility model, Browser model, Embedding model) and write the model name.
 3. Click "Save" to apply the changes.
 
-## Important Considerations
+### Important Considerations
 
-> [!CAUTION]
-> Changing the `embedding_llm` will re-index all the memory and knowledge, and 
-> requires clearing the `memory` folder to avoid errors, as the embeddings can't be 
-> mixed in the vector database. Note that this will DELETE ALL of Agent Zero's memory.
+#### Model Naming by Provider
+
+Use the naming format required by your selected provider:
+
+| Provider | Model Name Format | Example |
+| --- | --- | --- |
+| OpenAI | Model name only | `claude-sonnet-4-5` |
+| OpenRouter | Provider prefix mostly required | `anthropic/claude-sonnet-4-5` |
+| Ollama | Model name only | `gpt-oss:20b` |
+
+> [!TIP]
+> If you see "Invalid model ID," verify the provider and naming format on the provider website, or search the web for "<name-of-ai-model> model naming".
+
+#### Context Window & Memory Split
+
+- Set the **total context window** (e.g., 100k) first.
+- Then tune the **chat history portion** as a fraction of that total.
+- Extremely large totals can make even small fractions very large; adjust thoughtfully.
+
+#### Utility Model Guidance
+
+- Utility models handle summarization and memory extraction.
+- Very small models (≈4B) usually fail at reliable context extraction.
+- Aim for ~70B class models or strong cloud "flash/mini" models for better results.
+
+#### Reasoning/Thinking Models
+
+- Reasoning can increase cost and latency. Some models perform better **without** reasoning.
+- If a model supports it, disable reasoning via provider-specific parameters (e.g., Venice `disable_thinking=true`).
+
+---
 
 ## Installing and Using Ollama (Local Models)
-If you're interested in Ollama, which is a powerful tool that allows you to run various large language models locally, here's how to install and use it:
 
-#### First step: installation
-**On Windows:**
+Ollama is a powerful tool that allows you to run various large language models locally.
 
-Download Ollama from the official website and install it on your machine.
+---
+
+<a name="windows-ollama-installation"></a>
+### <img src="../res/setup/oses/windows.png" width="30" alt="Windows"/> Windows Ollama Installation
+
+Download and install Ollama from the official website:
 
 <button>[Download Ollama Setup](https://ollama.com/download/OllamaSetup.exe)</button>
 
-**On macOS:**
-```
+Once installed, continue to [Pulling Models](#pulling-models).
+
+---
+
+<a name="macos-ollama-installation"></a>
+### <img src="../res/setup/oses/apple.png" width="30" alt="macOS"/> macOS Ollama Installation
+
+**Using Homebrew:**
+
+```bash
 brew install ollama
 ```
-Otherwise choose macOS installer from the [official website](https://ollama.com/).
 
-**On Linux:**
+**Using Installer:**
+
+Download from the [official website](https://ollama.com/).
+
+Once installed, continue to [Pulling Models](#pulling-models).
+
+---
+
+<a name="linux-ollama-installation"></a>
+### <img src="../res/setup/oses/linux.png" width="30" alt="Linux"/> Linux Ollama Installation
+
+Run the installation script:
+
 ```bash
 curl -fsSL https://ollama.com/install.sh | sh
 ```
 
-**Finding Model Names:**
-Visit the [Ollama model library](https://ollama.com/library) for a list of available models and their corresponding names.  The format is usually `provider/model-name` (or just `model-name` in some cases).
+Once installed, continue to [Pulling Models](#pulling-models).
 
-#### Second step: pulling the model
-**On Windows, macOS, and Linux:**
-```
+---
+
+### Pulling Models
+
+**Finding Model Names:**
+
+Visit the [Ollama model library](https://ollama.com/library) for a list of available models and their corresponding names. Ollama models are referenced by **model name only** (for example, `llama3.2`).
+
+**Pull a model:**
+
+```bash
 ollama pull <model-name>
 ```
 
-1. Replace `<model-name>` with the name of the model you want to use.  For example, to pull the Mistral Large model, you would use the command `ollama pull mistral-large`.
+Replace `<model-name>` with the name of the model you want to use. For example: `ollama pull mistral-large`
 
-2. A CLI message should confirm the model download on your system
+### Configuring Ollama in Agent Zero
 
-#### Selecting your model within Agent Zero
-1. Once you've downloaded your model(s), you must select it in the Settings page of the GUI. 
-
-2. Within the Chat model, Utility model, or Embedding model section, choose Ollama as provider.
-
+1. Once you've downloaded your model(s), select it in the Settings page of the GUI.
+2. Within the Chat model, Utility model, or Embedding model section, choose **Ollama** as provider.
 3. Write your model code as expected by Ollama, in the format `llama3.2` or `qwen2.5:7b`
+4. Provide your API base URL to your Ollama API endpoint, usually `http://host.docker.internal:11434`
+5. Click `Save` to confirm your settings.
 
-4. Click `Save` to confirm your settings.
-
-![ollama](res/setup/settings/4-local-models.png)
-
-#### Managing your downloaded models
-Once you've downloaded some models, you might want to check which ones you have available or remove any you no longer need.
-
-- **Listing downloaded models:** 
-  To see a list of all the models you've downloaded, use the command:
-  ```
-  ollama list
-  ```
-- **Removing a model:**
-  If you need to remove a downloaded model, you can use the `ollama rm` command followed by the model name:
-  ```
-  ollama rm <model-name>
-  ```
-
-
-- Experiment with different model combinations to find the balance of performance and cost that best suits your needs. E.g., faster and lower latency LLMs will help, and you can also use `faiss_gpu` instead of `faiss_cpu` for the memory.
-
-## Using Agent Zero on your mobile device
-Agent Zero's Web UI is accessible from any device on your network through the Docker container:
-
-1. The Docker container automatically exposes the Web UI on all network interfaces
-2. Find the mapped port in Docker Desktop:
-   - Look under the container name (usually in the format `<PORT>:80`)
-   - For example, if you see `32771:80`, your port is `32771`
-3. Access the Web UI from any device using:
-   - Local access: `http://localhost:<PORT>`
-   - Network access: `http://<YOUR_COMPUTER_IP>:<PORT>`
-
-> [!TIP]
-> - Your computer's IP address is usually in the format `192.168.x.x` or `10.0.x.x`
-> - You can find your external IP address by running `ipconfig` (Windows) or `ifconfig` (Linux/Mac)
-> - The port is automatically assigned by Docker unless you specify one
+![ollama](../res/setup/settings/4-local-models.png)
 
 > [!NOTE]
-> If you're running Agent Zero directly on your system (legacy approach) instead of 
-> using Docker, you'll need to configure the host manually in `run_ui.py` to run on all interfaces using `host="0.0.0.0"`.
+> If Agent Zero runs in Docker and Ollama runs on the host, ensure port **11434** is reachable from the container. If both services are in the same Docker network, you can use `http://<container_name>:11434` instead of `host.docker.internal`.
 
-For developers or users who need to run Agent Zero directly on their system,see the [In-Depth Guide for Full Binaries Installation](#in-depth-guide-for-full-binaries-installation).
+### Managing Downloaded Models
 
-# How to update Agent Zero
+**Listing downloaded models:**
 
-1. **If you come from the previous version of Agent Zero:**
-- Your data is safely stored across various directories and files inside the Agent Zero folder.
-- To update to the new Docker runtime version, you might want to backup the following files and directories:
-  - `/memory` - Agent's memory
-  - `/knowledge` - Custom knowledge base (if you imported any custom knowledge files)
-  - `/instruments` - Custom instruments and functions (if you created any custom)
-  - `/tmp/settings.json` - Your Agent Zero settings
-  - `/tmp/chats/` - Your chat history
-- Once you have saved these files and directories, you can proceed with the Docker runtime [installation instructions above](#windows-macos-and-linux-setup-guide) setup guide.
-- Reach for the folder where you saved your data and copy it to the new Agent Zero folder set during the installation process.
-- Agent Zero will automatically detect your saved data and use it across memory, knowledge, instruments, prompts and settings.
+```bash
+ollama list
+```
 
-> [!IMPORTANT]
-> If you have issues loading your settings, you can try to delete the `/tmp/settings.json` file and let Agent Zero generate a new one.
-> The same goes for chats in `/tmp/chats/`, they might be incompatible with the new version
+**Removing a model:**
 
-2. **Update Process (Docker Desktop)**
-- Go to Docker Desktop and stop the container from the "Containers" tab
-- Right-click and select "Remove" to remove the container
-- Go to "Images" tab and remove the `agent0ai/agent-zero` image or click the three dots to pull the difference and update the Docker image.
-
-![docker delete image](res/setup/docker-delete-image-1.png)
-
-- Search and pull the new image if you chose to remove it
-- Run the new container with the same volume settings as the old one
-
-> [!IMPORTANT]
-> Make sure to use the same volume mount path when running the new
-> container to preserve your data. The exact path depends on where you stored
-> your Agent Zero data directory (the chosen directory on your machine).
+```bash
+ollama rm <model-name>
+```
 
 > [!TIP]
-> Alternatively, run the following commands in your terminal:
->
-> ```bash
-> # Stop the current container
-> docker stop agent-zero
->
-> # Remove the container (data is safe in the folder)
-> docker rm agent-zero
->
-> # Remove the old image
-> docker rmi agent0ai/agent-zero
->
-> # Pull the latest image
-> docker pull agent0ai/agent-zero
->
-> # Run new container with the same volume mount
-> docker run -p $PORT:80 -v /path/to/your/data:/a0 agent0ai/agent-zero
-> ```
+> Experiment with different model combinations to find the balance of performance and cost that best suits your needs. E.g., faster and lower latency LLMs will help, and you can also use `faiss_gpu` instead of `faiss_cpu` for the memory. 
 
-3. **Full Binaries**
-- Using Git/GitHub: Pull the latest version of the Agent Zero repository. 
-- The custom knowledge, solutions, memory, and other data will get ignored, so you don't need to worry about losing any of your custom data. The same goes for your .env file with all of your API keys and settings.json.
+---
 
-> [!WARNING]  
-> - If you update manually, beware: save your .env file with the API keys, and look for new dependencies in requirements.txt. 
-> - If any changes are made to the requirements of the updated version, you have to execute this command inside the a0 conda env after activating it:
-> ```bash
-> pip install -r requirements.txt
-
-# In-Depth Guide for Full Binaries Installation
-- Agent Zero is a framework. It's made to be customized, edited, enhanced. Therefore you need to install the necessary components to run it when downloading its full binaries. This guide will help you to do so.
-- The following step by step instructions can be followed along with a video for this tutorial on how to make Agent Zero work with its full development environment.
-
-[![Video](res/setup/thumb_play.png)](https://youtu.be/8H7mFsvxKYQ)
-
-## Reminders:
-1. There's no need to install Python, Conda will manage that for you.
-2. You don't necessarily need API keys: Agent Zero can run with local models. For this tutorial though, we will leave it to the default OpenAI API. A guide for downloading Ollama along with local models is available [here](#installing-and-using-ollama-local-models).
-3. Visual Studio Code or any other code editor is not mandatory, but it makes it easier to navigate and edit files.
-4. Git/GitHub is not mandatory, you can download the framework files through your browser. We will not be showing how to use Git in this tutorial.
-5. Docker is not mandatory for the full binaries installation, since the framework will run on your machine connecting to the Docker container through the Web UI RFC functionality.
-6. Running Agent Zero without Docker makes the process more complicated and it's thought for developers and contributors.
-
-> [!IMPORTANT]  
-> Linux instructions are provided as general instructions for any Linux distribution. If you're using a distribution other than Debian/Ubuntu, you may need to adjust the instructions accordingly.
->
-> For Debian/Ubuntu, just follow the macOS instructions, as they are the same.
-
-## 1. Install Conda (miniconda)
-- Conda is a Python environment manager, it will help you keep your projects and installations separated. 
-- It's a lightweight version of Anaconda that includes only conda, Python, the packages they depend on, and a small number of other useful packages, including pip, zlib and a few others.
-
-1. Go to the download page of miniconda [here](https://docs.anaconda.com/miniconda/#miniconda-latest-installer-links). If the link does not work, just search the web for "miniconda download".
-2. Based on your operating system, download the right installer of miniconda. For macOS select the version with "pkg" at the end.
-
-<img src="res/setup/image-1.png" alt="miniconda download win" width="500"/>
-<img src="res/setup/image-5.png" alt="miniconda download macos" width="500"/>
-<br><br>
-
-3. Run the installer and go through the installation process, here you can leave everything to default and just click Next, Next... The same goes for macOS with the "pkg" graphical installer.
-
-<img src="res/setup/image.png" alt="miniconda install" width="200"/>
-<img src="res/setup/image-2.png" alt="miniconda install" width="200"/>
-<img src="res/setup/image-3.png" alt="miniconda install" width="200"/>
-<img src="res/setup/image-4.png" alt="miniconda install" width="200"/>
-<br><br>
-
-4. After the installation is complete, you should have "Anaconda Powershell Prompt" installed on your Windows machine. On macOS, when you open the Terminal application in your Applications folder and type "conda --version", you should see the version installed.
-
-<img src="res/setup/image-6.png" alt="miniconda installed" height="100"/>
-<img src="res/setup/image-7.png" alt="miniconda installed" height="100"/>
-<br><br>
-
-
-## 2. Download Agent Zero
-- You can clone the Agent Zero repository (https://github.com/agent0ai/agent-zero) from GitHub if you know how to use Git. In this tutorial I will just show how to download the files.
-
-1. Go to the Agent Zero releases [here](https://github.com/agent0ai/agent-zero/releases).
-2. The latest release is on the top of the list, click the "Source Code (zip)" button under "Assets" to download it.
-
-<img src="res/setup/image-14-u.png" alt="agent zero download" width="500"/>
-<br><br>
-
-3. Extract the downloaded archive where you want to have it. I will extract them to "agent-zero" folder on my Desktop - "C:\Users\frdel\Desktop\agent-zero" on Windows and "/Users/frdel/Desktop/agent-zero" on macOS.
-
-## 3. Set up Conda environment
-- Now that we have the project files and Conda, we can create **virtual Python environment** for this project, activate it and install requirements.
-
-1. Open your **"Anaconda Powershell Prompt"** application on windows or **"Terminal"** application on macOS.
-2. In the terminal, navigate to your Agent Zero folder using **"cd"** command. Replace the path with your actual Agent Zero folder path.
-~~~
-cd C:\Users\frdel\Desktop\agent-zero
-~~~
-You should see your folder has changed on the next terminal line.
-
-<img src="res/setup/image-15.png" alt="agent zero cd" height="100"/>
-<img src="res/setup/image-16.png" alt="agent zero cd" height="100"/>
-<br><br>
-
-3. Create Conda environment using command **"conda create"**. After **"-n"** is your environment name, you can choose your own, i will use **"a0"** - short for Agent Zero. After **"python"** is the Python version that Conda will install for you into this environment, right now, 3.12 works fine. **-y** skips confirmations.
-~~~
-conda create -n a0 python=3.12 -y
-~~~
-
-4. Once done, activate the new environment for this terminal window by another command:
-~~~
-conda activate a0
-~~~
-And you should see that the **(base)** on the left has changed to **(a0)**. This means that this terminal now uses the new **a0** virtual environment and all packages will be installed into this environment.
-
-<img src="res/setup/image-17.png" alt="conda env" height="200"/>
-<img src="res/setup/image-18.png" alt="conda env" height="200"/>
-<br><br>
-
-> [!IMPORTANT]  
-> If you open a new terminal window, you will need to activate the environment with 
-> "conda activate a0" again for that window.
-
-5. Install requirements using **"pip"**. Pip is a Python package manager. We can install all required packages from requirements.txt file using command:
-~~~
-pip install -r requirements.txt
-~~~
-This might take some time. If you get any errors regarding version conflicts and compatibility, double check that your environment is activated and that you created that environment with the correct Python version.
-
-<img src="res/setup/image-19.png" alt="conda reqs" height="200"/>
-<br><br>
-
-## 4. Install Docker (Docker Desktop application)
-Simply put, Docker is a way of running virtual computers on your machine. These are lightweight, disposable and isolated from your operating system, so it is a way to sandbox Agent Zero.
-- Agent Zero only connects to the Docker container when it needs to execute code and commands. The frameworks itself runs on your machine.
-- Docker has a desktop application with GUI for all major operating system, which is the recommended way to install it.
-
-1. Go to the download page of Docker Desktop [here](https://www.docker.com/products/docker-desktop/). If the link does not work, just search the web for "docker desktop download".
-2. Download the version for your operating system. Don't be tricked by the seemingly missing windows intel/amd version, it's the button itself, not in the dropdown menu.
-
-<img src="res/setup/image-8.png" alt="docker download" width="200"/>
-<br><br>
-
-3. Run the installer and go through the installation process. It should be even shorter than Conda installation, you can leave everything to default. On macOS, the installer is a "dmg" image, so just drag and drop the application to your Applications folder like always.
-
-<img src="res/setup/image-9.png" alt="docker install" width="300"/>
-<img src="res/setup/image-10.png" alt="docker install" width="300"/>
-
-<img src="res/setup/image-12.png" alt="docker install" width="300"/>
-<br><br>
-
-
-4. Once installed, you should see Docker Desktop application on your Windows/Mac machine. 
-
-<img src="res/setup/image-11.png" alt="docker installed" height="100"/>
-<img src="res/setup/image-13.png" alt="docker installed" height="100"/>
-<br><br>
-
-5. Create account in the application.
-- It's required to be signed in to the Docker Hub, so create a free account in the Docker Desktop application, you will be prompted when the application first runs.
-
-> [!IMPORTANT]  
-> **Important macOS-only Docker Configuration:** In Docker Desktop's preferences 
-> (Docker menu) go to Settings, navigate to "Advanced" and check "Allow the default 
-> Docker socket to be used (requires password)."  This allows Agent Zero to 
-> communicate with the Docker daemon.
-
-![docker socket macOS](res/setup/macsocket.png)
+## How to Update Agent Zero
 
 > [!NOTE]
-> **Linux Users:** You can install both Docker Desktop or docker-ce (Community Edition). 
-> For Docker Desktop, follow the instructions for your specific Linux distribution [here](https://docs.docker.com/desktop/install/linux-install/). 
-> For docker-ce, follow the instructions [here](https://docs.docker.com/engine/install/).
->
-> If you're using docker-ce, you will need to add your user to the `docker` group to be able to run docker commands without sudo. You can do this by running the following command in your terminal: `sudo usermod -aG docker $USER`. Then log out and log back in for the changes to take effect.
->
-> Login in the Docker CLI with `docker login` and provide your Docker Hub credentials.
+> Since v0.9, Agent Zero includes a Backup & Restore workflow in the Settings UI. This is the **safest** way to upgrade Docker instances.
 
-6. Pull the Docker image
-- Agent Zero needs a Docker image to be pulled from the Docker Hub to be run, even when using the full binaries.
-You can refer to the [installation instructions above](#windows-macos-and-linux-setup-guide) to run the Docker container and then resume from the next step. There are two differences:
-  - You need to map two ports instead of one:
-    - 55022 in the first field to run the Remote Function Call SSH
-    - 0 in the second field to run the Web UI in automatic port assignment
-  - You need to map the `/a0` volume to the location of your local Agent Zero folder.
-- Run the Docker container following the instructions.
+### Recommended Update Process (Docker)
 
-## 5. Run the local Agent Zero instance
-Run the Agent Zero with Web UI:
-~~~
-python run_ui.py
-~~~
+1. **Keep the old container running** and note its port.
+2. **Pull the new image** (`agent0ai/agent-zero:latest`).
+3. **Start a new container** on a different host port.
+4. In the **old** instance, open **Settings → Backup & Restore** and create a backup.
+5. In the **new** instance, restore that backup from the same panel.
 
-<img src="res/setup/image-21.png" alt="run ui" height="110"/>
-<br><br>
+> [!TIP]
+> If the new instance fails to load settings, remove `/a0/usr/settings.json` and restart to regenerate default settings.
 
-- Open the URL shown in terminal in your web browser. You should see the Agent Zero interface.
+---
 
-## 6. Configure Agent Zero
-Now we can configure Agent Zero - select models, settings, API Keys etc. Refer to the [Usage](usage.md#agent-configuration) guide for a full guide on how to configure Agent Zero.
+## Using Agent Zero on Your Mobile Device
 
-## 7. Configure Agent Zero RFC
-Agent Zero needs to be configured further to redirect some functions to the Docker container. This is crucial for development as A0 needs to run in a standardized environment to support all features.
-1. Go in "Settings" page in the Web UI of your local instance and go in the "Development" section.
-2. Set "RFC Destination URL" to `http://localhost`
-3. Set the two ports (HTTP and SSH) to the ones used when creating the Docker container
-4. Click "Save"
+Agent Zero can be accessed from mobile devices and other computers using the built-in **Tunnel feature**.
 
-![rfc local settings](res/setup/9-rfc-devpage-on-local-sbs-1.png)
+### Recommended: Using Tunnel (Remote Access)
 
-5. Go in "Settings" page in the Web UI of your Docker instance and go in the "Development" section.
+The Tunnel feature allows secure access to your Agent Zero instance from anywhere:
 
-![rfc docker settings](res/setup/9-rfc-devpage-on-docker-instance-1.png)
+1. Open Settings in the Web UI
+2. Navigate to the **External Services** tab
+3. Click on **Flare Tunnel** in the navigation menu
+4. Click **Create Tunnel** to generate a secure HTTPS URL
+5. Share this URL to access Agent Zero from any device
 
-6. This time the page has only the password field, set it to the same password you used when creating the Docker container.
-7. Click "Save"
-8. Use the Development environment
-9. Now you have the full development environment to work on Agent Zero.
+> [!IMPORTANT]
+> **Security:** Always set a username and password in Settings → Authentication before creating a tunnel to secure your instance on the internet.
 
-<img src="res/setup/image-22-1.png" alt="run ui" width="400"/>
-<img src="res/setup/image-23-1.png" alt="run ui" width="400"/>
-<br><br>
+For complete details on tunnel configuration and security considerations, see the [Remote Access via Tunneling](../guides/usage.md#remote-access-via-tunneling) section in the Usage Guide.
 
-      
-### Conclusion
-After following the instructions for your specific operating system, you should have Agent Zero successfully installed and running. You can now start exploring the framework's capabilities and experimenting with creating your own intelligent agents. 
+### Alternative: Local Network Access
 
-If you encounter any issues during the installation process, please consult the [Troubleshooting section](troubleshooting.md) of this documentation or refer to the Agent Zero [Skool](https://www.skool.com/agent-zero) or [Discord](https://discord.gg/B8KZKNsPpj) community for assistance.
+If you prefer to keep access limited to your local network:
 
+1. Find the mapped port in Docker Desktop (format: `<PORT>:80`, e.g., `32771:80`)
+2. Access from the same computer: `http://localhost:<PORT>`
+3. Access from other devices on the network: `http://<YOUR_COMPUTER_IP>:<PORT>`
+
+> [!TIP]
+> Find your computer's IP address with `ipconfig` (Windows) or `ifconfig`/`ip addr` (macOS/Linux). It's usually in the format `192.168.x.x` or `10.0.x.x`.
+
+For developers or users who need to run Agent Zero directly on their system, see the [In-Depth Guide for Full Binaries Installation](dev-setup.md).
+
+---
+
+## Advanced: Automated Configuration via Environment Variables
+
+Agent Zero settings can be automatically configured using environment variables with the `A0_SET_` prefix in your `.env` file. This enables automated deployments without manual configuration.
+
+**Usage:**
+
+Add variables to your `.env` file in the format:
+
+```env
+A0_SET_{setting_name}={value}
+```
+
+**Examples:**
+
+```env
+# Model configuration
+A0_SET_chat_model_provider=anthropic
+A0_SET_chat_model_name=claude-3-5-sonnet-20241022
+A0_SET_chat_model_ctx_length=200000
+
+# Memory settings
+A0_SET_memory_recall_enabled=true
+A0_SET_memory_recall_interval=5
+
+# Agent configuration
+A0_SET_agent_profile=custom
+A0_SET_agent_memory_subdir=production
+```
+
+**Docker usage:**
+
+When running Docker, you can pass these as environment variables:
+
+```bash
+docker run -p 50080:80 \
+  -e A0_SET_chat_model_provider=anthropic \
+  -e A0_SET_chat_model_name=claude-3-5-sonnet-20241022 \
+  agent0ai/agent-zero
+```
+
+**Notes:**
+
+- These provide initial default values when settings.json doesn't exist or when new settings are added to the application. Once a value is saved in settings.json, it takes precedence over these environment variables.
+- Sensitive settings (API keys, passwords) use their existing environment variables
+- Container/process restart required for changes to take effect
+
+---
+
+### Manual Migration (Legacy or Non-Docker)
+
+If you are migrating from older, non-Docker setups, copy these directories into `/a0/usr/` in the new instance:
+
+- `/a0/memory` (agent memories)
+- `/a0/knowledge` (custom knowledge)
+- `/a0/instruments` (now skills)
+- `/a0/tmp/settings.json` (settings)
+- `/a0/tmp/chats/` (chat history)
+- `/a0/tmp/secrets.env` (secrets)
+
+Then proceed with the Docker installation steps above.
+
+## Conclusion
+
+After following the instructions for your specific operating system, you should have Agent Zero successfully installed and running. You can now start exploring the framework's capabilities and experimenting with creating your own intelligent agents.
+
+**Next Steps:**
+
+- For production server deployments, see the [VPS Deployment Guide](vps-deployment.md)
+- For development setup and extensions, see the [Development Setup Guide](dev-setup.md)
+- For remote access via tunnel, see [Remote Access via Tunneling](../guides/usage.md#remote-access-via-tunneling)
+
+If you encounter any issues during the installation process, please consult the [Troubleshooting section](../guides/troubleshooting.md) of this documentation or refer to the Agent Zero [Skool](https://www.skool.com/agent-zero) or [Discord](https://discord.gg/B8KZKNsPpj) community for assistance.

@@ -12,13 +12,10 @@
 ## Documentation:
 
 [Introduction](#a-personal-organic-agentic-framework-that-grows-and-learns-with-you) •
-[Installation](./docs/installation.md) •
-[Development](./docs/development.md) •
-[WebSocket Infrastructure](./docs/websocket-infrastructure.md) •
-[Connectivity](./docs/connectivity.md) •
-[How to update](./docs/installation.md#how-to-update-agent-zero) •
-[Documentation](./docs/README.md) •
-[Usage](./docs/usage.md)
+[Installation](./docs/setup/installation.md) •
+[How to update](./docs/setup/installation.md#how-to-update-agent-zero) <br>
+[Development Setup](./docs/setup/dev-setup.md) •
+[Usage](./docs/guides/usage.md)
 
 Or see DeepWiki generated documentation:
 
@@ -29,14 +26,17 @@ Or see DeepWiki generated documentation:
 
 <div align="center">
 
-> ### 🚨 **PROJECTS!** 🚨
-Agent Zero now supports **Projects** – isolated workspaces with their own prompts, files, memory, and secrets, so you can create dedicated setups for each use case without mixing contexts.
+> ### 🚨 **AGENT ZERO SKILLS** 🚨
+> Agent Zero Instruments become **Skills** - portable, structured agent capabilities using the open `SKILL.md` standard (compatible with Claude Code, Codex and more).
+> 
+> **Plus:** Git-based Projects with authentication for public/private repositories - clone codebases directly into isolated workspaces.
+> 
+> See [Usage Guide](./docs/guides/usage.md) and [Projects Tutorial](./docs/guides/projects.md) to get started.
 </div>
 
 
 
 [![Showcase](/docs/res/showcase-thumb.png)](https://youtu.be/lazLNcEYsiQ)
-
 
 
 ## A personal, organic agentic framework that grows and learns with you
@@ -47,6 +47,26 @@ Agent Zero now supports **Projects** – isolated workspaces with their own prom
 - Agent Zero is fully transparent, readable, comprehensible, customizable, and interactive.
 - Agent Zero uses the computer as a tool to accomplish its (your) tasks.
 
+# ⚙️ Installation
+
+Click to open a video to learn how to install Agent Zero:
+
+[![Easy Installation guide](/docs/res/easy_ins_vid.png)](https://www.youtube.com/watch?v=w5v5Kjx51hs)
+
+A detailed setup guide for Windows, macOS, and Linux with a video can be found in the Agent Zero Documentation at [this page](./docs/setup/installation.md).
+
+### ⚡ Quick Start
+
+```bash
+# Pull and run with Docker
+
+docker pull agent0ai/agent-zero
+docker run -p 50001:80 agent0ai/agent-zero
+
+# Visit http://localhost:50001 to start
+```
+
+
 # 💡 Key Features
 
 1. **General-purpose Assistant**
@@ -54,7 +74,7 @@ Agent Zero now supports **Projects** – isolated workspaces with their own prom
 - Agent Zero is not pre-programmed for specific tasks (but can be). It is meant to be a general-purpose personal assistant. Give it a task, and it will gather information, execute commands and code, cooperate with other agent instances, and do its best to accomplish it.
 - It has a persistent memory, allowing it to memorize previous solutions, code, facts, instructions, etc., to solve tasks faster and more reliably in the future.
 
-![Agent 0 Working](/docs/res/ui-screen-2.png)
+![Agent 0 Working](/docs/res/ui_screen2.png)
 
 2. **Computer as a Tool**
 
@@ -71,8 +91,7 @@ Agent Zero now supports **Projects** – isolated workspaces with their own prom
 - In the case of the first agent in the chain (Agent 0), the superior is the human user; the agent sees no difference.
 - Every agent can create its subordinate agent to help break down and solve subtasks. This helps all agents keep their context clean and focused.
 
-![Multi-agent](docs/res/physics.png)
-![Multi-agent 2](docs/res/physics-2.png)
+![Multi-agent](docs/res/usage/multi-agent.png)
 
 4. **Completely Customizable and Extensible**
 
@@ -83,7 +102,7 @@ Agent Zero now supports **Projects** – isolated workspaces with their own prom
 - Every default tool can be found in the **python/tools/** folder and changed or copied to create new predefined tools.
 - **Automated configuration** via `A0_SET_` environment variables for deployment automation and easy setup.
 
-![Prompts](/docs/res/prompts.png)
+![Prompts](/docs/res/profiles.png)
 
 5. **Communication is Key**
 
@@ -92,42 +111,21 @@ Agent Zero now supports **Projects** – isolated workspaces with their own prom
 - The terminal interface is real-time streamed and interactive. You can stop and intervene at any point. If you see your agent heading in the wrong direction, just stop and tell it right away.
 - There is a lot of freedom in this framework. You can instruct your agents to regularly report back to superiors asking for permission to continue. You can instruct them to use point-scoring systems when deciding when to delegate subtasks. Superiors can double-check subordinates' results and dispute. The possibilities are endless.
 
-## 🚀 Things you can build with Agent Zero
+## 🚀 Real-world use cases
 
-- **Development Projects** - `"Create a React dashboard with real-time data visualization"`
+- **Financial Analysis & Charting** - `"Find last month's Bitcoin/USD price trend, correlate with major cryptocurrency news events, generate annotated chart with highlighted key dates"`
 
-- **Data Analysis** - `"Analyze last quarter's NVIDIA sales data and create trend reports"`
+- **Excel Automation Pipeline** - `"Scan incoming directory for financial spreadsheets, validate and clean data, consolidate from multiple sources, generate executive reports with flagged anomalies"`
 
-- **Content Creation** - `"Write a technical blog post about microservices"`
+- **API Integration Without Code** - `"Use this Google Gemini API snippet to generate product images, remember the integration for future use"` - agent learns and stores the solution in memory
 
-- **System Admin** - `"Set up a monitoring system for our web servers"`
+- **Automated Server Monitoring** - `"Check server status every 30 minutes: CPU usage, disk space, memory. Alert if metrics exceed thresholds"` (scheduled task with project-scoped credentials)
 
-- **Research** - `"Gather and summarize five recent AI papers about CoT prompting"`
-
-
-
-# ⚙️ Installation
-
-Click to open a video to learn how to install Agent Zero:
-
-[![Easy Installation guide](/docs/res/easy_ins_vid.png)](https://www.youtube.com/watch?v=w5v5Kjx51hs)
-
-A detailed setup guide for Windows, macOS, and Linux with a video can be found in the Agent Zero Documentation at [this page](./docs/installation.md).
-
-### ⚡ Quick Start
-
-```bash
-# Pull and run with Docker
-
-docker pull agent0ai/agent-zero
-docker run -p 50001:80 agent0ai/agent-zero
-
-# Visit http://localhost:50001 to start
-```
+- **Multi-Client Project Isolation** - Separate projects for each client with isolated memory, custom instructions, and dedicated secrets - prevents context bleed across sensitive work
 
 ## 🐳 Fully Dockerized, with Speech-to-Text and TTS
 
-![Settings](docs/res/settings-page-ui.png)
+![Settings](docs/res/settings-page-ui1.png)
 
 - Customizable settings allow users to tailor the agent's behavior and responses to their needs.
 - The Web UI output is very clean, fluid, colorful, readable, and interactive; nothing is hidden.
@@ -155,18 +153,57 @@ docker run -p 50001:80 agent0ai/agent-zero
 
 | Page | Description |
 |-------|-------------|
-| [Installation](./docs/installation.md) | Installation, setup and configuration |
-| [Usage](./docs/usage.md) | Basic and advanced usage |
-| [Development](./docs/development.md) | Development and customization |
-| [WebSocket Infrastructure](./docs/websocket-infrastructure.md) | Real-time WebSocket handlers, client APIs, filtering semantics, envelopes |
-| [Extensibility](./docs/extensibility.md) | Extending Agent Zero |
-| [Connectivity](./docs/connectivity.md) | External API endpoints, MCP server connections, A2A protocol |
-| [Architecture](./docs/architecture.md) | System design and components |
-| [Contributing](./docs/contribution.md) | How to contribute |
-| [Troubleshooting](./docs/troubleshooting.md) | Common issues and their solutions |
+| [Installation](./docs/setup/installation.md) | Installation, setup and configuration |
+| [Usage](./docs/guides/usage.md) | Basic and advanced usage |
+| [Guides](./docs/guides/) | Step-by-step guides: Usage, Projects, API Integration, MCP Setup, A2A Setup |
+| [Development Setup](./docs/setup/dev-setup.md) | Development and customization |
+| [WebSocket Infrastructure](./docs/developer/websockets.md) | Real-time WebSocket handlers, client APIs, filtering semantics, envelopes |
+| [Extensions](./docs/developer/extensions.md) | Extending Agent Zero |
+| [Connectivity](./docs/developer/connectivity.md) | External API endpoints, MCP server connections, A2A protocol |
+| [Architecture](./docs/developer/architecture.md) | System design and components |
+| [Contributing](./docs/guides/contribution.md) | How to contribute |
+| [Troubleshooting](./docs/guides/troubleshooting.md) | Common issues and their solutions |
 
 
 ## 🎯 Changelog
+
+### v0.9.8 - Skills, UI Redesign & Git projects
+[Release video](https://youtu.be/NV7s78yn6DY)
+
+- Skills
+    - Skills System replacing the legacy Instruments with a new `SKILL.md` standard for structured, portable agent capabilities.
+    - Built-in skills, and UI support for importing and listing skills
+- Real-time WebSocket infrastructure replacing the polling-based approach for UI state synchronization
+- UI Redesign
+    - Process groups to visually group agent actions with expand/collapse support
+    - Timestamps, steps count and execution time with tool-specific badges
+    - Step detail modals with key-value and raw JSON display
+    - Collapsible responses with show more/less and copy buttons on code blocks and tables
+    - Message queue system allowing users to queue messages while the agent is still processing
+    - In-browser file editor for viewing and editing files without leaving the UI
+    - Welcome screen redesign with info and warning banners for connection security, missing API keys, and system resources
+    - Scheduler redesign with standalone modal, separate task list, detail and editor components, and project support
+    - Smooth response rendering and scroll stabilization across chat, terminals, and image viewer
+    - Chat width setting and reworked preferences panel
+    - Image viewer improvements with scroll support and expanded viewer
+    - Redesigned sidebar with reusable dropdown component and streamlined buttons
+    - Inline button confirmations for critical actions
+    - Improved login design and new logout button
+    - File browser enhanced with rename and file actions dropdown
+- Git projects
+    - Git-based projects with clone authentication for public and private repositories
+- Four new LLM providers: CometAPI, Z.AI, Moonshot AI, and AWS Bedrock
+- Microsoft Dev Tunnels integration for secure remote access
+- User data migration to `/usr` directory for cleaner separation of user and system files
+- Subagents system with configurable agent profiles for different roles
+- Memory operations offloaded to deferred tasks for better performance
+- Environment variables can now configure settings via `A0_SET_*` prefix in `.env`
+- Automatic migration with overwrite support for `.env`, scheduler, knowledge, and legacy instruments directories
+- Projects support extended to MCP, A2A, and external API
+- Workdir outside project support for more flexible file organization
+- Agent number tracking in backend and responses for multi-agent identification
+- Many bug fixes and stability improvements across the UI, MCP tools, scheduler, uploads, and WebSocket handling
+
 
 ### v0.9.7 - Projects
 [Release video](https://youtu.be/RrTDp_v9V1c)
@@ -186,8 +223,6 @@ docker run -p 50001:80 agent0ai/agent-zero
 - More efficient selective streaming for LLMs
 - UI output length limit improvements
 
-
-
 ### v0.9.6 - Memory Dashboard
 [Release video](https://youtu.be/sizjAq2-d9s)
 - Memory Management Dashboard
@@ -197,7 +232,6 @@ docker run -p 50001:80 agent0ai/agent-zero
 - New login screen
 - LiteLLM retry on temporary errors
 - Github Copilot provider support
-
 
 ### v0.9.5 - Secrets
 [Release video](https://www.youtube.com/watch?v=VqxUdt7pjd8)
@@ -242,14 +276,12 @@ docker run -p 50001:80 agent0ai/agent-zero
 - Docker build support for local images
 - File browser fix
 
-
 ### v0.9.2 - Kokoro TTS, Attachments
 [Release video](https://www.youtube.com/watch?v=sPot_CAX62I)
 
 - Kokoro text-to-speech integration
 - New message attachments system
 - Minor updates: log truncation, hyperlink targets, component examples, api cleanup
-
 
 ### v0.9.1 - LiteLLM, UI improvements
 [Release video](https://youtu.be/crwr0M4Spcg)
@@ -266,7 +298,6 @@ docker run -p 50001:80 agent0ai/agent-zero
     - More space efficient on mobile
 - Streamable HTTP MCP servers support
 - LLM API URL added to models config for Azure, local and custom providers
-
 
 ### v0.9.0 - Agent roles, backup/restore
 [Release video](https://www.youtube.com/watch?v=rMIe-TC6H-k)
@@ -313,7 +344,6 @@ Default models set to gpt-4.1
 [Release video](https://youtu.be/AGNpQ3_GxFQ)
 
 - **Automatic embedding**
-
 
 ### v0.8.3
 [Release video](https://youtu.be/bPIZo0poalY)
