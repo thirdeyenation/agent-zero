@@ -574,7 +574,7 @@ If you are migrating from older, non-Docker setups, copy these directories into 
 
 - `/a0/memory` (agent memories)
 - `/a0/knowledge` (custom knowledge)
-- `/a0/instruments` (custom instruments)
+- `/a0/instruments` (now skills)
 - `/a0/tmp/settings.json` (settings)
 - `/a0/tmp/chats/` (chat history)
 - `/a0/tmp/secrets.env` (secrets)
