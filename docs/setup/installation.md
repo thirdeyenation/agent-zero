@@ -570,16 +570,7 @@ docker run -p 50080:80 \
 
 ### Manual Migration (Legacy or Non-Docker)
 
-If you are migrating from older, non-Docker setups, copy these directories into `/a0/usr/` in the new instance:
-
-- `/a0/memory` (agent memories)
-- `/a0/knowledge` (custom knowledge)
-- `/a0/instruments` (custom instruments)
-- `/a0/tmp/settings.json` (settings)
-- `/a0/tmp/chats/` (chat history)
-- `/a0/tmp/secrets.env` (secrets)
-
-Then proceed with the Docker installation steps above.
+If you are migrating from older, non-Docker setups, A0 handles the migration of legacy folders and files automatically at runtime. The right place to save your files and directories is `a0/usr`.
 
 ## Conclusion
 
