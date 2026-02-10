@@ -299,7 +299,7 @@ Projects are the recommended way to create specialized workflows in Agent Zero w
 - Keep passwords and other secrets scoped to a single workspace
 - Run multiple independent flows side by side under the same Agent Zero installation
 
-See [Usage → Tasks & Scheduling](usage.md#tasks--scheduling) for how to pair projects with scheduled tasks.
+See [Usage → Tasks & Scheduling](../guides/usage.md#tasks--scheduling) for how to pair projects with scheduled tasks.
 
 ## Best Practices
 - Keep extensions focused on a single responsibility
