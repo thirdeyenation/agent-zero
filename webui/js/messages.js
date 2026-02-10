@@ -1177,7 +1177,7 @@ export function drawMessageBrowser({
   return drawProcessStep({
     id,
     title,
-    code: "HDL",
+    code: "WWW",
     classes: null,
     kvps: displayKvps,
     content,
