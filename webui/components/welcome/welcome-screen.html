@@ -8,43 +8,43 @@
 
 <body>
     <div x-data >
-        <template x-if="$store.welcomeStore">
-            <div x-data="$store.welcomeStore" x-create="$store.welcomeStore.onCreate()" class="welcome-container">
+        <template x-if="$store.welcomeStore && $store.welcomeStore.isVisible">
+            <div x-create="$store.welcomeStore.onCreate()" class="welcome-container">
                 <div class="welcome-content">
                     <!-- Action Cards -->
                     <div class="welcome-actions">
-                        <div class="welcome-action-card" @click="executeAction('new-chat')">
+                        <div class="welcome-action-card" @click="$store.welcomeStore.executeAction('new-chat')">
                             <span class="material-symbols-outlined welcome-action-icon">add_circle</span>
                             <h3 class="welcome-action-title">New Chat</h3>
                         </div>
 
-                        <div class="welcome-action-card" @click="executeAction('projects')">
+                        <div class="welcome-action-card" @click="$store.welcomeStore.executeAction('projects')">
                             <span class="material-symbols-outlined welcome-action-icon">folder</span>
                             <h3 class="welcome-action-title">Projects</h3>
                         </div>
-                        <div class="welcome-action-card" @click="executeAction('memory')">
+                        <div class="welcome-action-card" @click="$store.welcomeStore.executeAction('memory')">
                             <span class="material-symbols-outlined welcome-action-icon">memory</span>
                             <h3 class="welcome-action-title">Memory</h3>
                         </div>
 
-                        <div class="welcome-action-card" @click="executeAction('scheduler')">
+                        <div class="welcome-action-card" @click="$store.welcomeStore.executeAction('scheduler')">
                             <span class="material-symbols-outlined welcome-action-icon">schedule</span>
                             <h3 class="welcome-action-title">Scheduler</h3>
                         </div>
-                        <div class="welcome-action-card" @click="executeAction('settings')">
+                        <div class="welcome-action-card" @click="$store.welcomeStore.executeAction('settings')">
                             <span class="material-symbols-outlined welcome-action-icon">settings</span>
                             <h3 class="welcome-action-title">Settings</h3>
                         </div>
 
-                        <div class="welcome-action-card" @click="executeAction('files')">
+                        <div class="welcome-action-card" @click="$store.welcomeStore.executeAction('files')">
                             <span class="material-symbols-outlined welcome-action-icon">folder_open</span>
                             <h3 class="welcome-action-title">Files</h3>
                         </div>
-                        <div class="welcome-action-card" @click="executeAction('website')">
+                        <div class="welcome-action-card" @click="$store.welcomeStore.executeAction('website')">
                             <span class="material-symbols-outlined welcome-action-icon">language</span>
                             <h3 class="welcome-action-title">Visit Website</h3>
                         </div>
-                        <div class="welcome-action-card" @click="executeAction('github')">
+                        <div class="welcome-action-card" @click="$store.welcomeStore.executeAction('github')">
                             <span class="material-symbols-outlined welcome-action-icon">code</span>
                             <h3 class="welcome-action-title">Visit GitHub</h3>
                         </div>
@@ -53,29 +53,29 @@
                     <div class="welcome-actions-footer">
                         <button type="button"
                                 class="welcome-refresh-button"
-                                @click="refreshBanners(true)"
-                                :disabled="bannersLoading"
+                                @click="$store.welcomeStore.refreshBanners(true)"
+                                :disabled="$store.welcomeStore.bannersLoading"
                                 title="Refresh banners">
-                            <span class="material-symbols-outlined" :class="{ 'welcome-spin': bannersLoading }">refresh</span>
+                            <span class="material-symbols-outlined" :class="{ 'welcome-spin': $store.welcomeStore.bannersLoading }">refresh</span>
                         </button>
 
                         <button type="button"
                                 class="welcome-refresh-button"
-                                @click="undismissBanners()"
-                                x-show="hasDismissedBanners"
-                                :disabled="bannersLoading"
+                                @click="$store.welcomeStore.undismissBanners()"
+                                x-show="$store.welcomeStore.hasDismissedBanners"
+                                :disabled="$store.welcomeStore.bannersLoading"
                                 title="Undismiss all banners">
                             <span class="material-symbols-outlined">undo</span>
                         </button>
                     </div>
 
                     <!-- Banner Section -->
-                    <div class="welcome-banners" x-show="banners && banners.length > 0">
-                        <template x-for="banner in sortedBanners" :key="banner.id">
-                            <div class="welcome-banner" :class="getBannerClass(banner.type)">
+                    <div class="welcome-banners" x-show="$store.welcomeStore.banners && $store.welcomeStore.banners.length > 0">
+                        <template x-for="banner in $store.welcomeStore.sortedBanners" :key="banner.id">
+                            <div class="welcome-banner" :class="$store.welcomeStore.getBannerClass(banner.type)">
                                 <!-- Banner Icon -->
                                 <div class="welcome-banner-icon">
-                                    <span class="material-symbols-outlined" x-text="getBannerIcon(banner.type)"></span>
+                                    <span class="material-symbols-outlined" x-text="$store.welcomeStore.getBannerIcon(banner.type)"></span>
                                 </div>
                                 
                                 <!-- Banner Content -->
@@ -87,7 +87,7 @@
                                 <!-- Dismiss Button -->
                                 <button class="welcome-banner-dismiss" 
                                         x-show="banner.dismissible !== false"
-                                        @click.stop="dismissBanner(banner.id)"
+                                        @click.stop="$store.welcomeStore.dismissBanner(banner.id)"
                                         title="Dismiss">
                                     <span class="material-symbols-outlined">close</span>
                                 </button>
