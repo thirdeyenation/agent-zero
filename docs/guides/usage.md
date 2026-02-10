@@ -1,7 +1,7 @@
 # Usage Guide
 This guide explores usage and configuration scenarios for Agent Zero. You can consider this as a reference post-installation guide.
 
-![Utility Message with Solutions](res/memory-man.png)
+![Utility Message with Solutions](../res/memory-man.png)
 
 ## Basic Operations
 Agent Zero provides several basic operations through its interface:
@@ -9,7 +9,7 @@ Agent Zero provides several basic operations through its interface:
 ### Restart Framework
 The Restart button allows you to quickly restart the Agent Zero framework without using the terminal:
 
-![Restart Framework](res/ui-restarting.png)
+![Restart Framework](../res/ui-restarting.png)
 
 * Click the "Restart" button in the sidebar
 * A blue notification will appear indicating "Restarting..."
@@ -24,7 +24,7 @@ The Restart button allows you to quickly restart the Agent Zero framework withou
 ### Action Buttons
 Located beneath the chat input box, Agent Zero provides a set of action buttons for enhanced control and visibility:
 
-![Action Buttons](res/ui-actions.png)
+![Action Buttons](../res/ui-actions.png)
 #### Chat Flow Control
 * **Pause/Resume Agent:** Toggle button to pause and resume chat flow
   - Click to pause ongoing agent operations
@@ -36,7 +36,7 @@ Located beneath the chat input box, Agent Zero provides a set of action buttons 
   - Supports `.txt`, `.pdf`, `.csv`, `.html`, `.json`, and `.md` formats
   - Files are stored in `/a0/knowledge/custom/main`
   - Success message confirms successful import
-  - See [knowledge](architecture.md#knowledge) for more details
+  - See [knowledge](../advanced/architecture.md#knowledge) for more details
 
 ### File Browser: Manage files in the Agent Zero environment
   - Upload new files and folders
@@ -52,7 +52,7 @@ Located beneath the chat input box, Agent Zero provides a set of action buttons 
   - Shows current conversation context
   - Displays active instructions and parameters
 
-![Context](res/ui-context.png)
+![Context](../res/ui-context.png)
 
 ### History:
 Access the chat history in JSON format
@@ -60,14 +60,14 @@ Access the chat history in JSON format
   - Useful for debugging and understanding agent behavior
   - Files are stored under `/a0/tmp/chats/` inside the container
 
-![History](res/ui-history.png)
+![History](../res/ui-history.png)
 
 * **Nudge:** Restart the agent's last process
   - Useful when agents become unresponsive
   - Retries the last operation
   - Helps recover from stuck states
 
-![Nudge](res/ui-nudge.png)
+![Nudge](../res/ui-nudge.png)
 
 > [!TIP]
 > Use the Context and History buttons to understand how the agent interprets your instructions and debug any unexpected behavior.
@@ -83,7 +83,7 @@ Agent Zero supports direct file attachments in the chat interface for seamless f
   - Images show thumbnails when available
   - Files are listed in the chat input area waiting to be sent
 
-![File Attachments](res/ui-attachments.png)
+![File Attachments](../res/ui-attachments.png)
 
 #### Working with Attached Files
 * Files can be referenced directly in your messages
@@ -93,13 +93,13 @@ Agent Zero supports direct file attachments in the chat interface for seamless f
   - Perform operations on multiple files simultaneously
   - Confirm successful file operations with detailed responses
 
-![Working with Attachments](res/ui-attachments-2.png)
+![Working with Attachments](../res/ui-attachments-2.png)
 
 > [!TIP]
 > When working with multiple files, you can attach them all at once and then give instructions about what to do with them. The agent will handle them as a batch while keeping you informed of the progress.
 
 ## Tool Usage
-Agent Zero's power comes from its ability to use [tools](architecture.md#tools). Here's how to leverage them effectively:
+Agent Zero's power comes from its ability to use [tools](../advanced/architecture.md#tools). Here's how to leverage them effectively:
 
 - **Understand Tools:** Agent Zero includes default tools like knowledge (powered by SearXNG), code execution, and communication. Understand the capabilities of these tools and how to invoke them.
 
@@ -110,7 +110,7 @@ The built-in browser agent currently has dependency issues on some systems. If w
 - **Chrome DevTools MCP**
 - **Playwright MCP**
 
-See [MCP Setup](mcp_setup.md) for configuration guidance and recommended servers.
+See [MCP Setup](../getting-started/mcp-setup.md) for configuration guidance and recommended servers.
 
 ## Example of Tools Usage: Web Search and Code Execution
 Let's say you want Agent Zero to perform some financial analysis tasks. Here's a possible prompt:
@@ -134,10 +134,10 @@ One of Agent Zero's unique features is multi-agent cooperation.
 
 * **Creating Sub-Agents:** Agents can create sub-agents to delegate sub-tasks.  This helps manage complexity and distribute workload.
 * **Communication:** Agents can communicate with each other, sharing information and coordinating actions. The system prompt and message history play a key role in guiding this communication.
-* **Hierarchy:** Agent Zero uses a [hierarchical structure](architecture.md#agent-hierarchy-and-communication), with superior agents delegating tasks to subordinates.  This allows for structured problem-solving and efficient resource allocation.
+* **Hierarchy:** Agent Zero uses a [hierarchical structure](../advanced/architecture.md#agent-hierarchy-and-communication), with superior agents delegating tasks to subordinates.  This allows for structured problem-solving and efficient resource allocation.
 
-![](res/physics.png)
-![](res/physics-2.png)
+![](../res/physics.png)
+![](../res/physics-2.png)
 
 ## Projects
 Projects create isolated workspaces with their own context, instructions, memory, and secrets. This prevents context bleed between unrelated tasks or clients.
@@ -146,7 +146,7 @@ Projects create isolated workspaces with their own context, instructions, memory
 - Project instructions are automatically injected from `.a0proj/instructions/`
 - Project memory and knowledge are stored separately from global memory
 
-See [Projects in Extensibility](extensibility.md#projects) for structure details and file locations.
+See [Projects in Extensibility](../development/extensibility.md#projects) for structure details and file locations.
 
 ## Tasks & Scheduling
 Tasks allow Agent Zero to spawn scheduled or on-demand work in separate contexts.
@@ -156,7 +156,7 @@ Tasks allow Agent Zero to spawn scheduled or on-demand work in separate contexts
 - **Dedicated context:** each task runs in its own chat context, which pairs well with Projects.
 
 > [!TIP]
-> Combine **Projects + Tasks + Notifications** for recurring, scoped workflows (e.g., daily inbox summaries). See [Notifications](notifications.md) for alerts.
+> Combine **Projects + Tasks + Notifications** for recurring, scoped workflows (e.g., daily inbox summaries). See [Notifications](../advanced/notifications.md) for alerts.
 
 ## Prompt Engineering
 Effective prompt engineering is crucial for getting the most out of Agent Zero. Here are some tips and techniques:
@@ -190,7 +190,7 @@ Enable voice responses from agents:
 * Click the "Stop Speech" button above the input area to immediately stop any ongoing speech
 * You can also click the speech button when hovering over messages to speak individual messages or their parts
 
-![TTS Stop Speech](res/ui-tts-stop-speech.png)
+![TTS Stop Speech](../res/ui-tts-stop-speech.png)
 
 - The interface allows users to stop speech at any time if a response is too lengthy or if they wish to intervene during the conversation.
 
@@ -225,7 +225,7 @@ Configure STT settings in the Settings page:
   - Duration: Set how long silence should last before ending recording
   - Timeout: Set maximum waiting time before closing the microphone
 
-![Speech to Text Settings](res/ui-settings-5-speech-to-text.png)
+![Speech to Text Settings](../res/ui-settings-5-speech-to-text.png)
 
 > [!IMPORTANT]
 > All STT and TTS functionalities operate locally within the Docker container,
@@ -240,7 +240,7 @@ Configure STT settings in the Settings page:
   - Integrals, summations, and limits
   - Mathematical alignments and equations
 
-![KaTeX display](res/ui-katex-2.png)
+![KaTeX display](../res/ui-katex-2.png)
 
 > [!TIP]
 > When asking the agent to solve mathematical problems, it will automatically respond using KaTeX formatting for clear and professional-looking mathematical expressions.
@@ -258,7 +258,7 @@ Agent Zero provides a powerful file browser interface for managing your workspac
   - Download button
   - Delete button (with confirmation)
 
-![File Browser](res/ui-file-browser.png)
+![File Browser](../res/ui-file-browser.png)
 
 #### Features
 - **Directory Navigation**:

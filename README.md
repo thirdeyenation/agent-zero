@@ -12,13 +12,13 @@
 ## Documentation:
 
 [Introduction](#a-personal-organic-agentic-framework-that-grows-and-learns-with-you) •
-[Installation](./docs/installation.md) •
-[Development](./docs/development.md) •
-[WebSocket Infrastructure](./docs/websocket-infrastructure.md) •
-[Connectivity](./docs/connectivity.md) •
-[How to update](./docs/installation.md#how-to-update-agent-zero) •
+[Installation](./docs/getting-started/installation.md) •
+[Development](./docs/development/setup.md) •
+[WebSocket Infrastructure](./docs/advanced/websockets.md) •
+[Connectivity](./docs/advanced/connectivity.md) •
+[How to update](./docs/getting-started/installation.md#how-to-update-agent-zero) •
 [Documentation](./docs/README.md) •
-[Usage](./docs/usage.md)
+[Usage](./docs/guides/usage.md)
 
 Or see DeepWiki generated documentation:
 
@@ -30,13 +30,12 @@ Or see DeepWiki generated documentation:
 <div align="center">
 
 > ### 🚨 **PROJECTS!** 🚨
-Agent Zero now supports **Projects** – isolated workspaces with their own prompts, files, memory, and secrets, so you can create dedicated setups for each use case without mixing contexts.
+> Agent Zero now supports **Projects** – isolated workspaces with their own prompts, files, memory, and secrets, so you can create dedicated setups for each use case without mixing contexts.
 </div>
 
 
 
 [![Showcase](/docs/res/showcase-thumb.png)](https://youtu.be/lazLNcEYsiQ)
-
 
 
 ## A personal, organic agentic framework that grows and learns with you
@@ -105,14 +104,13 @@ Agent Zero now supports **Projects** – isolated workspaces with their own prom
 - **Research** - `"Gather and summarize five recent AI papers about CoT prompting"`
 
 
-
 # ⚙️ Installation
 
 Click to open a video to learn how to install Agent Zero:
 
 [![Easy Installation guide](/docs/res/easy_ins_vid.png)](https://www.youtube.com/watch?v=w5v5Kjx51hs)
 
-A detailed setup guide for Windows, macOS, and Linux with a video can be found in the Agent Zero Documentation at [this page](./docs/installation.md).
+A detailed setup guide for Windows, macOS, and Linux with a video can be found in the Agent Zero Documentation at [this page](./docs/getting-started/installation.md).
 
 ### ⚡ Quick Start
 
@@ -155,18 +153,56 @@ docker run -p 50001:80 agent0ai/agent-zero
 
 | Page | Description |
 |-------|-------------|
-| [Installation](./docs/installation.md) | Installation, setup and configuration |
-| [Usage](./docs/usage.md) | Basic and advanced usage |
-| [Development](./docs/development.md) | Development and customization |
-| [WebSocket Infrastructure](./docs/websocket-infrastructure.md) | Real-time WebSocket handlers, client APIs, filtering semantics, envelopes |
-| [Extensibility](./docs/extensibility.md) | Extending Agent Zero |
-| [Connectivity](./docs/connectivity.md) | External API endpoints, MCP server connections, A2A protocol |
-| [Architecture](./docs/architecture.md) | System design and components |
-| [Contributing](./docs/contribution.md) | How to contribute |
-| [Troubleshooting](./docs/troubleshooting.md) | Common issues and their solutions |
+| [Installation](./docs/getting-started/installation.md) | Installation, setup and configuration |
+| [Usage](./docs/guides/usage.md) | Basic and advanced usage |
+| [Development](./docs/development/setup.md) | Development and customization |
+| [WebSocket Infrastructure](./docs/advanced/websockets.md) | Real-time WebSocket handlers, client APIs, filtering semantics, envelopes |
+| [Extensibility](./docs/development/extensibility.md) | Extending Agent Zero |
+| [Connectivity](./docs/advanced/connectivity.md) | External API endpoints, MCP server connections, A2A protocol |
+| [Architecture](./docs/advanced/architecture.md) | System design and components |
+| [Contributing](./docs/development/contribution.md) | How to contribute |
+| [Troubleshooting](./docs/guides/troubleshooting.md) | Common issues and their solutions |
 
 
 ## 🎯 Changelog
+
+### v0.9.8 - Skills, UI Redesign & Git projects
+[Release video](https://youtu.be/NV7s78yn6DY)
+
+- Skills
+    - Skills System replacing the legacy Instruments with a new `SKILL.md` standard for structured, portable agent capabilities.
+    - Built-in skills, and UI support for importing and listing skills
+- Real-time WebSocket infrastructure replacing the polling-based approach for UI state synchronization
+- UI Redesign
+    - Process groups to visually group agent actions with expand/collapse support
+    - Timestamps, steps count and execution time with tool-specific badges
+    - Step detail modals with key-value and raw JSON display
+    - Collapsible responses with show more/less and copy buttons on code blocks and tables
+    - Message queue system allowing users to queue messages while the agent is still processing
+    - In-browser file editor for viewing and editing files without leaving the UI
+    - Welcome screen redesign with info and warning banners for connection security, missing API keys, and system resources
+    - Scheduler redesign with standalone modal, separate task list, detail and editor components, and project support
+    - Smooth response rendering and scroll stabilization across chat, terminals, and image viewer
+    - Chat width setting and reworked preferences panel
+    - Image viewer improvements with scroll support and expanded viewer
+    - Redesigned sidebar with reusable dropdown component and streamlined buttons
+    - Inline button confirmations for critical actions
+    - Improved login design and new logout button
+    - File browser enhanced with rename and file actions dropdown
+- Git projects
+    - Git-based projects with clone authentication for public and private repositories
+- Four new LLM providers: CometAPI, Z.AI, Moonshot AI, and AWS Bedrock
+- Microsoft Dev Tunnels integration for secure remote access
+- User data migration to `/usr` directory for cleaner separation of user and system files
+- Subagents system with configurable agent profiles for different roles
+- Memory operations offloaded to deferred tasks for better performance
+- Environment variables can now configure settings via `A0_SET_*` prefix in `.env`
+- Automatic migration with overwrite support for `.env`, scheduler, knowledge, and instruments directories
+- Projects support extended to MCP, A2A, and external API
+- Workdir outside project support for more flexible file organization
+- Agent number tracking in backend and responses for multi-agent identification
+- Many bug fixes and stability improvements across the UI, MCP tools, scheduler, uploads, and WebSocket handling
+
 
 ### v0.9.7 - Projects
 [Release video](https://youtu.be/RrTDp_v9V1c)
@@ -186,8 +222,6 @@ docker run -p 50001:80 agent0ai/agent-zero
 - More efficient selective streaming for LLMs
 - UI output length limit improvements
 
-
-
 ### v0.9.6 - Memory Dashboard
 [Release video](https://youtu.be/sizjAq2-d9s)
 - Memory Management Dashboard
@@ -197,7 +231,6 @@ docker run -p 50001:80 agent0ai/agent-zero
 - New login screen
 - LiteLLM retry on temporary errors
 - Github Copilot provider support
-
 
 ### v0.9.5 - Secrets
 [Release video](https://www.youtube.com/watch?v=VqxUdt7pjd8)
@@ -242,14 +275,12 @@ docker run -p 50001:80 agent0ai/agent-zero
 - Docker build support for local images
 - File browser fix
 
-
 ### v0.9.2 - Kokoro TTS, Attachments
 [Release video](https://www.youtube.com/watch?v=sPot_CAX62I)
 
 - Kokoro text-to-speech integration
 - New message attachments system
 - Minor updates: log truncation, hyperlink targets, component examples, api cleanup
-
 
 ### v0.9.1 - LiteLLM, UI improvements
 [Release video](https://youtu.be/crwr0M4Spcg)
@@ -266,7 +297,6 @@ docker run -p 50001:80 agent0ai/agent-zero
     - More space efficient on mobile
 - Streamable HTTP MCP servers support
 - LLM API URL added to models config for Azure, local and custom providers
-
 
 ### v0.9.0 - Agent roles, backup/restore
 [Release video](https://www.youtube.com/watch?v=rMIe-TC6H-k)
@@ -313,7 +343,6 @@ Default models set to gpt-4.1
 [Release video](https://youtu.be/AGNpQ3_GxFQ)
 
 - **Automatic embedding**
-
 
 ### v0.8.3
 [Release video](https://youtu.be/bPIZo0poalY)
