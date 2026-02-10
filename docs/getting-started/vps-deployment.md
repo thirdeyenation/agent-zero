@@ -52,6 +52,9 @@
 
 ## Docker Installation
 
+> [!NOTE]
+> For detailed Docker installation instructions and alternative methods, see the [Linux Installation section](installation.md#linux-installation) in the main installation guide.
+
 ### Method A: Debian/Ubuntu Systems
 
 ```bash
