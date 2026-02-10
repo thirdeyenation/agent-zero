@@ -616,7 +616,16 @@ def move_file(relative_path: str, new_path: str):
     abs_path = get_abs_path(relative_path)
     new_abs_path = get_abs_path(new_path)
     os.makedirs(os.path.dirname(new_abs_path), exist_ok=True)
-    os.rename(abs_path, new_abs_path)
+    try:
+        os.rename(abs_path, new_abs_path)
+    except OSError:
+        # fallback to copy and delete
+        import shutil
+        shutil.copy2(abs_path, new_abs_path)
+        try:
+            os.unlink(abs_path)
+        except OSError:
+            pass
 
 
 def safe_file_name(filename: str) -> str:
