@@ -15,7 +15,7 @@ This page addresses frequently asked questions (FAQ) and provides troubleshootin
 - No. ChatGPT Plus does not include API credits. You must provide an OpenAI API key in Settings.
 
 **5. Where is chat history stored?**
-- Chat history lives at `/a0/tmp/chats/` inside the container.
+- Chat history lives at `/a0/usr/chats/` inside the container.
 
 **6. How do I integrate open-source models with Agent Zero?**
 Refer to the [Choosing your LLMs](installation.md#installing-and-using-ollama-local-models) section for configuring local models (Ollama, LM Studio, etc.).
@@ -30,7 +30,7 @@ Use **Settings → Backup & Restore** and avoid mapping the entire `/a0` directo
 The built-in browser agent is currently unstable on some systems. Use MCP alternatives such as Browser OS, Chrome DevTools, or Playwright. See [MCP Setup](mcp_setup.md).
 
 **9. My secrets disappeared after a backup restore.**
-Secrets are stored in `/a0/tmp/secrets.env` and are not always included in backup archives. Copy them manually.
+Secrets are stored in `/a0/usr/secrets.env` and are not always included in backup archives. Copy them manually.
 
 **10. Where can I find more documentation or tutorials?**
 - Join the Agent Zero [Skool](https://www.skool.com/agent-zero) or [Discord](https://discord.gg/B8KZKNsPpj) community.

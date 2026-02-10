@@ -302,15 +302,15 @@ For developers or users who need to run Agent Zero directly on their system,see 
   - `/memory` - Agent's memory
   - `/knowledge` - Custom knowledge base (if you imported any custom knowledge files)
   - `/instruments` - Custom instruments and functions (if you created any custom)
-  - `/tmp/settings.json` - Your Agent Zero settings
-  - `/tmp/chats/` - Your chat history
+  - `/usr/settings.json` - Your Agent Zero settings
+  - `/usr/chats/` - Your chat history
 - Once you have saved these files and directories, you can proceed with the Docker runtime [installation instructions above](#windows-macos-and-linux-setup-guide) setup guide.
 - Reach for the folder where you saved your data and copy it to the new Agent Zero folder set during the installation process.
 - Agent Zero will automatically detect your saved data and use it across memory, knowledge, instruments, prompts and settings.
 
 > [!IMPORTANT]
-> If you have issues loading your settings, you can try to delete the `/tmp/settings.json` file and let Agent Zero generate a new one.
-> The same goes for chats in `/tmp/chats/`, they might be incompatible with the new version
+> If you have issues loading your settings, you can try to delete the `/usr/settings.json` file and let Agent Zero generate a new one.
+> The same goes for chats in `/usr/chats/`, they might be incompatible with the new version
 
 2. **Update Process (Docker Desktop)**
 - Go to Docker Desktop and stop the container from the "Containers" tab

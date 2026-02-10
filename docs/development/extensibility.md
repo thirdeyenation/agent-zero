@@ -230,7 +230,7 @@ Agent Zero supports creating specialized subagents with customized behavior. The
    - `/agents/{agent_profile}/prompts/` - for custom prompts
    - `/agents/{agent_profile}/settings.json` - for agent-specific configuration overrides
 
-The `settings.json` file for an agent uses the same structure as `tmp/settings.json`, but you only need to specify the fields you want to override. Any field omitted from the agent-specific `settings.json` will continue to use the global value.
+The `settings.json` file for an agent uses the same structure as `usr/settings.json`, but you only need to specify the fields you want to override. Any field omitted from the agent-specific `settings.json` will continue to use the global value.
 
 This allows power users to, for example, change the AI model, context window size, or other settings for a single agent without affecting the rest of the system.
 

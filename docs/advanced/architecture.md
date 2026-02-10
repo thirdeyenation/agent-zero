@@ -53,8 +53,8 @@ This architecture ensures:
 | `/python/helpers` | Utility functions |
 | `/python/tools` | Tool implementations |
 | `/tmp` | Temporary runtime data |
-| `/tmp/chats` | Saved chat history (JSON) |
-| `/tmp/secrets.env` | Secrets store (not always included in backups) |
+| `/usr/chats` | Saved chat history (JSON) |
+| `/usr/secrets.env` | Secrets store (not always included in backups) |
 | `/usr/projects` | Project workspaces and `.a0proj` metadata |
 | `/webui` | Web interface components |
 | `/webui/css` | Stylesheets |
@@ -65,8 +65,8 @@ This architecture ensures:
 ### Key Files
 | File | Description |
 | --- | --- |
-| `tmp/settings.json` | Main runtime settings (written by the Settings UI) |
-| `tmp/secrets.env` | Secrets store (managed via Settings -> Secrets) |
+| `usr/settings.json` | Main runtime settings (written by the Settings UI) |
+| `usr/secrets.env` | Secrets store (managed via Settings -> Secrets) |
 | `conf/model_providers.yaml` | Model provider defaults and settings |
 | `agent.py` | Core agent implementation |
 | `initialize.py` | Framework initialization |

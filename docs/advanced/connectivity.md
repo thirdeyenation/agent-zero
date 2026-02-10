@@ -499,7 +499,7 @@ Retrieve file contents by paths, returning files as base64 encoded data. Useful 
 ### API Reference
 
 **Parameters:**
-*   `paths` (array, required): Array of file paths to retrieve (e.g., `["/a0/tmp/uploads/file.txt"]`)
+*   `paths` (array, required): Array of file paths to retrieve (e.g., `["/a0/usr/uploads/file.txt"]`)
 
 **Headers:**
 *   `X-API-KEY` (required)
@@ -553,8 +553,8 @@ async function getFiles(filePaths) {
 
 // Example 1: Get specific files
 const filePaths = [
-    "/a0/tmp/uploads/document.txt",
-    "/a0/tmp/uploads/data.json"
+    "/a0/usr/uploads/document.txt",
+    "/a0/usr/uploads/data.json"
 ];
 getFiles(filePaths);
 
@@ -581,7 +581,7 @@ async function attachmentWorkflow() {
         console.log('Message sent with attachment');
 
         // Step 2: Retrieve the uploaded file
-        const retrievedFiles = await getFiles(["/a0/tmp/uploads/test.txt"]);
+        const retrievedFiles = await getFiles(["/a0/usr/uploads/test.txt"]);
 
         if (retrievedFiles && retrievedFiles["test.txt"]) {
             const originalContent = atob(retrievedFiles["test.txt"]);

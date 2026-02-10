@@ -462,6 +462,24 @@ ollama rm <model-name>
 
 ---
 
+## How to Update Agent Zero
+
+> [!NOTE]
+> Since v0.9, Agent Zero includes a Backup & Restore workflow in the Settings UI. This is the **safest** way to upgrade Docker instances.
+
+### Recommended Update Process (Docker)
+
+1. **Keep the old container running** and note its port.
+2. **Pull the new image** (`agent0ai/agent-zero:latest`).
+3. **Start a new container** on a different host port.
+4. In the **old** instance, open **Settings → Backup & Restore** and create a backup.
+5. In the **new** instance, restore that backup from the same panel.
+
+> [!TIP]
+> If the new instance fails to load settings, remove `/a0/usr/settings.json` and restart to regenerate default settings.
+
+---
+
 ## Using Agent Zero on Your Mobile Device
 
 Agent Zero can be accessed from mobile devices and other computers using the built-in **Tunnel feature**.
@@ -493,38 +511,6 @@ If you prefer to keep access limited to your local network:
 > Find your computer's IP address with `ipconfig` (Windows) or `ifconfig`/`ip addr` (macOS/Linux). It's usually in the format `192.168.x.x` or `10.0.x.x`.
 
 For developers or users who need to run Agent Zero directly on their system, see the [In-Depth Guide for Full Binaries Installation](../development/setup.md).
-
----
-
-## How to Update Agent Zero
-
-> [!NOTE]
-> Since v0.9, Agent Zero includes a Backup & Restore workflow in the Settings UI. This is the **safest** way to upgrade Docker instances.
-
-### Recommended Update Process (Docker)
-
-1. **Keep the old container running** and note its port.
-2. **Pull the new image** (`agent0ai/agent-zero:latest`).
-3. **Start a new container** on a different host port.
-4. In the **old** instance, open **Settings → Backup & Restore** and create a backup.
-5. In the **new** instance, restore that backup from the same panel.
-6. **Manually copy secrets** from `/a0/tmp/secrets.env` if you rely on them (secrets are not always included in backups).
-
-> [!TIP]
-> If the new instance fails to load settings, remove `/a0/tmp/settings.json` and restart to regenerate defaults.
-
-### Manual Migration (Legacy or Non-Docker)
-
-If you are migrating from older, non-Docker setups, copy these directories into your new instance:
-
-- `/a0/memory` (agent memories)
-- `/a0/knowledge` (custom knowledge)
-- `/a0/instruments` (custom instruments)
-- `/a0/tmp/settings.json` (settings)
-- `/a0/tmp/chats/` (chat history)
-- `/a0/tmp/secrets.env` (secrets)
-
-Then proceed with the Docker installation steps above.
 
 ---
 
@@ -575,6 +561,19 @@ docker run -p 50080:80 \
 - Container/process restart required for changes to take effect
 
 ---
+
+### Manual Migration (Legacy or Non-Docker)
+
+If you are migrating from older, non-Docker setups, copy these directories into `/a0/usr/` in the new instance:
+
+- `/a0/memory` (agent memories)
+- `/a0/knowledge` (custom knowledge)
+- `/a0/instruments` (custom instruments)
+- `/a0/tmp/settings.json` (settings)
+- `/a0/tmp/chats/` (chat history)
+- `/a0/tmp/secrets.env` (secrets)
+
+Then proceed with the Docker installation steps above.
 
 ## Conclusion
 

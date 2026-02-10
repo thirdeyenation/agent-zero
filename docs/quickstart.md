@@ -1,5 +1,5 @@
 # Quick Start
-This guide provides a quick introduction to using Agent Zero. We'll cover the essential installation steps and running your first task.
+This guide provides a quick introduction to using Agent Zero. We'll cover the essential installation steps and running your first Skill.
 
 ## Installation Steps
 
@@ -91,7 +91,7 @@ Now that you've run a simple task, you can experiment with more complex requests
 * Explore web development tasks
 * Develop A0 itself
 
-### [Open Usage Guide](usage.md)
+### [Open A0 Usage Guide](usage.md)
 
 Provides more in-depth information on tools, projects, tasks, and backup/restore.
 

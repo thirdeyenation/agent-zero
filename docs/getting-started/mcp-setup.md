@@ -18,7 +18,7 @@ MCP servers are external processes or services that expose a set of tools that A
 Agent Zero discovers and integrates MCP tools dynamically:
 
 1.  **Configuration**: You define the MCP servers Agent Zero should connect to in its configuration. The primary way to do this is through the Agent Zero settings UI.
-2.  **Saving Settings**: When you save your settings via the UI, Agent Zero updates the `tmp/settings.json` file, specifically the `"mcp_servers"` key.
+2.  **Saving Settings**: When you save your settings via the UI, Agent Zero updates the `usr/settings.json` file, specifically the `"mcp_servers"` key.
 3.  **Server Startup**: Agent Zero initializes configured MCP servers (stdio servers) or connects to them (remote servers). For `npx`/`uvx` based servers, the first run may download packages.
 4.  **Tool Discovery**: Upon initialization (or when settings are updated), Agent Zero connects to each configured and enabled MCP server and queries it for the list of available tools, their descriptions, and expected parameters.
 5.  **Dynamic Prompting**: The information about these discovered tools is then dynamically injected into the agent's system prompt. A placeholder like `{{tools}}` in a system prompt template (e.g., `prompts/agent.system.mcp_tools.md`) is replaced with a formatted list of all available MCP tools. This allows the agent's underlying Language Model (LLM) to know which external tools it can request.
@@ -52,17 +52,17 @@ The primary method for configuring MCP servers is through **Agent Zero's setting
 
 When you input and save your MCP server details in the UI, these settings are written to:
 
-*   `tmp/settings.json`
+*   `usr/settings.json`
 
-### The `mcp_servers` Setting in `tmp/settings.json`
+### The `mcp_servers` Setting in `usr/settings.json`
 
-Within `tmp/settings.json`, the MCP servers are defined under the `"mcp_servers"` key.
+Within `usr/settings.json`, the MCP servers are defined under the `"mcp_servers"` key.
 
 *   **Value Type**: The value for `"mcp_servers"` must be a **JSON formatted string**. The string itself contains either:
     *   A JSON object containing `"mcpServers"` (recommended, matches the Settings UI)
     *   A JSON array of server configuration objects
 *   **Default Value**: An empty config (for example, `{"mcpServers": {}}`).
-*   **Manual Editing (Advanced)**: While UI configuration is recommended, you can also manually edit `tmp/settings.json`. If you do, ensure the `"mcp_servers"` value is a valid JSON string, with internal quotes properly escaped.
+*   **Manual Editing (Advanced)**: While UI configuration is recommended, you can also manually edit `usr/settings.json`. If you do, ensure the `"mcp_servers"` value is a valid JSON string, with internal quotes properly escaped.
 
 **Example `mcp_servers` configuration (recommended format):**
 
@@ -80,13 +80,13 @@ Within `tmp/settings.json`, the MCP servers are defined under the `"mcp_servers"
   }
 }
 ```
-*Note: In `tmp/settings.json`, the entire value of `"mcp_servers"` is stored as a single string. The Settings UI handles escaping automatically.*
+*Note: In `usr/settings.json`, the entire value of `"mcp_servers"` is stored as a single string. The Settings UI handles escaping automatically.*
 
 *   **Updating**: As mentioned, the recommended way to set or update this value is through Agent Zero's settings UI.
-*   **For Existing `settings.json` Files (After an Upgrade)**: If you have an existing `tmp/settings.json` from a version of Agent Zero prior to MCP server support, the `"mcp_servers"` key will likely be missing. To add this key:
+*   **For Existing `settings.json` Files (After an Upgrade)**: If you have an existing `usr/settings.json` from a version of Agent Zero prior to MCP server support, the `"mcp_servers"` key will likely be missing. To add this key:
     1.  Ensure you are running a version of Agent Zero that includes MCP server support.
     2.  Run Agent Zero and open its settings UI.
-    3.  Save the settings (even without making changes). This action will write the complete current settings structure, including a default `"mcp_servers": ""` if not otherwise populated, to `tmp/settings.json`. You can then configure your servers via the UI or by carefully editing this string.
+    3.  Save the settings (even without making changes). This action will write the complete current settings structure, including a default `"mcp_servers": ""` if not otherwise populated, to `usr/settings.json`. You can then configure your servers via the UI or by carefully editing this string.
 
 ### MCP Server Configuration Structure
 
@@ -147,7 +147,7 @@ Here are templates for configuring individual servers within the `mcp_servers` c
 }
 ```
 
-**Example `mcp_servers` value in `tmp/settings.json`:**
+**Example `mcp_servers` value in `usr/settings.json`:**
 
 ```json
 {

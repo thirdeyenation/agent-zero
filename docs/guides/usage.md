@@ -58,7 +58,7 @@ Located beneath the chat input box, Agent Zero provides a set of action buttons 
 Access the chat history in JSON format
   - View the conversation as processed by the LLM
   - Useful for debugging and understanding agent behavior
-  - Files are stored under `/a0/tmp/chats/` inside the container
+  - Files are stored under `/a0/usr/chats/` inside the container
 
 ![History](../res/ui-history.png)
 
@@ -175,7 +175,7 @@ Use the Settings → **Secrets** and **Variables** fields to store credentials a
 You can reference these values in prompts by name. For example, store `MY_GMAIL` as a secret and instruct the agent to use it when prompted.
 
 > [!IMPORTANT]
-> Secrets are stored in `/a0/tmp/secrets.env`. Keep a manual copy if you rely on backups, as secrets are not always preserved by Backup & Restore.
+> Secrets are stored in `/a0/usr/secrets.env`.
 
 > [!NOTE]
 > Project-scoped secrets and variables (when using Projects) live under `/a0/usr/projects/<project_name>/.a0proj/` (`secrets.env`, `variables.env`).
@@ -306,7 +306,7 @@ By default, Agent Zero backs up your most important data:
 * **Uploaded Files**: Documents and files you've worked with
 
 > [!NOTE]
-> Chat history is stored at `/a0/tmp/chats/` inside the container.
+> Chat history is stored at `/a0/usr/chats/` inside the container.
 
 #### Customizing Backup Content
 Before creating a backup, you can customize what to include:
@@ -327,7 +327,7 @@ Before creating a backup, you can customize what to include:
 
 > [!NOTE]
 > Backup creation may take a few minutes depending on the amount of data. You'll see progress updates during the process.
-> Secrets stored in `/a0/tmp/secrets.env` are not always included in backup archives. Keep a manual copy if you rely on secrets.
+> Secrets stored in `/a0/usr/secrets.env` are not always included in backup archives. Keep a manual copy if you rely on secrets.
 
 ### Restoring from Backup
 The restore process allows you to recover your Agent Zero setup from a previous backup:
@@ -374,7 +374,7 @@ Optionally clean up existing files before restoring:
 * **Test Restores**: Occasionally test restoring backups to ensure they work
 
 #### Security Considerations
-* **Secrets**: Backups do **not** reliably include `/a0/tmp/secrets.env`. Copy it manually when migrating.
+* **Secrets**: Backups do **not** reliably include `/a0/usr/secrets.env`. Copy it manually when migrating.
 * **Secure Storage**: Store backup files securely and don't share them
 * **Clean Systems**: When restoring on new systems, verify all configurations
 
