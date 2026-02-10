@@ -7,9 +7,9 @@
 </head>
 
 <body>
-    <div x-data x-show="$store.welcomeStore && $store.welcomeStore.isVisible">
+    <div x-data >
         <template x-if="$store.welcomeStore">
-            <div x-data="$store.welcomeStore" class="welcome-container">
+            <div x-data="$store.welcomeStore" x-create="$store.welcomeStore.onCreate()" class="welcome-container">
                 <div class="welcome-content">
                     <!-- Action Cards -->
                     <div class="welcome-actions">

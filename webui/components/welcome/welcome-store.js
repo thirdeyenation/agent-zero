@@ -8,46 +8,26 @@ import * as API from "/js/api.js";
 
 const model = {
   // State
-  isVisible: true,
   banners: [],
   bannersLoading: false,
   lastBannerRefresh: 0,
   hasDismissedBanners: false,
 
-  init() {
-    // Initialize visibility based on current context
-    this.updateVisibility();
+  get isVisible() {
+    return !chatsStore.selected;
+  },
 
+  init() {
+    // Reload banners when settings change
+    document.addEventListener("settings-updated", () => {
+      this.refreshBanners(true);
+    });
+  },
+
+  onCreate() {
     if (this.isVisible) {
       this.refreshBanners();
     }
-
-    // Watch for context changes with faster polling for immediate response
-    setInterval(() => {
-      this.updateVisibility();
-    }, 50); // 50ms for very responsive updates
-  },
-
-  // Update visibility based on current context
-  updateVisibility() {
-    const hasContext = !!getContext();
-    const wasVisible = this.isVisible;
-    this.isVisible = !hasContext;
-
-    if (this.isVisible && !wasVisible) {
-      this.refreshBanners();
-    }
-  },
-
-  // Hide welcome screen
-  hide() {
-    this.isVisible = false;
-  },
-
-  // Show welcome screen
-  show() {
-    this.isVisible = true;
-    this.refreshBanners();
   },
 
   // Build frontend context to send to backend
@@ -83,8 +63,12 @@ const model = {
 
   // Get list of dismissed banner IDs from storage
   getDismissedBannerIds() {
-    const permanent = JSON.parse(localStorage.getItem('dismissed_banners') || '[]');
-    const temporary = JSON.parse(sessionStorage.getItem('dismissed_banners') || '[]');
+    const permanent = JSON.parse(
+      localStorage.getItem("dismissed_banners") || "[]",
+    );
+    const temporary = JSON.parse(
+      sessionStorage.getItem("dismissed_banners") || "[]",
+    );
     return new Set([...permanent, ...temporary]);
   },
 
@@ -92,19 +76,27 @@ const model = {
   mergeBanners(frontendBanners, backendBanners) {
     const dismissed = this.getDismissedBannerIds();
     const bannerMap = new Map();
-    
+
     for (const banner of frontendBanners) {
-      if (banner.id && (banner.dismissible === false || !dismissed.has(banner.id))) {
+      if (
+        banner.id &&
+        (banner.dismissible === false || !dismissed.has(banner.id))
+      ) {
         bannerMap.set(banner.id, banner);
       }
     }
     for (const banner of backendBanners) {
-      if (banner.id && (banner.dismissible === false || !dismissed.has(banner.id))) {
+      if (
+        banner.id &&
+        (banner.dismissible === false || !dismissed.has(banner.id))
+      ) {
         bannerMap.set(banner.id, banner);
       }
     }
-    
-    return Array.from(bannerMap.values()).sort((a, b) => (b.priority || 0) - (a.priority || 0));
+
+    return Array.from(bannerMap.values()).sort(
+      (a, b) => (b.priority || 0) - (a.priority || 0),
+    );
   },
 
   // Refresh banners: frontend checks → backend checks → merge
@@ -113,19 +105,24 @@ const model = {
     if (!force && now - this.lastBannerRefresh < 1000) return;
     this.lastBannerRefresh = now;
     this.bannersLoading = true;
-    
+
     try {
       const frontendContext = this.buildFrontendContext();
       const frontendBanners = this.runFrontendBannerChecks();
-      const backendBanners = await this.runBackendBannerChecks(frontendBanners, frontendContext);
+      const backendBanners = await this.runBackendBannerChecks(
+        frontendBanners,
+        frontendContext,
+      );
 
       const dismissed = this.getDismissedBannerIds();
       const loadIds = new Set(
         [...frontendBanners, ...backendBanners]
-          .filter(b => b?.id && b.dismissible !== false)
-          .map(b => b.id)
+          .filter((b) => b?.id && b.dismissible !== false)
+          .map((b) => b.id),
       );
-      this.hasDismissedBanners = Array.from(loadIds).some(id => dismissed.has(id));
+      this.hasDismissedBanners = Array.from(loadIds).some((id) =>
+        dismissed.has(id),
+      );
 
       this.banners = this.mergeBanners(frontendBanners, backendBanners);
     } catch (error) {
@@ -138,29 +135,31 @@ const model = {
   },
 
   get sortedBanners() {
-    return [...this.banners].sort((a, b) => (b.priority || 0) - (a.priority || 0));
+    return [...this.banners].sort(
+      (a, b) => (b.priority || 0) - (a.priority || 0),
+    );
   },
 
   /**
    * Dismiss a banner by ID.
-   * 
+   *
    * Usage:
    *   dismissBanner('banner-id')         - Temporary dismiss (sessionStorage, cleared on browser close)
    *   dismissBanner('banner-id', true)   - Permanent dismiss (localStorage, persists across sessions)
-   * 
+   *
    * Dismissed banners are filtered out in mergeBanners() and won't appear until storage is cleared.
-   * 
+   *
    * @param {string} bannerId - The unique ID of the banner to dismiss
    * @param {boolean} permanent - If true, store in localStorage; if false, store in sessionStorage
    */
   dismissBanner(bannerId, permanent = false) {
-    this.banners = this.banners.filter(b => b.id !== bannerId);
-    
+    this.banners = this.banners.filter((b) => b.id !== bannerId);
+
     const storage = permanent ? localStorage : sessionStorage;
-    const dismissed = JSON.parse(storage.getItem('dismissed_banners') || '[]');
+    const dismissed = JSON.parse(storage.getItem("dismissed_banners") || "[]");
     if (!dismissed.includes(bannerId)) {
       dismissed.push(bannerId);
-      storage.setItem('dismissed_banners', JSON.stringify(dismissed));
+      storage.setItem("dismissed_banners", JSON.stringify(dismissed));
     }
 
     this.hasDismissedBanners = this.getDismissedBannerIds().size > 0;
@@ -175,20 +174,20 @@ const model = {
 
   getBannerClass(type) {
     const classes = {
-      info: 'banner-info',
-      warning: 'banner-warning',
-      error: 'banner-error',
+      info: "banner-info",
+      warning: "banner-warning",
+      error: "banner-error",
     };
-    return classes[type] || 'banner-info';
+    return classes[type] || "banner-info";
   },
 
   getBannerIcon(type) {
     const icons = {
-      info: 'info',
-      warning: 'warning',
-      error: 'error',
+      info: "info",
+      warning: "warning",
+      error: "error",
     };
-    return icons[type] || 'info';
+    return icons[type] || "info";
   },
 
   // Execute an action by ID
