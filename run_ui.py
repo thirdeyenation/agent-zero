@@ -8,6 +8,8 @@ from functools import wraps
 import threading
 import asyncio
 
+import urllib.request
+import urllib.error
 import uvicorn
 from flask import Flask, request, Response, session, redirect, url_for, render_template_string
 from werkzeug.wrappers.response import Response as BaseResponse
@@ -517,10 +519,24 @@ def run():
     process.set_server(_UvicornServerWrapper(server))
 
     PrintStyle().debug(f"Starting server at http://{host}:{port} ...")
+    threading.Thread(target=wait_for_health, args=(host, port), daemon=True).start()
     try:
         server.run()
     finally:
         _run_flush("server_exit")
+
+
+def wait_for_health(host: str, port: int):
+    url = f"http://{host}:{port}/health"
+    while True:
+        try:
+            with urllib.request.urlopen(url, timeout=2) as resp:
+                if resp.status == 200:
+                    PrintStyle().print("Agent Zero is running.")
+                    return
+        except Exception:
+            pass
+        time.sleep(1)
 
 
 def init_a0():
