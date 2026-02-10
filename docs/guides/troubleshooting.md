@@ -18,13 +18,13 @@ This page addresses frequently asked questions (FAQ) and provides troubleshootin
 - Chat history lives at `/a0/usr/chats/` inside the container.
 
 **6. How do I integrate open-source models with Agent Zero?**
-Refer to the [Choosing your LLMs](installation.md#installing-and-using-ollama-local-models) section for configuring local models (Ollama, LM Studio, etc.).
+Refer to the [Choosing your LLMs](../setup/installation.md#installing-and-using-ollama-local-models) section for configuring local models (Ollama, LM Studio, etc.).
 
 > [!TIP]
 > Some LLM providers offer free usage tiers, for example Groq, Mistral, SambaNova, or CometAPI.
 
 **7. How can I make Agent Zero retain memory between sessions?**
-Use **Settings → Backup & Restore** and avoid mapping the entire `/a0` directory. See [How to update Agent Zero](installation.md#how-to-update-agent-zero).
+Use **Settings → Backup & Restore** and avoid mapping the entire `/a0` directory. See [How to update Agent Zero](../setup/installation.md#how-to-update-agent-zero).
 
 **8. My browser agent fails or is unreliable. What now?**
 The built-in browser agent is currently unstable on some systems. Use Skills or MCP alternatives such as Browser OS, Chrome DevTools, or Vercel's Agent Browser. See [MCP Setup](mcp-setup.md).
@@ -49,7 +49,7 @@ Yes, by creating custom tools or using MCP servers. See [Extensions](../develope
 ## Troubleshooting
 
 **Installation**
-- **Docker Issues:** If Docker containers fail to start, consult the Docker documentation and verify your Docker installation and configuration.  On macOS, ensure you've granted Docker access to your project files in Docker Desktop's settings as described in the [Installation guide](installation.md#4-install-docker-docker-desktop-application). Verify that the Docker image is updated.
+- **Docker Issues:** If Docker containers fail to start, consult the Docker documentation and verify your Docker installation and configuration.  On macOS, ensure you've granted Docker access to your project files in Docker Desktop's settings as described in the [Installation guide](../setup/installation.md#4-install-docker-docker-desktop-application). Verify that the Docker image is updated.
 - **Web UI not reachable:** Ensure at least one host port is mapped to container port `80`. If you used `0:80`, check the assigned port in Docker Desktop.
 
 **Usage**
