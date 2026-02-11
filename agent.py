@@ -798,6 +798,7 @@ class Agent:
         response_callback: Callable[[str, str], Awaitable[None]] | None = None,
         reasoning_callback: Callable[[str, str], Awaitable[None]] | None = None,
         background: bool = False,
+        explicit_caching: bool = True,
     ):
         response = ""
 
@@ -812,6 +813,7 @@ class Agent:
             rate_limiter_callback=(
                 self.rate_limiter_callback if not background else None
             ),
+            explicit_caching=explicit_caching,
         )
 
         return response, reasoning
