@@ -377,7 +377,7 @@ class History(Record):
             return False
 
         target = total * COMPRESSION_TARGET_RATIO
-        prev_total = curr + hist + bulk
+        prev_total = curr + hist + bulk + 1
         while True:
             curr, hist, bulk = (
                 self.get_current_topic_tokens(),
