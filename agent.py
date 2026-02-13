@@ -515,6 +515,8 @@ class Agent:
                                 "message_loop_end", loop_data=self.loop_data
                             )
 
+                    error_retries = 0  # reset retry counter on successful iteration
+
             # exceptions outside message loop:
             except InterventionException as e:
                 error_retries = 0  # reset retry counter on user intervention
