@@ -491,6 +491,8 @@ class Agent:
                             if tools_result:  # final response of message loop available
                                 return tools_result  # break the execution if the task is done
 
+                        error_retries = 0  # reset retry counter on successful iteration
+
                     # exceptions inside message loop:
                     except InterventionException as e:
                         error_retries = 0  # reset retry counter on user intervention
@@ -514,8 +516,6 @@ class Agent:
                             await self.call_extensions(
                                 "message_loop_end", loop_data=self.loop_data
                             )
-
-                    error_retries = 0  # reset retry counter on successful iteration
 
             # exceptions outside message loop:
             except InterventionException as e:
