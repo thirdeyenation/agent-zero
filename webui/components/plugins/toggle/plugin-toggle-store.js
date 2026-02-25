@@ -23,6 +23,7 @@ const model = {
     perProjectConfig: true,
     perAgentConfig: true,
     explicitPath: null,
+    hasExplicitRuleForScope: false,
     configs: [],
 
     async open(plugin) {
@@ -39,14 +40,11 @@ const model = {
         this.alwaysEnabled = typeof plugin === 'object' ? !!plugin.always_enabled : false;
         this.perProjectConfig = typeof plugin === 'object' ? !!plugin.per_project_config : true;
         this.perAgentConfig = typeof plugin === 'object' ? !!plugin.per_agent_config : true;
+        this.hasConfigScreen = typeof plugin === 'object' ? !!plugin.has_config_screen : false;
 
         try {
             await Promise.all([this.loadProjects(), this.loadAgentProfiles()]);
             await this.loadConfigs();
-            // Auto-save ON for the default scope (Global + All profiles)
-            if (!this.explicitPath && !this.alwaysEnabled && this.pluginName) {
-                await this.setEnabled(true);
-            }
         } finally {
             this.isLoading = false;
         }
@@ -61,6 +59,8 @@ const model = {
         this.perProjectConfig = true;
         this.perAgentConfig = true;
         this.alwaysEnabled = false;
+        this.hasConfigScreen = false;
+        this.hasExplicitRuleForScope = false;
     },
 
     async loadProjects() {
@@ -175,6 +175,7 @@ const model = {
     calculateStatus() {
         if (this.alwaysEnabled) {
             this.explicitPath = null;
+            this.hasExplicitRuleForScope = true;
             this.status = 'enabled';
             return;
         }
@@ -187,9 +188,11 @@ const model = {
 
         if (explicit) {
             this.explicitPath = explicit.path;
+            this.hasExplicitRuleForScope = true;
             this.status = explicit.path.endsWith(".toggle-1") ? 'enabled' : 'disabled';
         } else {
             this.explicitPath = null;
+            this.hasExplicitRuleForScope = false;
             this.status = 'enabled'; // default when no explicit config
         }
     },
@@ -223,15 +226,14 @@ const model = {
     async onScopeChanged() {
         this.calculateStatus();
 
-        // Auto-save immediately so the displayed default state is persisted
-        if (!this.explicitPath && !this.alwaysEnabled && this.pluginName) {
-            await this.setEnabled(true);
-        }
-
         // Sync scope with settings store so its loadSettings picks up the right context
         settingsStore.projectName = this.projectName || "";
         settingsStore.agentProfileKey = this.agentProfileKey || "";
         await settingsStore.loadSettings();
+    },
+
+    async addRule() {
+        await this.setEnabled(this.status === 'enabled');
     },
 
     projectLabel(key) {

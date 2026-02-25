@@ -116,16 +116,26 @@
                             
                             <div class="plugin-footer-row">
                                 <div class="plugin-description" x-text="plugin.description || 'No description provided.'"></div>
-                                <select class="plugin-status-select"
-                                    @change="$store.pluginListStore.updateToggle(plugin, $event.target.value)"
-                                    @click.stop
-                                    :disabled="plugin.always_enabled">
-                                    <option value="enabled" :selected="plugin.toggle_state === 'enabled'">ON</option>
-                                    <option value="disabled" :selected="plugin.toggle_state === 'disabled'">OFF</option>
-                                    <template x-if="plugin.per_project_config || plugin.per_agent_config">
-                                        <option value="advanced" :selected="plugin.toggle_state === 'advanced'">Advanced</option>
+                                <div class="plugin-status-group">
+                                    <template x-if="plugin.toggle_state === 'advanced'">
+                                        <button type="button" 
+                                                class="button icon-button" 
+                                                title="Open Advanced"
+                                                @click="$store.pluginListStore.openPluginAdvancedToggle(plugin)">
+                                            <span class="icon material-symbols-outlined">rule_settings</span>
+                                        </button>
                                     </template>
-                                </select>
+                                    <select class="plugin-status-select"
+                                        @change="$store.pluginListStore.updateToggle(plugin, $event.target.value)"
+                                        @click.stop
+                                        :disabled="plugin.always_enabled">
+                                        <option value="enabled" :selected="plugin.toggle_state === 'enabled'">ON</option>
+                                        <option value="disabled" :selected="plugin.toggle_state === 'disabled'">OFF</option>
+                                        <template x-if="plugin.per_project_config || plugin.per_agent_config">
+                                            <option value="advanced" :selected="plugin.toggle_state === 'advanced'">Advanced</option>
+                                        </template>
+                                    </select>
+                                </div>
                             </div>
                         </div>
                     </template>
@@ -238,6 +248,25 @@
             justify-content: space-between;
             gap: 1rem;
             margin-top: 0.5rem;
+        }
+
+        .plugin-status-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex: 0 0 auto;
+        }
+
+        .plugin-status-group .button {
+            padding: 0.3rem 0.5rem;
+            height: 2.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .plugin-status-group .button .icon {
+            font-size: 1.1rem;
         }
 
         .plugin-status-select {
