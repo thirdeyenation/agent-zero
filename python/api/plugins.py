@@ -51,6 +51,54 @@ class Plugins(ApiHandler):
                 "data": settings,
             }
 
+        if action == "get_toggle_status":
+            plugin_name = input.get("plugin_name", "")
+            project_name = input.get("project_name", "")
+            agent_profile = input.get("agent_profile", "")
+            if not plugin_name:
+                return Response(status=400, response="Missing plugin_name")
+
+            meta = plugins.get_plugin_meta(plugin_name)
+            if not meta:
+                return Response(status=404, response="Plugin not found")
+
+            if meta.always_enabled:
+                return {
+                    "ok": True,
+                    "status": "enabled",
+                    "loaded_project_name": project_name,
+                    "loaded_agent_profile": agent_profile,
+                    "loaded_path": "",
+                }
+
+            result = plugins.find_plugin_assets(
+                plugins.TOGGLE_FILE_PATTERN,
+                plugin_name=plugin_name,
+                project_name=project_name,
+                agent_profile=agent_profile,
+                only_first=True,
+            )
+
+            if result:
+                entry = result[0]
+                path = entry.get("path", "")
+                status = "enabled" if path.endswith(plugins.ENABLED_FILE_NAME) else "disabled"
+                return {
+                    "ok": True,
+                    "status": status,
+                    "loaded_project_name": entry.get("project_name", ""),
+                    "loaded_agent_profile": entry.get("agent_profile", ""),
+                    "loaded_path": path,
+                }
+
+            return {
+                "ok": True,
+                "status": "enabled",
+                "loaded_project_name": "",
+                "loaded_agent_profile": "",
+                "loaded_path": "",
+            }
+
         if action == "list_configs":
             plugin_name = input.get("plugin_name", "")
             asset_type = input.get("asset_type", "config")

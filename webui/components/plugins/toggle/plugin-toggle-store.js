@@ -22,8 +22,14 @@ const model = {
     alwaysEnabled: false,
     perProjectConfig: true,
     perAgentConfig: true,
-    explicitPath: null,
     hasExplicitRuleForScope: false,
+    hasConfigScreen: false,
+
+    // Where the effective toggle was actually resolved (mirrors plugin-settings-store loadedXxx fields)
+    loadedPath: "",
+    loadedProjectName: "",
+    loadedAgentProfile: "",
+
     configs: [],
 
     async open(plugin) {
@@ -34,6 +40,11 @@ const model = {
         this.projectName = "";
         this.agentProfileKey = "";
         this.configs = [];
+        this.status = 'enabled';
+        this.hasExplicitRuleForScope = false;
+        this.loadedPath = "";
+        this.loadedProjectName = "";
+        this.loadedAgentProfile = "";
 
         const pluginName = typeof plugin === 'string' ? plugin : plugin?.name;
         this.pluginName = pluginName;
@@ -61,6 +72,11 @@ const model = {
         this.alwaysEnabled = false;
         this.hasConfigScreen = false;
         this.hasExplicitRuleForScope = false;
+        this.loadedPath = "";
+        this.loadedProjectName = "";
+        this.loadedAgentProfile = "";
+        this.isLoading = false;
+        this.isSaving = false;
     },
 
     async loadProjects() {
@@ -106,11 +122,51 @@ const model = {
             });
             const result = await response.json().catch(() => ({}));
             this.configs = result.ok ? (result.data || []) : [];
-            this.calculateStatus();
+            await this.loadToggleStatus();
         } catch (e) {
             this.error = e?.message || "Failed to load configurations";
         } finally {
             this.isLoading = false;
+        }
+    },
+
+    async loadToggleStatus() {
+        if (!this.pluginName) return;
+
+        if (this.alwaysEnabled) {
+            this.status = 'enabled';
+            this.hasExplicitRuleForScope = true;
+            this.loadedPath = "";
+            this.loadedProjectName = this.projectName || "";
+            this.loadedAgentProfile = this.agentProfileKey || "";
+            return;
+        }
+
+        try {
+            const response = await fetchApi("/plugins", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    action: "get_toggle_status",
+                    plugin_name: this.pluginName,
+                    project_name: this.projectName || "",
+                    agent_profile: this.agentProfileKey || "",
+                }),
+            });
+            const result = await response.json().catch(() => ({}));
+            if (result.ok) {
+                this.status = result.status || 'enabled';
+                this.loadedPath = result.loaded_path || "";
+                this.loadedProjectName = result.loaded_project_name || "";
+                this.loadedAgentProfile = result.loaded_agent_profile || "";
+                const p = this.projectName || "";
+                const a = this.agentProfileKey || "";
+                this.hasExplicitRuleForScope = !!(this.loadedPath) &&
+                    this.loadedProjectName === p &&
+                    this.loadedAgentProfile === a;
+            }
+        } catch (e) {
+            this.error = e?.message || "Failed to load toggle status";
         }
     },
 
@@ -125,27 +181,20 @@ const model = {
             });
         } else {
             // Same plugin — push current scope explicitly.
-            // onScopeChanged() syncs on @change events, but if the user never touched
-            // the scope selectors after the modal opened the settings store may still
-            // hold a stale scope from a prior session.
             settingsStore.projectName = this.projectName || "";
             settingsStore.agentProfileKey = this.agentProfileKey || "";
         }
-        await window.openModal?.("components/plugins/plugin-settings.html");
+        await window.openModal?.("/components/plugins/plugin-settings.html");
     },
 
     async openConfigListModal() {
         await window.openModal?.("/components/plugins/toggle/plugin-toggles.html");
     },
 
-    async loadConfigList() {
-        await this.loadConfigs();
-    },
-
     async switchToConfig(projectName, agentProfile) {
         this.projectName = projectName || "";
         this.agentProfileKey = agentProfile || "";
-        this.onScopeChanged();
+        await this.onScopeChanged();
         await window.closeModal?.();
     },
 
@@ -169,31 +218,6 @@ const model = {
             this.error = e.message || "Delete failed";
         } finally {
             this.isLoading = false;
-        }
-    },
-
-    calculateStatus() {
-        if (this.alwaysEnabled) {
-            this.explicitPath = null;
-            this.hasExplicitRuleForScope = true;
-            this.status = 'enabled';
-            return;
-        }
-
-        const p = this.projectName || "";
-        const a = this.agentProfileKey || "";
-        const explicit = this.configs.find(
-            c => (c.project_name||"") === p && (c.agent_profile||"") === a
-        );
-
-        if (explicit) {
-            this.explicitPath = explicit.path;
-            this.hasExplicitRuleForScope = true;
-            this.status = explicit.path.endsWith(".toggle-1") ? 'enabled' : 'disabled';
-        } else {
-            this.explicitPath = null;
-            this.hasExplicitRuleForScope = false;
-            this.status = 'enabled'; // default when no explicit config
         }
     },
 
@@ -224,7 +248,7 @@ const model = {
     },
 
     async onScopeChanged() {
-        this.calculateStatus();
+        await this.loadToggleStatus();
 
         // Sync scope with settings store so its loadSettings picks up the right context
         settingsStore.projectName = this.projectName || "";
@@ -254,9 +278,19 @@ const model = {
 
     get noScopeRuleMessage() {
         if (this.alwaysEnabled || this.isLoading) return "";
-        if (this.configs.length === 0) return "No activation rules configured. Plugin defaults to ON.";
-        if (!this.explicitPath) return "No rule set for this scope. Status defaults to ON.";
-        return "";
+        if (this.hasExplicitRuleForScope) return "";
+
+        if (!this.loadedPath) {
+            return this.configs.length === 0
+                ? "No activation rules configured. Plugin defaults to ON."
+                : "No rule for this scope. Defaults to ON.";
+        }
+
+        // Inherited from a parent scope - mirrors plugin-settings-store scopeMismatchMessage
+        const pLabel = this.projectLabel(this.loadedProjectName || "");
+        const aLabel = this.agentProfileLabel(this.loadedAgentProfile || "");
+        const state = this.status === 'enabled' ? 'ON' : 'OFF';
+        return `No rule for this scope. Inheriting from ${pLabel}, ${aLabel}: ${state}.`;
     }
 };
 
