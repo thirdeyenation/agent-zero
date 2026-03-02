@@ -63,15 +63,15 @@ def extensible(func):
         from agent import Agent
 
         # prepare extension points data
-        module_name = getattr(func, "__module__", "")
-        qual_name = getattr(func, "__qualname__", "")
+        module_name = getattr(func, "__module__", "").replace(".", "_")
+        qual_name = getattr(func, "__qualname__", "").replace(".", "_")
 
         # skip if extension point cannot be determined
         if not module_name or not qual_name:
             return await func(*args, **kwargs)
 
-        start_point = f"{module_name}.{qual_name}-start"
-        end_point = f"{module_name}.{qual_name}-end"
+        start_point = f"{module_name}_{qual_name}_start"
+        end_point = f"{module_name}_{qual_name}_end"
 
         def _get_agent() -> "Agent|None":
             candidate = kwargs.get("agent")

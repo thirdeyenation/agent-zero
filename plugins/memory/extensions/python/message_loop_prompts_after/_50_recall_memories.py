@@ -24,6 +24,8 @@ class RecallMemories(Extension):
     # THRESHOLD = DEFAULT_MEMORY_THRESHOLD
 
     async def execute(self, loop_data: LoopData = LoopData(), **kwargs):
+        if not self.agent:
+            return
 
         set = plugins.get_plugin_config("memory", self.agent)
         if not set:
@@ -56,6 +58,8 @@ class RecallMemories(Extension):
         self.agent.set_data(DATA_NAME_ITER, loop_data.iteration)
 
     async def search_memories(self, log_item: log.LogItem, loop_data: LoopData, **kwargs):
+        if not self.agent:
+            return
 
         # cleanup
         extras = loop_data.extras_persistent

@@ -6,6 +6,9 @@ from python.helpers import plugins
 class RecallWait(Extension):
     async def execute(self, loop_data: LoopData = LoopData(), **kwargs):
 
+        if not self.agent:
+            return
+
         set = plugins.get_plugin_config("memory", self.agent)
         if not set:
             return None

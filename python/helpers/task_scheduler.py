@@ -933,8 +933,8 @@ class TaskScheduler:
                     PrintStyle.warning(f"Fixing task state consistency: '{current_task.name}' state is not ERROR after failure")
                     await self.update_task(task_uuid, state=TaskState.ERROR)
 
-                if agent:
-                    agent.handle_critical_exception(e)
+                # if agent:
+                #     await agent.handle_critical_exception(e)
             finally:
                 # Call on_finish for task-specific cleanup
                 try:

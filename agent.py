@@ -17,6 +17,7 @@ from python.helpers import (
     dirty_json,
     subagents,
 )
+from python.helpers import extension
 from python.helpers.print_style import PrintStyle
 
 from langchain_core.prompts import (
@@ -30,7 +31,7 @@ from python.helpers.defer import DeferredTask
 from typing import Callable
 from python.helpers.localization import Localization
 from python.helpers.extension import call_extensions, extensible
-from python.helpers.errors import RepairableException
+from python.helpers.errors import RepairableException, InterventionException, HandledException
 
 
 class AgentContextType(Enum):
@@ -240,6 +241,7 @@ class AgentContext:
         self.task = self.communicate(UserMessage(self.agent0.read_prompt("fw.msg_nudge.md")))
         return self.task
 
+    @extensible
     def get_agent(self):
         return self.streaming_agent or self.agent0
 
@@ -298,7 +300,10 @@ class AgentContext:
 
             return response
         except Exception as e:
-            agent.handle_critical_exception(e)
+            exception_data = {"exception": e}
+            await extension.call_extensions("context_chain_exception", agent=agent, exception_data=exception_data)
+            if exception_data.get("exception"):
+                raise exception_data["exception"]
 
 
 @dataclass
@@ -346,18 +351,6 @@ class LoopData:
             setattr(self, key, value)
 
 
-# intervention exception class - skips rest of message loop iteration
-class InterventionException(Exception):
-    pass
-
-
-# killer exception class - not forwarded to LLM, cannot be fixed on its own, ends message loop
-
-
-class HandledException(Exception):
-    pass
-
-
 class Agent:
 
     DATA_NAME_SUPERIOR = "_superior"
@@ -388,7 +381,6 @@ class Agent:
 
     @extensible
     async def monologue(self):
-        error_retries = 0  # counter for critical error retries
         while True:
             try:
                 # loop data dictionary to pass to extensions
@@ -498,24 +490,12 @@ class Agent:
                             if tools_result:  # final response of message loop available
                                 return tools_result  # break the execution if the task is done
 
-                        error_retries = 0  # reset retry counter on successful iteration
-
                     # exceptions inside message loop:
-                    except InterventionException as e:
-                        error_retries = 0  # reset retry counter on user intervention
-                        pass  # intervention message has been handled in handle_intervention(), proceed with conversation loop
-                    except RepairableException as e:
-                        # Forward repairable errors to the LLM, maybe it can fix them
-                        msg = {"message": errors.format_error(e)}
-                        await self.call_extensions("error_format", msg=msg)
-                        self.hist_add_warning(msg["message"])
-                        PrintStyle(font_color="red", padding=True).print(msg["message"])
-                        self.context.log.log(type="warning", content=msg["message"])
                     except Exception as e:
-                        # Retry critical exceptions before failing
-                        error_retries = await self.retry_critical_exception(
-                            e, error_retries
-                        )
+                        exception_data = { "exception": e }
+                        await self.call_extensions("message_loop_exception", loop_data=self.loop_data, exception_data=exception_data)
+                        if exception_data["exception"]:
+                            raise exception_data["exception"]
 
                     finally:
                         # call message_loop_end extensions
@@ -527,14 +507,11 @@ class Agent:
 
 
             # exceptions outside message loop:
-            except InterventionException as e:
-                error_retries = 0  # reset retry counter on user intervention
-                pass  # just start over
             except Exception as e:
-                # Retry critical exceptions before failing
-                error_retries = await self.retry_critical_exception(
-                    e, error_retries
-                )
+                exception_data = { "exception": e }
+                await self.call_extensions("monologue_exception", exception_data=exception_data)
+                if exception_data["exception"]:
+                    raise exception_data["exception"]
             finally:
                 self.context.streaming_agent = None  # unset current streamer
                 # call monologue_end extensions
@@ -594,59 +571,42 @@ class Agent:
         return full_prompt
 
     @extensible
-    async def retry_critical_exception(
-        self, e: Exception, error_retries: int, delay: int = 3, max_retries: int = 1
-    ) -> int:
-        if error_retries >= max_retries:
-            self.handle_critical_exception(e)
+    async def handle_critical_exception(self, exception: Exception):
+        pass
+        # exception_data = {"exception": exception}
+        # await self.call_extensions(
+        #     "message_loop_exception", exception_data=exception_data
+        # )
 
-        error_message = errors.format_error(e)
-        
-        self.context.log.log(
-            type="warning", heading="Critical error occurred, retrying...", content=error_message
-        )
-        PrintStyle(font_color="orange", padding=True).print(
-            "Critical error occurred, retrying..."
-        )
-        await asyncio.sleep(delay)
-        await self.handle_intervention()
-        agent_facing_error = self.read_prompt(
-            "fw.msg_critical_error.md", error_message=error_message
-        )
-        self.hist_add_warning(message=agent_facing_error)
-        PrintStyle(font_color="orange", padding=True).print(
-            agent_facing_error
-        )
-        return error_retries + 1
+        # # If extensions cleared the exception, continue.
+        # if not exception_data.get("exception"):
+        #     return
 
-    @extensible
-    def handle_critical_exception(self, exception: Exception):
-        if isinstance(exception, HandledException):
-            raise exception  # Re-raise the exception to kill the loop
-        elif isinstance(exception, asyncio.CancelledError):
-            # Handling for asyncio.CancelledError
-            PrintStyle(font_color="white", background_color="red", padding=True).print(
-                f"Context {self.context.id} terminated during message loop"
-            )
-            raise HandledException(
-                exception
-            )  # Re-raise the exception to cancel the loop
-        else:
-            # Handling for general exceptions
-            error_text = errors.error_text(exception)
-            error_message = errors.format_error(exception)
+        # # Backwards-compatible fallback (should normally be handled by _90 extension).
+        # exception = exception_data["exception"]
+        # if isinstance(exception, HandledException):
+        #     raise exception
+        # elif isinstance(exception, asyncio.CancelledError):
+        #     PrintStyle(font_color="white", background_color="red", padding=True).print(
+        #         f"Context {self.context.id} terminated during message loop"
+        #     )
+        #     raise HandledException(exception)
 
-            # Mask secrets in error messages
-            PrintStyle(font_color="red", padding=True).print(error_message)
-            self.context.log.log(
-                type="error",
-                content=error_message,
-            )
-            PrintStyle(font_color="red", padding=True).print(
-                f"{self.agent_name}: {error_text}"
-            )
+        # else:
+        #     error_text = errors.error_text(exception)
+        #     error_message = errors.format_error(exception)
 
-            raise HandledException(exception)  # Re-raise the exception to kill the loop
+        #     # Mask secrets in error messages
+        #     PrintStyle(font_color="red", padding=True).print(error_message)
+        #     self.context.log.log(
+        #         type="error",
+        #         content=error_message,
+        #     )
+        #     PrintStyle(font_color="red", padding=True).print(
+        #         f"{self.agent_name}: {error_text}"
+        #     )
+
+        #     raise HandledException(exception)  # Re-raise the exception to kill the loop
 
     @extensible
     async def get_system_prompt(self, loop_data: LoopData) -> list[str]:
@@ -858,8 +818,7 @@ class Agent:
 
     @extensible
     async def handle_intervention(self, progress: str = ""):
-        while self.context.paused:
-            await asyncio.sleep(0.1)  # wait if paused
+        await self.wait_if_paused()
         if (
             self.intervention
         ):  # if there is an intervention message, but not yet processed
