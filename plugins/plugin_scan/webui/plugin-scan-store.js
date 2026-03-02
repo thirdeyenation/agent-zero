@@ -165,12 +165,15 @@ export const store = createStore("pluginScan", {
 
     if (_running) {
       try {
-        await api.callJsonApi("/plugins/plugin_scan/plugin_scan_queue", { context: ctxId });
+        await api.callJsonApi("/plugins/plugin_scan/plugin_scan_queue", { context: ctxId, text: capturedPrompt, queued: true });
       } catch { /* best-effort */ }
       _queue.push({ gen, ctxId, prompt: capturedPrompt });
       this.queued = true;
       this.scanning = false;
     } else {
+      try {
+        await api.callJsonApi("/plugins/plugin_scan/plugin_scan_queue", { context: ctxId, text: capturedPrompt });
+      } catch { /* best-effort */ }
       this.queued = false;
       this.scanning = true;
       this._runNext(gen, ctxId, capturedPrompt);
@@ -181,7 +184,7 @@ export const store = createStore("pluginScan", {
   async _runNext(gen, ctxId, prompt) {
     _running = { gen, ctxId };
     try {
-      await api.callJsonApi("/message_async", { text: prompt, context: ctxId });
+      await api.callJsonApi("/plugins/plugin_scan/plugin_scan_start", { text: prompt, context: ctxId });
       await this._pollLoop(gen, ctxId);
     } catch (/** @type {any} */ e) {
       if (gen === _pollGen) {
