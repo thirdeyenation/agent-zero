@@ -165,7 +165,7 @@ export const store = createStore("pluginScan", {
 
     if (_running) {
       try {
-        await api.callJsonApi("/plugins/plugin_scan/plugin_scan_queue", { context: ctxId, text: capturedPrompt });
+        await api.callJsonApi("/plugins/plugin_scan/plugin_scan_queue", { context: ctxId });
       } catch { /* best-effort */ }
       _queue.push({ gen, ctxId, prompt: capturedPrompt });
       this.queued = true;
