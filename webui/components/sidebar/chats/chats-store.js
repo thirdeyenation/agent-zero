@@ -30,6 +30,18 @@ const model = {
 
   init() {
     this.loggedIn = Boolean(window.runtimeInfo && window.runtimeInfo.loggedIn);
+
+    // URL parameter takes priority (e.g. ?ctxid=abc from "open in new window")
+    const urlParams = new URL(window.location.href).searchParams;
+    const urlCtxId = urlParams.get("ctxid");
+    if (urlCtxId) {
+      const cleanUrl = new URL(window.location.href);
+      cleanUrl.searchParams.delete("ctxid");
+      window.history.replaceState({}, "", cleanUrl);
+      this.selectChat(urlCtxId);
+      return;
+    }
+
     // Initialize from sessionStorage
     const lastSelectedChat = sessionStorage.getItem("lastSelectedChat");
     if (lastSelectedChat) {
