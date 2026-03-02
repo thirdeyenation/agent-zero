@@ -45,9 +45,10 @@
         <div class="scan-actions">
           <button class="button" @click="$store.pluginScan.copyPrompt()">Copy Prompt</button>
           <button class="button confirm" @click="$store.pluginScan.runScan()"
-                  :disabled="$store.pluginScan.scanning">
-            <span x-show="$store.pluginScan.scanning"><span class="scan-spinner"></span>Scanning…</span>
-            <span x-show="!$store.pluginScan.scanning">Run Scan</span>
+                  :disabled="$store.pluginScan.scanning || $store.pluginScan.queued">
+            <span x-show="$store.pluginScan.queued"><span class="scan-spinner"></span>Queued…</span>
+            <span x-show="$store.pluginScan.scanning && !$store.pluginScan.queued"><span class="scan-spinner"></span>Scanning…</span>
+            <span x-show="!$store.pluginScan.scanning && !$store.pluginScan.queued">Run Scan</span>
           </button>
           <button class="button" @click="$store.pluginScan.openChatInNewWindow()"
                   x-show="$store.pluginScan.scanCtxId"
@@ -99,6 +100,8 @@
     .scan-output-html th,
     .scan-output-html td { border: 1px solid var(--color-border); padding: 0.4rem 0.6rem; text-align: left; font-size: 0.85rem; }
     .scan-output-html th { background: var(--color-panel); font-weight: 600; }
+    .scan-output-html pre { background: var(--color-panel); border: 1px solid var(--color-border); border-radius: 6px; padding: 0.75rem; overflow-x: auto; }
+    .scan-output-html code { font-size: 0.8rem; }
 
     .scan-error { color: var(--color-error, #e55); font-size: 0.85rem; }
     .scan-spinner { display: inline-block; width: 1em; height: 1em; border: 2px solid var(--color-border);

@@ -12,7 +12,7 @@
 
 ## Step-by-step Instructions
 
-Follow these steps precisely. You may delegate individual steps to subordinate agents if needed.
+Follow these steps **in order**. You may delegate individual steps to subordinate agents.
 
 ### 1. Clone to Sandbox
 Clone the target repository to a temporary directory **outside** `/a0` using a unique name
@@ -27,44 +27,63 @@ Read the plugin's `plugin.yaml` (runtime manifest). Note its declared purpose, t
 requested settings_sections, per_project_config, per_agent_config, and always_enabled flags.
 
 ### 4. Map File Structure
-List all files and directories in the plugin. Compare the actual structure against the declared
-purpose — for example, a "UI theme" plugin should not contain backend API handlers or tool
-definitions that access secrets. Flag any structural anomalies.
+List all files and directories. Compare the actual structure against the declared purpose —
+for example, a "UI theme" plugin should not contain backend API handlers or tool definitions
+that access secrets. Flag any structural anomalies.
 
 ### 5. Security Checks
-Perform the following selected checks on ALL code files in the repository:
+Perform **ONLY** the following selected checks on ALL code files in the repository.
+Do NOT perform any checks not in this list. Do NOT add extra checks or categories.
 
 {{SELECTED_CHECKS}}
 
 For each check, examine every relevant file. Be thorough — do not skip files or sample.
 
-#### Check Details
+#### Check Details (only for the selected checks above)
 
 {{CHECK_DETAILS}}
 
+### 5.5 Self-Verification (mandatory before writing the report)
+Before producing any output, verify each item below. If ANY is false, go back and fix it:
+- ✅ Repository was cloned and files exist on disk
+- ✅ `plugin.yaml` was read and its title/description/version are noted
+- ✅ Every file in the repository was examined (not sampled)
+- ✅ Each selected check has at least one concrete finding with file path and rationale
+- ✅ No check was skipped or summarized without evidence
+
 ### 6. Cleanup
-**IMPORTANT**: Remove the entire cloned directory (e.g. `rm -rf /tmp/plugin-scan-*`).
-Verify the directory no longer exists before finishing. Do not skip this step.
+**IMPORTANT**: Remove the entire cloned directory. Run: `rm -rf /tmp/plugin-scan-*`
+Then verify with `ls /tmp/plugin-scan-*` that nothing remains. Do not skip this step.
 
 ## Output Format
 
-Respond with a concise Markdown report containing:
+> **STRICT**: Your entire response must follow this EXACT structure. No preamble, no extra sections.
+> The Results Table must contain EXACTLY the checks from Section 5 — no more, no fewer.
+> Use the classification criteria (🟢/🟡/🔴) defined in each Check Detail above. Apply them literally.
 
-1. **Summary** — 1-2 sentence overall assessment (Safe / Caution / Dangerous)
-2. **Plugin Info** — Name, declared purpose, version
-3. **Results Table**:
+```
+# Security Scan Report: {plugin title from plugin.yaml}
+
+## 1. Summary
+{1-2 sentences. Overall: **Safe** / **Caution** / **Dangerous**}
+
+## 2. Plugin Info
+- **Name**: {title}
+- **Purpose**: {description}
+- **Version**: {version}
+
+## 3. Results
 
 | Check | Status | Details |
 |-------|--------|---------|
-| ... | 🟢/🟡/🔴 | ... |
+| {check label} | 🟢/🟡/🔴 | {brief finding} |
+
+## 4. Details
+{For each 🟡 or 🔴: file path, line numbers, code snippet, risk explanation.}
+{If all 🟢, write "No issues found."}
+```
 
 Status icons:
-- 🟢 **Pass** — No issues found
-- 🟡 **Warning** — Minor concern or inconclusive
-- 🔴 **Fail** — Security threat or serious concern detected
-
-4. **Details** — For any 🟡 or 🔴 finding, provide:
-   - File path and line number(s)
-   - Code snippet showing the issue
-   - Explanation of the risk
-   - Severity assessment
+- 🟢 **Pass** — meets the green criteria in Check Details
+- 🟡 **Warning** — meets the yellow criteria
+- 🔴 **Fail** — meets the red criteria
