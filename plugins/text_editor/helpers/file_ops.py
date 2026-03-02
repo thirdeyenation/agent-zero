@@ -1,55 +1,78 @@
 """
-Async file operations for the text_editor plugin. Routes I/O to the
-Docker container via rfc_text_editor._impl functions and applies
-token budgeting host-side.
+Pure file operations for the text_editor plugin.
+
+No agent/tool dependencies — only stdlib + tokens helper.
 """
 
-from dataclasses import dataclass
+import os
+import shutil
+import tempfile
+from typing import TypedDict
 
-from python.helpers import tokens, runtime
-from plugins.text_editor.helpers.rfc_text_editor import (
-    is_binary_impl as _is_binary_impl,
-    read_file_raw_impl as _read_file_raw_impl,
-    write_file_impl as _write_file_impl,
-    apply_patch_impl as _apply_patch_impl,
-    file_info_impl as _file_info_impl,
-)
+from python.helpers import tokens
+
+_BINARY_PEEK = 8192
+
 
 # ------------------------------------------------------------------
 # Binary detection
 # ------------------------------------------------------------------
 
-async def is_binary(path: str) -> bool:
+def is_binary(path: str) -> bool:
     """Detect binary file by checking for null bytes."""
-    return await runtime.call_development_function(_is_binary_impl, path)
+    try:
+        with open(path, "rb") as f:
+            chunk = f.read(_BINARY_PEEK)
+        return b"\x00" in chunk
+    except OSError:
+        return False
 
 
 # ------------------------------------------------------------------
 # File metadata
 # ------------------------------------------------------------------
 
-async def file_info(path: str) -> dict:
-    """
-    Get file metadata from the container.
+class FileInfo(TypedDict):
+    exists: bool
+    is_file: bool
+    realpath: str
+    expanded: str
+    mtime: float | None
 
-    Returns dict with: exists, is_file, realpath, expanded, mtime.
-    """
-    return await runtime.call_development_function(_file_info_impl, path)
+
+def file_info(path: str) -> FileInfo:
+    """Return file metadata for mtime tracking and path resolution."""
+    path = os.path.expanduser(path)
+    rp = os.path.realpath(path)
+    exists = os.path.exists(path)
+    is_file = os.path.isfile(path)
+    mtime = None
+    if exists:
+        try:
+            mtime = os.path.getmtime(path)
+        except OSError:
+            pass
+    return FileInfo(
+        exists=exists,
+        is_file=is_file,
+        realpath=rp,
+        expanded=path,
+        mtime=mtime,
+    )
 
 
 # ------------------------------------------------------------------
 # Read
 # ------------------------------------------------------------------
 
-@dataclass
-class ReadResult:
-    content: str = ""
-    total_lines: int = 0
-    warnings: str = ""
-    error: str = ""
+class ReadResult(TypedDict):
+    content: str
+    total_lines: int
+    warnings: str
+    error: str
 
 
-async def read_file(
+def read_file(
     path: str,
     line_from: int = 1,
     line_to: int | None = None,
@@ -64,15 +87,30 @@ async def read_file(
     line_from and line_to are both inclusive.
     None line_to defaults to line_from + default_line_count - 1.
     """
-    # I/O happens in the container via RFC; token budgeting stays host-side.
-    raw = await runtime.call_development_function(_read_file_raw_impl, path)
+    path = os.path.expanduser(path)
 
-    if raw["error"]:
-        return ReadResult(error=raw["error"])
+    if not os.path.isfile(path):
+        return ReadResult(
+            content="", total_lines=0, warnings="",
+            error="file not found",
+        )
 
-    all_lines = raw["lines"]
-    total_lines = raw["total_lines"]
+    if is_binary(path):
+        return ReadResult(
+            content="", total_lines=0, warnings="",
+            error="file appears binary, use terminal instead",
+        )
 
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as f:
+            all_lines = f.readlines()
+    except OSError as exc:
+        return ReadResult(
+            content="", total_lines=0, warnings="",
+            error=str(exc),
+        )
+
+    total_lines = len(all_lines)
     line_from = max(line_from, 1)
     if line_to is None:
         line_to = line_from + default_line_count - 1
@@ -129,6 +167,7 @@ async def read_file(
         content="\n".join(output_lines),
         total_lines=total_lines,
         warnings=warn_str,
+        error="",
     )
 
 
@@ -136,33 +175,37 @@ async def read_file(
 # Write
 # ------------------------------------------------------------------
 
-@dataclass
-class WriteResult:
-    total_lines: int = 0
-    error: str = ""
+class WriteResult(TypedDict):
+    total_lines: int
+    error: str
 
 
-async def write_file(path: str, content: str | None) -> WriteResult:
+def write_file(path: str, content: str | None) -> WriteResult:
     """Create or overwrite a file."""
     if content is None:
         content = ""
-    result = await runtime.call_development_function(
-        _write_file_impl, path, content
+    path = os.path.expanduser(path)
+    try:
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(content)
+    except OSError as exc:
+        return WriteResult(total_lines=0, error=str(exc))
+
+    total = content.count("\n") + (
+        1 if content and not content.endswith("\n") else 0
     )
-    if result["error"]:
-        return WriteResult(error=result["error"])
-    return WriteResult(total_lines=result["total_lines"])
+    return WriteResult(total_lines=total, error="")
 
 
 # ------------------------------------------------------------------
 # Patch
 # ------------------------------------------------------------------
 
-@dataclass
-class PatchResult:
-    total_lines: int = 0
-    edit_count: int = 0
-    error: str = ""
+class PatchResult(TypedDict):
+    total_lines: int
+    edit_count: int
+    error: str
 
 
 def validate_edits(edits: list | None) -> tuple[list[dict], str]:
@@ -218,7 +261,7 @@ def validate_edits(edits: list | None) -> tuple[list[dict], str]:
     return parsed, ""
 
 
-async def apply_patch(path: str, edits: list[dict]) -> int:
+def apply_patch(path: str, edits: list[dict]) -> int:
     """
     Apply sorted, validated edits by streaming to a temp file.
 
@@ -226,29 +269,94 @@ async def apply_patch(path: str, edits: list[dict]) -> int:
     Inserts have 'insert': True.
     Returns total line count after patching.
     """
-    result = await runtime.call_development_function(
-        _apply_patch_impl, path, edits
-    )
-    if result["error"]:
-        raise Exception(result["error"])
-    return result["total_lines"]
+    # Ensure content always ends with newline to prevent line merging
+    for e in edits:
+        if e["content"] and not e["content"].endswith("\n"):
+            e["content"] += "\n"
+
+    dir_name = os.path.dirname(path) or "."
+    fd, tmp_path = tempfile.mkstemp(dir=dir_name, suffix=".tmp")
+    try:
+        with (
+            open(path, "r", encoding="utf-8", errors="replace") as src,
+            os.fdopen(fd, "w", encoding="utf-8") as dst,
+        ):
+            edit_idx = 0
+            line_no = 1  # 1-based
+            total_written = 0
+
+            for raw_line in src:
+                # Process all inserts targeting this line first
+                while (
+                    edit_idx < len(edits)
+                    and edits[edit_idx]["insert"]
+                    and edits[edit_idx]["from"] == line_no
+                ):
+                    edit = edits[edit_idx]
+                    if edit["content"]:
+                        dst.write(edit["content"])
+                        total_written += _count_content_lines(edit["content"])
+                    edit_idx += 1
+
+                # Check if current line falls in a replace/delete range
+                if edit_idx < len(edits) and not edits[edit_idx]["insert"]:
+                    edit = edits[edit_idx]
+                    if edit["from"] <= line_no <= edit["to"]:
+                        # Write replacement content once at range start
+                        if line_no == edit["from"] and edit["content"]:
+                            dst.write(edit["content"])
+                            total_written += _count_content_lines(
+                                edit["content"]
+                            )
+                        # Skip original line; advance edit at range end
+                        if line_no == edit["to"]:
+                            edit_idx += 1
+                        line_no += 1
+                        continue
+
+                dst.write(raw_line)
+                total_written += 1
+                line_no += 1
+
+            # Remaining edits past end of file
+            while edit_idx < len(edits):
+                edit = edits[edit_idx]
+                if edit["content"]:
+                    dst.write(edit["content"])
+                    total_written += _count_content_lines(edit["content"])
+                edit_idx += 1
+
+        shutil.move(tmp_path, path)
+        return total_written
+    except Exception:
+        if os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+        raise
 
 
-async def patch_file(path: str, edits: list | None) -> PatchResult:
+def patch_file(path: str, edits: list | None) -> PatchResult:
     """Validate and apply edits to a file."""
-    info = await runtime.call_development_function(
-        _file_info_impl, path
-    )
-    if not info["is_file"]:
-        return PatchResult(error="file not found")
+    path = os.path.expanduser(path)
+    if not os.path.isfile(path):
+        return PatchResult(total_lines=0, edit_count=0, error="file not found")
 
     parsed, err = validate_edits(edits)
     if err:
-        return PatchResult(error=err)
+        return PatchResult(total_lines=0, edit_count=0, error=err)
 
     try:
-        total = await apply_patch(info["expanded"], parsed)
+        total = apply_patch(path, parsed)
     except Exception as exc:
-        return PatchResult(error=str(exc))
+        return PatchResult(total_lines=0, edit_count=0, error=str(exc))
 
-    return PatchResult(total_lines=total, edit_count=len(parsed))
+    return PatchResult(total_lines=total, edit_count=len(parsed), error="")
+
+
+# ------------------------------------------------------------------
+# Internal
+# ------------------------------------------------------------------
+
+def _count_content_lines(content: str) -> int:
+    return content.count("\n") + (
+        1 if content and not content.endswith("\n") else 0
+    )
