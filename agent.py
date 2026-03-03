@@ -300,10 +300,12 @@ class AgentContext:
 
             return response
         except Exception as e:
-            exception_data = {"exception": e}
-            await extension.call_extensions("context_chain_exception", agent=agent, exception_data=exception_data)
-            if exception_data.get("exception"):
-                raise exception_data["exception"]
+            await self.handle_exception("process_chain", e)
+
+    @extensible
+    async def handle_exception(self, location: str, exception: Exception):
+        if exception:
+            raise exception # exception handling is done by extensions
 
 
 @dataclass
@@ -492,10 +494,7 @@ class Agent:
 
                     # exceptions inside message loop:
                     except Exception as e:
-                        exception_data = { "exception": e }
-                        await self.call_extensions("message_loop_exception", loop_data=self.loop_data, exception_data=exception_data)
-                        if exception_data["exception"]:
-                            raise exception_data["exception"]
+                        await self.handle_exception("message_loop", e)
 
                     finally:
                         # call message_loop_end extensions
@@ -508,10 +507,7 @@ class Agent:
 
             # exceptions outside message loop:
             except Exception as e:
-                exception_data = { "exception": e }
-                await self.call_extensions("monologue_exception", exception_data=exception_data)
-                if exception_data["exception"]:
-                    raise exception_data["exception"]
+                await self.handle_exception("monologue", e)
             finally:
                 self.context.streaming_agent = None  # unset current streamer
                 # call monologue_end extensions
@@ -571,8 +567,10 @@ class Agent:
         return full_prompt
 
     @extensible
-    async def handle_critical_exception(self, exception: Exception):
-        pass
+    async def handle_exception(self, location: str, exception: Exception):
+        if exception:
+            raise exception # exception handling is done by extensions
+
         # exception_data = {"exception": exception}
         # await self.call_extensions(
         #     "message_loop_exception", exception_data=exception_data

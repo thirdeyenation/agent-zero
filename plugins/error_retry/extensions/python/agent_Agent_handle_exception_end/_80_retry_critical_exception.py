@@ -10,11 +10,11 @@ from python.helpers.print_style import PrintStyle
 from plugins.error_retry.extensions.python.agent_Agent_monologue_start._10_reset_critical_exception_counter import DATA_NAME_COUNTER
 
 class RetryCriticalException(Extension):
-    async def execute(self, exception_data: dict = {}, **kwargs):
+    async def execute(self, data: dict = {}, **kwargs):
         if not self.agent:
             return
 
-        exception = exception_data.get("exception")
+        exception = data.get("exception")
         if not exception:
             return
 
@@ -47,6 +47,6 @@ class RetryCriticalException(Extension):
         self.agent.hist_add_warning(message=agent_facing_error)
         PrintStyle(font_color="orange", padding=True).print(agent_facing_error)
 
-        exception_data["exception"] = None
+        data["exception"] = None
 
         

@@ -8,11 +8,11 @@ from python.helpers.errors import HandledException
 
 
 class HandleCriticalException(Extension):
-    async def execute(self, exception_data: dict = {}, **kwargs):
+    async def execute(self, data: dict = {}, **kwargs):
         if not self.agent:
             return
 
-        if not (exception:= exception_data.get("exception")):
+        if not (exception:= data.get("exception")):
             return
 
         # when exception is HandledException, keep it active, no logging here
@@ -24,7 +24,7 @@ class HandleCriticalException(Extension):
             PrintStyle(font_color="white", background_color="red", padding=True).print(
                 f"Context {self.agent.context.id} terminated during message loop"
             )
-            exception_data["exception"] = HandledException(exception)
+            data["exception"] = HandledException(exception)
             return
 
         # other exceptions should be logged and re-raised as HandledException
@@ -40,4 +40,4 @@ class HandleCriticalException(Extension):
             f"{self.agent.agent_name}: {error_text}"
         )
 
-        exception_data["exception"] = HandledException(exception)
+        data["exception"] = HandledException(exception)

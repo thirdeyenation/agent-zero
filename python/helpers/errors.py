@@ -82,6 +82,9 @@ class RepairableException(Exception):
 class InterventionException(Exception):
     """An exception type raised on user intervention, skipping rest of message loop iteration."""
     pass
+class InterventionException(Exception):
+    """An exception type raised on user intervention, skipping rest of message loop iteration."""
+    pass
 
 
 class HandledException(Exception):

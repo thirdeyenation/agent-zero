@@ -8,14 +8,14 @@ from python.helpers.print_style import PrintStyle
 
 
 class HandleInterventionException(Extension):
-    async def execute(self, exception_data: dict = {}, **kwargs):
+    async def execute(self, data: dict = {}, **kwargs):
         if not self.agent:
             return
 
-        if not exception_data.get("exception"):
+        if not data.get("exception"):
             return
 
-        if isinstance(exception_data["exception"], InterventionException):
-            exception_data["exception"] = None # skip the exception and continue message loop
+        if isinstance(data["exception"], InterventionException):
+            data["exception"] = None # skip the exception and continue message loop
 
         

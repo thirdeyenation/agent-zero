@@ -204,9 +204,8 @@ def get_enabled_plugin_paths(agent: Agent | None, *subpaths: str) -> List[str]:
                 paths.append(base_dir)
             continue
 
-        path = files.get_abs_path(base_dir, *subpaths)
-        if files.exists(path):
-            paths.append(path)
+        path_pattern = files.get_abs_path(base_dir, *subpaths)
+        paths.extend(files.find_existing_paths_by_pattern(path_pattern))
 
     return paths
 
@@ -339,12 +338,12 @@ def toggle_plugin(
         files.write_file(disabled_file, "")
 
 
-def get_webui_extensions(extension_point: str, filters: List[str] | None = None):
+def get_webui_extensions(agent: Agent | None, extension_point: str, filters: List[str] | None = None):
     entries: List[str] = []
     effective_filters = filters or ["*"]
 
     for filter in effective_filters:
-        extensions = get_plugin_paths("extensions", "webui", extension_point, filter)
+        extensions = get_enabled_plugin_paths(agent, "extensions", "webui", extension_point, filter)
         for extension in extensions:
             rel_path = files.deabsolute_path(extension)
             entries.append(rel_path)

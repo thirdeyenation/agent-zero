@@ -934,7 +934,7 @@ class TaskScheduler:
                     await self.update_task(task_uuid, state=TaskState.ERROR)
 
                 # if agent:
-                #     await agent.handle_critical_exception(e)
+                #     await agent.handle_exception("scheduler", e)
             finally:
                 # Call on_finish for task-specific cleanup
                 try:
