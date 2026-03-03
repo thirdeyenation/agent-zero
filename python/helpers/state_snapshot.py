@@ -224,7 +224,13 @@ async def build_snapshot_from_request(*, request: StateRequestV1) -> SnapshotV1:
 
     active_context = AgentContext.get(ctxid) if ctxid else None
 
-    logs = active_context.log.output(start=from_no) if active_context else []
+    if active_context:
+        log_output = active_context.log.output(start=from_no)
+        logs = log_output.items
+        log_end = log_output.end
+    else:
+        logs = []
+        log_end = 0
 
     notification_manager = AgentContext.get_notification_manager()
     notifications = notification_manager.output(start=notifications_from_no)
@@ -290,7 +296,7 @@ async def build_snapshot_from_request(*, request: StateRequestV1) -> SnapshotV1:
         "tasks": tasks,
         "logs": logs,
         "log_guid": active_context.log.guid if active_context else "",
-        "log_version": len(active_context.log.updates) if active_context else 0,
+        "log_version": log_end,
         "log_progress": active_context.log.progress if active_context else 0,
         "log_progress_active": bool(active_context.log.progress_active) if active_context else False,
         "paused": active_context.paused if active_context else False,

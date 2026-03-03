@@ -44,7 +44,8 @@ class ApiLogGet(ApiHandler):
             start_pos = max(0, total_items - length)
 
             # Get log items from the calculated start position
-            log_items = context.log.output(start=start_pos)
+            log_output = context.log.output(start=start_pos)
+            log_items = log_output.items
 
             # Return log data with metadata
             return {

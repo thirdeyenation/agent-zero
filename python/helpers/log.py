@@ -209,6 +209,13 @@ class LogItem:
         }
 
 
+@dataclass(frozen=True)
+class LogOutput:
+    items: list[dict[str, Any]]
+    start: int
+    end: int
+
+
 class Log:
 
     def __init__(self):
@@ -400,7 +407,7 @@ class Log:
             if update not in seen and update < len(logs):
                 out.append(logs[update].output())
                 seen.add(update)
-        return out
+        return LogOutput(items=out, start=start, end=end)
 
     def reset(self):
         with self._lock:
