@@ -32,7 +32,7 @@ class SearchEngine(Tool):
             return f"{source} search failed: {str(result)}"
 
         outputs = []
-        for item in result["results"]:
+        for item in (result or {}).get("results", []):
             outputs.append(f"{item['title']}\n{item['url']}\n{item['content']}")
 
         return "\n\n".join(outputs[:SEARCH_ENGINE_RESULTS]).strip()
