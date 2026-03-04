@@ -155,6 +155,25 @@ class Plugins(ApiHandler):
 
             return {"ok": True}
 
+        if action == "delete_plugin":
+            plugin_name = input.get("plugin_name", "")
+            path = input.get("path", "")
+            if not plugin_name:
+                return Response(status=400, response="Missing plugin_name")
+            if not path:
+                return Response(status=400, response="Missing path")
+
+            # Validate that the plugin is actually a custom plugin
+            custom_plugins_dir = files.get_abs_path(files.USER_DIR, files.PLUGINS_DIR)
+            if not os.path.abspath(path).startswith(os.path.abspath(custom_plugins_dir)):
+                return Response(status=400, response="Only custom plugins can be deleted")
+
+            try:
+                files.delete_dir(path)
+            except Exception as e:
+                return Response(status=500, response=f"Failed to delete plugin: {str(e)}")
+            return {"ok": True}
+
         if action == "get_default_config":
             plugin_name = input.get("plugin_name", "")
             if not plugin_name:

@@ -163,9 +163,10 @@ const model = {
     }
 
     try {
-      const response = await api.callJsonApi("delete_work_dir_file", {
+      const response = await api.callJsonApi("plugins", {
+        action: "delete_plugin",
+        plugin_name: plugin.name,
         path: plugin.path,
-        currentPath: "/",
       });
       if (response?.error) {
         throw new Error(response.error);
