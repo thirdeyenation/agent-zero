@@ -38,12 +38,14 @@
                 <div class="pi-detail-links">
                     <template x-if="$store.pluginInstallStore.selectedPlugin.github">
                         <a :href="$store.pluginInstallStore.selectedPlugin.github" target="_blank" class="pi-link">
-                            <span class="material-symbols-outlined">code</span> GitHub Repository
+                            <span class="material-symbols-outlined pi-link-icon">code</span>
+                            <span class="pi-link-text">GitHub Repository</span>
                         </a>
                     </template>
                     <template x-if="$store.pluginInstallStore.selectedPlugin.discussion">
                         <a :href="$store.pluginInstallStore.selectedPlugin.discussion" target="_blank" class="pi-link">
-                            <span class="material-symbols-outlined">forum</span> Discussion
+                            <span class="material-symbols-outlined pi-link-icon">forum</span>
+                            <span class="pi-link-text">Discussion</span>
                         </a>
                     </template>
                 </div>
@@ -216,23 +218,24 @@
             display: inline-flex;
             align-items: center;
             gap: 0.3rem;
-            color: var(--color-highlight);
             text-decoration: none;
             font-size: 0.9rem;
         }
 
-        .pi-link:hover {
-            text-decoration: underline;
-            text-underline-offset: 2px;
+        .pi-link-icon {
+            color: var(--color-highlight);
+            display: inline-block;
+            font-size: 1.1rem;
+            flex-shrink: 0;
         }
 
-        .pi-link .material-symbols-outlined {
-            text-decoration: none;
+        .pi-link-text {
             color: var(--color-highlight);
         }
 
-        .pi-link:hover .material-symbols-outlined {
-            text-decoration: none;
+        .pi-link:hover .pi-link-text {
+            text-decoration: underline;
+            text-underline-offset: 2px;
         }
 
         .pi-detail-actions {
