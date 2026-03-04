@@ -44,6 +44,15 @@ const model = {
   error: "",
   result: null,
 
+  // Tab state
+  activeTab: "store",
+
+  setTab(tab) {
+    this.activeTab = tab;
+    this.error = "";
+    this.result = null;
+  },
+
   // ── ZIP Install ──────────────────────────────
 
   handleFileUpload(event) {
@@ -223,6 +232,10 @@ const model = {
     this.selectedPlugin = plugin;
     this.error = "";
     this.result = null;
+    this.installedPluginInfo = null;
+    if (plugin.installed) {
+      this.fetchInstalledPluginInfo(plugin.key);
+    }
     window.openModal?.("../plugins/plugin_installer/webui/install-detail.html");
   },
 
@@ -269,6 +282,70 @@ const model = {
     } finally {
       this.loading = false;
       this.loadingMessage = "";
+    }
+  },
+
+  // ── Installed Plugin Info ─────────────────────
+
+  installedPluginInfo: null,
+  installedPluginInfoLoading: false,
+
+  async fetchInstalledPluginInfo(pluginKey) {
+    this.installedPluginInfo = null;
+    this.installedPluginInfoLoading = true;
+    try {
+      const response = await api.callJsonApi("plugins_list", {
+        filter: { custom: true, builtin: true, search: "" },
+      });
+      const plugins = Array.isArray(response.plugins) ? response.plugins : [];
+      this.installedPluginInfo = plugins.find(
+        (p) => p.name === pluginKey
+      ) || null;
+    } catch (e) {
+      this.installedPluginInfo = null;
+    } finally {
+      this.installedPluginInfoLoading = false;
+    }
+  },
+
+  manageOpenPlugin() {
+    const info = this.installedPluginInfo;
+    if (!info?.name || !info?.has_main_screen) return;
+    window.openModal?.(`/plugins/${info.name}/webui/main.html`);
+  },
+
+  async manageOpenConfig() {
+    const pls = Alpine.store("pluginListStore");
+    if (pls?.openPluginConfig && this.installedPluginInfo) {
+      await pls.openPluginConfig(this.installedPluginInfo);
+    }
+  },
+
+  async manageOpenDoc(doc) {
+    const pls = Alpine.store("pluginListStore");
+    if (pls?.openPluginDoc && this.installedPluginInfo) {
+      await pls.openPluginDoc(this.installedPluginInfo, doc);
+    }
+  },
+
+  manageOpenInfo() {
+    const pls = Alpine.store("pluginListStore");
+    if (pls?.openPluginInfo && this.installedPluginInfo) {
+      pls.openPluginInfo(this.installedPluginInfo);
+    }
+  },
+
+  async manageDeletePlugin() {
+    const pls = Alpine.store("pluginListStore");
+    if (pls?.deletePlugin && this.installedPluginInfo) {
+      await pls.deletePlugin(this.installedPluginInfo);
+      // Mark as no longer installed in the index view
+      if (this.selectedPlugin) {
+        this.selectedPlugin.installed = false;
+        const idx = this.installedPlugins.indexOf(this.selectedPlugin.key);
+        if (idx !== -1) this.installedPlugins.splice(idx, 1);
+      }
+      this.installedPluginInfo = null;
     }
   },
 
