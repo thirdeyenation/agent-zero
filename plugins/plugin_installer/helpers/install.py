@@ -16,7 +16,7 @@ from python.helpers.plugins import (
 )
 from python.helpers import yaml as yaml_helper
 
-_SAFE_NAME_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_.-]*$")
+_SAFE_NAME_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_]*$")
 
 
 def _get_user_plugins_dir() -> str:
@@ -26,12 +26,14 @@ def _get_user_plugins_dir() -> str:
 
 def _sanitize_plugin_name(name: str) -> str:
     """Validate and sanitize a plugin directory name.
+    Converts dots and dashes to underscores for Python import compatibility.
     Raises ValueError if the name is unsafe for filesystem use."""
     name = name.strip().strip(".")
+    name = re.sub(r"[-.]", "_", name)
     if not name or not _SAFE_NAME_RE.match(name):
         raise ValueError(
             f"Invalid plugin name: '{name}'. "
-            "Names must start with a letter or digit and contain only letters, digits, hyphens, underscores, or dots."
+            "Names must start with a letter or digit and contain only letters, digits, or underscores."
         )
     return name
 
