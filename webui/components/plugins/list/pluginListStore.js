@@ -152,7 +152,7 @@ const model = {
   },
 
   async deletePlugin(plugin) {
-    if (!plugin?.path) return;
+    if (!plugin?.name) return;
 
     if (!plugin.is_custom) {
       showErrorNotification(
@@ -166,7 +166,6 @@ const model = {
       const response = await api.callJsonApi("plugins", {
         action: "delete_plugin",
         plugin_name: plugin.name,
-        path: plugin.path,
       });
       if (response?.error) {
         throw new Error(response.error);

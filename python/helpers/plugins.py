@@ -181,6 +181,16 @@ def find_plugin_dir(plugin_name: str):
     return None
 
 
+def delete_plugin(plugin_name: str):
+    plugin_dir = find_plugin_dir(plugin_name)
+    if not plugin_dir:
+        raise FileNotFoundError(f"Plugin '{plugin_name}' not found")
+    custom_plugins_dir = files.get_abs_path(files.USER_DIR, files.PLUGINS_DIR)
+    if not files.is_in_dir(plugin_dir, custom_plugins_dir):
+        raise ValueError("Only custom plugins can be deleted")
+    files.delete_dir(plugin_dir)
+
+
 def get_plugin_paths(*subpaths: str) -> List[str]:
     sub = "*/" + "/".join(subpaths) if subpaths else "*"
     paths: List[str] = []
