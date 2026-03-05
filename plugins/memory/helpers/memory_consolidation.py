@@ -8,9 +8,9 @@ from enum import Enum
 from langchain_core.documents import Document
 
 from plugins.memory.helpers.memory import Memory
-from python.helpers.dirty_json import DirtyJson
-from python.helpers.log import LogItem
-from python.helpers.print_style import PrintStyle
+from helpers.dirty_json import DirtyJson
+from helpers.log import LogItem
+from helpers.print_style import PrintStyle
 from agent import Agent
 from plugins.memory.tools.memory_load import DEFAULT_THRESHOLD as DEFAULT_MEMORY_THRESHOLD
 

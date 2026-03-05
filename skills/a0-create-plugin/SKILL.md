@@ -139,7 +139,7 @@ If your plugin exposes existing core settings rather than plugin-specific ones, 
 ### Sending Messages Proactively
 ```python
 from agent import AgentContext
-from python.helpers.messages import UserMessage
+from helpers.messages import UserMessage
 
 context = AgentContext.use(context_id)
 task = context.communicate(UserMessage("Message text"))
@@ -148,7 +148,7 @@ response = await task.result()
 
 ### Reading Plugin Settings (backend)
 ```python
-from python.helpers.plugins import get_plugin_config, save_plugin_config
+from helpers.plugins import get_plugin_config, save_plugin_config
 
 # Runtime (with running agent - resolves project/profile from context)
 settings = get_plugin_config("my-plugin", agent=agent) or {}

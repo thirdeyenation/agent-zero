@@ -122,7 +122,7 @@ export async function getMessageHandler(type) {
 
   async function getHandlerFromExtensions(type){
     const extData = { type: type, handler: undefined }
-    await callJsExtensions("getMessageHandler", extData);
+    await callJsExtensions("get_message_handler", extData);
     // return handler from extensions
     if(typeof extData.handler == "function") return extData.handler;
     //not set by extensions, return default

@@ -8,13 +8,13 @@ import zipfile
 from pathlib import Path
 from typing import Optional
 
-from python.helpers import files
-from python.helpers.plugins import (
+from helpers import files
+from helpers.plugins import (
     META_FILE_NAME,
     PluginMetadata,
     invalidate_plugin_cache,
 )
-from python.helpers import yaml as yaml_helper
+from helpers import yaml as yaml_helper
 
 _SAFE_NAME_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_]*$")
 
@@ -127,7 +127,7 @@ def install_from_zip(zip_path: str) -> dict:
 def install_from_git(url: str, token: Optional[str] = None) -> dict:
     """Clone git repo into usr/plugins/, validate plugin.yaml.
     Returns dict with plugin name and metadata."""
-    from python.helpers.git import clone_repo
+    from helpers.git import clone_repo
 
     # Derive plugin name from URL
     repo_name = url.rstrip("/").split("/")[-1]

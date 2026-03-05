@@ -105,8 +105,8 @@ Key Files:
 ## Development Patterns & Conventions
 
 ### Backend (Python)
-- Context Access: Use from agent import AgentContext, AgentContextType (not python.helpers.context).
-- Communication: Use mq from python.helpers.messages to log proactive UI messages:
+- Context Access: Use from agent import AgentContext, AgentContextType (not helpers.context).
+- Communication: Use mq from helpers.messages to log proactive UI messages:
   mq.log_user_message(context.id, "Message", source="Plugin")
 - API Handlers: Derive from ApiHandler in python/helpers/api.py.
 - Extensions: Use the extension framework in python/helpers/extension.py for lifecycle hooks.
@@ -164,7 +164,7 @@ Key Files:
 
 ### API Handler (Good)
 ```python
-from python.helpers.api import ApiHandler, Request, Response
+from helpers.api import ApiHandler, Request, Response
 
 class MyHandler(ApiHandler):
     async def process(self, input: dict, request: Request) -> dict | Response:
@@ -186,7 +186,7 @@ export const store = createStore("myStore", {
 
 ### Tool Definition (Good)
 ```python
-from python.helpers.tool import Tool, ToolResult
+from helpers.tool import Tool, ToolResult
 
 class MyTool(Tool):
     async def execute(self, arg1: str):

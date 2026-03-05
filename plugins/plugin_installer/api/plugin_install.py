@@ -4,8 +4,8 @@ import time
 import uuid
 from pathlib import Path
 
-from python.helpers.api import ApiHandler, Input, Request, Output
-from python.helpers import files
+from helpers.api import ApiHandler, Input, Request, Output
+from helpers import files
 from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
 
@@ -63,7 +63,7 @@ class PluginInstall(ApiHandler):
 
     def _fetch_index(self, input: dict) -> dict:
         from plugins.plugin_installer.helpers.install import fetch_plugin_index
-        from python.helpers.plugins import get_plugins_list
+        from helpers.plugins import get_plugins_list
         index_data = fetch_plugin_index()
         installed = get_plugins_list()
         return {

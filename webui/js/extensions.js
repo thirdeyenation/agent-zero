@@ -21,6 +21,10 @@ import * as cache from "./cache.js";
 const JS_CACHE_AREA = "frontend_extensions_js(extensions)(plugins)";
 const HTML_CACHE_AREA = "frontend_extensions_html(extensions)(plugins)";
 
+export const API_EXTENSION_EXCLUDED_ENDPOINTS = new Set([
+  "/api/load_webui_extensions",
+]);
+
 export function invalidateCache() {
   cache.clear(JS_CACHE_AREA);
   cache.clear(HTML_CACHE_AREA);
