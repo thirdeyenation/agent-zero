@@ -788,6 +788,10 @@ class Agent:
             ),
         )
 
+        await extension.call_extensions_async(
+            "util_model_call_after", self, call_data=call_data, response=response
+        )
+
         return response
 
     @extension.extensible
