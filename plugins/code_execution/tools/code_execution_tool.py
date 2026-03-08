@@ -15,111 +15,6 @@ from plugins.code_execution.helpers.shell_local import LocalInteractiveSession
 from plugins.code_execution.helpers.shell_ssh import SSHInteractiveSession
 
 
-def _resolve_ssh_enabled(raw_value) -> bool:
-    """Resolve ssh_enabled: 'auto' detects based on dockerized state."""
-    val = str(raw_value).strip().lower()
-    if val == "auto":
-        return not runtime.is_dockerized()
-    return val in ("true", "1", "yes", "on")
-
-
-def _resolve_ssh_addr(cfg_addr: str) -> str:
-    """Resolve SSH address: fall back to rfc_url from settings when empty."""
-    if cfg_addr:
-        return cfg_addr
-    set = settings.get_settings()
-    host = set.get("rfc_url", "localhost")
-    # Strip protocol and port from URL
-    if "//" in host:
-        host = host.split("//")[1]
-    if ":" in host:
-        host = host.split(":")[0]
-    if host.endswith("/"):
-        host = host.rstrip("/")
-    return host or "localhost"
-
-
-async def _resolve_ssh_pass(cfg_pass: str) -> str:
-    """Resolve SSH password: fall back to root_password via RFC when empty."""
-    if cfg_pass:
-        return cfg_pass
-    return await rfc_exchange.get_root_password()
-
-
-def _get_config(agent) -> dict:
-    cfg = plugins.get_plugin_config("code_execution", agent=agent) or {}
-
-    # SSH / TTY switch (supports auto/true/false)
-    ssh_enabled = _resolve_ssh_enabled(cfg.get("ssh_enabled", "auto"))
-
-    # SSH credentials (with RFC fallbacks)
-    ssh_addr = _resolve_ssh_addr(str(cfg.get("ssh_addr", "")))
-    ssh_port = int(cfg.get("ssh_port", 55022))
-    ssh_user = str(cfg.get("ssh_user", "root"))
-    ssh_pass = str(cfg.get("ssh_pass", ""))
-
-    # Timeouts for python/nodejs/terminal runtimes
-    code_exec_timeouts = {
-        "first_output_timeout": int(cfg.get("code_exec_first_output_timeout", 30)),
-        "between_output_timeout": int(cfg.get("code_exec_between_output_timeout", 15)),
-        "max_exec_timeout": int(cfg.get("code_exec_max_exec_timeout", 180)),
-        "dialog_timeout": int(cfg.get("code_exec_dialog_timeout", 5)),
-    }
-
-    # Timeouts for "output" runtime
-    output_timeouts = {
-        "first_output_timeout": int(cfg.get("output_first_output_timeout", 90)),
-        "between_output_timeout": int(cfg.get("output_between_output_timeout", 45)),
-        "max_exec_timeout": int(cfg.get("output_max_exec_timeout", 300)),
-        "dialog_timeout": int(cfg.get("output_dialog_timeout", 5)),
-    }
-
-    # Prompt patterns (one regex per line, or a list)
-    prompt_patterns_raw = cfg.get(
-        "prompt_patterns",
-        r"(\(venv\)).+[$#] ?$" + "\n"
-        + r"root@[^:]+:[^#]+# ?$" + "\n"
-        + r"[a-zA-Z0-9_.-]+@[^:]+:[^$#]+[$#] ?$" + "\n"
-        + r"\(?.*\)?\s*PS\s+[^>]+> ?$",
-    )
-    if isinstance(prompt_patterns_raw, list):
-        prompt_lines = [str(p) for p in prompt_patterns_raw]
-    else:
-        prompt_lines = str(prompt_patterns_raw).splitlines()
-    prompt_patterns = [
-        re.compile(p.strip())
-        for p in prompt_lines
-        if p.strip()
-    ]
-
-    # Dialog patterns (one regex per line, or a list)
-    dialog_patterns_raw = cfg.get(
-        "dialog_patterns",
-        "Y/N\nyes/no\n:\\s*$\n\\?\\s*$",
-    )
-    if isinstance(dialog_patterns_raw, list):
-        dialog_lines = [str(p) for p in dialog_patterns_raw]
-    else:
-        dialog_lines = str(dialog_patterns_raw).splitlines()
-    dialog_patterns = [
-        re.compile(p.strip(), re.IGNORECASE)
-        for p in dialog_lines
-        if p.strip()
-    ]
-
-    return {
-        "ssh_enabled": ssh_enabled,
-        "ssh_addr": ssh_addr,
-        "ssh_port": ssh_port,
-        "ssh_user": ssh_user,
-        "ssh_pass": ssh_pass,
-        "code_exec_timeouts": code_exec_timeouts,
-        "output_timeouts": output_timeouts,
-        "prompt_patterns": prompt_patterns,
-        "dialog_patterns": dialog_patterns,
-    }
-
-
 @dataclass
 class ShellWrap:
     id: int
@@ -477,7 +372,7 @@ class CodeExecution(Tool):
             truncated_output.splitlines()[-3:] if truncated_output else []
         )
         last_lines.reverse()
-        for idx, line in enumerate(last_lines):
+        for _, line in enumerate(last_lines):
             for pat in prompt_patterns:
                 if pat.search(line.strip()):
                     PrintStyle.info(
@@ -562,6 +457,115 @@ class CodeExecution(Tool):
         normalized = files.normalize_a0_path(path)
         await runtime.call_development_function(make_dir, normalized)
         return normalized
+
+
+# ------------------------------------------------------------------
+# Internal
+# ------------------------------------------------------------------
+
+def _resolve_ssh_enabled(raw_value) -> bool:
+    """Resolve ssh_enabled: 'auto' detects based on dockerized state."""
+    val = str(raw_value).strip().lower()
+    if val == "auto":
+        return not runtime.is_dockerized()
+    return val in ("true", "1", "yes", "on")
+
+
+def _resolve_ssh_addr(cfg_addr: str) -> str:
+    """Resolve SSH address: fall back to rfc_url from settings when empty."""
+    if cfg_addr:
+        return cfg_addr
+    set = settings.get_settings()
+    host = set.get("rfc_url", "localhost")
+    # Strip protocol and port from URL
+    if "//" in host:
+        host = host.split("//")[1]
+    if ":" in host:
+        host = host.split(":")[0]
+    if host.endswith("/"):
+        host = host.rstrip("/")
+    return host or "localhost"
+
+
+async def _resolve_ssh_pass(cfg_pass: str) -> str:
+    """Resolve SSH password: fall back to root_password via RFC when empty."""
+    if cfg_pass:
+        return cfg_pass
+    return await rfc_exchange.get_root_password()
+
+
+def _get_config(agent) -> dict:
+    cfg = plugins.get_plugin_config("code_execution", agent=agent) or {}
+
+    # SSH / TTY switch (supports auto/true/false)
+    ssh_enabled = _resolve_ssh_enabled(cfg.get("ssh_enabled", "auto"))
+
+    # SSH credentials (with RFC fallbacks)
+    ssh_addr = _resolve_ssh_addr(str(cfg.get("ssh_addr", "")))
+    ssh_port = int(cfg.get("ssh_port", 55022))
+    ssh_user = str(cfg.get("ssh_user", "root"))
+    ssh_pass = str(cfg.get("ssh_pass", ""))
+
+    # Timeouts for python/nodejs/terminal runtimes
+    code_exec_timeouts = {
+        "first_output_timeout": int(cfg.get("code_exec_first_output_timeout", 30)),
+        "between_output_timeout": int(cfg.get("code_exec_between_output_timeout", 15)),
+        "max_exec_timeout": int(cfg.get("code_exec_max_exec_timeout", 180)),
+        "dialog_timeout": int(cfg.get("code_exec_dialog_timeout", 5)),
+    }
+
+    # Timeouts for "output" runtime
+    output_timeouts = {
+        "first_output_timeout": int(cfg.get("output_first_output_timeout", 90)),
+        "between_output_timeout": int(cfg.get("output_between_output_timeout", 45)),
+        "max_exec_timeout": int(cfg.get("output_max_exec_timeout", 300)),
+        "dialog_timeout": int(cfg.get("output_dialog_timeout", 5)),
+    }
+
+    # Prompt patterns (one regex per line, or a list)
+    prompt_patterns_raw = cfg.get(
+        "prompt_patterns",
+        r"(\(venv\)).+[$#] ?$" + "\n"
+        + r"root@[^:]+:[^#]+# ?$" + "\n"
+        + r"[a-zA-Z0-9_.-]+@[^:]+:[^$#]+[$#] ?$" + "\n"
+        + r"\(?.*\)?\s*PS\s+[^>]+> ?$",
+    )
+    if isinstance(prompt_patterns_raw, list):
+        prompt_lines = [str(p) for p in prompt_patterns_raw]
+    else:
+        prompt_lines = str(prompt_patterns_raw).splitlines()
+    prompt_patterns = [
+        re.compile(p.strip())
+        for p in prompt_lines
+        if p.strip()
+    ]
+
+    # Dialog patterns (one regex per line, or a list)
+    dialog_patterns_raw = cfg.get(
+        "dialog_patterns",
+        "Y/N\nyes/no\n:\\s*$\n\\?\\s*$",
+    )
+    if isinstance(dialog_patterns_raw, list):
+        dialog_lines = [str(p) for p in dialog_patterns_raw]
+    else:
+        dialog_lines = str(dialog_patterns_raw).splitlines()
+    dialog_patterns = [
+        re.compile(p.strip(), re.IGNORECASE)
+        for p in dialog_lines
+        if p.strip()
+    ]
+
+    return {
+        "ssh_enabled": ssh_enabled,
+        "ssh_addr": ssh_addr,
+        "ssh_port": ssh_port,
+        "ssh_user": ssh_user,
+        "ssh_pass": ssh_pass,
+        "code_exec_timeouts": code_exec_timeouts,
+        "output_timeouts": output_timeouts,
+        "prompt_patterns": prompt_patterns,
+        "dialog_patterns": dialog_patterns,
+    }
 
 
 def make_dir(path: str):
