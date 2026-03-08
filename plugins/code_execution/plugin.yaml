@@ -1,5 +1,5 @@
 title: Code Execution
-description: Provides terminal, Python, and Node.js code execution via local TTY or SSH.
+description: Code execution tool supporting terminal, Python, and Node.js runtimes via local TTY or SSH.
 version: 1.0.0
 always_enabled: true
 settings_sections:
