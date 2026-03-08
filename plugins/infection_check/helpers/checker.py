@@ -48,6 +48,7 @@ def get_checker(agent: "Agent") -> "InfectionChecker":
     if checker is None or checker.iteration != iteration:
         checker = InfectionChecker(config=get_config(agent), iteration=iteration)
         agent.set_data(DATA_KEY, checker)
+        agent.set_data(DATA_KEY_PASSED, False)  # re-check each iteration
     return checker
 
 
