@@ -39,25 +39,26 @@ class CodeExecution(Tool):
         self.allow_running = bool(self.args.get("allow_running", False))
         reset = bool(self.args.get("reset", False) or runtime_arg == "reset")
 
+        cfg = _get_config(self.agent)
+
         if runtime_arg == "python":
             response = await self.execute_python_code(
-                code=self.args["code"], session=session, reset=reset
+                cfg, code=self.args["code"], session=session, reset=reset
             )
         elif runtime_arg == "nodejs":
             response = await self.execute_nodejs_code(
-                code=self.args["code"], session=session, reset=reset
+                cfg, code=self.args["code"], session=session, reset=reset
             )
         elif runtime_arg == "terminal":
             response = await self.execute_terminal_command(
-                command=self.args["code"], session=session, reset=reset
+                cfg, command=self.args["code"], session=session, reset=reset
             )
         elif runtime_arg == "output":
-            cfg = _get_config(self.agent)
             response = await self.get_terminal_output(
-                session=session, timeouts=cfg["output_timeouts"]
+                cfg, session=session, timeouts=cfg["output_timeouts"]
             )
         elif runtime_arg == "reset":
-            response = await self.reset_terminal(session=session)
+            response = await self.reset_terminal(cfg, session=session)
         else:
             response = self.agent.read_prompt(
                 "fw.code.runtime_wrong.md", runtime=runtime_arg
@@ -87,9 +88,8 @@ class CodeExecution(Tool):
     async def after_execution(self, response, **kwargs):
         self.agent.hist_add_tool_result(self.name, response.message, **(response.additional or {}))
 
-    async def prepare_state(self, reset=False, session: int | None = None):
+    async def prepare_state(self, cfg: dict, reset=False, session: int | None = None):
         self.state: State | None = self.agent.get_data("_cet_state")
-        cfg = _get_config(self.agent)
         ssh_enabled = cfg["ssh_enabled"]
 
         # always reset state when ssh_enabled changes
@@ -131,42 +131,39 @@ class CodeExecution(Tool):
         self.agent.set_data("_cet_state", self.state)
         return self.state
 
-    async def execute_python_code(self, session: int, code: str, reset: bool = False):
+    async def execute_python_code(self, cfg: dict, session: int, code: str, reset: bool = False):
         escaped_code = shlex.quote(code)
         command = f"ipython -c {escaped_code}"
         prefix = "python> " + self.format_command_for_output(code) + "\n\n"
-        return await self.terminal_session(session, command, reset, prefix)
+        return await self.terminal_session(cfg, session, command, reset, prefix)
 
-    async def execute_nodejs_code(self, session: int, code: str, reset: bool = False):
+    async def execute_nodejs_code(self, cfg: dict, session: int, code: str, reset: bool = False):
         escaped_code = shlex.quote(code)
         command = f"node /exe/node_eval.js {escaped_code}"
         prefix = "node> " + self.format_command_for_output(code) + "\n\n"
-        return await self.terminal_session(session, command, reset, prefix)
+        return await self.terminal_session(cfg, session, command, reset, prefix)
 
     async def execute_terminal_command(
-        self, session: int, command: str, reset: bool = False
+        self, cfg: dict, session: int, command: str, reset: bool = False
     ):
-        cfg = _get_config(self.agent)
         prefix = (
             ("bash>" if not runtime.is_windows() or cfg["ssh_enabled"] else "PS>")
             + self.format_command_for_output(command)
             + "\n\n"
         )
-        return await self.terminal_session(session, command, reset, prefix)
+        return await self.terminal_session(cfg, session, command, reset, prefix)
 
     async def terminal_session(
-        self, session: int, command: str, reset: bool = False, prefix: str = "", timeouts: dict | None = None
+        self, cfg: dict, session: int, command: str, reset: bool = False, prefix: str = "", timeouts: dict | None = None
     ):
-        self.state = await self.prepare_state(reset=reset, session=session)
+        self.state = await self.prepare_state(cfg, reset=reset, session=session)
 
         await self.agent.handle_intervention()  # wait for intervention and handle it, if paused
 
         # Check if session is running and handle it
         if not self.allow_running:
-            if response := await self.handle_running_session(session):
+            if response := await self.handle_running_session(cfg, session):
                 return response
-
-        cfg = _get_config(self.agent)
 
         # try again on lost connection
         for i in range(2):
@@ -188,6 +185,7 @@ class CodeExecution(Tool):
                     background_color="white", font_color="#1B4F72", bold=True
                 ).print(f"{self.agent.agent_name} code execution output{locl}")
                 return await self.get_terminal_output(
+                    cfg,
                     session=session,
                     prefix=prefix,
                     timeouts=(timeouts or cfg["code_exec_timeouts"]),
@@ -196,7 +194,7 @@ class CodeExecution(Tool):
             except Exception as e:
                 if i == 1:
                     PrintStyle.error(str(e))
-                    await self.prepare_state(reset=True, session=session)
+                    await self.prepare_state(cfg, reset=True, session=session)
                     continue
                 else:
                     raise e
@@ -209,6 +207,7 @@ class CodeExecution(Tool):
 
     async def get_terminal_output(
         self,
+        cfg: dict,
         session=0,
         reset_full_output=True,
         first_output_timeout=30,
@@ -219,7 +218,7 @@ class CodeExecution(Tool):
         prefix="",
         timeouts: dict | None = None,
     ):
-        self.state = await self.prepare_state(session=session)
+        self.state = await self.prepare_state(cfg, session=session)
 
         # Override timeouts if a dict is provided
         if timeouts:
@@ -228,7 +227,6 @@ class CodeExecution(Tool):
             dialog_timeout = timeouts.get("dialog_timeout", dialog_timeout)
             max_exec_timeout = timeouts.get("max_exec_timeout", max_exec_timeout)
 
-        cfg = _get_config(self.agent)
         prompt_patterns = cfg["prompt_patterns"]
         dialog_patterns = cfg["dialog_patterns"]
 
@@ -348,6 +346,7 @@ class CodeExecution(Tool):
 
     async def handle_running_session(
         self,
+        cfg: dict,
         session=0,
         reset_full_output=True,
         prefix=""
@@ -357,7 +356,6 @@ class CodeExecution(Tool):
         if not self.state.shells[session].running:
             return None
 
-        cfg = _get_config(self.agent)
         prompt_patterns = cfg["prompt_patterns"]
         dialog_patterns = cfg["dialog_patterns"]
 
@@ -372,7 +370,7 @@ class CodeExecution(Tool):
             truncated_output.splitlines()[-3:] if truncated_output else []
         )
         last_lines.reverse()
-        for _, line in enumerate(last_lines):
+        for line in last_lines:
             for pat in prompt_patterns:
                 if pat.search(line.strip()):
                     PrintStyle.info(
@@ -406,7 +404,7 @@ class CodeExecution(Tool):
         if self.state and session in self.state.shells:
             self.state.shells[session].running = False
 
-    async def reset_terminal(self, session=0, reason: str | None = None):
+    async def reset_terminal(self, cfg: dict, session=0, reason: str | None = None):
         if reason:
             PrintStyle(font_color="#FFA500", bold=True).print(
                 f"Resetting terminal session {session}... Reason: {reason}"
@@ -416,7 +414,7 @@ class CodeExecution(Tool):
                 f"Resetting terminal session {session}..."
             )
 
-        await self.prepare_state(reset=True, session=session)
+        await self.prepare_state(cfg, reset=True, session=session)
         response = self.agent.read_prompt(
             "fw.code.info.md", info=self.agent.read_prompt("fw.code.reset.md")
         )
@@ -464,7 +462,6 @@ class CodeExecution(Tool):
 # ------------------------------------------------------------------
 
 def _resolve_ssh_enabled(raw_value) -> bool:
-    """Resolve ssh_enabled: 'auto' detects based on dockerized state."""
     val = str(raw_value).strip().lower()
     if val == "auto":
         return not runtime.is_dockerized()
@@ -472,12 +469,10 @@ def _resolve_ssh_enabled(raw_value) -> bool:
 
 
 def _resolve_ssh_addr(cfg_addr: str) -> str:
-    """Resolve SSH address: fall back to rfc_url from settings when empty."""
     if cfg_addr:
         return cfg_addr
     set = settings.get_settings()
     host = set.get("rfc_url", "localhost")
-    # Strip protocol and port from URL
     if "//" in host:
         host = host.split("//")[1]
     if ":" in host:
@@ -488,83 +483,39 @@ def _resolve_ssh_addr(cfg_addr: str) -> str:
 
 
 async def _resolve_ssh_pass(cfg_pass: str) -> str:
-    """Resolve SSH password: fall back to root_password via RFC when empty."""
     if cfg_pass:
         return cfg_pass
     return await rfc_exchange.get_root_password()
 
 
+def _parse_patterns(raw, flags=0) -> list[re.Pattern]:
+    lines = [str(p) for p in raw] if isinstance(raw, list) else str(raw).splitlines()
+    return [re.compile(p.strip(), flags) for p in lines if p.strip()]
+
+
+_TIMEOUT_KEYS = ("first_output_timeout", "between_output_timeout", "max_exec_timeout", "dialog_timeout")
+
+
+def _parse_timeouts(cfg: dict, prefix: str, defaults: tuple[int, ...]) -> dict:
+    return {
+        key: int(cfg.get(f"{prefix}_{key}", default))
+        for key, default in zip(_TIMEOUT_KEYS, defaults)
+    }
+
+
 def _get_config(agent) -> dict:
     cfg = plugins.get_plugin_config("code_execution", agent=agent) or {}
 
-    # SSH / TTY switch (supports auto/true/false)
-    ssh_enabled = _resolve_ssh_enabled(cfg.get("ssh_enabled", "auto"))
-
-    # SSH credentials (with RFC fallbacks)
-    ssh_addr = _resolve_ssh_addr(str(cfg.get("ssh_addr", "")))
-    ssh_port = int(cfg.get("ssh_port", 55022))
-    ssh_user = str(cfg.get("ssh_user", "root"))
-    ssh_pass = str(cfg.get("ssh_pass", ""))
-
-    # Timeouts for python/nodejs/terminal runtimes
-    code_exec_timeouts = {
-        "first_output_timeout": int(cfg.get("code_exec_first_output_timeout", 30)),
-        "between_output_timeout": int(cfg.get("code_exec_between_output_timeout", 15)),
-        "max_exec_timeout": int(cfg.get("code_exec_max_exec_timeout", 180)),
-        "dialog_timeout": int(cfg.get("code_exec_dialog_timeout", 5)),
-    }
-
-    # Timeouts for "output" runtime
-    output_timeouts = {
-        "first_output_timeout": int(cfg.get("output_first_output_timeout", 90)),
-        "between_output_timeout": int(cfg.get("output_between_output_timeout", 45)),
-        "max_exec_timeout": int(cfg.get("output_max_exec_timeout", 300)),
-        "dialog_timeout": int(cfg.get("output_dialog_timeout", 5)),
-    }
-
-    # Prompt patterns (one regex per line, or a list)
-    prompt_patterns_raw = cfg.get(
-        "prompt_patterns",
-        r"(\(venv\)).+[$#] ?$" + "\n"
-        + r"root@[^:]+:[^#]+# ?$" + "\n"
-        + r"[a-zA-Z0-9_.-]+@[^:]+:[^$#]+[$#] ?$" + "\n"
-        + r"\(?.*\)?\s*PS\s+[^>]+> ?$",
-    )
-    if isinstance(prompt_patterns_raw, list):
-        prompt_lines = [str(p) for p in prompt_patterns_raw]
-    else:
-        prompt_lines = str(prompt_patterns_raw).splitlines()
-    prompt_patterns = [
-        re.compile(p.strip())
-        for p in prompt_lines
-        if p.strip()
-    ]
-
-    # Dialog patterns (one regex per line, or a list)
-    dialog_patterns_raw = cfg.get(
-        "dialog_patterns",
-        "Y/N\nyes/no\n:\\s*$\n\\?\\s*$",
-    )
-    if isinstance(dialog_patterns_raw, list):
-        dialog_lines = [str(p) for p in dialog_patterns_raw]
-    else:
-        dialog_lines = str(dialog_patterns_raw).splitlines()
-    dialog_patterns = [
-        re.compile(p.strip(), re.IGNORECASE)
-        for p in dialog_lines
-        if p.strip()
-    ]
-
     return {
-        "ssh_enabled": ssh_enabled,
-        "ssh_addr": ssh_addr,
-        "ssh_port": ssh_port,
-        "ssh_user": ssh_user,
-        "ssh_pass": ssh_pass,
-        "code_exec_timeouts": code_exec_timeouts,
-        "output_timeouts": output_timeouts,
-        "prompt_patterns": prompt_patterns,
-        "dialog_patterns": dialog_patterns,
+        "ssh_enabled": _resolve_ssh_enabled(cfg.get("ssh_enabled", "auto")),
+        "ssh_addr": _resolve_ssh_addr(str(cfg.get("ssh_addr", ""))),
+        "ssh_port": int(cfg.get("ssh_port", 55022)),
+        "ssh_user": str(cfg.get("ssh_user", "root")),
+        "ssh_pass": str(cfg.get("ssh_pass", "")),
+        "code_exec_timeouts": _parse_timeouts(cfg, "code_exec", (30, 15, 180, 5)),
+        "output_timeouts": _parse_timeouts(cfg, "output", (90, 45, 300, 5)),
+        "prompt_patterns": _parse_patterns(cfg.get("prompt_patterns", "")),
+        "dialog_patterns": _parse_patterns(cfg.get("dialog_patterns", ""), re.IGNORECASE),
     }
 
 
