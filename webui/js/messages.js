@@ -94,8 +94,6 @@ export async function getMessageHandler(type) {
       return drawMessageResponse;
     case "tool":
       return drawMessageTool;
-    case "code_exe":
-      return drawMessageCodeExe;
     case "browser":
       return drawMessageBrowser;
     case "progress":
@@ -319,7 +317,7 @@ function getOrCreateProcessGroup(id, allowCompleted = true) {
   return group;
 }
 
-function buildDetailPayload(stepData, extras = {}) {
+export function buildDetailPayload(stepData, extras = {}) {
   if (!stepData) return null;
   return {
     ...stepData,
@@ -331,7 +329,7 @@ function buildDetailPayload(stepData, extras = {}) {
  * @param {ProcessStepArgs & Record<string, any>} param0
  * @returns {MessageHandlerResult}
  */
-function drawProcessStep({
+export function drawProcessStep({
   id,
   title,
   code,
@@ -1208,81 +1206,6 @@ export function drawMessageToolSimple({
  * @param {MessageHandlerArgs & Record<string, any>} param0
  * @returns {MessageHandlerResult}
  */
-export function drawMessageCodeExe({
-  id,
-  type,
-  heading,
-  test,
-  content,
-  kvps,
-  timestamp,
-  agentno = 0,
-  ...additional
-}) {
-  let title = "Code Execution";
-  // show command at the start and end
-  if (kvps?.code && /done_all|code_execution_tool/.test(heading || "")) {
-    const s = kvps.session;
-    title = `${s != null ? `[${s}] ` : ""}${kvps.runtime || "bash"}> ${kvps.code.trim()}`;
-  } else {
-    // during execution show the original heading (current step)
-    title = cleanStepTitle(heading);
-  }
-
-  // KVPS to show
-  const displayKvps = {};
-  // if (kvps?.runtime) displayKvps.runtime = kvps.runtime;
-  // if (kvps?.session>=0) displayKvps.session = kvps.session;
-
-  const headerLabels = [
-    kvps?.runtime && { label: kvps.runtime, class: "tool-name-badge" },
-    kvps?.session != null && {
-      label: `Session ${kvps.session}`,
-      class: "header-label",
-    },
-  ].filter(Boolean);
-
-  // render the standard step
-  const commandText = String(kvps?.code ?? "");
-  const outputText = String(content ?? "");
-
-  const actionButtons = [];
-  actionButtons.push(
-    createActionButton("detail", "", () =>
-      stepDetailStore.showStepDetail(
-        buildDetailPayload(arguments[0], { headerLabels }),
-      ),
-    ),
-  );
-  if (commandText.trim()) {
-    actionButtons.push(
-      createActionButton("copy", "Command", () => copyToClipboard(commandText)),
-    );
-  }
-  if (outputText.trim()) {
-    actionButtons.push(
-      createActionButton("copy", "Output", () => copyToClipboard(outputText)),
-    );
-  }
-  const stepData = drawProcessStep({
-    id,
-    title,
-    code: "EXE",
-    classes: undefined,
-    kvps: displayKvps,
-    content,
-    contentClasses: ["terminal-output"],
-    actionButtons,
-    log: arguments[0],
-  });
-
-  return stepData;
-}
-
-/**
- * @param {MessageHandlerArgs & Record<string, any>} param0
- * @returns {MessageHandlerResult}
- */
 export function drawMessageBrowser({
   id,
   type,
@@ -2143,7 +2066,7 @@ export function convertIcons(html, classes = "") {
  * Clean step title by removing icon:// prefixes and status phrases
  * Preserves agent markers (A1:, A2:, etc.) so users can see which subordinate agent is executing
  */
-function cleanStepTitle(text, maxLength = 100) {
+export function cleanStepTitle(text, maxLength = 100) {
   if (!text) return "";
   let cleaned = String(text)
     .replace(/icon:\/\/[a-zA-Z0-9_]+(\[(?:\\.|[^\]])*\])?\s*/g, "")
