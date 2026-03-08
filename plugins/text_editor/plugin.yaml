@@ -1,4 +1,4 @@
-name: Text Editor
+title: Text Editor
 description: Native tool to read, write, and patch text files in an LLM-friendly way.
 version: 1.0.0
 settings_sections:
