@@ -5,7 +5,7 @@ import shlex
 import time
 
 from helpers.tool import Tool, Response
-from helpers import files, projects, runtime, settings
+from helpers import files, rfc_exchange, projects, runtime, settings
 from helpers.print_style import PrintStyle
 from helpers.strings import truncate_text as truncate_text_string
 from helpers.messages import truncate_text as truncate_text_agent
@@ -15,15 +15,46 @@ from plugins.code_execution.helpers.shell_local import LocalInteractiveSession
 from plugins.code_execution.helpers.shell_ssh import SSHInteractiveSession
 
 
+def _resolve_ssh_enabled(raw_value) -> bool:
+    """Resolve ssh_enabled: 'auto' detects based on dockerized state."""
+    val = str(raw_value).strip().lower()
+    if val == "auto":
+        return not runtime.is_dockerized()
+    return val in ("true", "1", "yes", "on")
+
+
+def _resolve_ssh_addr(cfg_addr: str) -> str:
+    """Resolve SSH address: fall back to rfc_url from settings when empty."""
+    if cfg_addr:
+        return cfg_addr
+    set = settings.get_settings()
+    host = set.get("rfc_url", "localhost")
+    # Strip protocol and port from URL
+    if "//" in host:
+        host = host.split("//")[1]
+    if ":" in host:
+        host = host.split(":")[0]
+    if host.endswith("/"):
+        host = host.rstrip("/")
+    return host or "localhost"
+
+
+async def _resolve_ssh_pass(cfg_pass: str) -> str:
+    """Resolve SSH password: fall back to root_password via RFC when empty."""
+    if cfg_pass:
+        return cfg_pass
+    return await rfc_exchange.get_root_password()
+
+
 def _get_config(agent) -> dict:
     cfg = plugins.get_plugin_config("code_execution", agent=agent) or {}
 
-    # SSH / TTY switch
-    ssh_enabled = bool(cfg.get("ssh_enabled", False))
+    # SSH / TTY switch (supports auto/true/false)
+    ssh_enabled = _resolve_ssh_enabled(cfg.get("ssh_enabled", "auto"))
 
-    # SSH credentials
-    ssh_addr = str(cfg.get("ssh_addr", "localhost"))
-    ssh_port = int(cfg.get("ssh_port", 22))
+    # SSH credentials (with RFC fallbacks)
+    ssh_addr = _resolve_ssh_addr(str(cfg.get("ssh_addr", "")))
+    ssh_port = int(cfg.get("ssh_port", 55022))
     ssh_user = str(cfg.get("ssh_user", "root"))
     ssh_pass = str(cfg.get("ssh_pass", ""))
 
@@ -186,12 +217,13 @@ class CodeExecution(Tool):
         if session is not None and session not in shells:
             cwd = await self.ensure_cwd()
             if ssh_enabled:
+                ssh_pass = await _resolve_ssh_pass(cfg["ssh_pass"])
                 shell = SSHInteractiveSession(
                     self.agent.context.log,
                     cfg["ssh_addr"],
                     cfg["ssh_port"],
                     cfg["ssh_user"],
-                    cfg["ssh_pass"],
+                    ssh_pass,
                     cwd=cwd,
                 )
             else:

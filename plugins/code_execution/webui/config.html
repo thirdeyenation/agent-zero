@@ -15,36 +15,38 @@
                 <!-- Shell Interface -->
                 <div class="field">
                     <div class="field-label">
-                        <div class="field-title">Use SSH</div>
+                        <div class="field-title">Shell Interface</div>
                         <div class="field-description">
-                            When enabled, code execution connects via SSH using the credentials below. When disabled, a local Python TTY is used.
+                            <b>Auto</b>: SSH when running outside Docker, local TTY when dockerized.
+                            <b>SSH</b>: always connect via SSH. <b>Local</b>: always use local PTY.
                         </div>
                     </div>
                     <div class="field-control">
-                        <label class="toggle">
-                            <input type="checkbox" x-model="$store.pluginSettings.settings.ssh_enabled" />
-                            <span class="toggler"></span>
-                        </label>
+                        <select x-model="$store.pluginSettings.settings.ssh_enabled">
+                            <option value="auto">Auto</option>
+                            <option value="true">SSH</option>
+                            <option value="false">Local TTY</option>
+                        </select>
                     </div>
                 </div>
 
-                <!-- SSH credentials (shown only when SSH is enabled) -->
-                <template x-if="$store.pluginSettings.settings.ssh_enabled">
+                <!-- SSH credentials (shown when SSH or Auto) -->
+                <template x-if="$store.pluginSettings.settings.ssh_enabled !== 'false'">
                     <div>
                         <div class="field">
                             <div class="field-label">
                                 <div class="field-title">SSH Address</div>
-                                <div class="field-description">Hostname or IP of the SSH target.</div>
+                                <div class="field-description">Hostname or IP of the SSH target. Leave empty to use the RFC URL from settings.</div>
                             </div>
                             <div class="field-control">
-                                <input type="text" x-model="$store.pluginSettings.settings.ssh_addr" placeholder="localhost" />
+                                <input type="text" x-model="$store.pluginSettings.settings.ssh_addr" placeholder="(from RFC URL)" />
                             </div>
                         </div>
 
                         <div class="field">
                             <div class="field-label">
                                 <div class="field-title">SSH Port</div>
-                                <div class="field-description">SSH port on the target host.</div>
+                                <div class="field-description">SSH port on the target host (default: 55022 for Docker RFC).</div>
                             </div>
                             <div class="field-control">
                                 <input type="number" min="1" max="65535" x-model.number="$store.pluginSettings.settings.ssh_port" />
@@ -64,10 +66,10 @@
                         <div class="field">
                             <div class="field-label">
                                 <div class="field-title">SSH Password</div>
-                                <div class="field-description">Password for SSH login.</div>
+                                <div class="field-description">Password for SSH login. Leave empty to use the dev root password (via RFC).</div>
                             </div>
                             <div class="field-control">
-                                <input type="password" autocomplete="off" x-model="$store.pluginSettings.settings.ssh_pass" />
+                                <input type="password" autocomplete="off" x-model="$store.pluginSettings.settings.ssh_pass" placeholder="(from RFC)" />
                             </div>
                         </div>
                     </div>

@@ -1,10 +1,13 @@
-# Shell interface: false = local TTY, true = SSH
-ssh_enabled: false
+# Shell interface: auto = auto-detect (SSH when non-dockerized, local when dockerized),
+# true = always SSH, false = always local TTY
+ssh_enabled: auto
 
-# SSH credentials (used when ssh_enabled is true)
-ssh_addr: localhost
-ssh_port: 22
+# SSH credentials (used when ssh_enabled is true or auto-detected)
+# ssh_addr: derived from rfc_url setting when empty
+ssh_addr: ""
+ssh_port: 55022
 ssh_user: root
+# ssh_pass: uses root_password from RFC exchange when empty
 ssh_pass: ""
 
 # Timeouts for python/nodejs/terminal runtimes (seconds)
