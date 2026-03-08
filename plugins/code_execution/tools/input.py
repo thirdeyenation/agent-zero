@@ -1,4 +1,3 @@
-from agent import Agent, UserMessage
 from helpers.tool import Tool, Response
 from plugins.code_execution.tools.code_execution_tool import CodeExecution
 
