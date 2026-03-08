@@ -1,4 +1,4 @@
-title: Error retry
+title: Error Retry
 description: Retry on critical exceptions before failing
 version: 1.0.0
 settings_sections: ["agent"]
