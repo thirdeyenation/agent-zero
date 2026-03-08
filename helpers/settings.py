@@ -112,9 +112,7 @@ class Settings(TypedDict):
     rfc_url: str
     rfc_password: str
     rfc_port_http: int
-    rfc_port_ssh: int
 
-    shell_interface: Literal['local','ssh']
     websocket_server_restart_enabled: bool
     uvicorn_access_logs_enabled: bool
 
@@ -189,7 +187,6 @@ class ModelProvider(ProvidersFO):
 class SettingsOutputAdditional(TypedDict):
     chat_providers: list[ModelProvider]
     embedding_providers: list[ModelProvider]
-    shell_interfaces: list[FieldOption]
     agent_subdirs: list[FieldOption]
     knowledge_subdirs: list[FieldOption]
     stt_models: list[FieldOption]
@@ -231,7 +228,6 @@ def convert_out(settings: Settings) -> SettingsOutput:
         additional = SettingsOutputAdditional(
             chat_providers=get_providers("chat"),
             embedding_providers=get_providers("embedding"),
-            shell_interfaces=[{"value": "local", "label": "Local Python TTY"}, {"value": "ssh", "label": "SSH"}],
             is_dockerized=runtime.is_dockerized(),
             agent_subdirs=[{"value": item["key"], "label": item["label"]}
                 for item in subagents.get_all_agents_list()
@@ -269,7 +265,6 @@ def convert_out(settings: Settings) -> SettingsOutput:
     additional["chat_providers"] = _ensure_option_present(additional.get("chat_providers"), current.get("util_model_provider"))
     additional["chat_providers"] = _ensure_option_present(additional.get("chat_providers"), current.get("browser_model_provider"))
     additional["embedding_providers"] = _ensure_option_present(additional.get("embedding_providers"), current.get("embed_model_provider"))
-    additional["shell_interfaces"] = _ensure_option_present(additional.get("shell_interfaces"), current.get("shell_interface"))
     additional["agent_subdirs"] = _ensure_option_present(additional.get("agent_subdirs"), current.get("agent_profile"))
     additional["knowledge_subdirs"] = _ensure_option_present(additional.get("knowledge_subdirs"), current.get("agent_knowledge_subdir"))
     additional["stt_models"] = _ensure_option_present(additional.get("stt_models"), current.get("stt_model_size"))
@@ -549,8 +544,6 @@ def get_default_settings() -> Settings:
         rfc_url=get_default_value("rfc_url", "localhost"),
         rfc_password="",
         rfc_port_http=get_default_value("rfc_port_http", 55080),
-        rfc_port_ssh=get_default_value("rfc_port_ssh", 55022),
-        shell_interface=get_default_value("shell_interface", "local" if runtime.is_dockerized() else "ssh"),
         websocket_server_restart_enabled=get_default_value("websocket_server_restart_enabled", True),
         uvicorn_access_logs_enabled=get_default_value("uvicorn_access_logs_enabled", False),
         stt_model_size=get_default_value("stt_model_size", "base"),
@@ -750,27 +743,9 @@ def set_root_password(password: str):
 
 
 def get_runtime_config(set: Settings):
-    if runtime.is_dockerized():
-        return {
-            "code_exec_ssh_enabled": set["shell_interface"] == "ssh",
-            "code_exec_ssh_addr": "localhost",
-            "code_exec_ssh_port": 22,
-            "code_exec_ssh_user": "root",
-        }
-    else:
-        host = set["rfc_url"]
-        if "//" in host:
-            host = host.split("//")[1]
-        if ":" in host:
-            host, port = host.split(":")
-        if host.endswith("/"):
-            host = host[:-1]
-        return {
-            "code_exec_ssh_enabled": set["shell_interface"] == "ssh",
-            "code_exec_ssh_addr": host,
-            "code_exec_ssh_port": set["rfc_port_ssh"],
-            "code_exec_ssh_user": "root",
-        }
+    # SSH config is now managed by the code_execution plugin.
+    # This function is kept for backward compatibility but returns an empty dict.
+    return {}
 
 
 def create_auth_token() -> str:

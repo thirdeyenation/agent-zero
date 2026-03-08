@@ -319,11 +319,6 @@ class AgentConfig:
     browser_http_headers: dict[str, str] = field(
         default_factory=dict
     )  # Custom HTTP headers for browser requests
-    code_exec_ssh_enabled: bool = True
-    code_exec_ssh_addr: str = "localhost"
-    code_exec_ssh_port: int = 55022
-    code_exec_ssh_user: str = "root"
-    code_exec_ssh_pass: str = ""
     additional: Dict[str, Any] = field(default_factory=dict)
 
 
