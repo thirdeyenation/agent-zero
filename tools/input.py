@@ -1,6 +1,6 @@
 from agent import Agent, UserMessage
 from helpers.tool import Tool, Response
-from tools.code_execution_tool import CodeExecution
+from plugins.code_execution.tools.code_execution_tool import CodeExecution
 
 
 class Input(Tool):

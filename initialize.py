@@ -82,12 +82,7 @@ def initialize_agent(override_settings: dict | None = None):
         knowledge_subdirs=[current_settings["agent_knowledge_subdir"], "default"],
         mcp_servers=current_settings["mcp_servers"],
         browser_http_headers=current_settings["browser_http_headers"],
-        # code_exec params get initialized in _set_runtime_config
-        # additional = {},
     )
-
-    # update SSH and docker settings
-    _set_runtime_config(config, current_settings)
 
     # update config with runtime args
     _args_override(config)
@@ -175,8 +170,4 @@ def _args_override(config):
             setattr(config, key, value)
 
 
-def _set_runtime_config(config: AgentConfig, set: settings.Settings):
-    ssh_conf = settings.get_runtime_config(set)
-    for key, value in ssh_conf.items():
-        if hasattr(config, key):
-            setattr(config, key, value)
+

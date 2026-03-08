@@ -1,0 +1,8 @@
+name: Code Execution
+description: Provides terminal, Python, and Node.js code execution via local TTY or SSH.
+version: 1.0.0
+always_enabled: true
+settings_sections:
+  - agent
+per_project_config: true
+per_agent_config: true
