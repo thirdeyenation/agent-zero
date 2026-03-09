@@ -379,7 +379,16 @@ const model = {
       return;
     }
 
-    const confirmed = await showConfirmDialog(SECURITY_WARNING);
+    const confirmed = await showConfirmDialog({
+      ...SECURITY_WARNING,
+      extensionContext: {
+        kind: "marketplace_plugin_install_warning",
+        source: "plugin_installer",
+        pluginKey: plugin.key || "",
+        pluginTitle: plugin.title || plugin.key || "",
+        gitUrl: plugin.github,
+      },
+    });
     if (!confirmed) return;
 
     try {

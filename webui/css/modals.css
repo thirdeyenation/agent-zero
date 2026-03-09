@@ -589,6 +589,10 @@ input[type="range"]::-moz-range-thumb {
   margin: 0;
 }
 
+.confirm-dialog-body .confirm-dialog-extension-note {
+  margin-top: 0.75em;
+}
+
 .confirm-dialog-footer {
   display: flex;
   justify-content: flex-end;

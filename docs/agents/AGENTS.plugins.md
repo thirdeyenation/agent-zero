@@ -80,6 +80,8 @@ To contribute:
 ### JS Hooks
 Place *.js files in extensions/webui/<extension_point>/ and export a default async function. They are called via callJsExtensions("<point>", context).
 
+Core JS hooks can also expose runtime UI surfaces when static HTML breakpoints are not a fit. For example, `confirm_dialog_after_render` runs after the shared confirm dialog is built and receives the rendered dialog/body/footer nodes plus any caller-provided `extensionContext`.
+
 ---
 
 ## 4. Plugin Settings
