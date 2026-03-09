@@ -71,7 +71,7 @@ class PluginListItem(BaseModel):
     toggle_state: ToggleState = "disabled"
 
 
-def invalidate_plugin_cache():
+def clear_plugin_cache():
     cache.clear("*(plugins)*")
 
 
@@ -189,6 +189,7 @@ def delete_plugin(plugin_name: str):
     if not files.is_in_dir(plugin_dir, custom_plugins_dir):
         raise ValueError("Only custom plugins can be deleted")
     files.delete_dir(plugin_dir)
+    clear_plugin_cache()
 
 
 def get_plugin_paths(*subpaths: str) -> List[str]:
@@ -347,6 +348,7 @@ def toggle_plugin(
         files.write_file(enabled_file, "")
     else:
         files.write_file(disabled_file, "")
+    clear_plugin_cache()
 
 
 def get_plugin_config(
@@ -401,6 +403,7 @@ def save_plugin_config(
     )
     if file_path:
         files.write_file(file_path, json.dumps(settings))
+        clear_plugin_cache()
 
 
 def find_plugin_asset(

@@ -12,7 +12,7 @@ from helpers import files
 from helpers.plugins import (
     META_FILE_NAME,
     PluginMetadata,
-    invalidate_plugin_cache,
+    clear_plugin_cache,
 )
 from helpers import yaml as yaml_helper
 
@@ -29,7 +29,7 @@ def _sanitize_plugin_name(name: str) -> str:
     Converts dots and dashes to underscores for Python import compatibility.
     Raises ValueError if the name is unsafe for filesystem use."""
     name = name.strip().strip(".")
-    name = re.sub(r"[-.]", "_", name)
+    name = re.sub(r"[^a-zA-Z0-9]+", "_", name)
     if not name or not _SAFE_NAME_RE.match(name):
         raise ValueError(
             f"Invalid plugin name: '{name}'. "
@@ -107,7 +107,7 @@ def install_from_zip(zip_path: str) -> dict:
         dest = os.path.join(_get_user_plugins_dir(), plugin_name)
         os.makedirs(os.path.dirname(dest), exist_ok=True)
         shutil.move(plugin_root, dest)
-        invalidate_plugin_cache()
+        clear_plugin_cache()
 
         return {
             "success": True,
@@ -147,6 +147,7 @@ def install_from_git(url: str, token: Optional[str] = None) -> dict:
     except Exception as e:
         # Cleanup partial clone
         shutil.rmtree(dest, ignore_errors=True)
+        clear_plugin_cache()
         raise ValueError(f"Git clone failed: {e}") from e
 
     try:
@@ -154,9 +155,10 @@ def install_from_git(url: str, token: Optional[str] = None) -> dict:
     except ValueError:
         # No plugin.yaml — remove cloned repo
         shutil.rmtree(dest, ignore_errors=True)
+        clear_plugin_cache()
         raise
 
-    invalidate_plugin_cache()
+    clear_plugin_cache()
 
     return {
         "success": True,

@@ -1,3 +1,22 @@
+let _extensionsModule = null;
+
+async function _getExtensions() {
+  if (!_extensionsModule) _extensionsModule = await import("./extensions.js");
+  return _extensionsModule;
+}
+
+async function _shouldCallApiExtensions(apiUrl) {
+  const extensions = await _getExtensions();
+  const excluded = extensions.API_EXTENSION_EXCLUDED_ENDPOINTS;
+  return !(excluded instanceof Set && excluded.has(apiUrl));
+}
+
+function _normalizeApiUrl(url) {
+  return url.startsWith("/api/") || url.startsWith("api/")
+    ? `/${url.replace(/^\/+/, "")}`
+    : `/api/${url.replace(/^\/+/, "")}`;
+}
+
 /**
  * Call a JSON-in JSON-out API endpoint
  * Data is automatically serialized
@@ -6,21 +25,54 @@
  * @returns {Promise<any>} The JSON response from the API
  */
 export async function callJsonApi(endpoint, data) {
-  const response = await fetchApi(endpoint, {
+  const apiUrl = _normalizeApiUrl(endpoint);
+
+  /** @type {{ endpoint: string, data: any, response: Response | null, result: any, error: Error | null }} */
+  const ctx = {
+    endpoint,
+    data,
+    response: null,
+    result: null,
+    error: null,
+  };
+
+  if (await _shouldCallApiExtensions(apiUrl)) {
+    const extensions = await _getExtensions();
+    await extensions.callJsExtensions("json_api_call_before", ctx);
+  }
+
+  const response = await fetchApi(ctx.endpoint, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     credentials: "same-origin",
-    body: JSON.stringify(data),
+    body: JSON.stringify(ctx.data),
   });
+  ctx.response = response;
 
   if (!response.ok) {
     const error = await response.text();
-    throw new Error(error);
+    ctx.error = new Error(error);
+
+    if (await _shouldCallApiExtensions(apiUrl)) {
+      const extensions = await _getExtensions();
+      await extensions.callJsExtensions("json_api_call_error", ctx);
+    }
+
+    if (ctx.error) throw ctx.error;
+    
+    return ctx.result;
   }
-  const jsonResponse = await response.json();
-  return jsonResponse;
+
+  ctx.result = await response.json();
+
+  if (await _shouldCallApiExtensions(apiUrl)) {
+    const extensions = await _getExtensions();
+    await extensions.callJsExtensions("json_api_call_after", ctx);
+  }
+
+  return ctx.result;
 }
 
 /**
@@ -31,25 +83,6 @@ export async function callJsonApi(endpoint, data) {
  * @returns {Promise<Response>} The fetch response
  */
 export async function fetchApi(url, request) {
-  async function _getExtensions() {
-    try {
-      return await import("./extensions.js");
-    } catch {
-      return null;
-    }
-  }
-
-  /**
-   * @param {string} apiUrl
-   * @returns {Promise<boolean>}
-   */
-  async function _shouldCallApiExtensions(apiUrl) {
-    const extensions = await _getExtensions();
-    if (!extensions) return false;
-    const excluded = extensions.API_EXTENSION_EXCLUDED_ENDPOINTS;
-    return !(excluded instanceof Set && excluded.has(apiUrl));
-  }
-
   async function _wrap(retry) {
     // get the CSRF token
     const token = await getCsrfToken();
@@ -64,7 +97,7 @@ export async function fetchApi(url, request) {
     finalRequest.headers["X-CSRF-Token"] = token;
 
     // perform the fetch with the updated request
-    const apiUrl = url.startsWith('/api/') || url.startsWith('api/') ? `/${url.replace(/^\/+/, '')}` : `/api/${url.replace(/^\/+/, '')}`;
+    const apiUrl = _normalizeApiUrl(url);
 
     /** @type {{ url: string, apiUrl: string, request: any, response: Response | null, retry: boolean }} */
     const ctx = {
@@ -77,19 +110,15 @@ export async function fetchApi(url, request) {
 
     if (await _shouldCallApiExtensions(apiUrl)) {
       const extensions = await _getExtensions();
-      if (extensions) {
-        await extensions.callJsExtensions("api_call_before", ctx);
-      }
+      await extensions.callJsExtensions("fetch_api_call_before", ctx);
     }
 
-    const response = ctx.response || await fetch(ctx.apiUrl, ctx.request);
+    const response = ctx.response || (await fetch(ctx.apiUrl, ctx.request));
     ctx.response = response;
 
     if (await _shouldCallApiExtensions(apiUrl)) {
       const extensions = await _getExtensions();
-      if (extensions) {
-        await extensions.callJsExtensions("api_call_after", ctx);
-      }
+      await extensions.callJsExtensions("fetch_api_call_after", ctx);
     }
 
     const finalResponse = ctx.response;
