@@ -361,11 +361,12 @@ class LiteLLMChatWrapper(SimpleChatModel):
             if tool_call_id:
                 message_dict["tool_call_id"] = tool_call_id
 
-            # Skip messages with empty content
+            # fix messages with empty content, this breaks some LLMs
             content = message_dict.get("content")
             has_content = bool(content) if not isinstance(content, list) else len(content) > 0
             if not has_content:
-                continue
+                message_dict["content"] = "empty"
+
             result.append(message_dict)
 
         if explicit_caching and result:

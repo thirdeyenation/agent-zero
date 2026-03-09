@@ -1,38 +1,34 @@
 <html>
+
 <head>
     <title>Install Plugin</title>
     <script type="module">
         import { store } from "/plugins/plugin_installer/webui/pluginInstallStore.js";
     </script>
 </head>
+
 <body>
     <div x-data>
         <template x-if="$store.pluginInstallStore">
             <div x-init="$store.pluginInstallStore.setTab('store')"
-                 x-destroy="$store.pluginInstallStore.refreshPluginList()">
+                x-destroy="$store.pluginInstallStore.refreshPluginList()">
 
                 <ul class="nav nav-tabs" role="tablist">
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link"
-                            :class="{ active: $store.pluginInstallStore.activeTab === 'store' }"
-                            type="button" role="tab"
-                            @click="$store.pluginInstallStore.setTab('store')">
+                        <button class="nav-link" :class="{ active: $store.pluginInstallStore.activeTab === 'store' }"
+                            type="button" role="tab" @click="$store.pluginInstallStore.setTab('store')">
                             <span class="material-symbols-outlined pi-tab-icon">store</span> Browse
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link"
-                            :class="{ active: $store.pluginInstallStore.activeTab === 'git' }"
-                            type="button" role="tab"
-                            @click="$store.pluginInstallStore.setTab('git')">
+                        <button class="nav-link" :class="{ active: $store.pluginInstallStore.activeTab === 'git' }"
+                            type="button" role="tab" @click="$store.pluginInstallStore.setTab('git')">
                             <span class="material-symbols-outlined pi-tab-icon">terminal</span> Git
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link"
-                            :class="{ active: $store.pluginInstallStore.activeTab === 'zip' }"
-                            type="button" role="tab"
-                            @click="$store.pluginInstallStore.setTab('zip')">
+                        <button class="nav-link" :class="{ active: $store.pluginInstallStore.activeTab === 'zip' }"
+                            type="button" role="tab" @click="$store.pluginInstallStore.setTab('zip')">
                             <span class="material-symbols-outlined pi-tab-icon">upload_file</span> ZIP
                         </button>
                     </li>
@@ -40,34 +36,34 @@
 
                 <!-- ═══ Store Tab ═══ -->
                 <div x-show="$store.pluginInstallStore.activeTab === 'store'"
-                     x-init="$store.pluginInstallStore.resetIndex(); $store.pluginInstallStore.fetchIndex()">
+                    x-init="$store.pluginInstallStore.resetIndex(); $store.pluginInstallStore.fetchIndex()">
 
                     <div class="pi-browse-shell">
                         <section class="pi-browse-hero">
                             <div class="pi-browse-copy">
                                 <div class="pi-browse-eyebrow">Community Marketplace</div>
-                                <h2 class="pi-browse-title">Discover plugins for Agent Zero</h2>
+                                <h2 class="pi-browse-title">Discover community plugins for Agent Zero</h2>
                                 <p class="pi-browse-description">
-                                    Browse community plugins, filter by what you already have installed, and open each listing for screenshots, README, and install actions.
+                                    These plugins are provided by the community of Agent Zero. Contribute by publishing
+                                    in the <a href="https://github.com/agent0ai/a0-plugins" target="_blank">index
+                                        repository</a>.
                                 </p>
                             </div>
-                            <div class="pi-browse-summary" x-text="$store.pluginInstallStore.browseResultsSummary"></div>
+                            <div class="pi-browse-summary" x-text="$store.pluginInstallStore.browseResultsSummary">
+                            </div>
                         </section>
 
                         <div class="pi-index-toolbar">
                             <label class="pi-search-field">
                                 <span class="material-symbols-outlined">search</span>
-                                <input type="text"
-                                    class="pi-search-input"
-                                    x-model="$store.pluginInstallStore.search"
+                                <input type="text" class="pi-search-input" x-model="$store.pluginInstallStore.search"
                                     @input="$store.pluginInstallStore.page = 1"
                                     placeholder="Search plugins, authors, or tags...">
                             </label>
 
                             <label class="pi-sort-field">
                                 <span class="pi-field-label">Sort</span>
-                                <select class="pi-sort-select"
-                                    x-model="$store.pluginInstallStore.sortBy">
+                                <select class="pi-sort-select" x-model="$store.pluginInstallStore.sortBy">
                                     <option value="stars">Stars</option>
                                     <option value="name">Name</option>
                                 </select>
@@ -76,8 +72,7 @@
 
                         <div class="pi-filter-row" x-show="$store.pluginInstallStore.browseFilters.length > 1">
                             <template x-for="filter in $store.pluginInstallStore.browseFilters" :key="filter.key">
-                                <button type="button"
-                                    class="pi-filter-chip"
+                                <button type="button" class="pi-filter-chip"
                                     :class="{ active: $store.pluginInstallStore.browseFilter === filter.key }"
                                     @click="$store.pluginInstallStore.setBrowseFilter(filter.key)">
                                     <span x-text="filter.label"></span>
@@ -90,11 +85,13 @@
                             <span class="material-symbols-outlined">progress_activity</span>
                             <div>
                                 <div class="pi-state-title">Loading marketplace</div>
-                                <div class="pi-state-text" x-text="$store.pluginInstallStore.loadingMessage || 'Loading plugins...'"></div>
+                                <div class="pi-state-text"
+                                    x-text="$store.pluginInstallStore.loadingMessage || 'Loading plugins...'"></div>
                             </div>
                         </div>
 
-                        <div x-show="$store.pluginInstallStore.error && !$store.pluginInstallStore.loading" class="pi-state-card pi-state-error">
+                        <div x-show="$store.pluginInstallStore.error && !$store.pluginInstallStore.loading"
+                            class="pi-state-card pi-state-error">
                             <span class="material-symbols-outlined">error</span>
                             <div>
                                 <div class="pi-state-title">Marketplace unavailable</div>
@@ -105,7 +102,8 @@
                         <div x-show="$store.pluginInstallStore.index && !$store.pluginInstallStore.loading && $store.pluginInstallStore.filteredPlugins.length > 0"
                             class="pi-grid">
                             <template x-for="plugin in $store.pluginInstallStore.paginatedPlugins" :key="plugin.key">
-                                <button type="button" class="pi-card" @click="$store.pluginInstallStore.openDetail(plugin)">
+                                <button type="button" class="pi-card"
+                                    @click="$store.pluginInstallStore.openDetail(plugin)">
                                     <div class="pi-card-thumb">
                                         <template x-if="plugin.thumbnail">
                                             <img :src="plugin.thumbnail" :alt="plugin.title" loading="lazy">
@@ -163,8 +161,7 @@
                         </div>
 
                         <div x-show="$store.pluginInstallStore.totalPages > 1" class="pi-pagination">
-                            <button class="button"
-                                :disabled="$store.pluginInstallStore.page <= 1"
+                            <button class="button" :disabled="$store.pluginInstallStore.page <= 1"
                                 @click="$store.pluginInstallStore.setPage($store.pluginInstallStore.page - 1)">
                                 <span class="material-symbols-outlined">chevron_left</span>
                             </button>
@@ -182,28 +179,25 @@
 
                 <!-- ═══ Git Tab ═══ -->
                 <div x-show="$store.pluginInstallStore.activeTab === 'git'"
-                     x-init="$store.pluginInstallStore.resetGit()">
+                    x-init="$store.pluginInstallStore.resetGit()">
 
                     <div class="pi-form-group">
                         <label class="pi-label">Git Repository URL</label>
-                        <input type="text" class="pi-input"
-                            x-model="$store.pluginInstallStore.gitUrl"
+                        <input type="text" class="pi-input" x-model="$store.pluginInstallStore.gitUrl"
                             :disabled="$store.pluginInstallStore.loading"
                             placeholder="https://github.com/user/my-plugin.git">
                     </div>
 
                     <div class="pi-form-group">
-                        <label class="pi-label">Access Token <span class="pi-optional">(optional, for private repos)</span></label>
-                        <input type="password" class="pi-input"
-                            x-model="$store.pluginInstallStore.gitToken"
-                            :disabled="$store.pluginInstallStore.loading"
-                            placeholder="ghp_xxxx or glpat-xxxx">
+                        <label class="pi-label">Access Token <span class="pi-optional">(optional, for private
+                                repos)</span></label>
+                        <input type="password" class="pi-input" x-model="$store.pluginInstallStore.gitToken"
+                            :disabled="$store.pluginInstallStore.loading" placeholder="ghp_xxxx or glpat-xxxx">
                         <div class="pi-hint">Token is used only for cloning and is not stored.</div>
                     </div>
 
                     <div class="pi-actions">
-                        <button class="button confirm"
-                            @click="$store.pluginInstallStore.installGit()"
+                        <button class="button confirm" @click="$store.pluginInstallStore.installGit()"
                             :disabled="$store.pluginInstallStore.loading || !$store.pluginInstallStore.gitUrl.trim()">
                             <template x-if="$store.pluginInstallStore.loading">
                                 <span class="pi-button-loading">
@@ -228,7 +222,8 @@
                             <span class="material-symbols-outlined">check_circle</span>
                         </div>
                         <div class="pi-result-text">
-                            <strong x-text="'Plugin installed: ' + ($store.pluginInstallStore.result?.title || $store.pluginInstallStore.result?.plugin_name || '')"></strong>
+                            <strong
+                                x-text="'Plugin installed: ' + ($store.pluginInstallStore.result?.title || $store.pluginInstallStore.result?.plugin_name || '')"></strong>
                             <div class="pi-result-path" x-text="$store.pluginInstallStore.result?.path || ''"></div>
                         </div>
                     </div>
@@ -236,7 +231,7 @@
 
                 <!-- ═══ ZIP Tab ═══ -->
                 <div x-show="$store.pluginInstallStore.activeTab === 'zip'"
-                     x-init="$store.pluginInstallStore.resetZip()">
+                    x-init="$store.pluginInstallStore.resetZip()">
 
                     <div class="pi-upload-section">
                         <label for="plugin-zip-file" class="pi-upload-btn button confirm"
@@ -252,8 +247,7 @@
                     </div>
 
                     <div x-show="$store.pluginInstallStore.zipFile" class="pi-actions-center">
-                        <button class="button confirm"
-                            @click="$store.pluginInstallStore.installZip()"
+                        <button class="button confirm" @click="$store.pluginInstallStore.installZip()"
                             :disabled="$store.pluginInstallStore.loading">
                             <span class="icon material-symbols-outlined">download</span> Install Plugin
                         </button>
@@ -272,7 +266,8 @@
                             <span class="material-symbols-outlined">check_circle</span>
                         </div>
                         <div class="pi-result-text">
-                            <strong x-text="'Plugin installed: ' + ($store.pluginInstallStore.result?.title || $store.pluginInstallStore.result?.plugin_name || '')"></strong>
+                            <strong
+                                x-text="'Plugin installed: ' + ($store.pluginInstallStore.result?.title || $store.pluginInstallStore.result?.plugin_name || '')"></strong>
                             <div class="pi-result-path" x-text="$store.pluginInstallStore.result?.path || ''"></div>
                         </div>
                     </div>
@@ -696,6 +691,7 @@
                 height: 164px;
             }
         }
+
         /* ── Git Tab ─────────────────────────── */
         .pi-form-group {
             margin-bottom: 1rem;
@@ -775,7 +771,7 @@
         .pi-error {
             color: var(--color-error);
             padding: 0.75rem;
-            background: var(--color-error-bg, rgba(239,68,68,0.1));
+            background: var(--color-error-bg, rgba(239, 68, 68, 0.1));
             border-radius: 4px;
             margin-top: 0.75rem;
         }
@@ -797,8 +793,8 @@
             align-items: center;
             gap: 0.75rem;
             padding: 0.75rem;
-            background: rgba(34,197,94,0.1);
-            border: 1px solid rgba(34,197,94,0.3);
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.3);
             border-radius: 4px;
             margin-top: 0.75rem;
         }
@@ -822,4 +818,5 @@
         }
     </style>
 </body>
+
 </html>

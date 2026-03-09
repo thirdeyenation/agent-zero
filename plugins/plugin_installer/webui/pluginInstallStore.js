@@ -4,9 +4,9 @@ import { openModal } from "/js/modals.js";
 import { marked } from "/vendor/marked/marked.esm.js";
 import { toastFrontendSuccess } from "/components/notifications/notification-store.js";
 import { showConfirmDialog } from "/js/confirmDialog.js";
-import "/components/plugins/list/pluginListStore.js";
-import "/components/plugins/list/plugin-init-store.js";
-import "/components/modals/image-viewer/image-viewer-store.js";
+import {store as pluginListStore } from "/components/plugins/list/pluginListStore.js";
+// import {store as pluginInitStore } from "/components/plugins/list/plugin-init-store.js";
+// import {store as imageViewerStore } from "/components/modals/image-viewer/image-viewer-store.js";
 
 const PLUGIN_API = "plugins/plugin_installer/plugin_install";
 const PER_PAGE = 20;
@@ -37,7 +37,7 @@ const model = {
   gitToken: "",
 
   // Index state
-  index: null,
+  index: { authors: {}, plugins: {} },
   installedPlugins: [],
   search: "",
   page: 1,
@@ -57,11 +57,7 @@ const model = {
   // Installed plugin detail (for manage buttons)
   installedPluginInfo: null,
 
-  // Detail hero thumbnail fallbacks
-  detailPluginName: "",
-  /** @type {string[]} */
-  detailThumbnailSources: [],
-  detailThumbnailIndex: 0,
+  detailThumbnailUrl: null,
 
   // Tab state
   activeTab: "store",
@@ -85,8 +81,20 @@ const model = {
   },
 
   _pluginName(plugin) {
-    const repoUrl = (plugin?.github || "").replace(/\.git$/, "");
-    return repoUrl.split("/").pop() || plugin?.key || "";
+    const githubUrl = (plugin?.github || "").trim().replace(/\.git$/i, "");
+    const match = githubUrl.match(/github\.com\/([^/]+)\/([^/]+)/i);
+    if (!match) return plugin?.key || "";
+
+    const parts = [match[1], match[2]]
+      .map((part) =>
+        String(part)
+          .replace(/[^0-9A-Za-z]+/g, "_")
+          .replace(/_+/g, "_")
+          .replace(/^_+|_+$/g, "")
+      )
+      .filter(Boolean);
+
+    return parts.join("__") || plugin?.key || "";
   },
 
   _pluginPrimaryTag(plugin) {
@@ -213,7 +221,7 @@ const model = {
       this.loading = true;
       this.loadingMessage = "Loading plugin index...";
       this.error = "";
-      this.index = null;
+      // this.index = null;
 
       const data = await api.callJsonApi(PLUGIN_API, {
         action: "fetch_index",
@@ -342,18 +350,15 @@ const model = {
   },
 
   openDetail(plugin) {
-    const detailPlugin = plugin ? { ...plugin } : null;
-    this.selectedPlugin = detailPlugin;
+    this.selectedPlugin = {...plugin, name: this._pluginName(plugin) };
     this.error = "";
     this.installedPluginInfo = null;
     this.readmeContent = null;
-    this.detailPluginName = this._pluginName(detailPlugin);
-    this.detailThumbnailSources = this.getDetailThumbnailSources(detailPlugin);
-    this.detailThumbnailIndex = 0;
-    if (detailPlugin?.installed) {
-      this.fetchInstalledPluginInfo(this.detailPluginName);
+    this.detailThumbnailUrl = this.getThumbnailUrl(this.selectedPlugin);
+    if (this.selectedPlugin.installed) {
+      this.fetchInstalledPluginInfo(this.selectedPlugin.name);
     }
-    this.fetchReadme(detailPlugin);
+    this.fetchReadme(this.selectedPlugin);
     openModal("/plugins/plugin_installer/webui/install-detail.html");
   },
 
@@ -429,9 +434,7 @@ const model = {
         ...(this.selectedPlugin || {}),
         installed: true,
       };
-      this.detailPluginName = data.plugin_name;
-      this.detailThumbnailSources = this.getDetailThumbnailSources(this.selectedPlugin);
-      this.detailThumbnailIndex = 0;
+      this.detailThumbnailUrl = this.getThumbnailUrl(this.selectedPlugin);
       this.fetchInstalledPluginInfo(data.plugin_name);
 
       toastFrontendSuccess(
@@ -462,13 +465,6 @@ const model = {
     }
   },
 
-  _pluginListStore() {
-    return getStore("pluginListStore");
-  },
-
-  _pluginInitStore() {
-    return getStore("pluginInitStore");
-  },
 
   manageOpenPlugin() {
     const info = this.installedPluginInfo;
@@ -477,23 +473,20 @@ const model = {
   },
 
   async manageOpenConfig() {
-    const pls = this._pluginListStore();
-    if (pls?.openPluginConfig && this.installedPluginInfo) {
-      await pls.openPluginConfig(this.installedPluginInfo);
+    if (this.installedPluginInfo) {
+      await pluginListStore.openPluginConfig(this.installedPluginInfo);
     }
   },
 
   async manageOpenDoc(doc) {
-    const pls = this._pluginListStore();
-    if (pls?.openPluginDoc && this.installedPluginInfo) {
-      await pls.openPluginDoc(this.installedPluginInfo, doc);
+    if (this.installedPluginInfo) {
+      await pluginListStore.openPluginDoc(this.installedPluginInfo, doc);
     }
   },
 
   manageOpenInfo() {
-    const pls = this._pluginListStore();
-    if (pls?.openPluginInfo && this.installedPluginInfo) {
-      pls.openPluginInfo(this.installedPluginInfo);
+    if (this.installedPluginInfo) {
+      pluginListStore.openPluginInfo(this.installedPluginInfo);
     }
   },
 
@@ -505,9 +498,8 @@ const model = {
   },
 
   async manageDeletePlugin() {
-    const pls = this._pluginListStore();
-    if (pls?.deletePlugin && this.installedPluginInfo) {
-      await pls.deletePlugin(this.installedPluginInfo);
+    if (this.installedPluginInfo) {
+      await pluginListStore.deletePlugin(this.installedPluginInfo);
       const currentPlugin = this.selectedPlugin;
       if (currentPlugin) {
         this.selectedPlugin = { ...currentPlugin, installed: false };
@@ -531,41 +523,8 @@ const model = {
     return rawBase ? `${rawBase}/main/thumbnail.png` : null;
   },
 
-  getLocalThumbnailUrl() {
-    const name = this.detailPluginName;
-    return name ? `/plugins/${name}/thumbnail.png` : null;
-  },
-
-  /**
-   * Build the ordered thumbnail URLs for the detail view.
-   * First try GitHub, then the local plugin asset.
-   * @param {any} plugin
-   * @returns {string[]}
-   */
-  getDetailThumbnailSources(plugin) {
-    const currentPlugin = plugin || this.selectedPlugin;
-    const rawSources = [
-      this.getThumbnailUrl(currentPlugin),
-      this.getLocalThumbnailUrl(),
-    ];
-    const uniqueSources = [];
-    const seen = new Set();
-
-    for (const url of rawSources) {
-      if (typeof url !== "string" || seen.has(url)) continue;
-      seen.add(url);
-      uniqueSources.push(url);
-    }
-
-    return uniqueSources;
-  },
-
   getDetailThumbnailUrl() {
-    return this.detailThumbnailSources[this.detailThumbnailIndex] || null;
-  },
-
-  nextDetailThumbnail() {
-    this.detailThumbnailIndex += 1;
+    return this.detailThumbnailUrl;
   },
 
   // ── Shared ───────────────────────────────────
@@ -593,7 +552,7 @@ const model = {
 
   /** Called from x-destroy when the installer modal is torn down; refreshes the plugin list store */
   refreshPluginList() {
-    getStore("pluginListStore")?.refresh();
+    pluginListStore.refresh();
   },
 
   truncate(text, max) {

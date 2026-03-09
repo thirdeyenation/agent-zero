@@ -15,7 +15,7 @@
                         <template x-if="$store.pluginInstallStore.getDetailThumbnailUrl()">
                             <img :src="$store.pluginInstallStore.getDetailThumbnailUrl()"
                                 :alt="$store.pluginInstallStore.selectedPlugin.title"
-                                @error="$store.pluginInstallStore.nextDetailThumbnail()">
+                                @error="$store.pluginInstallStore.detailThumbnailUrl = null">
                         </template>
                         <template x-if="!$store.pluginInstallStore.getDetailThumbnailUrl()">
                             <span class="material-symbols-outlined pi-hero-placeholder">extension</span>
