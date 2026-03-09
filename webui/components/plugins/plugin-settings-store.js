@@ -355,4 +355,4 @@ const model = {
     },
 };
 
-export const store = createStore("pluginSettings", model);
+export const store = createStore("pluginSettingsPrototype", model);

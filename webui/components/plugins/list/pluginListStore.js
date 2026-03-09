@@ -63,7 +63,7 @@ const model = {
       const pluginToggleStore = Alpine.store("pluginToggle");
       if (pluginToggleStore?.open) await pluginToggleStore.open(plugin);
 
-      const pluginSettingsStore = Alpine.store("pluginSettings");
+      const pluginSettingsStore = Alpine.store("pluginSettingsPrototype");
       if (!pluginSettingsStore?.open) {
         throw new Error("Plugin settings store is unavailable.");
       }

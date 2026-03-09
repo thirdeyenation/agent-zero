@@ -5,7 +5,7 @@
 
 <body>
     <div x-data>
-        <template x-if="$store.pluginSettings.settings">
+        <template x-if="config">
             <div>
                 <div class="section-title">Memory</div>
                 <div class="section-description">
@@ -13,7 +13,7 @@
                     context awareness.
                 </div>
 
-                <div class="field" x-show="$store.pluginSettings.projectName">
+                <div class="field" x-show="context.projectName">
                     <div class="field-label">
                         <div class="field-title">Project Isolation</div>
                         <div class="field-description">
@@ -22,7 +22,7 @@
                     </div>
                     <div class="field-control">
                         <label class="toggle">
-                            <input type="checkbox" x-model="$store.pluginSettings.settings.project_memory_isolation" />
+                            <input type="checkbox" x-model="config.project_memory_isolation" />
                             <span class="toggler"></span>
                         </label>
                     </div>
@@ -36,7 +36,7 @@
                         </div>
                     </div>
                     <div class="field-control">
-                        <input type="text" x-model="$store.pluginSettings.settings.agent_memory_subdir" placeholder="Auto (Project-isolated)" />
+                        <input type="text" x-model="config.agent_memory_subdir" placeholder="Auto (Project-isolated)" />
                     </div>
                 </div>
 
@@ -64,7 +64,7 @@
                     </div>
                     <div class="field-control">
                         <label class="toggle">
-                            <input type="checkbox" x-model="$store.pluginSettings.settings.memory_recall_enabled" />
+                            <input type="checkbox" x-model="config.memory_recall_enabled" />
                             <span class="toggler"></span>
                         </label>
                     </div>
@@ -80,7 +80,7 @@
                     </div>
                     <div class="field-control">
                         <label class="toggle">
-                            <input type="checkbox" x-model="$store.pluginSettings.settings.memory_recall_delayed" />
+                            <input type="checkbox" x-model="config.memory_recall_delayed" />
                             <span class="toggler"></span>
                         </label>
                     </div>
@@ -96,7 +96,7 @@
                     </div>
                     <div class="field-control">
                         <label class="toggle">
-                            <input type="checkbox" x-model="$store.pluginSettings.settings.memory_recall_query_prep" />
+                            <input type="checkbox" x-model="config.memory_recall_query_prep" />
                             <span class="toggler"></span>
                         </label>
                     </div>
@@ -113,7 +113,7 @@
                     <div class="field-control">
                         <label class="toggle">
                             <input type="checkbox"
-                                x-model="$store.pluginSettings.settings.memory_recall_post_filter" />
+                                x-model="config.memory_recall_post_filter" />
                             <span class="toggler"></span>
                         </label>
                     </div>
@@ -129,9 +129,9 @@
                     </div>
                     <div class="field-control">
                         <input type="range" min="1" max="10" step="1"
-                            x-model.number="$store.pluginSettings.settings.memory_recall_interval" />
+                            x-model.number="config.memory_recall_interval" />
                         <span class="range-value"
-                            x-text="$store.pluginSettings.settings.memory_recall_interval"></span>
+                            x-text="config.memory_recall_interval"></span>
                     </div>
                 </div>
 
@@ -144,7 +144,7 @@
                     </div>
                     <div class="field-control">
                         <input type="number"
-                            x-model.number="$store.pluginSettings.settings.memory_recall_history_len" />
+                            x-model.number="config.memory_recall_history_len" />
                     </div>
                 </div>
 
@@ -157,9 +157,9 @@
                     </div>
                     <div class="field-control">
                         <input type="range" min="0" max="1" step="0.01"
-                            x-model.number="$store.pluginSettings.settings.memory_recall_similarity_threshold" />
+                            x-model.number="config.memory_recall_similarity_threshold" />
                         <span class="range-value"
-                            x-text="$store.pluginSettings.settings.memory_recall_similarity_threshold"></span>
+                            x-text="config.memory_recall_similarity_threshold"></span>
                     </div>
                 </div>
 
@@ -172,7 +172,7 @@
                     </div>
                     <div class="field-control">
                         <input type="number"
-                            x-model.number="$store.pluginSettings.settings.memory_recall_memories_max_search" />
+                            x-model.number="config.memory_recall_memories_max_search" />
                     </div>
                 </div>
 
@@ -185,7 +185,7 @@
                     </div>
                     <div class="field-control">
                         <input type="number"
-                            x-model.number="$store.pluginSettings.settings.memory_recall_memories_max_result" />
+                            x-model.number="config.memory_recall_memories_max_result" />
                     </div>
                 </div>
 
@@ -198,7 +198,7 @@
                     </div>
                     <div class="field-control">
                         <input type="number"
-                            x-model.number="$store.pluginSettings.settings.memory_recall_solutions_max_search" />
+                            x-model.number="config.memory_recall_solutions_max_search" />
                     </div>
                 </div>
 
@@ -211,7 +211,7 @@
                     </div>
                     <div class="field-control">
                         <input type="number"
-                            x-model.number="$store.pluginSettings.settings.memory_recall_solutions_max_result" />
+                            x-model.number="config.memory_recall_solutions_max_result" />
                     </div>
                 </div>
 
@@ -225,7 +225,7 @@
                     <div class="field-control">
                         <label class="toggle">
                             <input type="checkbox"
-                                x-model="$store.pluginSettings.settings.memory_memorize_enabled" />
+                                x-model="config.memory_memorize_enabled" />
                             <span class="toggler"></span>
                         </label>
                     </div>
@@ -242,7 +242,7 @@
                     <div class="field-control">
                         <label class="toggle">
                             <input type="checkbox"
-                                x-model="$store.pluginSettings.settings.memory_memorize_consolidation" />
+                                x-model="config.memory_memorize_consolidation" />
                             <span class="toggler"></span>
                         </label>
                     </div>
@@ -259,9 +259,9 @@
                     </div>
                     <div class="field-control">
                         <input type="range" min="0" max="1" step="0.01"
-                            x-model.number="$store.pluginSettings.settings.memory_memorize_replace_threshold" />
+                            x-model.number="config.memory_memorize_replace_threshold" />
                         <span class="range-value"
-                            x-text="$store.pluginSettings.settings.memory_memorize_replace_threshold"></span>
+                            x-text="config.memory_memorize_replace_threshold"></span>
                     </div>
                 </div>
             </div>

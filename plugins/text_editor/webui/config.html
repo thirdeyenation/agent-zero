@@ -5,7 +5,7 @@
 
 <body>
     <div x-data>
-        <template x-if="$store.pluginSettings.settings">
+        <template x-if="config">
             <div>
                 <div class="section-title">Text Editor</div>
                 <div class="section-description">
@@ -21,7 +21,7 @@
                     </div>
                     <div class="field-control">
                         <input type="number" min="50" max="5000"
-                            x-model.number="$store.pluginSettings.settings.max_line_tokens" />
+                            x-model.number="config.max_line_tokens" />
                     </div>
                 </div>
 
@@ -34,7 +34,7 @@
                     </div>
                     <div class="field-control">
                         <input type="number" min="10" max="1000"
-                            x-model.number="$store.pluginSettings.settings.default_line_count" />
+                            x-model.number="config.default_line_count" />
                     </div>
                 </div>
 
@@ -47,7 +47,7 @@
                     </div>
                     <div class="field-control">
                         <input type="number" min="500" max="50000"
-                            x-model.number="$store.pluginSettings.settings.max_total_read_tokens" />
+                            x-model.number="config.max_total_read_tokens" />
                     </div>
                 </div>
             </div>

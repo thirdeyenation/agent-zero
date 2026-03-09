@@ -88,7 +88,7 @@ If your plugin needs user-configurable settings, add `webui/config.html`. The sy
 
 ### Settings modal contract
 
-The modal provides Project + Agent profile context selectors. Your config.html binds to `$store.pluginSettings.settings`:
+The modal provides Project + Agent profile context selectors. The plugin settings wrapper instantiates a local modal context from `$store.pluginSettingsPrototype`. Inside `config.html`, bind plugin fields to `config.*` and use `context.*` for modal-level state and actions:
 
 ```html
 <html>
@@ -100,14 +100,14 @@ The modal provides Project + Agent profile context selectors. Your config.html b
 </head>
 <body>
   <div x-data>
-    <input x-model="$store.pluginSettings.settings.my_key" />
-    <input type="checkbox" x-model="$store.pluginSettings.settings.feature_enabled" />
+    <input x-model="config.my_key" />
+    <input type="checkbox" x-model="config.feature_enabled" />
   </div>
 </body>
 </html>
 ```
 
-The modal's Save button persists `$store.pluginSettings.settings` to `config.json` in the correct scope (project/agent/global).
+The modal's Save button persists `config` to `config.json` in the correct scope (project/agent/global).
 
 ### Surfacing core settings (e.g. memory pattern)
 
@@ -115,7 +115,7 @@ If your plugin exposes existing core settings rather than plugin-specific ones, 
 
 ```html
 <div x-data x-init="
-    $store.pluginSettings.saveMode = 'core';
+    context.saveMode = 'core';
     if ($store.settings && !$store.settings.settings) $store.settings.onOpen();
 ">
   <x-component path="settings/agent/memory.html"></x-component>
