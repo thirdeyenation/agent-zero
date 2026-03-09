@@ -51,3 +51,11 @@ pywinpty==3.0.2; sys_platform == "win32"
 python-socketio>=5.14.2
 uvicorn>=0.38.0
 wsproto>=1.2.0
+# Security floor pins for transitive dependencies
+# These packages are pulled transitively — floor pins prevent resolver regressions
+Pillow>=10.2.0  # security floor: heap buffer overflow CWE-122, eval injection CWE-95, DoS CWE-400
+nltk>=3.9.3  # security floor: RCE CWE-94, code injection CWE-94
+h11>=0.16.0  # security floor: HTTP request smuggling CWE-444
+urllib3>=2.6.0  # security floor: resource exhaustion CWE-770, data amplification CWE-409
+cryptography>=46.0.0  # security floor: insufficient data authenticity CWE-345
+werkzeug>=3.0.3  # security floor: RCE CWE-94
