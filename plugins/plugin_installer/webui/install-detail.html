@@ -28,41 +28,35 @@
                                 <div class="pi-hero-manage">
                                     <template x-if="$store.pluginInstallStore.installedPluginInfo.has_main_screen">
                                         <button type="button" class="button"
-                                            title="Open"
                                             @click="$store.pluginInstallStore.manageOpenPlugin()">
                                             <span class="icon material-symbols-outlined">dashboard</span> Open
                                         </button>
                                     </template>
                                     <template x-if="$store.pluginInstallStore.installedPluginInfo.has_config_screen">
                                         <button type="button" class="button"
-                                            title="Config"
                                             @click="$store.pluginInstallStore.manageOpenConfig()">
                                             <span class="icon material-symbols-outlined">settings</span> Config
                                         </button>
                                     </template>
                                     <template x-if="$store.pluginInstallStore.installedPluginInfo.has_readme">
                                         <button type="button" class="button"
-                                            title="README"
                                             @click="$store.pluginInstallStore.manageOpenDoc('readme')">
                                             <span class="icon material-symbols-outlined">description</span> README
                                         </button>
                                     </template>
                                     <template x-if="$store.pluginInstallStore.installedPluginInfo.has_license">
                                         <button type="button" class="button"
-                                            title="LICENSE"
                                             @click="$store.pluginInstallStore.manageOpenDoc('license')">
                                             <span class="icon material-symbols-outlined">gavel</span> License
                                         </button>
                                     </template>
                                     <template x-if="$store.pluginInstallStore.installedPluginInfo.has_init_script">
                                         <button type="button" class="button"
-                                            title="Run initializer script"
                                             @click="$store.pluginInstallStore.manageOpenInit()">
                                             <span class="icon material-symbols-outlined">terminal</span> Init
                                         </button>
                                     </template>
                                     <button type="button" class="button"
-                                        title="Info"
                                         @click="$store.pluginInstallStore.manageOpenInfo()">
                                         <span class="icon material-symbols-outlined">info</span> Info
                                     </button>
@@ -323,12 +317,8 @@
         }
 
         .pi-tag {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.4rem;
-        }
-
-        .pi-tag {
+            display: inline-flex;
+            align-items: center;
             font-size: 0.8rem;
             padding: 0.25rem 0.6rem;
             border-radius: 4px;

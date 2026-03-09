@@ -157,7 +157,8 @@ const model = {
         "Plugin Installer"
       );
     } catch (e) {
-      this.error = `Installation error: ${e.message}`;
+      const message = e instanceof Error ? e.message : String(e);
+      this.error = `Installation error: ${message}`;
     } finally {
       this.loading = false;
       this.loadingMessage = "";
@@ -197,7 +198,8 @@ const model = {
         "Plugin Installer"
       );
     } catch (e) {
-      this.error = `Clone error: ${e.message}`;
+      const message = e instanceof Error ? e.message : String(e);
+      this.error = `Clone error: ${message}`;
     } finally {
       this.loading = false;
       this.loadingMessage = "";
@@ -226,7 +228,8 @@ const model = {
       this.installedPlugins = data.installed_plugins || [];
       this.page = 1;
     } catch (e) {
-      this.error = `Failed to load plugin index: ${e.message}`;
+      const message = e instanceof Error ? e.message : String(e);
+      this.error = `Failed to load plugin index: ${message}`;
     } finally {
       this.loading = false;
       this.loadingMessage = "";
@@ -339,17 +342,18 @@ const model = {
   },
 
   openDetail(plugin) {
-    this.selectedPlugin = plugin;
+    const detailPlugin = plugin ? { ...plugin } : null;
+    this.selectedPlugin = detailPlugin;
     this.error = "";
     this.installedPluginInfo = null;
     this.readmeContent = null;
-    this.detailPluginName = this._pluginName(plugin);
-    this.detailThumbnailSources = this.getDetailThumbnailSources(plugin);
+    this.detailPluginName = this._pluginName(detailPlugin);
+    this.detailThumbnailSources = this.getDetailThumbnailSources(detailPlugin);
     this.detailThumbnailIndex = 0;
-    if (plugin.installed) {
+    if (detailPlugin?.installed) {
       this.fetchInstalledPluginInfo(this.detailPluginName);
     }
-    this.fetchReadme(plugin);
+    this.fetchReadme(detailPlugin);
     openModal("/plugins/plugin_installer/webui/install-detail.html");
   },
 
@@ -360,14 +364,24 @@ const model = {
     try {
       this.readmeLoading = true;
       this.readmeContent = null;
+      let lastError = null;
 
-      const response = await fetch(`${rawBase}/main/README.md`);
-      if (response.ok) {
-        const readme = await response.text();
-        this.readmeContent = marked.parse(readme, { breaks: true });
+      for (const branch of ["main", "master"]) {
+        try {
+          const response = await fetch(`${rawBase}/${branch}/README.md`);
+          if (!response.ok) continue;
+
+          const readme = await response.text();
+          this.readmeContent = marked.parse(readme, { breaks: true });
+          return;
+        } catch (error) {
+          lastError = error;
+        }
       }
-    } catch (e) {
-      console.warn("Failed to fetch readme:", e);
+
+      if (lastError) {
+        console.warn("Failed to fetch readme:", lastError);
+      }
     } finally {
       this.readmeLoading = false;
     }
@@ -406,11 +420,15 @@ const model = {
         return;
       }
 
-      if (!this.installedPlugins.includes(plugin.key)) {
-        this.installedPlugins.push(plugin.key);
+      const installedKey = plugin.key || data.plugin_name;
+      if (installedKey && !this.installedPlugins.includes(installedKey)) {
+        this.installedPlugins = [...this.installedPlugins, installedKey];
       }
-      plugin.installed = true;
-      this.selectedPlugin = { ...this.selectedPlugin, installed: true };
+      this.selectedPlugin = {
+        ...plugin,
+        ...(this.selectedPlugin || {}),
+        installed: true,
+      };
       this.detailPluginName = data.plugin_name;
       this.detailThumbnailSources = this.getDetailThumbnailSources(this.selectedPlugin);
       this.detailThumbnailIndex = 0;
@@ -421,7 +439,8 @@ const model = {
         "Plugin Installer"
       );
     } catch (e) {
-      this.error = `Installation error: ${e.message}`;
+      const message = e instanceof Error ? e.message : String(e);
+      this.error = `Installation error: ${message}`;
     } finally {
       this.loading = false;
       this.loadingMessage = "";
@@ -438,7 +457,7 @@ const model = {
       });
       const plugins = Array.isArray(response.plugins) ? response.plugins : [];
       this.installedPluginInfo = plugins.find((p) => p.name === pluginName) || null;
-    } catch (e) {
+    } catch (_error) {
       this.installedPluginInfo = null;
     }
   },
@@ -453,7 +472,7 @@ const model = {
 
   manageOpenPlugin() {
     const info = this.installedPluginInfo;
-    if (!info?.name || !info?.has_main_screen) return;
+    if (!info || !info.name || !info.has_main_screen) return;
     openModal(`/plugins/${info.name}/webui/main.html`);
   },
 
@@ -489,10 +508,12 @@ const model = {
     const pls = this._pluginListStore();
     if (pls?.deletePlugin && this.installedPluginInfo) {
       await pls.deletePlugin(this.installedPluginInfo);
-      if (this.selectedPlugin) {
-        this.selectedPlugin.installed = false;
-        const idx = this.installedPlugins.indexOf(this.selectedPlugin.key);
-        if (idx !== -1) this.installedPlugins.splice(idx, 1);
+      const currentPlugin = this.selectedPlugin;
+      if (currentPlugin) {
+        this.selectedPlugin = { ...currentPlugin, installed: false };
+        this.installedPlugins = this.installedPlugins.filter(
+          (key) => key !== currentPlugin.key
+        );
       }
       this.installedPluginInfo = null;
     }
@@ -523,13 +544,20 @@ const model = {
    */
   getDetailThumbnailSources(plugin) {
     const currentPlugin = plugin || this.selectedPlugin;
-    const sources = [
+    const rawSources = [
       this.getThumbnailUrl(currentPlugin),
       this.getLocalThumbnailUrl(),
     ];
-    return sources.filter(
-      (url, index) => typeof url === "string" && sources.indexOf(url) === index
-    );
+    const uniqueSources = [];
+    const seen = new Set();
+
+    for (const url of rawSources) {
+      if (typeof url !== "string" || seen.has(url)) continue;
+      seen.add(url);
+      uniqueSources.push(url);
+    }
+
+    return uniqueSources;
   },
 
   getDetailThumbnailUrl() {

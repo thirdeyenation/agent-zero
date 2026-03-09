@@ -1,23 +1,53 @@
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import time
+import urllib.request
+import uuid
 import zipfile
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from helpers import files
+from helpers import yaml as yaml_helper
 from helpers.plugins import (
     META_FILE_NAME,
     PluginMetadata,
+    get_plugins_list,
     invalidate_plugin_cache,
 )
-from helpers import yaml as yaml_helper
+from werkzeug.datastructures import FileStorage
+from werkzeug.utils import secure_filename
 
 def _get_user_plugins_dir() -> str:
     """Return absolute path to usr/plugins/."""
     return files.get_abs_path(files.USER_DIR, files.PLUGINS_DIR)
+
+
+def _derive_git_plugin_name(url: str) -> str:
+    """Derive the canonical plugin ID from a Git repository URL."""
+    repo_name = url.rstrip("/").split("/")[-1]
+    if repo_name.endswith(".git"):
+        repo_name = repo_name[:-4]
+    if not repo_name:
+        raise ValueError("Could not derive plugin name from URL")
+    return repo_name
+
+
+def _derive_zip_plugin_name(
+    plugin_root: str, extract_dir: str, original_filename: str | None
+) -> str:
+    """Resolve the plugin ID for an uploaded ZIP archive."""
+    if plugin_root != extract_dir:
+        return os.path.basename(plugin_root)
+
+    upload_name = Path((original_filename or "").strip()).name
+    plugin_name = Path(upload_name).stem
+    if not plugin_name:
+        raise ValueError("Could not derive plugin name from uploaded filename")
+    return plugin_name
 
 
 def validate_plugin_dir(path: str) -> PluginMetadata:
@@ -48,7 +78,28 @@ def _find_plugin_root(extracted_dir: str) -> str:
     raise ValueError(f"No {META_FILE_NAME} found in the uploaded archive")
 
 
-def install_from_zip(zip_path: str) -> dict:
+def install_uploaded_zip(plugin_file: FileStorage) -> dict:
+    """Persist an uploaded ZIP temporarily and install it."""
+    original_filename = Path((plugin_file.filename or "").strip()).name
+    if not original_filename:
+        raise ValueError("No file selected")
+
+    tmp_dir = Path(files.get_abs_path("tmp", "plugin_uploads"))
+    tmp_dir.mkdir(parents=True, exist_ok=True)
+
+    temp_name = secure_filename(original_filename) or "plugin.zip"
+    if not temp_name.lower().endswith(".zip"):
+        temp_name = f"{temp_name}.zip"
+
+    unique = uuid.uuid4().hex[:8]
+    stamp = time.strftime("%Y%m%d_%H%M%S")
+    tmp_path = str(tmp_dir / f"plugin_{stamp}_{unique}_{temp_name}")
+    plugin_file.save(tmp_path)
+
+    return install_from_zip(tmp_path, original_filename=original_filename)
+
+
+def install_from_zip(zip_path: str, original_filename: str | None = None) -> dict:
     """Extract ZIP, find plugin.yaml, move its parent to usr/plugins/.
     Returns dict with plugin name and metadata.
     Cleans up tmp files regardless of outcome."""
@@ -74,13 +125,7 @@ def install_from_zip(zip_path: str) -> dict:
         # Find plugin.yaml
         plugin_root = _find_plugin_root(extract_dir)
         meta = validate_plugin_dir(plugin_root)
-        plugin_name = os.path.basename(plugin_root)
-
-        # If the zip only has one top-level dir that IS the plugin root,
-        # use that dir's name. Otherwise use the zip's stem.
-        if plugin_root == extract_dir:
-            # plugin.yaml at root of extraction — use zip filename stem
-            plugin_name = Path(zip_path).stem
+        plugin_name = _derive_zip_plugin_name(plugin_root, extract_dir, original_filename)
 
         check_plugin_conflict(plugin_name)
 
@@ -110,12 +155,7 @@ def install_from_git(url: str, token: Optional[str] = None) -> dict:
     Returns dict with plugin name and metadata."""
     from helpers.git import clone_repo
 
-    # Derive plugin name from URL
-    repo_name = url.rstrip("/").split("/")[-1]
-    if repo_name.endswith(".git"):
-        repo_name = repo_name[:-4]
-    if not repo_name:
-        raise ValueError("Could not derive plugin name from URL")
+    repo_name = _derive_git_plugin_name(url)
 
     check_plugin_conflict(repo_name)
 
@@ -146,11 +186,34 @@ def install_from_git(url: str, token: Optional[str] = None) -> dict:
     }
 
 
+def get_marketplace_index() -> dict[str, Any]:
+    """Return the plugin index plus installed marketplace keys."""
+    index_data = fetch_plugin_index()
+    if not isinstance(index_data, dict):
+        raise ValueError("Plugin index response was not a JSON object")
+
+    plugins = index_data.get("plugins")
+    if not isinstance(plugins, dict):
+        raise ValueError("Plugin index payload is missing a valid 'plugins' map")
+
+    installed_dirs = set(get_plugins_list())
+    installed_keys: list[str] = []
+    for key, plugin_data in plugins.items():
+        if not isinstance(plugin_data, dict):
+            continue
+        github_url = plugin_data.get("github", "")
+        try:
+            plugin_name = _derive_git_plugin_name(github_url)
+        except ValueError:
+            continue
+        if plugin_name in installed_dirs:
+            installed_keys.append(key)
+
+    return {"index": index_data, "installed_plugins": installed_keys}
+
+
 def fetch_plugin_index() -> dict:
     """Download the plugin index from GitHub releases."""
-    import urllib.request
-    import json
-
     index_url = "https://github.com/agent0ai/a0-plugins/releases/download/generated-index/index.json"
     req = urllib.request.Request(index_url, headers={"User-Agent": "AgentZero"})
     with urllib.request.urlopen(req, timeout=30) as resp:
