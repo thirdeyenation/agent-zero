@@ -1,14 +1,13 @@
 from __future__ import annotations
 
-import time
-import uuid
-from pathlib import Path
-
-from helpers.api import ApiHandler, Input, Request, Output
-from helpers import files
+from helpers.api import ApiHandler, Input, Output, Request
 from werkzeug.datastructures import FileStorage
-from werkzeug.utils import secure_filename
 
+from plugins.plugin_installer.helpers.install import (
+    get_marketplace_index,
+    install_from_git,
+    install_uploaded_zip,
+)
 
 class PluginInstall(ApiHandler):
     """Plugin installation API. Handles ZIP upload, Git clone, and index fetch."""
@@ -38,19 +37,7 @@ class PluginInstall(ApiHandler):
         if not plugin_file.filename:
             return {"success": False, "error": "No file selected"}
 
-        # Save upload to temp
-        tmp_dir = Path(files.get_abs_path("tmp", "plugin_uploads"))
-        tmp_dir.mkdir(parents=True, exist_ok=True)
-        base = secure_filename(plugin_file.filename)
-        if not base.lower().endswith(".zip"):
-            base = f"{base}.zip"
-        unique = uuid.uuid4().hex[:8]
-        stamp = time.strftime("%Y%m%d_%H%M%S")
-        tmp_path = str(tmp_dir / f"plugin_{stamp}_{unique}_{base}")
-        plugin_file.save(tmp_path)
-
-        from plugins.plugin_installer.helpers.install import install_from_zip
-        return install_from_zip(tmp_path)
+        return install_uploaded_zip(plugin_file)
 
     def _install_git(self, input: dict) -> dict:
         git_url = (input.get("git_url", "") or "").strip()
@@ -58,16 +45,7 @@ class PluginInstall(ApiHandler):
         if not git_url:
             return {"success": False, "error": "Git URL is required"}
 
-        from plugins.plugin_installer.helpers.install import install_from_git
         return install_from_git(git_url, git_token)
 
     def _fetch_index(self, input: dict) -> dict:
-        from plugins.plugin_installer.helpers.install import fetch_plugin_index
-        from helpers.plugins import get_plugins_list
-        index_data = fetch_plugin_index()
-        installed = get_plugins_list()
-        return {
-            "success": True,
-            "index": index_data,
-            "installed_plugins": installed,
-        }
+        return {"success": True, **get_marketplace_index()}

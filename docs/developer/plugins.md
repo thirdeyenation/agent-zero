@@ -225,3 +225,8 @@ A built-in **Plugin Marketplace** (always-active plugin) will allow users to bro
 - `docs/agents/AGENTS.plugins.md` for full architecture details
 - `skills/a0-create-plugin/SKILL.md` for plugin authoring workflow (agent-facing)
 - `plugins/README.md` for core plugin directory overview
+
+## Frontend Extension Notes
+
+- HTML breakpoints are preferred when the core template already exposes an `x-extension` anchor.
+- JS hooks are the right fit for runtime-built UI surfaces. For example, `confirm_dialog_after_render` can extend the shared confirm dialog using the supplied DOM nodes and caller `extensionContext`.
