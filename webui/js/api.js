@@ -1,22 +1,3 @@
-let _extensionsModule = null;
-
-async function _getExtensions() {
-  if (!_extensionsModule) _extensionsModule = await import("./extensions.js");
-  return _extensionsModule;
-}
-
-async function _shouldCallApiExtensions(apiUrl) {
-  const extensions = await _getExtensions();
-  const excluded = extensions.API_EXTENSION_EXCLUDED_ENDPOINTS;
-  return !(excluded instanceof Set && excluded.has(apiUrl));
-}
-
-function _normalizeApiUrl(url) {
-  return url.startsWith("/api/") || url.startsWith("api/")
-    ? `/${url.replace(/^\/+/, "")}`
-    : `/api/${url.replace(/^\/+/, "")}`;
-}
-
 /**
  * Call a JSON-in JSON-out API endpoint
  * Data is automatically serialized
@@ -61,7 +42,7 @@ export async function callJsonApi(endpoint, data) {
     }
 
     if (ctx.error) throw ctx.error;
-    
+
     return ctx.result;
   }
 
@@ -128,14 +109,9 @@ export async function fetchApi(url, request) {
       // retry the request with new token
       csrfToken = null;
       return await _wrap(false);
-    } else if (finalResponse.redirected && finalResponse.url.endsWith("/login")) {
-      // redirect to login (origin check prevents open redirect)
-      const _redirectUrl = new URL(finalResponse.url);
-      if (_redirectUrl.origin === window.location.origin) {
-        window.location.href = finalResponse.url;
-      }
-      return;
     }
+
+    if (redirect(finalResponse)) return;
 
     // return the response
     return finalResponse;
@@ -220,14 +196,8 @@ export async function getCsrfToken() {
       }
     }
 
-    if (response.redirected && response.url.endsWith("/login")) {
-      // redirect to login (origin check prevents open redirect)
-      const _redirectUrl = new URL(response.url);
-      if (_redirectUrl.origin === window.location.origin) {
-        window.location.href = response.url;
-      }
-      return;
-    }
+    if (redirect(response)) return;
+
     const json = await response.json();
     if (json.ok) {
       const runtimeId =
@@ -247,13 +217,17 @@ export async function getCsrfToken() {
           : null;
       const cookieRuntimeId = runtimeId || injectedRuntimeId;
       if (cookieRuntimeId) {
-        const _secureFlag = window.location.protocol === 'https:' ? '; Secure' : '';
+        const _secureFlag =
+          window.location.protocol === "https:" ? "; Secure" : "";
         document.cookie = `csrf_token_${cookieRuntimeId}=${csrfToken}; SameSite=Strict; Path=/${_secureFlag}`;
       } else {
         console.warn("CSRF runtime id missing; skipping cookie name binding.");
       }
       const elapsedMs = Date.now() - startedAt;
-      if (elapsedMs > CSRF_SLOW_WARN_MS && globalThis.runtimeInfo?.isDevelopment) {
+      if (
+        elapsedMs > CSRF_SLOW_WARN_MS &&
+        globalThis.runtimeInfo?.isDevelopment
+      ) {
         console.warn(`CSRF token request took ${elapsedMs}ms`);
       }
       return csrfToken;
@@ -268,4 +242,34 @@ export async function getCsrfToken() {
   } finally {
     csrfTokenPromise = null;
   }
+}
+
+
+
+let _extensionsModule = null;
+
+async function _getExtensions() {
+  if (!_extensionsModule) _extensionsModule = await import("./extensions.js");
+  return _extensionsModule;
+}
+
+async function _shouldCallApiExtensions(apiUrl) {
+  const extensions = await _getExtensions();
+  const excluded = extensions.API_EXTENSION_EXCLUDED_ENDPOINTS;
+  return !(excluded instanceof Set && excluded.has(apiUrl));
+}
+
+function _normalizeApiUrl(url) {
+  return url.startsWith("/api/") || url.startsWith("api/")
+    ? `/${url.replace(/^\/+/, "")}`
+    : `/api/${url.replace(/^\/+/, "")}`;
+}
+
+function redirect(response) {
+  if (!(response.redirected && response.url.endsWith("/login"))) return false;
+  const _redirectUrl = new URL(response.url);
+  if (_redirectUrl.origin === window.location.origin) {
+    window.location.href = response.url;
+  }
+  return true;
 }

@@ -1,4 +1,5 @@
 from git import Repo
+from giturlparse import parse
 from datetime import datetime
 import os
 import subprocess
@@ -18,6 +19,19 @@ def strip_auth_from_url(url: str) -> str:
     if parsed.port:
         clean_netloc += f":{parsed.port}"
     return urlunparse((parsed.scheme, clean_netloc, parsed.path, '', '', ''))
+
+
+def extract_author_repo(url: str) -> tuple[str, str]:
+    parsed = parse(strip_auth_from_url(url.strip()))
+    author = (parsed.owner or "").strip()
+    repo = (parsed.repo or parsed.name or "").strip()
+    if not parsed.valid or not author or not repo:
+        raise ValueError("Could not derive plugin name from URL")
+    if repo.endswith(".git"):
+        repo = repo[:-4]
+    if not author or not repo:
+        raise ValueError("Could not derive plugin name from URL")
+    return author, repo
 
 
 def get_git_info():

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import time
 import urllib.request
@@ -11,12 +12,13 @@ from pathlib import Path
 from typing import Any, Optional
 
 from helpers import files
+from helpers.git import extract_author_repo
 from helpers import yaml as yaml_helper
 from helpers.plugins import (
     META_FILE_NAME,
     PluginMetadata,
     get_plugins_list,
-    invalidate_plugin_cache,
+    clear_plugin_cache,
 )
 from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
@@ -26,18 +28,31 @@ def _get_user_plugins_dir() -> str:
     return files.get_abs_path(files.USER_DIR, files.PLUGINS_DIR)
 
 
- def _sanitize_plugin_name(name: str) -> str:
-    """Validate and sanitize a plugin directory name.
-    Converts dots and dashes to underscores for Python import compatibility.
-    Raises ValueError if the name is unsafe for filesystem use."""
-    name = name.strip().strip(".")
-    name = re.sub(r"[-.]", "_", name)
-    if not name or not _SAFE_NAME_RE.match(name):
-        raise ValueError(
-            f"Invalid plugin name: '{name}'. "
-            "Names must start with a letter or digit and contain only letters, digits, or underscores."
-        )
-    return name
+def _derive_git_plugin_name(url: str) -> str:
+    """Derive the canonical plugin ID from a Git repository URL."""
+    parts = extract_author_repo(url)
+    repo_name = "__".join(
+        cleaned
+        for part in parts
+        if (cleaned := re.sub(r"_+", "_", re.sub(r"[^0-9A-Za-z]+", "_", part)).strip("_"))
+    )
+    if not repo_name:
+        raise ValueError("Could not derive plugin name from URL")
+    return repo_name
+
+
+def _derive_zip_plugin_name(
+    plugin_root: str, extract_dir: str, original_filename: str | None
+) -> str:
+    """Resolve the plugin ID for an uploaded ZIP archive."""
+    if plugin_root != extract_dir:
+        return os.path.basename(plugin_root)
+
+    upload_name = Path((original_filename or "").strip()).name
+    plugin_name = Path(upload_name).stem
+    if not plugin_name:
+        raise ValueError("Could not derive plugin name from uploaded filename")
+    return plugin_name
 
 
 def validate_plugin_dir(path: str) -> PluginMetadata:
@@ -157,7 +172,6 @@ def install_from_git(url: str, token: Optional[str] = None) -> dict:
     except Exception as e:
         # Cleanup partial clone
         shutil.rmtree(dest, ignore_errors=True)
-        clear_plugin_cache()
         raise ValueError(f"Git clone failed: {e}") from e
 
     try:
@@ -165,7 +179,6 @@ def install_from_git(url: str, token: Optional[str] = None) -> dict:
     except ValueError:
         # No plugin.yaml — remove cloned repo
         shutil.rmtree(dest, ignore_errors=True)
-        clear_plugin_cache()
         raise
 
     clear_plugin_cache()
