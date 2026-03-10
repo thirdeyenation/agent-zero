@@ -282,8 +282,8 @@ const model = {
 
         if (!this.loadedPath) {
             return this.configs.length === 0
-                ? "No activation rules configured. Plugin defaults to ON."
-                : "No rule for this scope. Defaults to ON.";
+                ? "No activation rule exists yet. This plugin is currently ON by default."
+                : "No activation rule exists for this scope yet. This scope is currently ON by default.";
         }
 
         // Inherited from a parent scope - mirrors plugin-settings-store scopeMismatchMessage

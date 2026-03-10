@@ -23,7 +23,40 @@
                     </div>
                     <div class="pi-hero-info">
                         <div class="pi-hero-title-row">
-                            <h2 class="pi-hero-title" x-text="$store.pluginInstallStore.selectedPlugin.title || $store.pluginInstallStore.selectedPlugin.key"></h2>
+                            <div class="pi-hero-main">
+                                <h2 class="pi-hero-title" x-text="$store.pluginInstallStore.selectedPlugin.title || $store.pluginInstallStore.selectedPlugin.key"></h2>
+                                <template x-if="$store.pluginInstallStore.selectedPlugin.installed">
+                                    <div class="pi-installed-badge-simple">
+                                        <span class="material-symbols-outlined">check_circle</span>
+                                        <span>Installed</span>
+                                    </div>
+                                </template>
+                                <div class="pi-hero-meta">
+                                    <template x-if="$store.pluginInstallStore.selectedPlugin.author">
+                                        <span class="pi-hero-author">
+                                            <span class="pi-hero-label">Author</span>
+                                            <span x-text="$store.pluginInstallStore.selectedPlugin.author"></span>
+                                        </span>
+                                    </template>
+                                    <span class="pi-hero-stars">
+                                        <span class="material-symbols-outlined">star</span>
+                                        <span x-text="($store.pluginInstallStore.selectedPlugin.stars || 0)"></span>
+                                        <template x-if="$store.pluginInstallStore.selectedPlugin.github">
+                                            <a :href="$store.pluginInstallStore.selectedPlugin.github"
+                                               target="_blank"
+                                               rel="noopener noreferrer"
+                                               class="pi-dev-link">
+                                                Give a star
+                                            </a>
+                                        </template>
+                                    </span>
+                                </div>
+                                <div class="pi-hero-tags" x-show="$store.pluginInstallStore.selectedPlugin.tags?.length">
+                                    <template x-for="tag in $store.pluginInstallStore.selectedPlugin.tags || []" :key="tag">
+                                        <span class="pi-tag" x-text="tag"></span>
+                                    </template>
+                                </div>
+                            </div>
                             <template x-if="$store.pluginInstallStore.selectedPlugin.installed && $store.pluginInstallStore.installedPluginInfo">
                                 <div class="pi-hero-manage">
                                     <template x-if="$store.pluginInstallStore.installedPluginInfo.has_main_screen">
@@ -63,31 +96,10 @@
                                 </div>
                             </template>
                         </div>
-                        <template x-if="$store.pluginInstallStore.selectedPlugin.installed">
-                            <div class="pi-installed-badge-simple">
-                                <span class="material-symbols-outlined">check_circle</span>
-                                <span>Installed</span>
-                            </div>
-                        </template>
-                        <div class="pi-hero-meta">
-                            <template x-if="$store.pluginInstallStore.selectedPlugin.author">
-                                <span class="pi-hero-author">
-                                    <span class="pi-hero-label">Author</span>
-                                    <span x-text="$store.pluginInstallStore.selectedPlugin.author"></span>
-                                </span>
-                            </template>
-                            <span class="pi-hero-stars">
-                                <span class="material-symbols-outlined">star</span>
-                                <span x-text="($store.pluginInstallStore.selectedPlugin.stars || 0)"></span>
-                            </span>
-                        </div>
-                        <div class="pi-hero-tags" x-show="$store.pluginInstallStore.selectedPlugin.tags?.length">
-                            <template x-for="tag in $store.pluginInstallStore.selectedPlugin.tags || []" :key="tag">
-                                <span class="pi-tag" x-text="tag"></span>
-                            </template>
-                        </div>
                     </div>
                 </div>
+
+                <div class="pi-description" x-text="$store.pluginInstallStore.selectedPlugin.description || 'No description available.'"></div>
 
                 <div class="pi-screenshots-section"
                      x-show="$store.pluginInstallStore.selectedPlugin.screenshots?.length">
@@ -97,12 +109,10 @@
                             <img class="pi-screenshot-thumb"
                                  :src="url"
                                  :alt="$store.pluginInstallStore.selectedPlugin.title + ' screenshot ' + (i + 1)"
-                                 @click="$store.imageViewer.open(url, { name: $store.pluginInstallStore.selectedPlugin.title })">
+                                 @click="$store.pluginInstallStore.openScreenshot(url)">
                         </template>
                     </div>
                 </div>
-
-                <div class="pi-description" x-text="$store.pluginInstallStore.selectedPlugin.description || 'No description available.'"></div>
 
                 <div class="pi-actions-primary">
                     <template x-if="!$store.pluginInstallStore.selectedPlugin.installed">
@@ -227,11 +237,18 @@
         }
 
         .pi-hero-title-row {
-            display: flex;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) clamp(18rem, 42%, 32rem);
             align-items: flex-start;
-            justify-content: space-between;
-            gap: 0.75rem;
+            column-gap: 1rem;
+            row-gap: 0.5rem;
             margin-bottom: 0.5rem;
+        }
+
+        .pi-hero-main {
+            min-width: 0;
+            width: 100%;
+            row-gap: var(--spacing-xxs);
         }
 
         .pi-hero-title {
@@ -240,6 +257,7 @@
             font-weight: 600;
             line-height: 1.2;
             color: var(--color-text-primary);
+            min-width: 0;
         }
 
         .pi-hero-manage {
@@ -247,8 +265,9 @@
             align-items: center;
             gap: 0.5rem;
             flex-wrap: wrap;
-            flex-shrink: 0;
             justify-content: flex-end;
+            align-content: flex-start;
+            width: 100%;
         }
 
         .pi-hero-manage .button {
@@ -289,6 +308,7 @@
             gap: 0.3rem;
             font-size: 0.95rem;
             color: var(--color-text-secondary);
+            flex-wrap: wrap;
         }
 
         .pi-hero-stars .material-symbols-outlined {
@@ -309,7 +329,7 @@
             font-size: 0.9rem;
             font-weight: 600;
             color: #22c55e;
-            margin-bottom: 0.35rem;
+            margin: var(--spacing-xs) 0;
         }
 
         .pi-installed-badge-simple .material-symbols-outlined {
@@ -462,8 +482,8 @@
         }
 
         .pi-screenshots-section {
-            margin-top: 1.5rem;
-            padding-top: 1.5rem;
+            margin: var(--spacing-lg) 0;
+            padding-top: var(--spacing-lg);
             border-top: 1px solid var(--color-border);
         }
 
@@ -634,7 +654,7 @@
             gap: 0.5rem;
             padding: 0.5rem 0;
             text-decoration: none;
-            font-size: 0.9rem;
+            font-size: 0.8rem;
             color: var(--color-text-secondary);
             transition: color 0.15s;
         }
@@ -673,8 +693,8 @@
             }
 
             .pi-hero-title-row {
-                flex-direction: column;
-                align-items: center;
+                grid-template-columns: 1fr;
+                justify-items: center;
             }
 
             .pi-hero-manage {
@@ -682,6 +702,11 @@
             }
 
             .pi-hero-meta {
+                justify-content: center;
+            }
+
+            .pi-hero-stars {
+                flex-basis: 100%;
                 justify-content: center;
             }
 
