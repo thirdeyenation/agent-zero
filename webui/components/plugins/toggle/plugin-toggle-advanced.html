@@ -63,7 +63,7 @@
                                     <label class="toggle" :class="{ 'disabled-appearance': !$store.pluginToggle.hasExplicitRuleForScope && !$store.pluginToggle.alwaysEnabled }">
                                         <input type="checkbox"
                                                :checked="$store.pluginToggle.status === 'enabled'"
-                                               :disabled="$store.pluginToggle.alwaysEnabled || $store.pluginToggle.isSaving || !$store.pluginToggle.hasExplicitRuleForScope"
+                                               :disabled="$store.pluginToggle.alwaysEnabled || $store.pluginToggle.isSaving"
                                                @change="$store.pluginToggle.setEnabled($event.target.checked)">
                                         <span class="toggler"></span>
                                     </label>

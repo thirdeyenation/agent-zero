@@ -97,7 +97,7 @@
                             <img class="pi-screenshot-thumb"
                                  :src="url"
                                  :alt="$store.pluginInstallStore.selectedPlugin.title + ' screenshot ' + (i + 1)"
-                                 @click="$store.imageViewer.open(url, { name: $store.pluginInstallStore.selectedPlugin.title })">
+                                 @click="$store.pluginInstallStore.openScreenshot(url)">
                         </template>
                     </div>
                 </div>

@@ -1,9 +1,9 @@
 import { createStore } from "/js/AlpineStore.js";
 import * as api from "/js/api.js";
-import "/components/plugins/plugin-settings-store.js";
-import "/components/plugins/toggle/plugin-toggle-store.js";
-import "/components/plugins/list/plugin-init-store.js";
-import "/components/modals/markdown/markdown-store.js";
+import { store as pluginSettingsStore } from "/components/plugins/plugin-settings-store.js";
+import { store as pluginToggleStore } from "/components/plugins/toggle/plugin-toggle-store.js";
+import { store as pluginInitStore } from "/components/plugins/list/plugin-init-store.js";
+import { store as markdownModalStore } from "/components/modals/markdown/markdown-store.js";
 import {
   store as notificationStore,
   defaultPriority,
@@ -56,14 +56,17 @@ const model = {
     window.openModal?.(`/plugins/${plugin.name}/webui/main.html`);
   },
 
+  openPluginInit(plugin) {
+    if (!plugin?.name || !plugin?.has_init_script) return;
+    pluginInitStore.open(plugin);
+  },
+
   async openPluginConfig(plugin) {
     if (!plugin?.name || !plugin?.has_config_screen) return;
     try {
       // Initialize toggle store for activation state UI in settings modal
-      const pluginToggleStore = Alpine.store("pluginToggle");
       if (pluginToggleStore?.open) await pluginToggleStore.open(plugin);
 
-      const pluginSettingsStore = Alpine.store("pluginSettingsPrototype");
       if (!pluginSettingsStore?.open) {
         throw new Error("Plugin settings store is unavailable.");
       }
@@ -85,7 +88,6 @@ const model = {
     if (!plugin?.name) return;
     this.selectedPlugin = plugin;
     try {
-        const pluginToggleStore = Alpine.store("pluginToggle");
         if (!pluginToggleStore?.open) {
             throw new Error("Plugin toggle store is unavailable.");
         }
@@ -136,9 +138,8 @@ const model = {
         doc,
       });
       if (response?.error) throw new Error(response.error);
-      const markdownModal = Alpine.store("markdownModal");
-      if (!markdownModal) throw new Error("Markdown modal store unavailable.");
-      markdownModal.open(response.filename, response.content);
+      if (!markdownModalStore?.open) throw new Error("Markdown modal store unavailable.");
+      markdownModalStore.open(response.filename, response.content);
       window.openModal?.("components/modals/markdown/markdown-modal.html");
     } catch (e) {
       showErrorNotification(e, "Failed to open document");

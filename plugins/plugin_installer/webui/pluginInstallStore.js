@@ -1,12 +1,12 @@
-import { createStore, getStore } from "/js/AlpineStore.js";
+import { createStore } from "/js/AlpineStore.js";
 import * as api from "/js/api.js";
 import { openModal } from "/js/modals.js";
 import { marked } from "/vendor/marked/marked.esm.js";
 import { toastFrontendSuccess } from "/components/notifications/notification-store.js";
 import { showConfirmDialog } from "/js/confirmDialog.js";
-import {store as pluginListStore } from "/components/plugins/list/pluginListStore.js";
-// import {store as pluginInitStore } from "/components/plugins/list/plugin-init-store.js";
-// import {store as imageViewerStore } from "/components/modals/image-viewer/image-viewer-store.js";
+import { store as imageViewerStore } from "/components/modals/image-viewer/image-viewer-store.js";
+import { store as pluginListStore } from "/components/plugins/list/pluginListStore.js";
+import { store as pluginInitStore } from "/components/plugins/list/plugin-init-store.js";
 
 const PLUGIN_API = "plugins/plugin_installer/plugin_install";
 const PER_PAGE = 20;
@@ -49,6 +49,7 @@ const model = {
   loading: false,
   loadingMessage: "",
   error: "",
+  result: null,
 
   // README state
   readmeContent: null,
@@ -65,6 +66,7 @@ const model = {
   setTab(tab) {
     this.activeTab = tab;
     this.error = "";
+    this.result = null;
   },
 
   setBrowseFilter(filter) {
@@ -129,6 +131,7 @@ const model = {
     this.zipFile = file;
     this.zipFileName = file.name;
     this.error = "";
+    this.result = null;
   },
 
   async installZip() {
@@ -144,6 +147,7 @@ const model = {
       this.loading = true;
       this.loadingMessage = "Installing plugin from ZIP...";
       this.error = "";
+      this.result = null;
 
       const formData = new FormData();
       formData.append("action", "install_zip");
@@ -159,6 +163,8 @@ const model = {
         this.error = data.error || "Installation failed";
         return;
       }
+
+      this.result = data;
 
       toastFrontendSuccess(
         `Plugin "${data.title || data.plugin_name}" installed`,
@@ -189,6 +195,7 @@ const model = {
       this.loading = true;
       this.loadingMessage = "Cloning repository...";
       this.error = "";
+      this.result = null;
 
       const data = await api.callJsonApi(PLUGIN_API, {
         action: "install_git",
@@ -200,6 +207,8 @@ const model = {
         this.error = data.error || "Clone failed";
         return;
       }
+
+      this.result = data;
 
       toastFrontendSuccess(
         `Plugin "${data.title || data.plugin_name}" installed`,
@@ -350,8 +359,9 @@ const model = {
   },
 
   openDetail(plugin) {
-    this.selectedPlugin = {...plugin, name: this._pluginName(plugin) };
+    this.selectedPlugin = { ...plugin, name: this._pluginName(plugin) };
     this.error = "";
+    this.result = null;
     this.installedPluginInfo = null;
     this.readmeContent = null;
     this.detailThumbnailUrl = this.getThumbnailUrl(this.selectedPlugin);
@@ -491,9 +501,8 @@ const model = {
   },
 
   manageOpenInit() {
-    const initStore = this._pluginInitStore();
-    if (initStore?.open && this.installedPluginInfo) {
-      initStore.open(this.installedPluginInfo);
+    if (this.installedPluginInfo) {
+      pluginInitStore.open(this.installedPluginInfo);
     }
   },
 
@@ -527,18 +536,27 @@ const model = {
     return this.detailThumbnailUrl;
   },
 
+  openScreenshot(url) {
+    if (!url) return;
+    imageViewerStore.open(url, {
+      name: this.selectedPlugin?.title || this.selectedPlugin?.key || "Plugin screenshot",
+    });
+  },
+
   // ── Shared ───────────────────────────────────
 
   resetZip() {
     this.zipFile = null;
     this.zipFileName = "";
     this.error = "";
+    this.result = null;
   },
 
   resetGit() {
     this.gitUrl = "";
     this.gitToken = "";
     this.error = "";
+    this.result = null;
   },
 
   resetIndex() {
@@ -547,6 +565,7 @@ const model = {
     this.sortBy = "stars";
     this.browseFilter = "all";
     this.error = "";
+    this.result = null;
     this.selectedPlugin = null;
   },
 

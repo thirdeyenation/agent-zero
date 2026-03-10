@@ -9,8 +9,7 @@
     <div x-data>
         <template x-if="$store.pluginInstallStore">
             <div class="pi-browse-shell"
-                 x-init="$store.pluginInstallStore.resetIndex(); $store.pluginInstallStore.fetchIndex()"
-                 x-destroy="$store.pluginInstallStore.refreshPluginList()">
+                 x-create="$store.pluginInstallStore.resetIndex(); $store.pluginInstallStore.fetchIndex()">
 
                 <section class="pi-browse-hero">
                     <div class="pi-browse-copy">

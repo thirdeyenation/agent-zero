@@ -1,5 +1,7 @@
 import { createStore } from "/js/AlpineStore.js";
 import { showConfirmDialog } from "/js/confirmDialog.js";
+import { store as settingsStore } from "/components/settings/settings-store.js";
+import { store as pluginToggleStore } from "/components/plugins/toggle/plugin-toggle-store.js";
 
 const fetchApi = globalThis.fetchApi;
 const justToast = globalThis.justToast;
@@ -56,11 +58,10 @@ const model = {
         await this.loadSettings();
 
         // Mirror scope change to pluginToggle so activation state stays in sync
-        const toggleStore = Alpine.store('pluginToggle');
-        if (toggleStore) {
-            toggleStore.projectName = nextProject;
-            toggleStore.agentProfileKey = nextProfile;
-            await toggleStore.loadToggleStatus();
+        if (pluginToggleStore?.loadToggleStatus) {
+            pluginToggleStore.projectName = nextProject;
+            pluginToggleStore.agentProfileKey = nextProfile;
+            await pluginToggleStore.loadToggleStatus();
         }
     },
 
@@ -292,9 +293,8 @@ const model = {
 
         // Core-backed plugins (e.g. memory) delegate to the settings store
         if (this.saveMode === 'core') {
-            const coreStore = Alpine.store('settings');
-            if (coreStore?.saveSettings) {
-                const ok = await coreStore.saveSettings();
+            if (settingsStore?.saveSettings) {
+                const ok = await settingsStore.saveSettings();
                 if (ok) window.closeModal?.();
             }
             return;
