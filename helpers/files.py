@@ -18,6 +18,7 @@ AGENTS_DIR = "agents"
 PLUGINS_DIR = "plugins"
 PROJECTS_DIR = "projects"
 USER_DIR = "usr"
+TEMP_DIR = "tmp"
 
 
 class VariablesPlugin(ABC):
