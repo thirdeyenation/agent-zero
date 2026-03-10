@@ -25,7 +25,7 @@ export default async function addMarketplaceScanAction(context) {
   if (!bodyElement.querySelector(`.${NOTE_CLASS}`)) {
     const note = document.createElement("p");
     note.className = NOTE_CLASS;
-    note.textContent = "It is always recommended to scan all plugins and updates with A0 itself.";
+    note.textContent = "A0 Plugin Scanner can identify most threats. It is always recommended to scan all plugins and updates with A0 itself.";
     bodyElement.appendChild(note);
   }
 

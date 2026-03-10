@@ -14,13 +14,13 @@ const PER_PAGE = 20;
 const SECURITY_WARNING = {
   title: "Security Warning",
   message: `
-    <p><strong>Installing plugins from untrusted sources may pose security risks:</strong></p>
+    <p><strong>Plugins from third parties can be a great risk, keep in mind that:</strong></p>
     <ul style="margin: 0.75em 0; padding-left: 1.5em;">
-      <li>Malicious code execution</li>
-      <li>Exposure of sensitive data</li>
-      <li>System compromise</li>
+      <li>You can be hacked the moment you install it</li>
+      <li>We can not prevent it or help you</li>
+      <li>It is your responsibility</li>
     </ul>
-    <p style="margin-top: 0.75em;">Only install plugins from sources you trust.</p>
+    <p style="margin-top: 0.75em;">We can never fully guarantee that plugins are safe because there are many ways to obfuscate malicious code.</p>
   `,
   type: "warning",
   confirmText: "Install Anyway",
