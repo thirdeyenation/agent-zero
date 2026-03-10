@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import re, json, glob
 import time
 from pathlib import Path
@@ -16,6 +17,8 @@ from typing import (
 
 from helpers import files, notification, print_style, yaml as yaml_helper, cache
 from pydantic import BaseModel, Field
+
+from helpers.defer import DeferredTask
 
 if TYPE_CHECKING:
     from agent import Agent
@@ -73,9 +76,9 @@ class PluginListItem(BaseModel):
     toggle_state: ToggleState = "disabled"
 
 
-def after_plugin_change():
+def after_plugin_change(plugin_names: list[str] | None = None):
     clear_plugin_cache()
-    send_frontend_reload_notification()
+    send_frontend_reload_notification(plugin_names)
 
 
 def clear_plugin_cache():
@@ -195,8 +198,9 @@ def delete_plugin(plugin_name: str):
     custom_plugins_dir = files.get_abs_path(files.USER_DIR, files.PLUGINS_DIR)
     if not files.is_in_dir(plugin_dir, custom_plugins_dir):
         raise ValueError("Only custom plugins can be deleted")
+    send_frontend_reload_notification([plugin_name])  # send before deletion to properly check the extensions, second notification will be skipped automatically
     files.delete_dir(plugin_dir)
-    after_plugin_change()
+    after_plugin_change([plugin_name])
 
 
 def get_plugin_paths(*subpaths: str) -> List[str]:
@@ -355,7 +359,7 @@ def toggle_plugin(
         files.write_file(enabled_file, "")
     else:
         files.write_file(disabled_file, "")
-    after_plugin_change()
+    after_plugin_change([plugin_name])
 
 
 def get_plugin_config(
@@ -412,7 +416,7 @@ def save_plugin_config(
     )
     if file_path:
         files.write_file(file_path, json.dumps(settings))
-        after_plugin_change()
+        after_plugin_change([plugin_name])
 
 
 def find_plugin_asset(
@@ -559,7 +563,8 @@ def determine_plugin_asset_path(
     return files.get_abs_path(base_path, files.PLUGINS_DIR, plugin_name, *subpaths)
 
 
-def send_frontend_reload_notification():
+def send_frontend_reload_notification(plugin_names: list[str] | None = None):
+    """If the plugin changed has webui extensions, notify frontend to reload the page"""
     global _last_frontend_reload_notification_at
 
     display_time = 3
@@ -567,15 +572,34 @@ def send_frontend_reload_notification():
     if now - _last_frontend_reload_notification_at < display_time:
         return
 
-    _last_frontend_reload_notification_at = now
+    if plugin_names:
+        has_webui_extension = False
+        for plugin_name in plugin_names:
+            plugin_dir = find_plugin_dir(plugin_name)
+            if plugin_dir and files.exists(
+                files.get_abs_path(plugin_dir, "extensions", "webui")
+            ):
+                has_webui_extension = True
+                break
+        if not has_webui_extension:
+            return
 
-    notification.NotificationManager.send_notification(
-        type=notification.NotificationType.INFO,
-        priority=notification.NotificationPriority.NORMAL,
-        title="Plugins updated, page reload recommended",
-        message="""<button type="button" class="button confirm" onclick="window.location.reload()"><span class="icon material-symbols-outlined">refresh</span>Reload page</button>""",
-        detail="",
-        display_time=display_time,
-        group="plugins_changed",
-        id="plugins_frontend_reload",
-    )
+    async def _send_later():
+        global _last_frontend_reload_notification_at
+
+        await asyncio.sleep(1)
+
+        _last_frontend_reload_notification_at = time.monotonic()
+
+        notification.NotificationManager.send_notification(
+            type=notification.NotificationType.INFO,
+            priority=notification.NotificationPriority.NORMAL,
+            title="Plugins with frontend extensions updated, page reload recommended",
+            message="""<button type="button" class="button confirm" onclick="window.location.reload()"><span class="icon material-symbols-outlined">refresh</span>Reload page</button>""",
+            detail="",
+            display_time=display_time,
+            group="plugins_changed",
+            id="plugins_frontend_reload",
+        )
+
+    DeferredTask().start_task(_send_later)

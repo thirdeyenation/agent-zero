@@ -15,7 +15,7 @@ class Plugins(ApiHandler):
     """
 
     async def process(self, input: dict, request: Request) -> dict | Response:
-        action = input.get("action", "get_config")
+        action = input.get("action", "")
 
         # Accept legacy aliases during migration.
         if action == "get_config":

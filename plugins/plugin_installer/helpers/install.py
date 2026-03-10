@@ -138,7 +138,7 @@ def install_from_zip(zip_path: str, original_filename: str | None = None) -> dic
         dest = os.path.join(_get_user_plugins_dir(), plugin_name)
         os.makedirs(os.path.dirname(dest), exist_ok=True)
         shutil.move(plugin_root, dest)
-        after_plugin_change()
+        after_plugin_change([plugin_name])
 
         return {
             "success": True,
@@ -181,7 +181,7 @@ def install_from_git(url: str, token: Optional[str] = None) -> dict:
         shutil.rmtree(dest, ignore_errors=True)
         raise
 
-    after_plugin_change()
+    after_plugin_change([repo_name])
 
     return {
         "success": True,
