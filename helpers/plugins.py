@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re, json, glob
+import time
 from pathlib import Path
 from typing import (
     Any,
@@ -13,7 +14,7 @@ from typing import (
     TypedDict,
 )
 
-from helpers import files, print_style, yaml as yaml_helper, cache
+from helpers import files, notification, print_style, yaml as yaml_helper, cache
 from pydantic import BaseModel, Field
 
 if TYPE_CHECKING:
@@ -40,6 +41,7 @@ CONFIG_DEFAULT_FILE_NAME = "default_config.yaml"
 DISABLED_FILE_NAME = ".toggle-0"
 ENABLED_FILE_NAME = ".toggle-1"
 TOGGLE_FILE_PATTERN = ".toggle-[01]"
+_last_frontend_reload_notification_at = 0.0
 
 
 class PluginMetadata(BaseModel):
@@ -69,6 +71,11 @@ class PluginListItem(BaseModel):
     has_license: bool = False
     has_init_script: bool = False
     toggle_state: ToggleState = "disabled"
+
+
+def after_plugin_change():
+    clear_plugin_cache()
+    send_frontend_reload_notification()
 
 
 def clear_plugin_cache():
@@ -189,7 +196,7 @@ def delete_plugin(plugin_name: str):
     if not files.is_in_dir(plugin_dir, custom_plugins_dir):
         raise ValueError("Only custom plugins can be deleted")
     files.delete_dir(plugin_dir)
-    clear_plugin_cache()
+    after_plugin_change()
 
 
 def get_plugin_paths(*subpaths: str) -> List[str]:
@@ -348,7 +355,7 @@ def toggle_plugin(
         files.write_file(enabled_file, "")
     else:
         files.write_file(disabled_file, "")
-    clear_plugin_cache()
+    after_plugin_change()
 
 
 def get_plugin_config(
@@ -387,7 +394,9 @@ def get_plugin_config(
 
 
 def get_default_plugin_config(plugin_name: str):
-    file_path = files.get_abs_path(find_plugin_dir(plugin_name), CONFIG_DEFAULT_FILE_NAME)
+    file_path = files.get_abs_path(
+        find_plugin_dir(plugin_name), CONFIG_DEFAULT_FILE_NAME
+    )
     if file_path and files.exists(file_path):
         return (
             json.loads if file_path.lower().endswith(".json") else yaml_helper.loads
@@ -403,7 +412,7 @@ def save_plugin_config(
     )
     if file_path:
         files.write_file(file_path, json.dumps(settings))
-        clear_plugin_cache()
+        after_plugin_change()
 
 
 def find_plugin_asset(
@@ -548,3 +557,25 @@ def determine_plugin_asset_path(
         base_path = files.get_abs_path(base_path, files.AGENTS_DIR, agent_profile)
 
     return files.get_abs_path(base_path, files.PLUGINS_DIR, plugin_name, *subpaths)
+
+
+def send_frontend_reload_notification():
+    global _last_frontend_reload_notification_at
+
+    display_time = 3
+    now = time.monotonic()
+    if now - _last_frontend_reload_notification_at < display_time:
+        return
+
+    _last_frontend_reload_notification_at = now
+
+    notification.NotificationManager.send_notification(
+        type=notification.NotificationType.INFO,
+        priority=notification.NotificationPriority.NORMAL,
+        title="Plugins updated, page reload recommended",
+        message="""<button type="button" class="button confirm" onclick="window.location.reload()"><span class="icon material-symbols-outlined">refresh</span>Reload page</button>""",
+        detail="",
+        display_time=display_time,
+        group="plugins_changed",
+        id="plugins_frontend_reload",
+    )

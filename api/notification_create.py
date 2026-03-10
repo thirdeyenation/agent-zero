@@ -17,6 +17,7 @@ class NotificationCreate(ApiHandler):
         detail = input.get("detail", "")
         display_time = input.get("display_time", 3)  # Default to 3 seconds
         group = input.get("group", "")  # Group parameter for notification grouping
+        notification_id = input.get("id", "")
 
         # Validate required fields
         if not message:
@@ -50,6 +51,7 @@ class NotificationCreate(ApiHandler):
                 detail,
                 display_time,
                 group,
+                notification_id,
             )
 
             return {

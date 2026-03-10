@@ -77,10 +77,11 @@ class NotificationManager:
         detail: str = "",
         display_time: int = 3,
         group: str = "",
+        id: str = "",
     ) -> NotificationItem:
         from agent import AgentContext
         return AgentContext.get_notification_manager().add_notification(
-            type, priority, message, title, detail, display_time, group
+            type, priority, message, title, detail, display_time, group, id
         )
 
     def add_notification(
@@ -92,28 +93,44 @@ class NotificationManager:
         detail: str = "",
         display_time: int = 3,
         group: str = "",
+        id: str = "",
     ) -> NotificationItem:
         with self._lock:
+            existing = None
+            if id:
+                existing = next((n for n in self.notifications if n.id == id), None)
+
+            if existing:
+                existing.type = NotificationType(type)
+                existing.priority = NotificationPriority(priority)
+                existing.title = title
+                existing.message = message
+                existing.detail = detail
+                existing.timestamp = datetime.now(timezone.utc)
+                existing.display_time = display_time
+                existing.group = group
+                existing.read = False
+                self.updates.append(existing.no)
+                item = existing
+            else:
             # Create notification item
-            item = NotificationItem(
-                manager=self,
-                no=len(self.notifications),
-                type=NotificationType(type),
-                priority=NotificationPriority(priority),
-                title=title,
-                message=message,
-                detail=detail,
-                timestamp=datetime.now(timezone.utc),
-                display_time=display_time,
-                group=group,
-            )
+                item = NotificationItem(
+                    manager=self,
+                    no=len(self.notifications),
+                    type=NotificationType(type),
+                    priority=NotificationPriority(priority),
+                    title=title,
+                    message=message,
+                    detail=detail,
+                    timestamp=datetime.now(timezone.utc),
+                    display_time=display_time,
+                    id=id,
+                    group=group,
+                )
 
-            # Add to notifications
-            self.notifications.append(item)
-            self.updates.append(item.no)
-
-            # Enforce limit
-            self._enforce_limit()
+                self.notifications.append(item)
+                self.updates.append(item.no)
+                self._enforce_limit()
 
         from helpers.state_monitor_integration import mark_dirty_all
         mark_dirty_all(reason="notification.NotificationManager.add_notification")

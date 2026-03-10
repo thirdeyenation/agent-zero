@@ -854,6 +854,9 @@ class Agent:
         # search for tool usage requests in agent message
         tool_request = extract_tools.json_parse_dirty(msg)
 
+        # basic validation + extensions
+        await self.validate_tool_request(tool_request)
+
         if tool_request is not None:
             raw_tool_name = tool_request.get("tool_name", tool_request.get("tool",""))  # Get the raw tool name
             tool_args = tool_request.get("tool_args", tool_request.get("args", {}))
@@ -947,6 +950,17 @@ class Agent:
                 type="warning",
                 content=f"{self.agent_name}: Message misformat, no valid tool request found.",
             )
+
+    @extension.extensible
+    async def validate_tool_request(self, tool_request: Any):
+        if not isinstance(tool_request, dict):
+            raise ValueError("Tool request must be a dictionary")
+        if not tool_request.get("tool_name") or not isinstance(tool_request.get("tool_name"), str):
+            raise ValueError("Tool request must have a tool_name (type string) field")
+        if not tool_request.get("tool_args") or not isinstance(tool_request.get("tool_args"), dict):
+            raise ValueError("Tool request must have a tool_args (type dictionary) field")
+
+
 
     async def handle_reasoning_stream(self, stream: str):
         await self.handle_intervention()
