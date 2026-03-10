@@ -39,6 +39,12 @@ const model = {
   },
 
   async setTab(tab) {
+    if (tab === "marketplace") {
+      this.activeTab = "marketplace";
+      this.loading = false;
+      return;
+    }
+
     this.activeTab = tab === "builtin" ? "builtin" : "custom";
     const filter =
       this.activeTab === "builtin"
@@ -48,6 +54,9 @@ const model = {
   },
 
   async refresh() {
+    if (this.activeTab === "marketplace") {
+      return;
+    }
     await this.setTab(this.activeTab);
   },
 

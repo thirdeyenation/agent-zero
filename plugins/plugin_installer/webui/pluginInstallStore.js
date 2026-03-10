@@ -569,8 +569,11 @@ const model = {
     this.selectedPlugin = null;
   },
 
-  /** Called from x-destroy when the installer modal is torn down; refreshes the plugin list store */
+  /** Refresh related list views after installer/detail actions. */
   refreshPluginList() {
+    if (pluginListStore.activeTab === "marketplace") {
+      void this.fetchIndex();
+    }
     pluginListStore.refresh();
   },
 
