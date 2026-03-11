@@ -220,6 +220,15 @@ Submission rules:
 
 A built-in **Plugin Marketplace** (always-active plugin) will allow users to browse the Plugin Index and install or update community plugins directly from the Agent Zero UI without leaving the application. This section will be updated once the marketplace plugin is released.
 
+## User Feedback in Plugin UI (Notifications)
+
+Plugin UIs must use the **A0 notification system** for user feedback. Do not show errors or success via inline elements (e.g. a red box bound to `store.error`).
+
+- **Frontend**: Use `toastFrontendError(message, title)`, `toastFrontendSuccess(message, title)`, etc. from `/components/notifications/notification-store.js`, or `$store.notificationStore.frontendError(...)` in templates.
+- **Backend**: Use `AgentNotification.error(...)`, `AgentNotification.success(...)` from `helpers.notification`.
+
+This keeps toasts and notification history consistent. See [Notifications](notifications.md) for the full API.
+
 ## See Also
 
 - `docs/agents/AGENTS.plugins.md` for full architecture details
