@@ -35,10 +35,6 @@
                     <span x-text="$store.pluginInstallStore.loadingMessage || 'Processing...'"></span>
                 </div>
 
-                <div x-show="$store.pluginInstallStore.error" class="pi-error">
-                    <span x-text="$store.pluginInstallStore.error"></span>
-                </div>
-
                 <div x-show="$store.pluginInstallStore.result" class="pi-result">
                     <div class="pi-result-icon">
                         <span class="material-symbols-outlined">check_circle</span>
@@ -92,14 +88,6 @@
             text-align: center;
             padding: 1rem;
             color: var(--color-text-secondary);
-        }
-
-        .pi-error {
-            color: var(--color-error);
-            padding: 0.75rem;
-            background: var(--color-error-bg, rgba(239,68,68,0.1));
-            border-radius: 4px;
-            margin-top: 0.75rem;
         }
 
         .pi-result {

@@ -62,14 +62,6 @@
                     </div>
                 </div>
 
-                <div x-show="$store.pluginInstallStore.error && !$store.pluginInstallStore.loading" class="pi-state-card pi-state-error">
-                    <span class="material-symbols-outlined">error</span>
-                    <div>
-                        <div class="pi-state-title">Marketplace unavailable</div>
-                        <div class="pi-state-text" x-text="$store.pluginInstallStore.error"></div>
-                    </div>
-                </div>
-
                 <div x-show="$store.pluginInstallStore.index && !$store.pluginInstallStore.loading && $store.pluginInstallStore.filteredPlugins.length > 0"
                     class="pi-grid">
                     <template x-for="plugin in $store.pluginInstallStore.paginatedPlugins" :key="plugin.key">
@@ -341,12 +333,6 @@
 
         .pi-state-loading .material-symbols-outlined {
             color: var(--color-highlight);
-        }
-
-        .pi-state-error {
-            border-color: rgba(239, 68, 68, 0.28);
-            background: rgba(239, 68, 68, 0.1);
-            color: var(--color-error);
         }
 
         .pi-state-empty .material-symbols-outlined {

@@ -45,10 +45,6 @@
                     </button>
                 </div>
 
-                <div x-show="$store.pluginInstallStore.error" class="pi-error">
-                    <span x-text="$store.pluginInstallStore.error"></span>
-                </div>
-
                 <div x-show="$store.pluginInstallStore.result" class="pi-result">
                     <div class="pi-result-icon">
                         <span class="material-symbols-outlined">check_circle</span>
@@ -107,14 +103,6 @@
             display: inline-flex;
             align-items: center;
             gap: 0.5rem;
-        }
-
-        .pi-error {
-            color: var(--color-error);
-            padding: 0.75rem;
-            background: var(--color-error-bg, rgba(239,68,68,0.1));
-            border-radius: 4px;
-            margin-top: 0.75rem;
         }
 
         .pi-result {
