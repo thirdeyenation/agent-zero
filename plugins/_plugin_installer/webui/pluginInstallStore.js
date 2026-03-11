@@ -2,7 +2,7 @@ import { createStore } from "/js/AlpineStore.js";
 import * as api from "/js/api.js";
 import { openModal } from "/js/modals.js";
 import { marked } from "/vendor/marked/marked.esm.js";
-import { toastFrontendSuccess } from "/components/notifications/notification-store.js";
+import { toastFrontendSuccess, toastFrontendError } from "/components/notifications/notification-store.js";
 import { showConfirmDialog } from "/js/confirmDialog.js";
 import { store as imageViewerStore } from "/components/modals/image-viewer/image-viewer-store.js";
 import { store as pluginListStore } from "/components/plugins/list/pluginListStore.js";
@@ -48,7 +48,6 @@ const model = {
   // Shared state
   loading: false,
   loadingMessage: "",
-  error: "",
   result: null,
 
   // README state
@@ -65,7 +64,6 @@ const model = {
 
   setTab(tab) {
     this.activeTab = tab;
-    this.error = "";
     this.result = null;
   },
 
@@ -113,13 +111,12 @@ const model = {
     if (!file) return;
     this.zipFile = file;
     this.zipFileName = file.name;
-    this.error = "";
     this.result = null;
   },
 
   async installZip() {
     if (!this.zipFile) {
-      this.error = "Please select a ZIP file first";
+      void toastFrontendError("Please select a ZIP file first", "Plugin Installer");
       return;
     }
 
@@ -129,7 +126,6 @@ const model = {
     try {
       this.loading = true;
       this.loadingMessage = "Installing plugin from ZIP...";
-      this.error = "";
       this.result = null;
 
       const formData = new FormData();
@@ -143,7 +139,7 @@ const model = {
 
       const data = await response.json();
       if (!data.success) {
-        this.error = data.error || "Installation failed";
+        void toastFrontendError(data.error || "Installation failed", "Plugin Installer");
         return;
       }
 
@@ -155,7 +151,7 @@ const model = {
       );
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
-      this.error = `Installation error: ${message}`;
+      void toastFrontendError(`Installation error: ${message}`, "Plugin Installer");
     } finally {
       this.loading = false;
       this.loadingMessage = "";
@@ -167,7 +163,7 @@ const model = {
   async installGit() {
     const url = (this.gitUrl || "").trim();
     if (!url) {
-      this.error = "Please enter a Git URL";
+      void toastFrontendError("Please enter a Git URL", "Plugin Installer");
       return;
     }
 
@@ -177,7 +173,6 @@ const model = {
     try {
       this.loading = true;
       this.loadingMessage = "Cloning repository...";
-      this.error = "";
       this.result = null;
 
       const data = await api.callJsonApi(PLUGIN_API, {
@@ -187,7 +182,7 @@ const model = {
       });
 
       if (!data.success) {
-        this.error = data.error || "Clone failed";
+        void toastFrontendError(data.error || "Clone failed", "Plugin Installer");
         return;
       }
 
@@ -199,7 +194,7 @@ const model = {
       );
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
-      this.error = `Clone error: ${message}`;
+      void toastFrontendError(`Clone error: ${message}`, "Plugin Installer");
     } finally {
       this.loading = false;
       this.loadingMessage = "";
@@ -212,15 +207,13 @@ const model = {
     try {
       this.loading = true;
       this.loadingMessage = "Loading plugin index...";
-      this.error = "";
-      // this.index = null;
 
       const data = await api.callJsonApi(PLUGIN_API, {
         action: "fetch_index",
       });
 
       if (!data.success) {
-        this.error = data.error || "Failed to load index";
+        void toastFrontendError(data.error || "Failed to load index", "Plugin Installer");
         return;
       }
 
@@ -229,7 +222,7 @@ const model = {
       this.page = 1;
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
-      this.error = `Failed to load plugin index: ${message}`;
+      void toastFrontendError(`Failed to load plugin index: ${message}`, "Plugin Installer");
     } finally {
       this.loading = false;
       this.loadingMessage = "";
@@ -343,7 +336,6 @@ const model = {
 
   openDetail(plugin) {
     this.selectedPlugin = { ...plugin, name: plugin?.key || "" };
-    this.error = "";
     this.result = null;
     this.installedPluginInfo = null;
     this.readmeContent = null;
@@ -387,7 +379,7 @@ const model = {
 
   async installFromIndex(plugin) {
     if (!plugin?.github) {
-      this.error = "No GitHub URL available for this plugin";
+      void toastFrontendError("No GitHub URL available for this plugin", "Plugin Installer");
       return;
     }
 
@@ -406,7 +398,6 @@ const model = {
     try {
       this.loading = true;
       this.loadingMessage = `Installing ${plugin.title || plugin.key}...`;
-      this.error = "";
 
       const data = await api.callJsonApi(PLUGIN_API, {
         action: "install_git",
@@ -415,7 +406,7 @@ const model = {
       });
 
       if (!data.success) {
-        this.error = data.error || "Installation failed";
+        void toastFrontendError(data.error || "Installation failed", "Plugin Installer");
         return;
       }
 
@@ -438,7 +429,7 @@ const model = {
       );
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
-      this.error = `Installation error: ${message}`;
+      void toastFrontendError(`Installation error: ${message}`, "Plugin Installer");
     } finally {
       this.loading = false;
       this.loadingMessage = "";
@@ -533,14 +524,12 @@ const model = {
   resetZip() {
     this.zipFile = null;
     this.zipFileName = "";
-    this.error = "";
     this.result = null;
   },
 
   resetGit() {
     this.gitUrl = "";
     this.gitToken = "";
-    this.error = "";
     this.result = null;
   },
 
@@ -549,7 +538,6 @@ const model = {
     this.page = 1;
     this.sortBy = "stars";
     this.browseFilter = "all";
-    this.error = "";
     this.result = null;
     this.selectedPlugin = null;
   },

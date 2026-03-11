@@ -148,10 +148,6 @@
                     </template>
                 </div>
 
-                <div x-show="$store.pluginInstallStore.error" class="pi-message pi-message-error">
-                    <span x-text="$store.pluginInstallStore.error"></span>
-                </div>
-
                 <div class="pi-readme-section" x-show="$store.pluginInstallStore.readmeContent || $store.pluginInstallStore.readmeLoading">
                     <div class="pi-readme-header">Readme</div>
                     <div x-show="$store.pluginInstallStore.readmeLoading" class="pi-loading-text">
@@ -383,7 +379,6 @@
 
         .pi-btn-install:hover:not(:disabled) {
             opacity: 0.9;
-            transform: translateY(-1px);
             box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         }
 
@@ -464,21 +459,6 @@
             font-size: 0.9rem;
             color: var(--color-text-secondary);
             padding: 0.75rem 0;
-        }
-
-        .pi-message {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            padding: 1rem;
-            border-radius: 8px;
-            margin-bottom: 1rem;
-        }
-
-        .pi-message-error {
-            background: rgba(239,68,68,0.1);
-            border: 1px solid rgba(239,68,68,0.3);
-            color: var(--color-error);
         }
 
         .pi-screenshots-section {

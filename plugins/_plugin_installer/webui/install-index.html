@@ -62,14 +62,6 @@
                     </div>
                 </div>
 
-                <div x-show="$store.pluginInstallStore.error && !$store.pluginInstallStore.loading" class="pi-state-card pi-state-error">
-                    <span class="material-symbols-outlined">error</span>
-                    <div>
-                        <div class="pi-state-title">Marketplace unavailable</div>
-                        <div class="pi-state-text" x-text="$store.pluginInstallStore.error"></div>
-                    </div>
-                </div>
-
                 <div x-show="$store.pluginInstallStore.index && !$store.pluginInstallStore.loading && $store.pluginInstallStore.filteredPlugins.length > 0"
                     class="pi-grid">
                     <template x-for="plugin in $store.pluginInstallStore.paginatedPlugins" :key="plugin.key">
@@ -225,7 +217,6 @@
             border: 0;
             border-bottom: 1px solid var(--color-border);
             border-radius: 0;
-            background: transparent;
         }
 
         .pi-search-field {
@@ -244,7 +235,6 @@
             padding: 0;
             border: 0;
             outline: none;
-            background: transparent;
             color: var(--color-text-primary);
             font-size: 0.95rem;
         }
@@ -268,7 +258,6 @@
             padding: 0;
             border: 0;
             outline: none;
-            background: transparent;
             color: var(--color-text-primary);
             font-size: 0.95rem;
         }
@@ -343,12 +332,6 @@
             color: var(--color-highlight);
         }
 
-        .pi-state-error {
-            border-color: rgba(239, 68, 68, 0.28);
-            background: rgba(239, 68, 68, 0.1);
-            color: var(--color-error);
-        }
-
         .pi-state-empty .material-symbols-outlined {
             color: var(--color-text-muted);
         }
@@ -375,7 +358,6 @@
         }
 
         .pi-card:hover {
-            transform: translateY(-2px);
             box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
         }
 

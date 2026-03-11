@@ -82,6 +82,14 @@ Place *.js files in extensions/webui/<extension_point>/ and export a default asy
 
 Core JS hooks can also expose runtime UI surfaces when static HTML breakpoints are not a fit. For example, `confirm_dialog_after_render` runs after the shared confirm dialog is built and receives the rendered dialog/body/footer nodes plus any caller-provided `extensionContext`.
 
+### User Feedback: Notifications, Not Inline Errors
+Plugin UI must use the **A0 notification system** for errors, success, and warnings. Do not render dedicated error/success boxes (e.g. a red block bound to `store.error`). Use the notification store so toasts and notification history stay consistent across the app.
+
+- **Frontend (Alpine/store)**: Import `toastFrontendError`, `toastFrontendSuccess`, `toastFrontendWarning`, `toastFrontendInfo` from `/components/notifications/notification-store.js`, or call `$store.notificationStore.frontendError(message, title)` etc.
+- **Backend (Python)**: Use `AgentNotification.error(...)`, `AgentNotification.success(...)` from `helpers.notification`.
+
+See [Notifications](../developer/notifications.md) for the full API.
+
 ---
 
 ## 4. Plugin Settings
