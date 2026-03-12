@@ -72,13 +72,18 @@ class ProviderManager:
                 # Overwrite matching keys, append new ones
                 merged[p_type].update(providers)
 
-        # Convert merged {type: {id: config}} to normalised list format
+        # Convert merged {type: {id: config}} to normalised list format,
+        # sorted by name with "other" always last.
         normalised: Dict[str, List[Dict[str, str]]] = {}
         for p_type, providers in merged.items():
             items: List[Dict[str, str]] = []
             for pid, cfg in providers.items():
                 entry = {"id": pid, **cfg}
                 items.append(entry)
+            items.sort(key=lambda p: (
+                p.get("id") == "other",  # False (0) first, True (1) last
+                (p.get("name") or p.get("id") or "").lower(),
+            ))
             normalised[p_type] = items
 
         # Save raw
