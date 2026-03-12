@@ -5,7 +5,7 @@ import sys
 from datetime import datetime, timezone
 
 from helpers.api import ApiHandler, Request, Response
-from helpers import plugins, files
+from helpers import plugins, files, extension
 
 
 class Plugins(ApiHandler):
@@ -53,6 +53,7 @@ class Plugins(ApiHandler):
 
         return Response(status=400, response=f"Unknown action: {action}")
 
+    @extension.extensible
     def _get_config(self, input: dict) -> dict | Response:
         plugin_name = input.get("plugin_name", "")
         project_name = input.get("project_name", "")
@@ -90,6 +91,7 @@ class Plugins(ApiHandler):
             "data": settings,
         }
 
+    @extension.extensible
     def _get_toggle_status(self, input: dict) -> dict | Response:
         plugin_name = input.get("plugin_name", "")
         project_name = input.get("project_name", "")
@@ -140,6 +142,7 @@ class Plugins(ApiHandler):
             "loaded_path": "",
         }
 
+    @extension.extensible
     def _list_configs(self, input: dict) -> dict | Response:
         plugin_name = input.get("plugin_name", "")
         asset_type = input.get("asset_type", "config")
@@ -160,6 +163,7 @@ class Plugins(ApiHandler):
 
         return {"ok": True, "data": configs}
 
+    @extension.extensible
     def _delete_config(self, input: dict) -> dict | Response:
         plugin_name = input.get("plugin_name", "")
         path = input.get("path", "")
@@ -196,12 +200,13 @@ class Plugins(ApiHandler):
 
         return {"ok": True}
 
+    @extension.extensible
     def _delete_plugin(self, input: dict) -> dict | Response:
         plugin_name = input.get("plugin_name", "")
         if not plugin_name:
             return Response(status=400, response="Missing plugin_name")
         try:
-            plugins.delete_plugin(plugin_name)
+            plugins.uninstall_plugin(plugin_name)
         except FileNotFoundError as e:
             return Response(status=404, response=str(e))
         except ValueError as e:
@@ -210,6 +215,7 @@ class Plugins(ApiHandler):
             return Response(status=500, response=f"Failed to delete plugin: {str(e)}")
         return {"ok": True}
 
+    @extension.extensible
     def _get_default_config(self, input: dict) -> dict | Response:
         plugin_name = input.get("plugin_name", "")
         if not plugin_name:
@@ -217,6 +223,7 @@ class Plugins(ApiHandler):
         settings = plugins.get_default_plugin_config(plugin_name)
         return {"ok": True, "data": settings or {}}
 
+    @extension.extensible
     def _save_config(self, input: dict) -> dict | Response:
         plugin_name = input.get("plugin_name", "")
         project_name = input.get("project_name", "")
@@ -229,6 +236,7 @@ class Plugins(ApiHandler):
         plugins.save_plugin_config(plugin_name, project_name, agent_profile, settings)
         return {"ok": True}
 
+    @extension.extensible
     def _toggle_plugin(self, input: dict) -> dict | Response:
         plugin_name = input.get("plugin_name", "")
         enabled = input.get("enabled")
@@ -246,6 +254,7 @@ class Plugins(ApiHandler):
         )
         return {"ok": True}
 
+    @extension.extensible
     def _get_doc(self, input: dict) -> dict | Response:
         plugin_name = input.get("plugin_name", "")
         doc = input.get("doc", "")
@@ -265,6 +274,7 @@ class Plugins(ApiHandler):
 
         return {"ok": True, "content": files.read_file(file_path), "filename": filename}
 
+    @extension.extensible
     def _run_init_script(self, input: dict) -> dict | Response:
         plugin_name = input.get("plugin_name", "")
         if not plugin_name:
@@ -311,6 +321,7 @@ class Plugins(ApiHandler):
             "executed_at": executed_at,
         }
 
+    @extension.extensible
     def _get_init_exec(self, input: dict) -> dict | Response:
         plugin_name = input.get("plugin_name", "")
         if not plugin_name:
