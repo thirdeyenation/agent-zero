@@ -1,8 +1,11 @@
 import yaml
-from helpers import files
+from helpers import files, cache
 from typing import List, Dict, Optional, TypedDict, Literal
 
 ModelType = Literal["chat", "embedding"]
+
+PROVIDER_MANAGER_CACHE_AREA = "model_providers(plugins)"
+PROVIDER_MANAGER_CACHE_KEY = "manager"
 
 # Type alias for UI option items
 class FieldOption(TypedDict):
@@ -10,19 +13,21 @@ class FieldOption(TypedDict):
     label: str
 
 class ProviderManager:
-    _instance = None
     _raw: Optional[Dict[str, List[Dict[str, str]]]] = None  # full provider data
     _options: Optional[Dict[str, List[FieldOption]]] = None  # UI-friendly list
 
     @classmethod
     def get_instance(cls):
-        if cls._instance is None:
-            cls._instance = cls()
-        return cls._instance
+        instance = cache.get(PROVIDER_MANAGER_CACHE_AREA, PROVIDER_MANAGER_CACHE_KEY)
+        if instance is None:
+            instance = cls()
+            cache.add(PROVIDER_MANAGER_CACHE_AREA, PROVIDER_MANAGER_CACHE_KEY, instance)
+        return instance
 
     @classmethod
     def reload(cls):
         """Force reload of all provider configs (call after plugin changes)."""
+        cache.remove(PROVIDER_MANAGER_CACHE_AREA, PROVIDER_MANAGER_CACHE_KEY)
         inst = cls.get_instance()
         inst._load_providers()
 
