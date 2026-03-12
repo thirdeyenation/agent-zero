@@ -28,6 +28,8 @@ usr/plugins/<plugin_name>/
 ├── default_config.yaml           # Optional: fallback settings defaults
 ├── README.md                     # Optional: shown in Plugin List UI
 ├── LICENSE                       # Optional: shown in Plugin List UI
+├── conf/
+│   └── model_providers.yaml      # Optional: add or override model providers
 ├── api/                          # API handlers (ApiHandler subclasses)
 ├── tools/                        # Agent tools (Tool subclasses)
 ├── helpers/                      # Shared Python logic
@@ -106,7 +108,35 @@ See [Notifications](../developer/notifications.md) for the full API.
 4. usr/plugins/<name>/config.json
 5. plugins/<name>/default_config.yaml (fallback defaults)
 
-## 5. Plugin Activation Model
+## 5. Model Providers
+
+Plugins can add or override model providers by placing a `conf/model_providers.yaml` inside their plugin directory. The file follows the same format as the main `conf/model_providers.yaml`.
+
+At startup (and whenever a plugin is enabled/disabled), the system:
+1. Loads the base `conf/model_providers.yaml`.
+2. Discovers `conf/model_providers.yaml` from all enabled plugins.
+3. Merges them in order — matching provider IDs are overwritten, new IDs are appended.
+
+Example plugin provider file (`usr/plugins/my_plugin/conf/model_providers.yaml`):
+```yaml
+chat:
+  my_custom_provider:
+    name: My Custom LLM
+    litellm_provider: openai
+    kwargs:
+      api_base: https://my-llm.example.com/v1
+
+embedding:
+  my_custom_embed:
+    name: My Embeddings
+    litellm_provider: openai
+    kwargs:
+      api_base: https://my-embed.example.com/v1
+```
+
+---
+
+## 6. Plugin Activation Model
 
 - Global and scoped activation are independent, with no inheritance between scopes.
 - Activation flags are files: `.toggle-1` (ON) and `.toggle-0` (OFF).
@@ -116,7 +146,7 @@ See [Notifications](../developer/notifications.md) for the full API.
 
 ---
 
-## 6. Routes
+## 7. Routes
 
 | Route | Purpose |
 |---|---|
@@ -126,7 +156,7 @@ See [Notifications](../developer/notifications.md) for the full API.
 
 ---
 
-## 7. Plugin Index & Community Sharing
+## 8. Plugin Index & Community Sharing
 
 The **Plugin Index** is a community-maintained repository at https://github.com/agent0ai/a0-plugins that lists plugins available to the Agent Zero community. Plugins listed there can be discovered and installed by other users.
 
