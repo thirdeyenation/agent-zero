@@ -298,17 +298,6 @@ def get_toggle_state(plugin_name: str) -> ToggleState:
         else "disabled"
     )
 
-    # global toggles
-    usr_toggles = [
-        files.find_existing_paths_by_pattern(
-            files.get_abs_path(files.PLUGINS_DIR, plugin_name, TOGGLE_FILE_PATTERN)
-        ),
-        files.find_existing_paths_by_pattern(
-            files.get_abs_path(
-                files.USER_DIR, files.PLUGINS_DIR, plugin_name, TOGGLE_FILE_PATTERN
-            )
-        ),
-    ]
 
     # additional toggles in project/agent directories, return advanced
     if meta.per_agent_config or meta.per_project_config:
