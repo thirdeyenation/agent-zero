@@ -79,6 +79,8 @@ class PluginListItem(BaseModel):
 
 def after_plugin_change(plugin_names: list[str] | None = None):
     clear_plugin_cache()
+    from helpers.providers import reload_providers
+    reload_providers()
     send_frontend_reload_notification(plugin_names)
 
 
