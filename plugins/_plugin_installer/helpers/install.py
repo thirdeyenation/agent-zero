@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 import json
 import os
 import time
@@ -10,7 +11,7 @@ import zipfile
 from pathlib import Path
 from typing import Any
 
-from helpers import files, print_style, plugins
+from helpers import files, print_style, plugins, git
 from helpers import yaml as yaml_helper
 from helpers.plugins import (
     META_FILE_NAME,
@@ -189,6 +190,52 @@ def install_from_git(url: str, token: str | None = None, plugin_name: str = "") 
         "plugin_name": plugin_name,
         "title": meta.title or plugin_name,
         "path": files.deabsolute_path(final_dir),
+    }
+
+
+def update_from_git(plugin_name: str) -> dict:
+    plugin_name = (plugin_name or "").strip()
+    if not plugin_name:
+        raise ValueError("Missing plugin_name")
+
+    plugin_dir = plugins.find_plugin_dir(plugin_name)
+    if not plugin_dir:
+        raise ValueError("Plugin not found")
+
+    custom_plugins_dir = files.get_abs_path(files.USER_DIR, files.PLUGINS_DIR)
+    if not files.is_in_dir(plugin_dir, custom_plugins_dir):
+        raise ValueError("Only custom plugins can be updated")
+
+    try:
+        repo = git.update_repo(plugin_dir)
+        meta = plugins.get_plugin_meta(plugin_name)
+    except Exception as e:
+        print_style.PrintStyle.error(f"Failed to update plugin: {e}")
+        raise
+
+    try:
+        run_install_hook(plugin_name)
+    except Exception as e:
+        print_style.PrintStyle.error(
+            f"Failed to run installation hook for {plugin_name}: {e}"
+        )
+        raise
+
+    after_plugin_change([plugin_name])
+    head = repo.head.commit
+
+    return {
+        "ok": True,
+        "success": True,
+        "plugin_name": plugin_name,
+        "title": meta.title if meta else plugin_name,
+        "path": files.deabsolute_path(plugin_dir),
+        "current_commit": head.hexsha,
+        "current_commit_timestamp": datetime.fromtimestamp(head.committed_date, timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
+        "version": getattr(meta, "version", "") or "",
+        "branch": repo.active_branch.name if not repo.head.is_detached else "",
+        "remote_url": git.strip_auth_from_url(repo.remotes.origin.url) if repo.remotes else "",
+        "directory_name": Path(plugin_dir).name,
     }
 
 

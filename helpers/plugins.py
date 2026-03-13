@@ -17,6 +17,7 @@ from typing import (
 
 from helpers import (
     files,
+    git,
     notification,
     print_style,
     yaml as yaml_helper,
@@ -88,6 +89,21 @@ class PluginListItem(BaseModel):
     has_license: bool = False
     has_init_script: bool = False
     toggle_state: ToggleState = "disabled"
+    current_commit: str = ""
+    current_commit_timestamp: str = ""
+
+
+class PluginUpdateInfo(BaseModel):
+    name: str
+    path: str
+    display_name: str = ""
+    commits_since_local: int = 0
+    last_remote_commit_at: str = ""
+    branch: str = ""
+    remote_branch: str = ""
+    is_git_repo: bool = False
+    is_remote: bool = False
+    error: str = ""
 
 
 @extension.extensible
@@ -125,15 +141,18 @@ def get_plugins_list():
 
 
 def get_enhanced_plugins_list(
-    custom: bool = True, builtin: bool = True
+    custom: bool = True, builtin: bool = True, plugin_names: list[str] | None = None
 ) -> List[PluginListItem]:
     """Discover plugins by directory convention. First root wins on ID conflict."""
     results = []
+    allowed_names = set(plugin_names) if plugin_names else None
 
     def load_plugins(root_path: str, is_custom: bool):
         for d in sorted(Path(root_path).iterdir(), key=lambda p: p.name):
             try:
                 if not d.is_dir() or d.name.startswith("."):
+                    continue
+                if allowed_names is not None and d.name not in allowed_names:
                     continue
                 meta_file = str(d / META_FILE_NAME)
                 if not files.exists(meta_file):
@@ -145,6 +164,13 @@ def get_enhanced_plugins_list(
                 has_license = files.exists(str(d / "LICENSE"))
                 has_init_script = files.exists(str(d / "initialize.py"))
                 toggle_state = get_toggle_state(d.name)
+                current_commit = ""
+                current_commit_timestamp = ""
+                if is_custom:
+                    repo_info = git.get_repo_release_info(str(d))
+                    if repo_info.is_git_repo and repo_info.head:
+                        current_commit = repo_info.head.hash
+                        current_commit_timestamp = repo_info.head.committed_at
                 results.append(
                     PluginListItem(
                         name=d.name,
@@ -163,6 +189,8 @@ def get_enhanced_plugins_list(
                         has_license=has_license,
                         has_init_script=has_init_script,
                         toggle_state=toggle_state,
+                        current_commit=current_commit,
+                        current_commit_timestamp=current_commit_timestamp,
                     )
                 )
             except Exception as e:
@@ -173,6 +201,30 @@ def get_enhanced_plugins_list(
         load_plugins(files.get_abs_path(files.USER_DIR, files.PLUGINS_DIR), True)
     if builtin:
         load_plugins(files.get_abs_path(files.PLUGINS_DIR), False)
+    return results
+
+
+def get_custom_plugins_updates(plugin_names: list[str] | None = None) -> List[PluginUpdateInfo]:
+    plugins = get_enhanced_plugins_list(custom=True, builtin=False, plugin_names=plugin_names)
+    results: list[PluginUpdateInfo] = []
+
+    for plugin in plugins:
+        update = git.get_remote_commits_since_local(plugin.path)
+        results.append(
+            PluginUpdateInfo(
+                name=plugin.name,
+                path=plugin.path,
+                display_name=plugin.display_name,
+                commits_since_local=update.commits_since_local,
+                last_remote_commit_at=update.last_remote_commit_at,
+                branch=update.branch,
+                remote_branch=update.remote_branch,
+                is_git_repo=update.is_git_repo,
+                is_remote=update.is_remote,
+                error=update.error,
+            )
+        )
+
     return results
 
 
