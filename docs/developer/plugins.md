@@ -24,6 +24,7 @@ On name collisions, user plugins take precedence.
 Every plugin must contain `plugin.yaml`. This is the **runtime manifest** — it drives Agent Zero behavior. It is distinct from the index manifest used when publishing to the Plugin Index (see [Publishing to the Plugin Index](#publishing-to-the-plugin-index) below).
 
 ```yaml
+name: my_plugin              # required for community plugins (^[a-z0-9_]+$, must match dir name)
 title: My Plugin
 description: What this plugin does.
 version: 1.0.0
@@ -36,6 +37,7 @@ always_enabled: false
 
 Field reference:
 
+- `name`: plugin identifier; required by CI for index submission; must be `^[a-z0-9_]+$` and match the index folder name exactly
 - `title`: UI display name
 - `description`: short plugin summary
 - `version`: plugin version string
@@ -189,12 +191,13 @@ Supported actions:
 
 The **Plugin Index** is a community-maintained repository at https://github.com/agent0ai/a0-plugins. Plugins listed there are discoverable by all Agent Zero users.
 
-### Two Distinct plugin.yaml Files
+### Two Distinct Manifest Files
 
-There are two completely different `plugin.yaml` schemas — they must not be confused:
+There are two completely different manifest files — they must not be confused:
 
-**Runtime manifest** (inside your plugin's own repo, drives Agent Zero behavior):
+**Runtime manifest** (`plugin.yaml`, inside your plugin's own repo — drives Agent Zero behavior):
 ```yaml
+name: my_plugin              # REQUIRED for index submission; must match index folder name
 title: My Plugin
 description: What this plugin does.
 version: 1.0.0
@@ -205,7 +208,7 @@ per_agent_config: false
 always_enabled: false
 ```
 
-**Index manifest** (submitted to `a0-plugins` under `plugins/<your-plugin-name>/`, drives discoverability only):
+**Index manifest** (`index.yaml`, submitted to `a0-plugins` under `plugins/<your_plugin_name>/` — drives discoverability only):
 ```yaml
 title: My Plugin
 description: What this plugin does.
@@ -213,9 +216,11 @@ github: https://github.com/yourname/your-plugin-repo
 tags:
   - tools
   - example
+screenshots:                    # optional, up to 5 full image URLs
+  - https://raw.githubusercontent.com/yourname/your-plugin-repo/main/docs/screen.png
 ```
 
-The index manifest has only four fields (`title`, `description`, `github`, `tags`). The `github` URL must point to a public GitHub repository that contains a runtime `plugin.yaml` at the **repository root**.
+The index manifest file is named `index.yaml` (not `plugin.yaml`). Required fields: `title`, `description`, `github`. Optional: `tags` (up to 5), `screenshots` (up to 5 URLs). The `github` URL must point to a public GitHub repository that contains a runtime `plugin.yaml` at the **repository root**, and that `plugin.yaml` must include a `name` field matching the index folder name exactly.
 
 ### Repository Structure for Community Plugins
 
@@ -223,7 +228,7 @@ Plugin repos should expose the plugin contents at the repo root, so they can be 
 
 ```text
 your-plugin-repo/          ← GitHub repository root
-├── plugin.yaml            ← runtime manifest
+├── plugin.yaml            ← runtime manifest (must include name field)
 ├── default_config.yaml
 ├── README.md
 ├── LICENSE
@@ -235,18 +240,21 @@ your-plugin-repo/          ← GitHub repository root
 
 ### Submission Process
 
-1. Create a GitHub repository with the runtime `plugin.yaml` at the repo root.
+1. Create a GitHub repository with the runtime `plugin.yaml` (including the `name` field) at the repo root.
 2. Fork `https://github.com/agent0ai/a0-plugins`.
-3. Add `plugins/<your-plugin-name>/plugin.yaml` (index manifest) to your fork, and optionally a square thumbnail image (≤ 20 KB, named `thumbnail.png|jpg|webp`).
+3. Create folder `plugins/<your_plugin_name>/` and add `index.yaml` (the index manifest, not `plugin.yaml`). Optionally add a square thumbnail image (≤ 20 KB, named `thumbnail.png|jpg|webp`).
 4. Open a Pull Request. One PR must add exactly one new plugin folder.
 5. CI validates automatically. A maintainer reviews and merges.
 
 Submission rules:
-- Folder name: unique, stable, lowercase, kebab-case
+- Folder name: unique, stable, `^[a-z0-9_]+$` (lowercase, numbers, underscores — no hyphens)
+- Folder name must exactly match the `name` field in your remote `plugin.yaml`
 - Folders starting with `_` are reserved for internal use
 - `title`: max 50 characters
 - `description`: max 500 characters
+- `index.yaml` total: max 2000 characters
 - `tags`: optional, up to 5, see https://github.com/agent0ai/a0-plugins/blob/main/TAGS.md
+- `screenshots`: optional, up to 5 full image URLs (png/jpg/webp, each ≤ 2 MB)
 
 ### Plugin Marketplace
 

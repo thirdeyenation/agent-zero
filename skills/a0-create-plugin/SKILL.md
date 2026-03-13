@@ -1,12 +1,23 @@
 ---
 name: a0-create-plugin
 description: Create, extend, or modify Agent Zero plugins. Follows strict full-stack conventions (usr/plugins, plugin.yaml, Store Gating, AgentContext, plugin settings). Use for UI hooks, API handlers, lifecycle extensions, or plugin settings UI.
+version: 1.0.0
+tags: ["plugins", "create", "build", "develop", "extend"]
+trigger_patterns:
+  - "create plugin"
+  - "build plugin"
+  - "new plugin"
+  - "develop plugin"
+  - "write plugin"
+  - "plugin template"
 ---
 
 # Agent Zero Plugin Development
 
 > [!IMPORTANT]
 > Always create new plugins in `/a0/usr/plugins/<plugin_name>/`. The `/a0/plugins/` directory is reserved for core system plugins.
+
+Related skills: `/a0/skills/a0-review-plugin/SKILL.md` | `/a0/skills/a0-contribute-plugin/SKILL.md` | `/a0/skills/a0-manage-plugin/SKILL.md`
 
 Primary references:
 - /a0/AGENTS.md (Full-stack architecture & AgentContext)
@@ -32,6 +43,7 @@ Before starting, ask the user one question:
 Every plugin must have a `plugin.yaml` or it will not be discovered.
 
 ```yaml
+name: my_plugin              # required for community plugins; must match dir name (^[a-z0-9_]+$)
 title: My Plugin
 description: What this plugin does.
 version: 1.0.0
@@ -40,6 +52,8 @@ settings_sections:
 per_project_config: false
 per_agent_config: false
 ```
+
+`name`: lowercase, numbers, underscores only (`^[a-z0-9_]+$`). Required by CI when submitting to the Plugin Index - must exactly match the index folder name.
 
 `settings_sections` controls which Settings tabs show a subsection for this plugin. Valid values: `agent`, `external`, `mcp`, `developer`, `backup`. Use `[]` for no subsection.
 
@@ -265,7 +279,7 @@ The plugin must live in its own GitHub repository with the plugin contents at th
 
 ```text
 your-plugin-repo/          ← GitHub repository root
-├── plugin.yaml            ← runtime manifest (title, description, version, ...)
+├── plugin.yaml            ← runtime manifest (must include name field!)
 ├── default_config.yaml
 ├── README.md
 ├── LICENSE
@@ -275,11 +289,20 @@ your-plugin-repo/          ← GitHub repository root
 └── webui/
 ```
 
+The runtime `plugin.yaml` at the repo root **must include a `name` field** matching the index folder name:
+
+```yaml
+name: my_plugin            # REQUIRED - must match index folder name exactly
+title: My Plugin
+description: What this plugin does.
+version: 1.0.0
+```
+
 Help the user create this repository and push the plugin files to it.
 
 ### 2. Index manifest (different from runtime manifest)
 
-The Plugin Index (`https://github.com/agent0ai/a0-plugins`) uses a **separate, simpler `plugin.yaml`** that only describes discoverability — it is NOT the same as the runtime manifest:
+The Plugin Index (`https://github.com/agent0ai/a0-plugins`) uses a **separate `index.yaml`** file that only describes discoverability — it is NOT the same as the runtime `plugin.yaml` and has a different schema:
 
 ```yaml
 title: My Plugin
@@ -288,24 +311,32 @@ github: https://github.com/yourname/your-plugin-repo
 tags:
   - tools
   - example
+screenshots:                # optional, up to 5 full image URLs
+  - https://raw.githubusercontent.com/yourname/your-plugin-repo/main/docs/screen1.png
 ```
 
-Only four fields: `title`, `description`, `github` (required), and `tags` (optional, up to 5). See the recommended tag list at https://github.com/agent0ai/a0-plugins/blob/main/TAGS.md.
+Required fields: `title`, `description`, `github`. Optional: `tags` (up to 5), `screenshots` (up to 5 URLs).
+See the recommended tag list at https://github.com/agent0ai/a0-plugins/blob/main/TAGS.md.
+
+> Important: CI also checks that your remote `plugin.yaml` contains a `name` field matching the index folder name exactly.
 
 ### 3. Submission steps
 
 1. Fork `https://github.com/agent0ai/a0-plugins`.
-2. Create the folder `plugins/<your-plugin-name>/` in the fork.
-3. Add the index `plugin.yaml` inside it (and optionally a square thumbnail ≤ 20 KB named `thumbnail.png`, `thumbnail.jpg`, or `thumbnail.webp`).
+2. Create the folder `plugins/<your_plugin_name>/` in the fork.
+   - Folder name: lowercase letters, numbers, underscores only (`^[a-z0-9_]+$`) - no hyphens
+   - Must exactly match the `name` field in your remote `plugin.yaml`
+3. Add `index.yaml` inside it (and optionally a square thumbnail ≤ 20 KB named `thumbnail.png`, `thumbnail.jpg`, or `thumbnail.webp`).
 4. Open a Pull Request. The PR must add exactly one new plugin folder.
-5. CI will validate automatically. A maintainer reviews and merges.
+5. CI validates automatically. A maintainer reviews and merges.
 
 Submission constraints:
-- Folder name: unique, stable, lowercase, kebab-case
+- Folder name: unique, stable, `^[a-z0-9_]+$`
 - Folders starting with `_` are reserved for internal use
 - `title` max 50 characters, `description` max 500 characters
+- `index.yaml` max 2000 characters total
 
-Help the user prepare the fork, the index manifest, and draft the PR.
+For a fully guided contribution flow (including git operations), read `/a0/skills/a0-contribute-plugin/SKILL.md`.
 
 ---
 

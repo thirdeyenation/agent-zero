@@ -68,8 +68,8 @@ The **Plugin Index** at https://github.com/agent0ai/a0-plugins is the community-
 
 To share a plugin with the community:
 
-1. Create a standalone GitHub repository with the plugin contents at the repo root and the runtime `plugin.yaml` there.
-2. Fork `https://github.com/agent0ai/a0-plugins` and add a folder `plugins/<your-plugin-name>/` containing a separate index `plugin.yaml`:
+1. Create a standalone GitHub repository with the plugin contents at the repo root. The runtime `plugin.yaml` must include a `name` field matching the intended index folder name.
+2. Fork `https://github.com/agent0ai/a0-plugins` and add a folder `plugins/<your_plugin_name>/` containing a separate index manifest named `index.yaml` (not `plugin.yaml`):
 
 ```yaml
 title: My Plugin
@@ -79,9 +79,11 @@ tags:
   - tools
 ```
 
+Optional additional fields: `screenshots` (up to 5 image URLs).
+
 3. Open a Pull Request. CI validates the submission; a maintainer reviews and merges.
 
-Note: The index `plugin.yaml` is a **different schema** from the runtime manifest — it contains only `title`, `description`, `github`, and optional `tags`. Do not mix them up.
+Note: The index `index.yaml` is a **different file with a different schema** from the runtime `plugin.yaml`. Folder names use `^[a-z0-9_]+$` (underscores, no hyphens) and must match the `name` field in the remote `plugin.yaml` exactly.
 
 ## Plugin Marketplace
 
