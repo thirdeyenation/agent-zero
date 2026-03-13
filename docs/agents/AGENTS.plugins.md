@@ -24,7 +24,7 @@ Each plugin lives in usr/plugins/<plugin_name>/.
 ```text
 usr/plugins/<plugin_name>/
 ├── plugin.yaml                   # Required: Title, version, settings + activation metadata
-├── initialize.py                 # Optional: one-time setup script (dependencies, models, etc.)
+├── execute.py                    # Optional: user-triggered plugin script
 ├── hooks.py                      # Optional: runtime hook functions callable by the framework
 ├── default_config.yaml           # Optional: fallback settings defaults
 ├── README.md                     # Optional: shown in Plugin List UI
@@ -68,6 +68,15 @@ Field reference:
 - `per_project_config`: Enables project-scoped settings and toggle rules
 - `per_agent_config`: Enables agent-profile-scoped settings and toggle rules
 - `always_enabled`: Forces ON and disables toggle controls in the UI (reserved for framework use)
+
+### execute.py (plugin script)
+
+Plugins can include an optional `execute.py` file at the plugin root for user-triggered work such as setup, post-install steps, maintenance, migrations, repair flows, or resource refreshes. It is started manually from the Plugins UI, never automatically, and should print progress while returning `0` on success.
+
+Design guidance:
+- use `execute.py` for manual operations the user may need to run again later
+- prefer making it rerunnable or state-aware
+- avoid placing framework-internal automatic behavior here; that belongs in `hooks.py` or lifecycle extensions
 
 ### hooks.py (framework runtime hooks)
 
@@ -253,9 +262,14 @@ Index submission rules:
 - `title` max 50 characters, `description` max 500 characters
 - `tags`: optional, up to 5, use recommended tags from https://github.com/agent0ai/a0-plugins/blob/main/TAGS.md
 
-### Plugin Marketplace (Coming Soon)
+### Plugin Marketplace
 
-A built-in **Plugin Marketplace** plugin (always active) will allow users to browse the Plugin Index and install or update community plugins directly from the Agent Zero UI. This section will be updated once the marketplace plugin is released.
+The marketplace is provided by the always-enabled `_plugin_installer` plugin. Users can reach it from the **Plugins** dialog in two ways:
+
+- the **Browse** tab in `webui/components/plugins/list/plugin-list.html`
+- the **Install** toolbar action injected by `plugins/_plugin_installer/extensions/webui/plugins-list-header-buttons/install-buttons.html`, which opens `plugins/_plugin_installer/webui/main.html` on its own **Browse** tab
+
+Both routes surface Plugin Index entries inside Agent Zero. The marketplace supports search, filtering, sorting, and a detail view with README content and installation actions.
 
 ---
 

@@ -177,7 +177,7 @@ save_plugin_config(
 ```
 /a0/usr/plugins/<name>/
   plugin.yaml           # Required manifest
-  initialize.py         # Optional one-time setup script
+  execute.py            # Optional user-triggered setup, post-install, or maintenance script
   hooks.py              # Optional framework runtime hook functions
   default_config.yaml   # Optional default settings fallback
   README.md             # Optional, shown in Plugin List UI
@@ -195,8 +195,17 @@ save_plugin_config(
     my-store.js         # Alpine stores
 ```
 
-## Plugin Initialization Script (`initialize.py`)
-If your plugin requires one-time setup (e.g., installing dependencies, downloading models), add an `initialize.py` at the plugin root:
+## Plugin Execution Script (`execute.py`)
+If your plugin needs a user-triggered script for setup, post-install work, maintenance, or other manual operations, add an `execute.py` at the plugin root.
+
+Good uses for `execute.py` include:
+- installing dependencies or downloading models/assets
+- running post-install steps after the plugin is copied into place
+- rebuilding caches, indexes, or generated files
+- applying migrations, repair steps, or sync jobs that the user may need to run again later
+- performing periodic maintenance tasks that should happen only when explicitly requested by the user
+
+Use `execute.py` for **user-initiated** work. If the behavior is framework-internal or should happen automatically as part of plugin lifecycle handling, use `hooks.py` or lifecycle extensions instead.
 
 ```python
 import subprocess
@@ -211,6 +220,10 @@ def main():
     if result.returncode != 0:
         print("ERROR: Installation failed")
         return result.returncode
+
+    print("Refreshing plugin resources...")
+    # Add post-install, repair, migration, or maintenance logic here.
+
     print("Done.")
     return 0
 
@@ -218,7 +231,7 @@ if __name__ == "__main__":
     sys.exit(main())
 ```
 
-Users trigger it via the **Init** button in the Plugin List UI. Return `0` on success, non-zero on failure.
+Users trigger it from the Plugins UI. Treat it as a manual, rerunnable operation: return `0` on success, non-zero on failure, and print progress so the user can understand what happened. When possible, make it safe to run more than once; if reruns are not safe, detect the state and print a clear message.
 
 ## Runtime Hooks (`hooks.py`)
 If your plugin needs framework-internal hook points, add a `hooks.py` file at the plugin root. The framework can call exported functions by name via `helpers.plugins.call_plugin_hook(...)`.
@@ -300,4 +313,4 @@ Help the user prepare the fork, the index manifest, and draft the PR.
 
 The **Plugin Index** is the community hub at https://github.com/agent0ai/a0-plugins.
 
-A **Plugin Marketplace** (a built-in always-active plugin) is planned and will allow users to browse, install, and update indexed plugins directly from the Agent Zero UI. When available, this skill will be updated to guide users through marketplace-based installation as well.
+Agent Zero now exposes indexed plugins through the built-in **Plugin Marketplace**. Users can open it from the **Plugins** dialog either through the **Browse** tab or through the **Install** button, then inspect plugin details and install directly from the UI.

@@ -41,9 +41,15 @@ per_agent_config: false
 always_enabled: false
 ```
 
-## Plugin Initialization (`initialize.py`)
+## Plugin Script (`execute.py`)
 
-Plugins can include an optional `initialize.py` at the plugin root for one-time setup such as installing dependencies or downloading models. Users trigger it via the **Init** button in the Plugin List UI. The script should return `0` on success and print progress messages for user feedback.
+Plugins can include an optional `execute.py` at the plugin root for user-triggered operations such as setup, post-install steps, maintenance, repairs, migrations, or resource refreshes. Users trigger it from the Plugin List UI.
+
+Guidelines:
+- Treat it as a manual plugin script, not as the primary way to use the plugin
+- Prefer making it safe to rerun, or detect state and explain why a rerun is not appropriate
+- Return `0` on success and print progress messages for user feedback
+- Use `hooks.py` instead when the behavior is framework-internal or should happen automatically
 
 ## Runtime Hooks (`hooks.py`)
 
@@ -77,6 +83,8 @@ tags:
 
 Note: The index `plugin.yaml` is a **different schema** from the runtime manifest — it contains only `title`, `description`, `github`, and optional `tags`. Do not mix them up.
 
-## Plugin Marketplace (Coming Soon)
+## Plugin Marketplace
 
-A built-in **Plugin Marketplace** (always-active plugin) is planned and will allow users to browse the Plugin Index and install community plugins directly from the Agent Zero UI.
+Agent Zero now includes a built-in marketplace flow through the always-enabled **Plugin Installer** plugin. From the **Plugins** dialog, users can either open the **Browse** tab or click **Install**, which opens the installer modal on its own **Browse** tab.
+
+The marketplace surfaces Plugin Index entries directly in the UI and lets users search, filter, inspect, and install community plugins without leaving Agent Zero.
