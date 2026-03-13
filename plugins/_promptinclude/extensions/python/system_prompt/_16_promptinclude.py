@@ -45,7 +45,7 @@ class PromptInclude(Extension):
             system_prompt.append(prompt)
             return
 
-        includes = _format_includes(result)
+        includes = _format_includes(self.agent, result)
         prompt = self.agent.read_prompt(
             "agent.system.promptinclude.md",
             name_pattern=name_pattern,
@@ -64,24 +64,22 @@ def _resolve_workdir(agent: Agent) -> str:
     return get_settings()["workdir_path"]
 
 
-def _format_includes(result: ScanResult) -> str:
+def _format_includes(agent: Agent, result: ScanResult) -> str:
     lines: list[str] = []
 
     for entry in result["files"]:
-        path = entry["path"]
-        status = entry["status"]
-        content = entry["content"]
-
-        if status == "skipped":
-            lines.append(f"{path} !!! skipped to fit")
+        if entry["status"] == "skipped":
+            lines.append(f"{entry['path']} !!! skipped to fit")
             continue
 
-        suffix = " !!! cropped to fit" if status == "cropped" else ""
-        lines.append(f"{path}{suffix}")
-        lines.append("```")
-        lines.append(content)
-        lines.append("```")
-        lines.append("")
+        suffix = " !!! cropped to fit" if entry["status"] == "cropped" else ""
+        block = agent.read_prompt(
+            "fw.promptinclude.includes.md",
+            path=entry["path"],
+            suffix=suffix,
+            content=entry["content"],
+        )
+        lines.append(block)
 
     if result["skipped_count"] > 0:
         lines.append(f"!!! {result['skipped_count']} more files skipped to fit")
