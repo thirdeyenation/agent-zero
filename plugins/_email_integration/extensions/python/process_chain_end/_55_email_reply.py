@@ -1,0 +1,37 @@
+import asyncio
+from helpers.extension import Extension
+from agent import AgentContext, LoopData
+from plugins._email_integration.helpers.dispatcher import CTX_EMAIL_HANDLER
+
+
+class EmailAutoReply(Extension):
+
+    async def execute(self, loop_data: LoopData = LoopData(), **kwargs):
+        if not self.agent or self.agent.number != 0:
+            return
+
+        context = self.agent.context
+        if not context.data.get(CTX_EMAIL_HANDLER):
+            return
+
+        # Extract response from last log item
+        response_text = _extract_last_response(context)
+        if not response_text:
+            return
+
+        asyncio.create_task(self._send_reply(context, response_text))
+
+    async def _send_reply(self, context: AgentContext, response_text: str):
+        from plugins._email_integration.helpers.handler import send_email_reply
+        await send_email_reply(context, response_text)
+
+
+def _extract_last_response(context: AgentContext) -> str:
+    with context.log._lock:
+        logs = list(context.log.logs)
+    if not logs:
+        return ""
+    for item in reversed(logs):
+        if item.type == "response":
+            return item.content or ""
+    return ""
