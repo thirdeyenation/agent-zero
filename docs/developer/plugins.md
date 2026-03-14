@@ -70,6 +70,31 @@ usr/plugins/<plugin_name>/
     └── ...
 ```
 
+## Python Imports for User Plugins
+
+For plugin-local Python imports inside `usr/plugins/<plugin_name>/`, use the
+fully qualified `usr.plugins.<plugin_name>...` path.
+
+Good:
+
+```python
+from usr.plugins.my_plugin.helpers.runtime import do_work
+import usr.plugins.my_plugin.helpers.state as state
+```
+
+Avoid:
+
+```python
+sys.path.insert(0, ...)
+from helpers.runtime import do_work
+
+from plugins.my_plugin.helpers.runtime import do_work
+```
+
+This is the preferred pattern because it keeps plugin imports explicit,
+requires no directory renaming like `name_helpers`, requires no symlink into
+`plugins/`, and leaves no global import hack behind when the plugin is deleted.
+
 ## Plugin Script (`execute.py`)
 
 Plugins can include an optional `execute.py` at the plugin root for user-triggered operations such as setup, post-install actions, maintenance, repair steps, or other manual tasks that should run only when explicitly requested.
@@ -102,6 +127,11 @@ if __name__ == "__main__":
 
 Return `0` on success, non-zero on failure. Print progress for user feedback. Use `sys.executable` for pip commands. Prefer making the script safe to run more than once; if reruns are not safe, detect the current state and print a clear explanation.
 
+First rule of plugin side effects: do not modify the system permanently unless
+the user explicitly asked for it and the plugin also provides a cleanup path.
+Deleting a plugin should not leave behind symlinks, orphaned services,
+framework patches, or unmanaged files outside plugin-owned locations.
+
 ## Runtime Hooks (`hooks.py`)
 
 Plugins can also include an optional `hooks.py` at the plugin root. Agent Zero loads this module on demand and calls exported functions by name through `helpers.plugins.call_plugin_hook(...)`.
@@ -110,6 +140,7 @@ Plugins can also include an optional `hooks.py` at the plugin root. Agent Zero l
 - Use it for framework-internal operations such as install hooks, registration, cache preparation, file setup, or other work that needs direct access to framework internals.
 - Hook functions may be synchronous or async.
 - Hook modules are cached, so edits may require a plugin refresh or cache clear before changes are picked up.
+- Hooks should be reversible and cleanup-safe. Prefer plugin-owned paths and framework-managed state over permanent system modifications.
 
 Use `execute.py` when the user should explicitly decide when the operation runs. Use `hooks.py` or lifecycle extensions when the work belongs to framework-managed behavior.
 

@@ -44,6 +44,36 @@ usr/plugins/<plugin_name>/
     └── ...                       # Full plugin pages/components
 ```
 
+### Python import rule for user plugins
+
+For plugin-local Python code in `usr/plugins/<plugin_name>/`, import through the
+fully qualified `usr.plugins.<plugin_name>...` package path.
+
+Good (DO):
+
+```python
+from usr.plugins.my_plugin.helpers.runtime import do_work
+import usr.plugins.my_plugin.helpers.state as state
+```
+
+Avoid (DON'T):
+
+```python
+# sys.path hacks
+sys.path.insert(0, ...)
+from helpers.runtime import do_work
+
+# persistent symlink-based imports
+from plugins.my_plugin.helpers.runtime import do_work
+```
+
+Why:
+
+- `usr.plugins...` works without renaming `helpers/`
+- it avoids `sys.path` mutation for plugin-local imports
+- it avoids installation-time symlinks into `/a0/plugins/`
+- it keeps plugin removal reversible, with no import wiring left behind
+
 ### plugin.yaml (runtime manifest)
 
 This is the manifest file that lives inside your plugin directory and drives runtime behavior. It is distinct from the index manifest (`index.yaml`) used when publishing to the Plugin Index (see Section 7).
@@ -79,6 +109,7 @@ Design guidance:
 - use `execute.py` for manual operations the user may need to run again later
 - prefer making it rerunnable or state-aware
 - avoid placing framework-internal automatic behavior here; that belongs in `hooks.py` or lifecycle extensions
+- do not make permanent system modifications that remain after plugin deletion unless the user explicitly asked for them and the plugin also provides a clear cleanup path
 
 ### hooks.py (framework runtime hooks)
 
@@ -88,6 +119,7 @@ Plugins can include an optional `hooks.py` file at the plugin root. Agent Zero l
 - Use it for framework-internal operations such as install-time setup, plugin registration work, filesystem preparation, cache updates, or other tasks that need access to Agent Zero internals.
 - Hook functions may be synchronous or async. Async hooks are awaited by the framework.
 - Hook modules are cached until plugin caches are cleared, so changes may require a plugin refresh/reload cycle.
+- Plugin hooks should be cleanup-safe. A plugin should not leave behind permanent system modifications, symlinks, files outside its owned paths, or background services that survive plugin removal unless that behavior is explicitly part of the user-facing contract.
 
 Current example: the plugin installer calls `install()` from `hooks.py` after a plugin is copied into place.
 

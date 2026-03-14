@@ -158,6 +158,9 @@ If your plugin exposes existing core settings rather than plugin-specific ones, 
 ### Import Paths
 - Correct: `from agent import AgentContext, AgentContextType`
 - Correct: `from initialize import initialize_agent`
+- Correct for plugin-local Python modules under `usr/plugins/<name>/`: `from usr.plugins.<name>.helpers.module import ...`
+- Avoid `sys.path` hacks for plugin-local imports
+- Avoid symlink-dependent imports like `from plugins.<name>...` for user/community plugins in `usr/plugins/`
 
 ### Sending Messages Proactively
 ```python
@@ -209,6 +212,29 @@ save_plugin_config(
     my-store.js         # Alpine stores
 ```
 
+### Import rule for plugin-local Python code
+
+Use the fully qualified `usr.plugins.<plugin_name>...` path for plugin-local
+imports. This lets plugins keep a normal `helpers/` directory without renaming
+it to `<name>_helpers`, and it avoids both `sys.path` mutation and symlink
+installation steps.
+
+Good:
+
+```python
+from usr.plugins.my_plugin.helpers.runtime import do_work
+import usr.plugins.my_plugin.helpers.state as state
+```
+
+Avoid:
+
+```python
+sys.path.insert(0, ...)
+from helpers.runtime import do_work
+
+from plugins.my_plugin.helpers.runtime import do_work
+```
+
 ## Plugin Execution Script (`execute.py`)
 If your plugin needs a user-triggered script for setup, post-install work, maintenance, or other manual operations, add an `execute.py` at the plugin root.
 
@@ -220,6 +246,12 @@ Good uses for `execute.py` include:
 - performing periodic maintenance tasks that should happen only when explicitly requested by the user
 
 Use `execute.py` for **user-initiated** work. If the behavior is framework-internal or should happen automatically as part of plugin lifecycle handling, use `hooks.py` or lifecycle extensions instead.
+
+First rule of plugin side effects: do not modify the system permanently in ways
+that outlive the plugin. When a plugin is deleted, there should be no leftover
+symlinks, unmanaged services, or stray files outside plugin-owned paths unless
+the user explicitly requested that behavior and the plugin documents how to
+clean it up.
 
 ```python
 import subprocess
@@ -254,6 +286,7 @@ If your plugin needs framework-internal hook points, add a `hooks.py` file at th
 - Use it for things like install hooks, plugin registration work, cache setup, file preparation, or other internal framework operations.
 - Hook functions may be sync or async.
 - Current example: the plugin installer calls `install()` in `hooks.py` after placing a plugin in `usr/plugins/`.
+- Hooks should be reversible and cleanup-safe. Prefer framework-managed state and plugin-owned paths over permanent system modifications.
 
 ### Environment targeting rules
 - If `hooks.py` runs `sys.executable -m pip install ...`, it installs into the same Python environment that is running Agent Zero.
