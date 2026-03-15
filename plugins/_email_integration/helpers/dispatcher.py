@@ -24,7 +24,7 @@ CTX_EMAIL_ATTACHMENTS = "_email_response_attachments"
 
 BODY_PREVIEW_MAX_CHARS: int = 2000
 
-DispatchAction = Literal["new_chat", "continue_chat", "intervene_soft", "intervene_hard"]
+DispatchAction = Literal["new_chat", "continue_chat"]
 
 
 @dataclass
@@ -96,8 +96,6 @@ def parse_dispatcher_response(response: str) -> DispatchDecision:
     action_map: dict[str, DispatchAction] = {
         "NEW_CHAT": "new_chat",
         "CONTINUE": "continue_chat",
-        "INTERVENE_SOFT": "intervene_soft",
-        "INTERVENE_HARD": "intervene_hard",
     }
     action = action_map.get(action_raw, "new_chat")
     return DispatchDecision(action=action, context_id=ctx_id, reason=reason)

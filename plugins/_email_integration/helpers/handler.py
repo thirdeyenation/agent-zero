@@ -152,28 +152,23 @@ async def _dispatch_message(agent: Agent, handler_cfg: dict, msg: InboundMessage
         for chat in existing:
             if chat["thread_id"] == thread_id:
                 await _route_to_chat(
-                    agent, handler_cfg, msg, chat["context_id"], "continue_chat",
+                    agent, handler_cfg, msg, chat["context_id"],
                 )
                 return
 
     # Dispatcher AI decides
     decision = await _call_dispatcher(agent, handler_cfg, msg, existing)
 
-    if decision.action == "new_chat":
-        await _start_new_chat(agent, handler_cfg, msg)
-    elif decision.action in ("continue_chat", "intervene_soft", "intervene_hard"):
+    if decision.action == "continue_chat" and decision.context_id:
         ctx = AgentContext.get(decision.context_id)
-        if not ctx:
-            PrintStyle.warning(
-                f"Dispatcher referenced unknown context {decision.context_id}, starting new chat"
-            )
-            await _start_new_chat(agent, handler_cfg, msg)
-        else:
-            await _route_to_chat(
-                agent, handler_cfg, msg, decision.context_id, decision.action,
-            )
-    else:
-        await _start_new_chat(agent, handler_cfg, msg)
+        if ctx:
+            await _route_to_chat(agent, handler_cfg, msg, decision.context_id)
+            return
+        PrintStyle.warning(
+            f"Dispatcher referenced unknown context {decision.context_id}, starting new chat"
+        )
+
+    await _start_new_chat(agent, handler_cfg, msg)
 
 
 async def _call_dispatcher(
@@ -253,7 +248,6 @@ async def _route_to_chat(
     handler_cfg: dict,
     msg: InboundMessage,
     context_id: str,
-    action: disp.DispatchAction,
 ):
     context = AgentContext.get(context_id)
     if not context:
@@ -263,37 +257,15 @@ async def _route_to_chat(
     if msg.references:
         context.data[disp.CTX_EMAIL_REFERENCES] = msg.references
 
-    if action == "intervene_soft":
-        soft_msg = agent.read_prompt(
-            "fw.email.intervene_soft.md",
-            sender=msg.sender,
-            subject=msg.subject,
-            body=msg.body,
-        )
-        mq.add(context, soft_msg, msg.attachments)
-        PrintStyle.info(f"Email: queued soft intervention for chat {context_id}")
-
-    elif action == "intervene_hard":
-        user_msg = _build_user_message(agent, msg, handler_cfg)
-        system_ctx = agent.read_prompt("fw.email.system_context.md")
-        mq.log_user_message(context, user_msg, msg.attachments or [], source=" (email)")
-        context.communicate(UserMessage(
-            message=user_msg,
-            system_message=[system_ctx],
-            attachments=msg.attachments,
-        ))
-        PrintStyle.info(f"Email: hard intervention on chat {context_id}")
-
-    else:
-        user_msg = _build_user_message(agent, msg, handler_cfg)
-        mq.log_user_message(context, user_msg, msg.attachments or [], source=" (email)")
-        context.communicate(UserMessage(
-            message=user_msg,
-            attachments=msg.attachments,
-        ))
-        PrintStyle.info(f"Email: continuing chat {context_id}")
+    user_msg = _build_user_message(agent, msg, handler_cfg)
+    mq.log_user_message(context, user_msg, msg.attachments or [], source=" (email)")
+    context.communicate(UserMessage(
+        message=user_msg,
+        attachments=msg.attachments,
+    ))
 
     save_tmp_chat(context)
+    PrintStyle.info(f"Email: continuing chat {context_id}")
 
 
 # ------------------------------------------------------------------
