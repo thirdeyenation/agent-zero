@@ -1,0 +1,124 @@
+<html>
+<head>
+  <title>Model Configuration</title>
+</head>
+
+<body>
+  <div x-data>
+    <div class="section-title">Model Configuration</div>
+    <div class="section-description">
+      Model settings are managed through the Model Configuration plugin, supporting per-project and per-agent overrides.
+    </div>
+
+    <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px;">
+      <button class="btn btn-field" @click="(async () => {
+        const pluginMeta = { name: '_model_config', always_enabled: true, per_project_config: true, per_agent_config: true, has_config_screen: true };
+        if ($store.pluginToggle?.open) await $store.pluginToggle.open(pluginMeta);
+        await $store.pluginSettingsPrototype.open('_model_config', { perProjectConfig: true, perAgentConfig: true });
+        openModal('components/plugins/plugin-settings.html');
+      })()">
+        Configure Models
+      </button>
+      <button class="btn btn-field" @click="openModal('/plugins/_model_config/webui/api-keys.html')">
+        Manage API Keys
+      </button>
+    </div>
+
+    <!-- Read-only model config summary -->
+    <div x-data="{
+      loading: true,
+      models: [],
+      async init() {
+        try {
+          const res = await fetchApi('/plugins/_model_config/model_config_get', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({})
+          });
+          const data = await res.json();
+          const cfg = data.config || {};
+          const chatP = data.chat_providers || [];
+          const embedP = data.embedding_providers || [];
+          const label = (list, id) => (list.find(x => x.value === id) || {}).label || id || '\u2014';
+          this.models = [
+            { icon: 'chat', title: 'Main', cfg: cfg.chat_model, pList: chatP },
+            { icon: 'manufacturing', title: 'Utility', cfg: cfg.utility_model, pList: chatP },
+            { icon: 'database', title: 'Embedding', cfg: cfg.embedding_model, pList: embedP },
+          ].map(s => ({
+            icon: s.icon,
+            title: s.title,
+            provider: label(s.pList, s.cfg?.provider),
+            name: s.cfg?.name || '\u2014'
+          }));
+        } catch (e) {
+          console.error('Model summary load failed:', e);
+          this.models = [];
+        } finally {
+          this.loading = false;
+        }
+      }
+    }" class="model-summary">
+      <div x-show="loading" style="text-align:center; padding:12px;">
+        <span class="material-symbols-outlined spinning" style="font-size:18px;">progress_activity</span>
+      </div>
+      <template x-if="!loading && models.length">
+        <div class="model-summary-grid">
+          <template x-for="m in models" :key="m.title">
+            <div class="model-summary-row">
+              <span class="material-symbols-outlined model-summary-icon" x-text="m.icon"></span>
+              <span class="model-summary-label" x-text="m.title"></span>
+              <span class="model-summary-value">
+                <span x-text="m.provider" style="opacity:0.6;"></span>
+                <span style="opacity:0.3; margin:0 4px;">/</span>
+                <span x-text="m.name"></span>
+              </span>
+            </div>
+          </template>
+        </div>
+      </template>
+    </div>
+  </div>
+
+  <style>
+    .model-summary {
+      margin-top: 14px;
+    }
+    .model-summary-grid {
+      display: flex;
+      flex-direction: column;
+      background: var(--color-input);
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      padding: 0.75em 1em;
+    }
+    .model-summary-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 14px;
+      font-size: 0.82rem;
+    }
+    .model-summary-row:not(:last-child) {
+      border-bottom: 1px solid var(--color-border);
+    }
+    .model-summary-icon {
+      font-size: 16px;
+      opacity: 0.45;
+      flex-shrink: 0;
+    }
+    .model-summary-label {
+      width: 80px;
+      flex-shrink: 0;
+      font-weight: 500;
+      opacity: 0.7;
+    }
+    .model-summary-value {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  </style>
+</body>
+</html>
