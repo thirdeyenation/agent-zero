@@ -17,5 +17,9 @@ class EmailContextPrompt(Extension):
             return
 
         if self.agent.context.data.get(CTX_EMAIL_HANDLER):
-            prompt = self.agent.read_prompt("fw.email.system_context_reply.md")
-            system_prompt.append(prompt)
+            system_prompt.append(
+                self.agent.read_prompt("fw.email.system_context_reply.md")
+            )
+            system_prompt.append(
+                self.agent.read_prompt("fw.email.tool_email_update.md")
+            )
