@@ -8,13 +8,13 @@ class IncludeAgentInfo(Extension):
             return
 
         # read prompt
+        from plugins._model_config.helpers.model_config import get_chat_model_config
+        chat_cfg = get_chat_model_config(self.agent)
         agent_info_prompt = self.agent.read_prompt(
             "agent.extras.agent_info.md",
             number=self.agent.number,
             profile=self.agent.config.profile or "Default",
-            llm=self.agent.config.chat_model.provider
-            + "/"
-            + self.agent.config.chat_model.name,
+            llm=chat_cfg.get("provider", "") + "/" + chat_cfg.get("name", ""),
         )
 
         # add agent info to the prompt
