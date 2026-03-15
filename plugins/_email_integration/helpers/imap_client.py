@@ -50,7 +50,7 @@ async def connect_imap(
 
     def _sync():
         client = IMAPClient(server, port=port, ssl=ssl, timeout=timeout)
-        client._imap._maxline = 100000
+        client._imap._maxline = 100000  # type: ignore[attr-defined]
         client.login(username, password)
         return client
 
@@ -85,7 +85,7 @@ async def fetch_new(
         try:
             return client.gmail_search("category:primary is:unread")
         except Exception:
-            return client.search(["UNSEEN"])
+            return client.search(["UNSEEN"])  # type: ignore[arg-type]
 
     msg_ids = await loop.run_in_executor(None, _search)
     if not msg_ids:
@@ -127,7 +127,7 @@ async def get_highest_uid(client: IMAPClient) -> int:
 
     def _search():
         client.select_folder("INBOX")
-        uids = client.search(["ALL"])
+        uids = client.search(["ALL"])  # type: ignore[arg-type]
         return max(uids) if uids else 0
 
     return await loop.run_in_executor(None, _search)
@@ -152,7 +152,7 @@ async def _fetch_single(
     if not email_data:
         return None
 
-    email_msg = email.message_from_bytes(email_data)
+    email_msg = email.message_from_bytes(email_data)  # type: ignore[arg-type]
 
     sender = _decode_header(email_msg.get("From", ""))
     if _is_noreply(sender):
@@ -275,7 +275,7 @@ async def _parse_body(
                 if filename:
                     filename = _decode_header(filename)
                     content = part.get_payload(decode=True)
-                    if content:
+                    if isinstance(content, bytes):
                         path = await _save_attachment(filename, content, download_folder)
                         attachments.append(path)
                         cid = part.get("Content-ID")
@@ -284,17 +284,19 @@ async def _parse_body(
 
             elif content_type == "text/plain" and not body:
                 charset = part.get_content_charset() or "utf-8"
-                body = part.get_payload(decode=True).decode(charset, errors="ignore")
+                payload = part.get_payload(decode=True)
+                body = payload.decode(charset, errors="ignore") if isinstance(payload, bytes) else ""
 
             elif content_type == "text/html" and not body:
                 charset = part.get_content_charset() or "utf-8"
-                html = part.get_payload(decode=True).decode(charset, errors="ignore")
+                payload = part.get_payload(decode=True)
+                html = payload.decode(charset, errors="ignore") if isinstance(payload, bytes) else ""
                 body = _html_to_text(html, cid_map)
     else:
         content_type = email_msg.get_content_type()
         charset = email_msg.get_content_charset() or "utf-8"
         content = email_msg.get_payload(decode=True)
-        if content:
+        if isinstance(content, bytes):
             if content_type == "text/html":
                 body = _html_to_text(content.decode(charset, errors="ignore"))
             else:
@@ -328,7 +330,7 @@ def _html_to_text(html_content: str, cid_map: dict[str, str] | None = None) -> s
     if cid_map:
         soup = BeautifulSoup(html_content, "html.parser")
         for img in soup.find_all("img"):
-            src = img.get("src", "")
+            src = str(img.get("src", ""))
             if src.startswith("cid:"):
                 cid = src[4:]
                 if cid in cid_map:
