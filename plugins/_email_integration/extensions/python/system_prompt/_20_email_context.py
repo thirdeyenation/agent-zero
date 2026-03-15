@@ -16,5 +16,5 @@ class EmailContextPrompt(Extension):
 
         # Only inject email conversation context if this chat was started by email
         if self.agent.context.data.get(CTX_EMAIL_HANDLER):
-            prompt = self.agent.read_prompt("agent.system.tool.email_reply.md")
+            prompt = self.agent.read_prompt("fw.email.system_context_reply.md")
             system_prompt.append(prompt)
