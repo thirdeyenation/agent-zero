@@ -47,6 +47,11 @@ def _read_fw(filename: str, **kwargs: str) -> str:
 
 _state_lock = asyncio.Lock()
 
+# Poll task registry — lives here (not in extension module) because
+# extension modules are re-executed on each job_loop tick (cache disabled),
+# which would reset module-level state and orphan running tasks.
+_poll_tasks: dict[str, asyncio.Task] = {}  # type: ignore[type-arg]
+
 def _load_state() -> dict:
     path = files.get_abs_path(STATE_FILE)
     if os.path.isfile(path):
@@ -64,28 +69,8 @@ def _save_state(state: dict):
 
 
 # ------------------------------------------------------------------
-# Main auto-poll entry point (called from job_loop extension)
+# Single handler poll (called from per-handler poll loop)
 # ------------------------------------------------------------------
-
-async def poll_all_handlers():
-    config = plugins.get_plugin_config(PLUGIN_NAME) or {}
-    handlers = config.get("handlers", [])
-    enabled = [h for h in handlers if h.get("enabled", False)]
-
-    if not enabled:
-        return
-
-    state = _load_state()
-
-    for handler_cfg in enabled:
-        try:
-            await _poll_single_handler(handler_cfg, state)
-        except Exception as e:
-            name = handler_cfg.get("name", "?")
-            PrintStyle.error(f"Email poll error ({name}): {format_error(e)}")
-
-    _save_state(state)
-
 
 async def _poll_single_handler(handler_cfg: dict, state: dict):
     name = handler_cfg.get("name", "default")

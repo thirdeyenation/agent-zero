@@ -1,6 +1,8 @@
 """Per-handler email poll loop with configurable seconds/cron intervals."""
 
 import asyncio
+from datetime import datetime, timezone
+from typing import Any
 
 from crontab import CronTab
 
@@ -10,36 +12,46 @@ from helpers.print_style import PrintStyle
 from helpers import plugins
 
 
-PLUGIN_NAME = "_email_integration"
-DEFAULT_INTERVAL = 15
-MIN_INTERVAL = 5
-
-_poll_tasks: dict[str, asyncio.Task] = {}
+PLUGIN_NAME: str = "_email_integration"
+DEFAULT_INTERVAL: int = 15
+MIN_INTERVAL: int = 5
 
 
 # ------------------------------------------------------------------
-# Poll interval
+# Extension entry point
 # ------------------------------------------------------------------
 
-def _get_sleep_seconds(handler_cfg: dict) -> float:
-    mode = handler_cfg.get("poll_mode", "seconds")
-    if mode == "cron":
-        expr = handler_cfg.get("poll_interval_cron", "*/2 * * * *")
-        try:
-            return max(CronTab(expr).next(default_utc=True), MIN_INTERVAL)
-        except Exception:
-            return DEFAULT_INTERVAL
-    return max(handler_cfg.get("poll_interval_seconds", DEFAULT_INTERVAL), MIN_INTERVAL)
+class EmailAutoPoll(Extension):
+
+    async def execute(self, **kwargs: Any) -> None:
+        # _poll_tasks lives in handler.py (persists across module reloads)
+        from plugins._email_integration.helpers.handler import _poll_tasks
+
+        config = plugins.get_plugin_config(PLUGIN_NAME) or {}
+        handlers = config.get("handlers", [])
+        enabled_names = {
+            h["name"] for h in handlers if h.get("enabled") and h.get("name")
+        }
+
+        for name in list(_poll_tasks):
+            if name not in enabled_names or _poll_tasks[name].done():
+                task = _poll_tasks.pop(name, None)
+                if task and not task.done():
+                    task.cancel()
+
+        for name in enabled_names:
+            if name not in _poll_tasks or _poll_tasks[name].done():
+                _poll_tasks[name] = asyncio.create_task(_handler_poll_loop(name))
 
 
 # ------------------------------------------------------------------
 # Per-handler poll loop
 # ------------------------------------------------------------------
 
-async def _handler_poll_loop(handler_name: str):
+async def _handler_poll_loop(handler_name: str) -> None:
     from plugins._email_integration.helpers.handler import (
-        _poll_single_handler,
         _load_state,
+        _poll_single_handler,
         _save_state,
         _state_lock,
     )
@@ -67,24 +79,17 @@ async def _handler_poll_loop(handler_name: str):
 
 
 # ------------------------------------------------------------------
-# Extension entry point
+# Poll interval
 # ------------------------------------------------------------------
 
-class EmailAutoPoll(Extension):
-
-    async def execute(self, **kwargs):
-        config = plugins.get_plugin_config(PLUGIN_NAME) or {}
-        handlers = config.get("handlers", [])
-        enabled_names = {
-            h["name"] for h in handlers if h.get("enabled") and h.get("name")
-        }
-
-        for name in list(_poll_tasks):
-            if name not in enabled_names or _poll_tasks[name].done():
-                task = _poll_tasks.pop(name, None)
-                if task and not task.done():
-                    task.cancel()
-
-        for name in enabled_names:
-            if name not in _poll_tasks or _poll_tasks[name].done():
-                _poll_tasks[name] = asyncio.create_task(_handler_poll_loop(name))
+def _get_sleep_seconds(handler_cfg: dict) -> float:
+    mode = handler_cfg.get("poll_mode", "seconds")
+    if mode == "cron":
+        expr = handler_cfg.get("poll_interval_cron", "*/2 * * * *")
+        try:
+            cron = CronTab(expr)
+            next_sec = cron.next(now=datetime.now(timezone.utc))  # type: ignore[union-attr]
+            return max(next_sec, MIN_INTERVAL)
+        except Exception:
+            return DEFAULT_INTERVAL
+    return max(handler_cfg.get("poll_interval_seconds", DEFAULT_INTERVAL), MIN_INTERVAL)
