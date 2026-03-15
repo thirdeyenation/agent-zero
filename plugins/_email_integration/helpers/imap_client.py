@@ -155,6 +155,8 @@ async def _fetch_single(
     email_msg = email.message_from_bytes(email_data)
 
     sender = _decode_header(email_msg.get("From", ""))
+    if _is_noreply(sender):
+        return None
     if sender_whitelist and not _matches_whitelist(sender, sender_whitelist):
         return None
 
@@ -219,6 +221,8 @@ async def fetch_unread_exchange(
 
     for item in items:
         sender = str(item.sender.email_address) if item.sender else ""
+        if _is_noreply(sender):
+            continue
         if sender_whitelist and not _matches_whitelist(sender, sender_whitelist):
             continue
 
@@ -360,6 +364,19 @@ def _decode_header(header: str) -> str:
         else:
             parts.append(str(part))
     return " ".join(parts)
+
+
+def _is_noreply(sender: str) -> bool:
+    addr = sender.lower()
+    match = re.search(r"<([^>]+)>", addr)
+    if match:
+        addr = match.group(1)
+    local = addr.split("@")[0] if "@" in addr else addr
+    return local in (
+        "noreply", "no-reply", "no_reply",
+        "donotreply", "do-not-reply", "do_not_reply",
+        "mailer-daemon", "postmaster",
+    )
 
 
 def _matches_whitelist(sender: str, whitelist: list[str]) -> bool:
