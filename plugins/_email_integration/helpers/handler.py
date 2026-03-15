@@ -300,6 +300,9 @@ async def _route_to_chat(
 # Chat discovery
 # ------------------------------------------------------------------
 
+HISTORY_PREVIEW_MAX_CHARS: int = 500
+
+
 def _find_handler_chats(handler_name: str, sender: str) -> list[dict]:
     results = []
     for ctx_id, ctx in AgentContext._contexts.items():
@@ -310,10 +313,25 @@ def _find_handler_chats(handler_name: str, sender: str) -> list[dict]:
             continue
         if data.get(disp.CTX_EMAIL_SENDER, "").lower() != sender.lower():
             continue
-        results.append(disp.build_chat_summary(ctx_id, data))
+        summary = disp.build_chat_summary(ctx_id, data)
+        summary["history_preview"] = _get_history_preview(ctx)
+        results.append(summary)
 
     results.sort(key=lambda c: c["context_id"], reverse=True)
     return results[:20]
+
+
+def _get_history_preview(ctx: AgentContext) -> str:
+    try:
+        history = ctx.agent0.history
+        text = history.output_text(human_label="user", ai_label="agent")
+        if not text:
+            return "(empty)"
+        if len(text) > HISTORY_PREVIEW_MAX_CHARS:
+            return "..." + text[-HISTORY_PREVIEW_MAX_CHARS:]
+        return text
+    except Exception:
+        return "(unavailable)"
 
 
 # ------------------------------------------------------------------

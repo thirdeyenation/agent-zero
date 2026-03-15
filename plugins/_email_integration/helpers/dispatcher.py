@@ -61,13 +61,17 @@ def build_chat_summary(context_id: str, data: dict) -> dict:
 def format_chats_list(existing_chats: list[dict]) -> str:
     if not existing_chats:
         return "No existing chats for this handler."
-    lines = []
+    sections = []
     for c in existing_chats[:20]:
-        lines.append(
+        header = (
             f"- context_id={c['context_id']} thread_id={c.get('thread_id', '')} "
             f"sender={c.get('sender', '')} subject={c.get('subject', '')}"
         )
-    return "\n".join(lines)
+        preview = c.get("history_preview", "")
+        if preview:
+            header += f"\n  conversation:\n  {preview}"
+        sections.append(header)
+    return "\n".join(sections)
 
 
 def parse_dispatcher_response(response: str) -> DispatchDecision:
