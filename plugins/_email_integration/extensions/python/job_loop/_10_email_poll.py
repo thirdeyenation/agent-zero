@@ -1,3 +1,5 @@
+"""Per-handler email poll loop with configurable seconds/cron intervals."""
+
 import asyncio
 
 from crontab import CronTab
@@ -15,6 +17,10 @@ MIN_INTERVAL = 5
 _poll_tasks: dict[str, asyncio.Task] = {}
 
 
+# ------------------------------------------------------------------
+# Poll interval
+# ------------------------------------------------------------------
+
 def _get_sleep_seconds(handler_cfg: dict) -> float:
     mode = handler_cfg.get("poll_mode", "seconds")
     if mode == "cron":
@@ -25,6 +31,10 @@ def _get_sleep_seconds(handler_cfg: dict) -> float:
             return DEFAULT_INTERVAL
     return max(handler_cfg.get("poll_interval_seconds", DEFAULT_INTERVAL), MIN_INTERVAL)
 
+
+# ------------------------------------------------------------------
+# Per-handler poll loop
+# ------------------------------------------------------------------
 
 async def _handler_poll_loop(handler_name: str):
     from plugins._email_integration.helpers.handler import (
@@ -55,6 +65,10 @@ async def _handler_poll_loop(handler_name: str):
         sleep_sec = _get_sleep_seconds(handler_cfg)
         await asyncio.sleep(sleep_sec)
 
+
+# ------------------------------------------------------------------
+# Extension entry point
+# ------------------------------------------------------------------
 
 class EmailAutoPoll(Extension):
 

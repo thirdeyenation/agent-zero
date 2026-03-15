@@ -1,4 +1,8 @@
-"""SMTP email sender. No agent/tool dependencies."""
+"""
+SMTP email sender. 
+
+No agent/tool dependencies.
+"""
 
 import asyncio
 import smtplib
@@ -7,11 +11,14 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
 from dataclasses import dataclass
-import os
 
 from helpers.errors import format_error
 from helpers.print_style import PrintStyle
 
+
+# ------------------------------------------------------------------
+# Data models
+# ------------------------------------------------------------------
 
 @dataclass
 class SmtpConfig:
@@ -22,6 +29,10 @@ class SmtpConfig:
     use_tls: bool = True
 
 
+# ------------------------------------------------------------------
+# Send reply
+# ------------------------------------------------------------------
+
 async def send_reply(
     config: SmtpConfig,
     to: str,
@@ -29,7 +40,7 @@ async def send_reply(
     body: str,
     in_reply_to: str = "",
     references: str = "",
-    attachments: list[str] | None = None,
+    attachments: list[tuple[str, bytes]] | None = None,
 ) -> bool:
     loop = asyncio.get_event_loop()
 
@@ -38,16 +49,13 @@ async def send_reply(
 
         if attachments:
             msg.attach(MIMEText(body, "plain", "utf-8"))
-            for path in attachments:
-                if not os.path.isfile(path):
-                    continue
+            for filename, content in attachments:
                 part = MIMEBase("application", "octet-stream")
-                with open(path, "rb") as f:
-                    part.set_payload(f.read())
+                part.set_payload(content)
                 encoders.encode_base64(part)
                 part.add_header(
                     "Content-Disposition",
-                    f"attachment; filename={os.path.basename(path)}",
+                    f"attachment; filename={filename}",
                 )
                 msg.attach(part)
 

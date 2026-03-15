@@ -1,4 +1,8 @@
-"""Email dispatch logic — routes inbound emails to chats. No agent deps in pure helpers."""
+"""
+Email dispatch logic — routes inbound emails to chats. 
+
+No agent deps in pure helpers.
+"""
 
 import re
 from dataclasses import dataclass
@@ -15,6 +19,7 @@ CTX_EMAIL_THREAD_ID = "_email_thread_id"
 CTX_EMAIL_SUBJECT = "_email_subject"
 CTX_EMAIL_MESSAGE_ID = "_email_message_id"
 CTX_EMAIL_REFERENCES = "_email_references"
+CTX_EMAIL_ATTACHMENTS = "_email_response_attachments"
 
 DispatchAction = Literal["new_chat", "continue_chat", "intervene_soft", "intervene_hard"]
 

@@ -1,11 +1,16 @@
-"""Email handler — orchestrates poll, dispatch, and reply. Requires agent context."""
+"""
+Email handler — orchestrates poll, dispatch, and reply. 
+
+Requires agent context.
+"""
 
 import asyncio
+import base64
 import json
 import os
 
 from agent import Agent, AgentContext, UserMessage
-from helpers import guids, plugins, files
+from helpers import guids, plugins, files, runtime
 from helpers import message_queue as mq
 from helpers.persist_chat import save_tmp_chat
 from helpers.print_style import PrintStyle
@@ -349,7 +354,11 @@ def _build_user_message(agent: Agent, msg: InboundMessage, handler_cfg: dict) ->
 # Reply sending (called from process_chain_end extension)
 # ------------------------------------------------------------------
 
-async def send_email_reply(context: AgentContext, response_text: str):
+async def send_email_reply(
+    context: AgentContext,
+    response_text: str,
+    attachments: list[str] | None = None,
+):
     handler_name = context.data.get(disp.CTX_EMAIL_HANDLER)
     if not handler_name:
         return
@@ -374,6 +383,9 @@ async def send_email_reply(context: AgentContext, response_text: str):
         password=cfg.get("password", ""),
     )
 
+    # Read attachment files via RFC (they live in the execution runtime)
+    attachment_data = await _read_attachments_via_rfc(attachments)
+
     await send_reply(
         config=smtp_cfg,
         to=sender,
@@ -381,8 +393,35 @@ async def send_email_reply(context: AgentContext, response_text: str):
         body=response_text,
         in_reply_to=original_msg_id,
         references=references,
+        attachments=attachment_data or None,
     )
 
+
+# ------------------------------------------------------------------
+# Attachment reading (via RFC into execution runtime)
+# ------------------------------------------------------------------
+
+async def _read_attachments_via_rfc(
+    paths: list[str] | None,
+) -> list[tuple[str, bytes]]:
+    if not paths:
+        return []
+
+    from plugins._email_integration.helpers.attachment_reader import read_attachment
+
+    results: list[tuple[str, bytes]] = []
+    for path in paths:
+        data = await runtime.call_development_function(read_attachment, path)
+        if data["error"]:
+            PrintStyle.error(f"Email attachment: {data['error']}")
+            continue
+        results.append((data["name"], base64.b64decode(data["content_b64"])))
+    return results
+
+
+# ------------------------------------------------------------------
+# Config lookup
+# ------------------------------------------------------------------
 
 def _get_handler_config(handler_name: str) -> dict | None:
     config = plugins.get_plugin_config(PLUGIN_NAME) or {}
