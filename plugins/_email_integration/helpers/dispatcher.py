@@ -12,13 +12,14 @@ from typing import Literal
 # Matches: [a0-xxxxxxxx] at end of subject
 _THREAD_ID_RE = re.compile(r"\[a0-([a-zA-Z0-9]+)\]")
 
-# Context data keys
-CTX_EMAIL_HANDLER = "_email_handler"
-CTX_EMAIL_SENDER = "_email_sender"
-CTX_EMAIL_THREAD_ID = "_email_thread_id"
-CTX_EMAIL_SUBJECT = "_email_subject"
-CTX_EMAIL_MESSAGE_ID = "_email_message_id"
-CTX_EMAIL_REFERENCES = "_email_references"
+# Context data keys (no underscore prefix — must persist across restarts)
+CTX_EMAIL_HANDLER = "email_handler"
+CTX_EMAIL_SENDER = "email_sender"
+CTX_EMAIL_THREAD_ID = "email_thread_id"
+CTX_EMAIL_SUBJECT = "email_subject"
+CTX_EMAIL_MESSAGE_ID = "email_message_id"
+CTX_EMAIL_REFERENCES = "email_references"
+# Transient — consumed per-reply, not persisted
 CTX_EMAIL_ATTACHMENTS = "_email_response_attachments"
 
 DispatchAction = Literal["new_chat", "continue_chat", "intervene_soft", "intervene_hard"]
