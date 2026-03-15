@@ -1,6 +1,7 @@
 from agent import AgentContext, UserMessage
 from helpers.api import ApiHandler, Input, Output, Request, Response
 from helpers import guids, message_queue as mq
+from helpers.persist_chat import remove_chat
 from plugins._plugin_scan.helpers.prompt import build_prompt
 
 
@@ -20,6 +21,7 @@ class PluginScanRun(ApiHandler):
             return Response("Missing 'git_url'.", 400)
 
         ctxid = guids.generate_id()
+        report = ""
         try:
             context = self.use_context(ctxid)
             prompt = build_prompt(git_url, input.get("checks"))
@@ -31,6 +33,7 @@ class PluginScanRun(ApiHandler):
         finally:
             try:
                 AgentContext.remove(ctxid)
+                remove_chat(ctxid)
             except Exception:
                 pass
 
