@@ -1,0 +1,638 @@
+<html>
+<head>
+  <title>Model Configuration</title>
+</head>
+
+<body>
+  <div x-data="{
+    _fns: null,
+    chatProviders: [],
+    embeddingProviders: [],
+    apiKeyStatus: {},
+    apiKeyValues: {},
+    providersReady: false,
+    _debounceTimers: {},
+    modelSections: [],
+    getProviders(key) { return key === 'embedding_model' ? this.embeddingProviders : this.chatProviders; },
+    getSearchType(key) { return key === 'embedding_model' ? 'embedding' : 'chat'; },
+    onApiKeyInput(provider) {
+      clearTimeout(this._debounceTimers['ak_' + provider]);
+      this._debounceTimers['ak_' + provider] = setTimeout(() => this._saveKey(provider), 800);
+    },
+    async _saveKey(provider) {
+      if (!this.apiKeyValues[provider] || !this._fns) return;
+      try {
+        await this._fns.saveApiKey(provider, this.apiKeyValues[provider]);
+        this.apiKeyStatus = { ...this.apiKeyStatus, [provider]: true };
+      } catch (e) { console.error('Failed to save API key:', e); }
+    }
+  }"
+       x-init="
+         _fns = await import('/plugins/_model_config/webui/config-store.js');
+         modelSections = _fns.MODEL_SECTIONS;
+         try {
+           await _fns.initConfigComponent($data, config);
+         } catch (e) { console.error('Config init failed:', e); }
+         providersReady = true;
+       ">
+    <template x-if="config && providersReady">
+      <div class="model-config-sections">
+
+        <!-- Per-Chat Override -->
+        <div class="model-section">
+          <div class="section-title">Per-Chat Override</div>
+          <div class="section-description">Enable per-chat model switching via the model switcher in the chat area.</div>
+
+          <div class="field">
+            <div class="field-label">
+              <div class="field-title">Enable model switcher</div>
+              <div class="field-description">Show a model selection dropdown in the chat area. Overrides main and utility model for individual chats.</div>
+            </div>
+            <div class="field-control">
+              <label class="toggle">
+                <input type="checkbox" x-model="config.chat_model.allow_chat_override" />
+                <span class="toggler"></span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Model Presets -->
+          <div x-show="config.chat_model.allow_chat_override" class="presets-section">
+            <div class="preset-section-header">
+              <div class="field-title">Model Presets</div>
+              <div class="field-description">Predefined model configurations for quick switching. Each preset defines a main model and an optional utility model override.</div>
+            </div>
+
+            <template x-for="(preset, idx) in (config.model_presets || [])" :key="idx">
+              <div class="preset-card" x-data="{ expanded: false }">
+                <div class="preset-card-header" @click="expanded = !expanded">
+                  <span class="material-symbols-outlined preset-expand-icon"
+                        :style="expanded ? 'transform:rotate(90deg)' : ''"
+                        style="font-size:16px; transition:transform 0.15s ease;">chevron_right</span>
+                  <span class="preset-card-name" x-text="preset.name || '(unnamed)'"></span>
+                  <span class="preset-card-summary" x-show="!expanded"
+                        x-text="(preset.chat?.provider ? preset.chat.provider + '/' : '') + (preset.chat?.name || '')"></span>
+                  <button class="text-button preset-delete-btn"
+                          @click.stop="config.model_presets = config.model_presets.filter((_, i) => i !== idx)"
+                          title="Remove preset">
+                    <span class="material-symbols-outlined" style="font-size:16px;">close</span>
+                  </button>
+                </div>
+
+                <div class="preset-card-body" x-show="expanded" x-transition.opacity>
+                  <div class="field">
+                    <div class="field-label">
+                      <div class="field-title">Preset name</div>
+                      <div class="field-description">Display name shown in the model switcher dropdown.</div>
+                    </div>
+                    <div class="field-control"><input type="text" x-model="preset.name" placeholder="e.g. GPT-4o, Claude Sonnet" /></div>
+                  </div>
+
+                  <div class="preset-subheader">Main Model</div>
+                  <div class="field">
+                    <div class="field-label">
+                      <div class="field-title">Provider</div>
+                      <div class="field-description">LLM service provider for this preset's main model.</div>
+                    </div>
+                    <div class="field-control">
+                      <select x-model="preset.chat.provider"
+                              x-effect="$nextTick(() => { if (chatProviders.length) $el.value = preset.chat.provider })">
+                        <option value="">&#x2014; select &#x2014;</option>
+                        <template x-for="p in chatProviders" :key="p.value">
+                          <option :value="p.value" x-text="p.label"></option>
+                        </template>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="field">
+                    <div class="field-label">
+                      <div class="field-title">Model name</div>
+                      <div class="field-description">Model identifier. Click the search icon to browse available models.</div>
+                    </div>
+                    <div class="field-control" style="position:relative;"
+                         x-data="{ results: [], open: false, searching: false,
+                           doSearch() { this.searching = true; _fns.searchModels(preset.chat.provider, preset.chat.name, 'chat', preset.chat.api_base).then(r => { this.results = r; this.open = true; }).finally(() => this.searching = false); }
+                         }"
+                         @click.outside="open = false">
+                      <input type="text" x-model="preset.chat.name" style="padding-right:32px;"
+                             @keydown.enter.prevent="doSearch()" />
+                      <span class="model-search-btn"
+                            @click="if (!searching) doSearch()"
+                            title="Search available models">
+                        <span class="material-symbols-outlined" :style="searching && 'opacity:0'">search</span>
+                        <span class="material-symbols-outlined model-search-spinner" :style="!searching && 'opacity:0'">progress_activity</span>
+                      </span>
+                      <div class="model-search-results" x-show="open && results.length > 0" x-transition.opacity>
+                        <template x-for="m in results" :key="m">
+                          <div class="model-search-item" @click="preset.chat.name = m; open = false;" x-text="m"></div>
+                        </template>
+                      </div>
+                      <div class="model-search-results" x-show="open && results.length === 0 && !searching">
+                        <div class="model-search-item disabled">No models found</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="field">
+                    <div class="field-label">
+                      <div class="field-title">API key</div>
+                      <div class="field-description">Leave empty to use the global API key for this provider.</div>
+                    </div>
+                    <div class="field-control" style="position:relative;" x-data="{ showKey: false, _revealed: '' }">
+                      <input :type="showKey ? 'text' : 'password'" x-model="preset.chat.api_key" autocomplete="off"
+                             :placeholder="apiKeyStatus[preset.chat.provider] ? '&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;' : ''"
+                             style="padding-right:32px;" />
+                      <span class="material-symbols-outlined eye-toggle"
+                            @click="
+                              showKey = !showKey;
+                              if (showKey && !preset.chat.api_key && apiKeyStatus[preset.chat.provider]) {
+                                _fns.revealApiKey(preset.chat.provider).then(v => { if (v) { preset.chat.api_key = v; _revealed = v; } });
+                              }
+                              if (!showKey && _revealed && preset.chat.api_key === _revealed) {
+                                preset.chat.api_key = ''; _revealed = '';
+                              }
+                            "
+                            x-text="showKey ? 'visibility' : 'visibility_off'"></span>
+                    </div>
+                  </div>
+                  <div class="field">
+                    <div class="field-label">
+                      <div class="field-title">API base URL</div>
+                      <div class="field-description">Custom endpoint URL. Leave empty for the provider's default.</div>
+                    </div>
+                    <div class="field-control"><input type="text" x-model="preset.chat.api_base" /></div>
+                  </div>
+
+                  <div class="preset-subheader">Utility Model <span style="opacity:0.5; font-size:0.75rem;">(optional &#x2014; falls back to global Utility Model)</span></div>
+                      <div class="field">
+                        <div class="field-label">
+                          <div class="field-title">Provider</div>
+                          <div class="field-description">Leave empty to use the global Utility Model provider.</div>
+                        </div>
+                        <div class="field-control">
+                          <select x-model="preset.utility.provider"
+                                  x-effect="$nextTick(() => { if (chatProviders.length) $el.value = preset.utility.provider })">
+                            <option value="">&#x2014; default &#x2014;</option>
+                            <template x-for="p in chatProviders" :key="p.value">
+                              <option :value="p.value" x-text="p.label"></option>
+                            </template>
+                          </select>
+                        </div>
+                      </div>
+                      <div class="field">
+                        <div class="field-label">
+                          <div class="field-title">Model name</div>
+                          <div class="field-description">Model for background tasks. Leave empty to use the global Utility Model.</div>
+                        </div>
+                        <div class="field-control" style="position:relative;"
+                             x-data="{ results: [], open: false, searching: false,
+                               doSearch() { this.searching = true; _fns.searchModels(preset.utility.provider || preset.chat.provider, preset.utility.name, 'chat', preset.utility.api_base || preset.chat.api_base).then(r => { this.results = r; this.open = true; }).finally(() => this.searching = false); }
+                             }"
+                             @click.outside="open = false">
+                          <input type="text" x-model="preset.utility.name" placeholder="Leave empty for default" style="padding-right:32px;"
+                                 @keydown.enter.prevent="doSearch()" />
+                          <span class="model-search-btn"
+                                @click="if (!searching) doSearch()"
+                                title="Search available models">
+                            <span class="material-symbols-outlined" :style="searching && 'opacity:0'">search</span>
+                            <span class="material-symbols-outlined model-search-spinner" :style="!searching && 'opacity:0'">progress_activity</span>
+                          </span>
+                          <div class="model-search-results" x-show="open && results.length > 0" x-transition.opacity>
+                            <template x-for="m in results" :key="m">
+                              <div class="model-search-item" @click="preset.utility.name = m; open = false;" x-text="m"></div>
+                            </template>
+                          </div>
+                          <div class="model-search-results" x-show="open && results.length === 0 && !searching">
+                            <div class="model-search-item disabled">No models found</div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="field">
+                        <div class="field-label">
+                          <div class="field-title">API key</div>
+                          <div class="field-description">Leave empty to use the global API key for this provider.</div>
+                        </div>
+                        <div class="field-control" style="position:relative;" x-data="{ showKey: false, _revealed: '' }">
+                          <input :type="showKey ? 'text' : 'password'" x-model="preset.utility.api_key" autocomplete="off"
+                                 :placeholder="apiKeyStatus[preset.utility.provider || preset.chat.provider] ? '&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;' : ''"
+                                 style="padding-right:32px;" />
+                          <span class="material-symbols-outlined eye-toggle"
+                                @click="
+                                  const prov = preset.utility.provider || preset.chat.provider;
+                                  showKey = !showKey;
+                                  if (showKey && !preset.utility.api_key && apiKeyStatus[prov]) {
+                                    _fns.revealApiKey(prov).then(v => { if (v) { preset.utility.api_key = v; _revealed = v; } });
+                                  }
+                                  if (!showKey && _revealed && preset.utility.api_key === _revealed) {
+                                    preset.utility.api_key = ''; _revealed = '';
+                                  }
+                                "
+                                x-text="showKey ? 'visibility' : 'visibility_off'"></span>
+                        </div>
+                      </div>
+                      <div class="field">
+                        <div class="field-label">
+                          <div class="field-title">API base URL</div>
+                          <div class="field-description">Custom endpoint URL. Leave empty for the provider's default.</div>
+                        </div>
+                        <div class="field-control"><input type="text" x-model="preset.utility.api_base" /></div>
+                      </div>
+                </div>
+              </div>
+            </template>
+
+            <button class="text-button preset-add-btn"
+                    @click="
+                      if (!config.model_presets) config.model_presets = [];
+                      config.model_presets = [...config.model_presets, {
+                        name: '',
+                        chat: { provider: config.chat_model.provider || '', name: config.chat_model.name || '', api_key: '', api_base: config.chat_model.api_base || '' },
+                        utility: { provider: '', name: '', api_key: '', api_base: '' }
+                      }]">
+              <span class="material-symbols-outlined" style="font-size:16px;">add</span>
+              <span>Add Preset</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Model Sections (Main, Utility, Embedding) -->
+        <template x-for="section in modelSections" :key="section.key">
+          <div class="model-section">
+            <div class="section-title" x-text="section.title"></div>
+            <div class="section-description" x-text="section.desc"></div>
+
+            <!-- Provider -->
+            <div class="field">
+              <div class="field-label">
+                <div class="field-title">Provider</div>
+                <div class="field-description">LLM service provider for this model slot.</div>
+              </div>
+              <div class="field-control">
+                <select x-model="config[section.key].provider"
+                        x-effect="$nextTick(() => { if (getProviders(section.key).length) $el.value = config[section.key].provider })">
+                  <template x-for="p in getProviders(section.key)" :key="p.value">
+                    <option :value="p.value" x-text="p.label"></option>
+                  </template>
+                </select>
+              </div>
+            </div>
+
+            <!-- Model name + search -->
+            <div class="field">
+              <div class="field-label">
+                <div class="field-title">Model name</div>
+                <div class="field-description">Model identifier. Click the search icon to browse available models.</div>
+              </div>
+              <div class="field-control" style="position:relative;"
+                   x-data="{ results: [], open: false, searching: false,
+                     doSearch() { this.searching = true; _fns.searchModels(config[section.key].provider, config[section.key].name, getSearchType(section.key), config[section.key].api_base).then(r => { this.results = r; this.open = true; }).finally(() => this.searching = false); }
+                   }"
+                   @click.outside="open = false">
+                <input type="text" x-model="config[section.key].name" style="padding-right:32px;"
+                       @keydown.enter.prevent="doSearch()" />
+                <span class="model-search-btn"
+                      @click="if (!searching) doSearch()"
+                      title="Search available models">
+                  <span class="material-symbols-outlined" :style="searching && 'opacity:0'">search</span>
+                  <span class="material-symbols-outlined model-search-spinner" :style="!searching && 'opacity:0'">progress_activity</span>
+                </span>
+                <div class="model-search-results" x-show="open && results.length > 0" x-transition.opacity>
+                  <template x-for="m in results" :key="m">
+                    <div class="model-search-item" @click="config[section.key].name = m; open = false;" x-text="m"></div>
+                  </template>
+                </div>
+                <div class="model-search-results" x-show="open && results.length === 0 && !searching">
+                  <div class="model-search-item disabled">No models found</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- API key + eye toggle -->
+            <div class="field">
+              <div class="field-label">
+                <div class="field-title">API key</div>
+                <div class="field-description">Authentication key for this provider. Shared across all model slots using the same provider.</div>
+              </div>
+              <div class="field-control" style="position:relative;" x-data="{ showKey: false }">
+                <input :type="showKey ? 'text' : 'password'"
+                       x-model="apiKeyValues[config[section.key].provider]"
+                       :placeholder="apiKeyStatus[config[section.key].provider] ? '&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;' : ''"
+                       autocomplete="off"
+                       @input="onApiKeyInput(config[section.key].provider)"
+                       style="padding-right:32px;" />
+                <span class="material-symbols-outlined eye-toggle"
+                      @click="
+                        showKey = !showKey;
+                        const prov = config[section.key].provider;
+                        if (showKey && !apiKeyValues[prov] && apiKeyStatus[prov]) {
+                          _fns.revealApiKey(prov).then(v => { if (v) apiKeyValues[prov] = v; });
+                        }
+                      "
+                      x-text="showKey ? 'visibility' : 'visibility_off'"></span>
+              </div>
+            </div>
+
+            <!-- API base URL -->
+            <div class="field">
+              <div class="field-label">
+                <div class="field-title">API base URL</div>
+                <div class="field-description">
+                  Custom endpoint URL. Leave empty to use the provider's default.
+                </div>
+              </div>
+              <div class="field-control">
+                <input type="text" x-model="config[section.key].api_base" />
+              </div>
+            </div>
+
+            <!-- Context length -->
+            <template x-if="section.key !== 'embedding_model'">
+              <div class="field">
+                <div class="field-label">
+                  <div class="field-title">Context length</div>
+                  <div class="field-description">
+                    Maximum number of tokens in the context window. System prompt, chat history, RAG and response all count towards this limit.
+                  </div>
+                </div>
+                <div class="field-control">
+                  <input type="number" x-model.number="config[section.key].ctx_length" />
+                </div>
+              </div>
+            </template>
+
+            <!-- Context history -->
+            <template x-if="section.key === 'chat_model'">
+              <div>
+                <div class="field">
+                  <div class="field-label">
+                    <div class="field-title">Context window space for chat history</div>
+                    <div class="field-description">
+                      Portion of context window dedicated to chat history visible to the agent. Smaller size will result in shorter and more summarized history.
+                    </div>
+                  </div>
+                  <div class="field-control">
+                    <input type="range" min="0.01" max="1" step="0.01" x-model.number="config.chat_model.ctx_history" />
+                    <span class="range-value" x-text="config.chat_model.ctx_history"></span>
+                  </div>
+                </div>
+                <div class="field">
+                  <div class="field-label">
+                    <div class="field-title">Supports Vision</div>
+                    <div class="field-description">
+                      Models capable of Vision can for example natively see the content of image attachments.
+                    </div>
+                  </div>
+                  <div class="field-control">
+                    <label class="toggle">
+                      <input type="checkbox" x-model="config.chat_model.vision" />
+                      <span class="toggler"></span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </template>
+
+            <!-- Context input slider -->
+            <template x-if="section.key === 'utility_model'">
+              <div class="field">
+                <div class="field-label">
+                  <div class="field-title">Context window space for utility model input</div>
+                  <div class="field-description">Portion of context window used for utility model input messages.</div>
+                </div>
+                <div class="field-control">
+                  <input type="range" min="0.01" max="1" step="0.01" x-model.number="config.utility_model.ctx_input" />
+                  <span class="range-value" x-text="config.utility_model.ctx_input"></span>
+                </div>
+              </div>
+            </template>
+
+            <!-- Rate limits -->
+            <div class="field">
+              <div class="field-label">
+                <div class="field-title">Requests per minute limit</div>
+                <div class="field-description">
+                  Limits the number of requests per minute. Waits if the limit is exceeded. Set to 0 to disable.
+                </div>
+              </div>
+              <div class="field-control">
+                <input type="number" x-model.number="config[section.key].rl_requests" />
+              </div>
+            </div>
+
+            <div class="field">
+              <div class="field-label">
+                <div class="field-title">Input tokens per minute limit</div>
+                <div class="field-description">
+                  Limits the number of input tokens per minute. Waits if the limit is exceeded. Set to 0 to disable.
+                </div>
+              </div>
+              <div class="field-control">
+                <input type="number" x-model.number="config[section.key].rl_input" />
+              </div>
+            </div>
+
+            <template x-if="section.key !== 'embedding_model'">
+              <div class="field">
+                <div class="field-label">
+                  <div class="field-title">Output tokens per minute limit</div>
+                  <div class="field-description">
+                    Limits the number of output tokens per minute. Waits if the limit is exceeded. Set to 0 to disable.
+                  </div>
+                </div>
+                <div class="field-control">
+                  <input type="number" x-model.number="config[section.key].rl_output" />
+                </div>
+              </div>
+            </template>
+
+            <!-- Additional parameters -->
+            <div class="field field-full">
+              <div class="field-label">
+                <div class="field-title">Additional parameters</div>
+                <div class="field-description">
+                  Any other parameters supported by <a href='https://docs.litellm.ai/docs/set_keys' target='_blank'>LiteLLM</a>. Format is KEY=VALUE on individual lines. Value can be JSON objects; unquoted is treated as object/number, quoted as string.
+                </div>
+              </div>
+              <div class="field-control">
+                <textarea x-model="config[section.key]._kwargs_text"
+                          @change="config[section.key].kwargs = _fns.textToKwargs(config[section.key]._kwargs_text)"></textarea>
+              </div>
+            </div>
+
+            <!-- Browser HTTP Headers -->
+            <template x-if="section.key === 'chat_model'">
+              <div class="field field-full">
+                <div class="field-label">
+                  <div class="field-title">Browser HTTP Headers</div>
+                  <div class="field-description">
+                    Custom HTTP headers sent with browser requests. The browser agent uses the main model. Format is KEY=VALUE, one per line.
+                  </div>
+                </div>
+                <div class="field-control">
+                  <textarea x-model="config._browser_headers_text"
+                            @change="config.browser_http_headers = _fns.textToHeaders(config._browser_headers_text)"></textarea>
+                </div>
+              </div>
+            </template>
+
+          </div>
+        </template>
+
+      </div>
+    </template>
+  </div>
+
+<style>
+  .model-config-sections {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .model-section {
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 16px;
+  }
+  .model-section .section-title {
+    margin-top: 0;
+  }
+  .eye-toggle {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 18px;
+    cursor: pointer;
+    user-select: none;
+    opacity: 0.6;
+    z-index: 1;
+  }
+  .eye-toggle:hover {
+    opacity: 1;
+  }
+  /* Preset management */
+  .presets-section {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--color-border);
+  }
+  .preset-section-header {
+    margin-bottom: 10px;
+  }
+  .preset-card {
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    margin-bottom: 8px;
+    overflow: hidden;
+  }
+  .preset-card-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+    cursor: pointer;
+    font-size: 0.85rem;
+  }
+  .preset-card-header:hover {
+    background: var(--color-background-hover, rgba(255,255,255,0.04));
+  }
+  .preset-card-name {
+    font-weight: 500;
+  }
+  .preset-card-summary {
+    flex: 1;
+    text-align: right;
+    opacity: 0.5;
+    font-size: 0.75rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .preset-delete-btn {
+    margin-left: auto;
+    opacity: 0.5;
+    padding: 2px !important;
+  }
+  .preset-delete-btn:hover {
+    opacity: 1;
+    color: var(--color-error, #f44) !important;
+  }
+  .preset-card-body {
+    padding: 4px 12px 12px;
+    border-top: 1px solid var(--color-border);
+  }
+  .preset-subheader {
+    font-size: 0.8rem;
+    font-weight: 500;
+    opacity: 0.7;
+    margin: 10px 0 4px;
+    padding-top: 8px;
+    border-top: 1px dashed var(--color-border);
+  }
+  .preset-add-btn {
+    margin-top: 4px;
+  }
+  /* Model search */
+  .model-search-btn {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 20px;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    user-select: none;
+    opacity: 0.6;
+    z-index: 1;
+  }
+  .model-search-btn:hover {
+    opacity: 1;
+  }
+  .model-search-btn > span {
+    grid-area: 1 / 1;
+    font-size: 18px;
+    transition: opacity 0.15s;
+  }
+  .model-search-spinner {
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+  .model-search-results {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    max-height: 200px;
+    overflow-y: auto;
+    background: var(--color-input);
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    z-index: 50;
+    padding: 4px;
+  }
+  .model-search-item {
+    padding: 5px 8px;
+    font-size: 0.8rem;
+    border-radius: 4px;
+    cursor: pointer;
+    word-break: break-all;
+  }
+  .model-search-item:hover {
+    background: var(--color-background-hover, rgba(255,255,255,0.06));
+  }
+  .model-search-item.disabled {
+    opacity: 0.4;
+    cursor: default;
+    font-style: italic;
+  }
+  .model-search-item.disabled:hover {
+    background: transparent;
+  }
+</style>
+</body>
+</html>
