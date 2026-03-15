@@ -182,7 +182,7 @@ async def _call_dispatcher(
     msg: InboundMessage,
     existing_chats: list[dict],
 ) -> disp.DispatchDecision:
-    body_preview = msg.body[:2000] if len(msg.body) > 2000 else msg.body
+    body_preview = disp.truncate_body(msg.body)
     chats_text = disp.format_chats_list(existing_chats)
 
     prompt = agent.read_prompt(

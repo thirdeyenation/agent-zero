@@ -22,6 +22,8 @@ CTX_EMAIL_REFERENCES = "email_references"
 # Transient — consumed per-reply, not persisted
 CTX_EMAIL_ATTACHMENTS = "_email_response_attachments"
 
+BODY_PREVIEW_MAX_CHARS: int = 2000
+
 DispatchAction = Literal["new_chat", "continue_chat", "intervene_soft", "intervene_hard"]
 
 
@@ -58,14 +60,20 @@ def build_chat_summary(context_id: str, data: dict) -> dict:
 # Dispatcher prompt builders
 # ------------------------------------------------------------------
 
+def truncate_body(body: str) -> str:
+    if len(body) <= BODY_PREVIEW_MAX_CHARS:
+        return body
+    return body[:BODY_PREVIEW_MAX_CHARS] + "... (truncated)"
+
+
 def format_chats_list(existing_chats: list[dict]) -> str:
     if not existing_chats:
         return "No existing chats for this handler."
     sections = []
     for c in existing_chats[:20]:
         header = (
-            f"- context_id={c['context_id']} thread_id={c.get('thread_id', '')} "
-            f"sender={c.get('sender', '')} subject={c.get('subject', '')}"
+            f"- context_id={c['context_id']}"
+            f" sender={c.get('sender', '')} subject={c.get('subject', '')}"
         )
         preview = c.get("history_preview", "")
         if preview:
