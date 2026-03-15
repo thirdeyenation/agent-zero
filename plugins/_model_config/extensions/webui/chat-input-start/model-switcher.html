@@ -1,0 +1,203 @@
+<!-- Model Switcher - Floating Preset Selector -->
+<div x-data="{
+  allowed: false,
+  override: null,
+  loading: true,
+  showDropdown: false,
+  presets: [],
+  _fns: null,
+
+  async init() {
+    this._fns = await import('/plugins/_model_config/webui/model-switcher.js');
+    await this.refresh();
+    this.$watch('$store.chats.selected', () => this.refresh());
+  },
+
+  async refresh() {
+    this.loading = true;
+    try {
+      const contextId = this.$store.chats?.selected || '';
+      const state = await this._fns.loadSwitcherState(contextId);
+      this.allowed = state.allowed;
+      this.presets = state.presets;
+      this.override = state.override;
+    } catch (e) {
+      console.error('Model switcher refresh failed:', e);
+    } finally {
+      this.loading = false;
+    }
+  },
+
+  get currentLabel() {
+    if (!this.override) return 'Default';
+    if (this.override.preset_name) return this.override.preset_name;
+    const p = this.override.provider || '';
+    const n = this.override.name || '';
+    return n || p || 'Custom';
+  },
+
+  get hasOverride() {
+    return !!this.override;
+  },
+
+  async selectPreset(presetName) {
+    const contextId = this.$store.chats?.selected || '';
+    if (!contextId) return;
+    const ok = await this._fns.setPresetOverride(contextId, presetName);
+    if (ok) {
+      this.override = { preset_name: presetName };
+      justToast('Switched to ' + presetName, 'success');
+    }
+    this.showDropdown = false;
+  },
+
+  async clearOverride() {
+    const contextId = this.$store.chats?.selected || '';
+    if (!contextId) return;
+    const ok = await this._fns.clearOverride(contextId);
+    if (ok) {
+      this.override = null;
+      justToast('Reverted to default model', 'info');
+    }
+    this.showDropdown = false;
+  }
+}">
+  <template x-if="allowed && !loading">
+    <div class="model-switcher-container">
+      <div class="model-switcher-anchor">
+        <button class="model-switcher-btn"
+                :class="{ 'has-override': hasOverride }"
+                @click="showDropdown = !showDropdown"
+                @click.outside="showDropdown = false">
+          <span class="material-symbols-outlined" style="font-size: 15px;">swap_horiz</span>
+          <span class="model-switcher-label" x-text="currentLabel"></span>
+          <span class="material-symbols-outlined" style="font-size: 14px;"
+                x-text="showDropdown ? 'expand_less' : 'expand_more'"></span>
+        </button>
+
+        <div class="model-switcher-dropdown" x-show="showDropdown" x-transition.opacity>
+          <!-- Use Default -->
+          <template x-if="hasOverride">
+            <div class="model-switcher-item revert" @click="clearOverride()">
+              <span class="material-symbols-outlined" style="font-size: 15px;">undo</span>
+              <span>Use Default</span>
+            </div>
+          </template>
+          <div class="model-switcher-divider" x-show="hasOverride"></div>
+
+          <!-- No presets message -->
+          <template x-if="presets.length === 0">
+            <div class="model-switcher-item disabled">No presets configured</div>
+          </template>
+
+          <!-- Preset list -->
+          <template x-for="preset in presets" :key="preset.name">
+            <div class="model-switcher-item"
+                 :class="{ 'active': override?.preset_name === preset.name }"
+                 @click="selectPreset(preset.name)">
+              <div class="model-switcher-preset-name" x-text="preset.name"></div>
+              <div class="model-switcher-preset-detail"
+                   x-text="_fns.getPresetSummary(preset)"></div>
+            </div>
+          </template>
+        </div>
+      </div>
+    </div>
+  </template>
+</div>
+
+<style>
+  .model-switcher-container {
+    position: absolute;
+    bottom: calc(100% + 50px);
+    right: 16px;
+    z-index: 10;
+    pointer-events: auto;
+  }
+  .model-switcher-anchor {
+    position: relative;
+  }
+  .model-switcher-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border: 1px solid var(--color-border);
+    border-radius: 16px;
+    background: var(--color-panel);
+    color: var(--color-text-secondary, #999);
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.25);
+  }
+  .model-switcher-btn:hover {
+    border-color: var(--color-border);
+    color: var(--color-text-secondary, #666);
+  }
+  .model-switcher-btn.has-override {
+    border-color: var(--color-accent, #4a9eff);
+    color: var(--color-accent, #4a9eff);
+  }
+  .model-switcher-label {
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .model-switcher-dropdown {
+    position: absolute;
+    bottom: calc(100% + 6px);
+    right: 0;
+    min-width: 250px;
+    max-height: 550px;
+    overflow-y: auto;
+    background-color: var(--color-panel);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 6px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    z-index: 100;
+  }
+  .model-switcher-item {
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: background 0.1s ease;
+  }
+  .model-switcher-item:hover {
+    background: var(--color-background-hover, rgba(255,255,255,0.06));
+  }
+  .model-switcher-item.active {
+    background: var(--color-accent-bg, rgba(74, 158, 255, 0.12));
+    color: var(--color-accent, #4a9eff);
+  }
+  .model-switcher-item.revert {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    opacity: 0.8;
+  }
+  .model-switcher-item.disabled {
+    opacity: 0.4;
+    cursor: default;
+    font-style: italic;
+  }
+  .model-switcher-item.disabled:hover {
+    background: transparent;
+  }
+  .model-switcher-divider {
+    border-top: 1px solid var(--color-border);
+    margin: 4px 0;
+    opacity: 0.3;
+  }
+  .model-switcher-preset-name {
+    font-weight: 500;
+  }
+  .model-switcher-preset-detail {
+    font-size: 0.7rem;
+    opacity: 0.6;
+    margin-top: 1px;
+  }
+</style>
