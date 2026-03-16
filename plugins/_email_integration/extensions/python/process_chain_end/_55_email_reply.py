@@ -70,8 +70,7 @@ def _extract_last_response(context: AgentContext) -> str:
 def _notify_agent_of_failure(
     context: AgentContext, error: str, attempt: int,
 ):
-    from plugins._email_integration.helpers.handler import _read_fw
-    msg = _read_fw(
+    msg = context.agent0.read_prompt(
         "fw.email.send_failed.md", error=error, attempt=str(attempt),
         max_retries=str(MAX_SEND_RETRIES),
     )

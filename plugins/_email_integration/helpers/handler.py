@@ -36,12 +36,6 @@ PLUGIN_NAME = "_email_integration"
 DOWNLOAD_FOLDER = "usr/email/attachments"
 STATE_FILE = "usr/email/state.json"
 
-_PROMPTS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "prompts")
-
-
-def _read_fw(filename: str, **kwargs: str) -> str:
-    return files.read_prompt_file(filename, _directories=[_PROMPTS_DIR], **kwargs)
-
 
 # ------------------------------------------------------------------
 # UID state persistence
@@ -217,7 +211,7 @@ async def _call_dispatcher(
     agent: Agent,
     handler_cfg: dict,
     msg: InboundMessage,
-    existing_chats: list[dict],
+    existing_chats: list[disp.ChatSummary],
 ) -> disp.DispatchDecision:
     body_preview = disp.truncate_body(msg.body)
     chats_text = disp.format_chats_list(existing_chats)
@@ -318,7 +312,7 @@ async def _route_to_chat(
 HISTORY_PREVIEW_MAX_CHARS: int = 500
 
 
-def _find_handler_chats(handler_name: str, sender: str) -> list[dict]:
+def _find_handler_chats(handler_name: str, sender: str) -> list[disp.ChatSummary]:
     results = []
     for ctx_id, ctx in AgentContext._contexts.items():
         if not isinstance(ctx, AgentContext):

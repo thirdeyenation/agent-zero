@@ -6,7 +6,7 @@ No agent deps in pure helpers.
 
 import re
 from dataclasses import dataclass
-from typing import Literal
+from typing import Literal, TypedDict
 
 # Pattern for extracting chat thread ID from email subject
 # Matches: [a0-xxxxxxxx] at end of subject
@@ -46,13 +46,23 @@ def build_reply_subject(original_subject: str, thread_id: str) -> str:
     return f"{clean} [a0-{thread_id}]"
 
 
-def build_chat_summary(context_id: str, data: dict) -> dict:
+class ChatSummary(TypedDict):
+    context_id: str
+    thread_id: str
+    sender: str
+    subject: str
+    handler: str
+    history_preview: str
+
+
+def build_chat_summary(context_id: str, data: dict) -> ChatSummary:
     return {
         "context_id": context_id,
         "thread_id": data.get(CTX_EMAIL_THREAD_ID, ""),
         "sender": data.get(CTX_EMAIL_SENDER, ""),
         "subject": data.get(CTX_EMAIL_SUBJECT, ""),
         "handler": data.get(CTX_EMAIL_HANDLER, ""),
+        "history_preview": "",
     }
 
 
@@ -66,7 +76,7 @@ def truncate_body(body: str) -> str:
     return body[:BODY_PREVIEW_MAX_CHARS] + "... (truncated)"
 
 
-def format_chats_list(existing_chats: list[dict]) -> str:
+def format_chats_list(existing_chats: list[ChatSummary]) -> str:
     if not existing_chats:
         return "No existing chats for this handler."
     sections = []
