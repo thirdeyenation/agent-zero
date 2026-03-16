@@ -12,6 +12,7 @@ import os
 from agent import Agent, AgentContext, UserMessage
 from helpers import guids, plugins, files, runtime
 from helpers import message_queue as mq
+from helpers.notification import NotificationManager, NotificationType, NotificationPriority
 from helpers.persist_chat import save_tmp_chat
 from helpers.print_style import PrintStyle
 from helpers.errors import format_error
@@ -241,6 +242,7 @@ async def _start_new_chat(agent: Agent, handler_cfg: dict, msg: InboundMessage):
     ))
 
     PrintStyle.success(f"Email: new chat {context.id} for '{msg.subject}' from {msg.sender}")
+    _send_notification(msg, "new_chat", context.id)
 
 
 async def _route_to_chat(
@@ -266,6 +268,7 @@ async def _route_to_chat(
 
     save_tmp_chat(context)
     PrintStyle.info(f"Email: continuing chat {context_id}")
+    _send_notification(msg, "continue_chat", context_id)
 
 
 # ------------------------------------------------------------------
@@ -404,3 +407,25 @@ def _get_handler_config(handler_name: str) -> dict | None:
         if h.get("name") == handler_name:
             return h
     return None
+
+
+# ------------------------------------------------------------------
+# Notifications
+# ------------------------------------------------------------------
+
+def _send_notification(msg: InboundMessage, action: str, context_id: str):
+    subject = msg.subject[:80] if msg.subject else "(no subject)"
+    if action == "new_chat":
+        title = "New email session"
+        message = f"From {msg.sender}: {subject}"
+    else:
+        title = "Email follow-up"
+        message = f"From {msg.sender}: {subject} → {context_id}"
+    NotificationManager.send_notification(
+        type=NotificationType.INFO,
+        priority=NotificationPriority.HIGH,
+        title=title,
+        message=message,
+        display_time=10,
+        group="email",
+    )
