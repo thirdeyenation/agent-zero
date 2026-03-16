@@ -7,6 +7,8 @@
     <div x-data="{
         get handlers() { return config?.handlers || [] },
         editing: null,
+        testing: null,
+        test_results: null,
         add_handler() {
             if (!config.handlers) config.handlers = [];
             config.handlers.push({
@@ -38,6 +40,20 @@
         },
         set_whitelist(handler, val) {
             handler.sender_whitelist = val.split(',').map(s => s.trim()).filter(s => s);
+        },
+        async test_connection(idx) {
+            this.testing = idx;
+            this.test_results = null;
+            try {
+                const { callJsonApi } = await import('/js/api.js');
+                const res = await callJsonApi('/plugins/_email_integration/test_connection', {
+                    handler: this.handlers[idx]
+                });
+                this.test_results = res;
+            } catch (e) {
+                this.test_results = { success: false, results: [{ test: 'Connection', ok: false, message: String(e) }] };
+            }
+            this.testing = null;
         }
     }">
         <template x-if="config">
@@ -218,12 +234,37 @@
                                     </div>
                                 </div>
 
+                                <!-- Test connection -->
+                                <div style="margin-top: 12px; display: flex; align-items: center; gap: 12px;">
+                                    <button class="btn-cancel" @click.stop="test_connection(idx)"
+                                            :disabled="testing === idx"
+                                            style="padding: 4px 16px; font-size: 0.85rem;">
+                                        <span x-show="testing !== idx">Test Connection</span>
+                                        <span x-show="testing === idx">Testing...</span>
+                                    </button>
+                                </div>
+
+                                <!-- Test results -->
+                                <template x-if="test_results && editing === idx">
+                                    <div style="margin-top: 8px; padding: 8px 12px; border-radius: 6px; font-size: 0.85rem;
+                                                border: 1px solid var(--border-color, #333);">
+                                        <template x-for="r in test_results.results" :key="r.test">
+                                            <div style="display: flex; align-items: center; gap: 8px; padding: 4px 0;">
+                                                <span x-text="r.ok ? '✓' : '✗'"
+                                                      :style="'font-weight: bold; color:' + (r.ok ? '#4caf50' : '#f44336')"></span>
+                                                <span style="font-weight: 500; min-width: 50px;" x-text="r.test"></span>
+                                                <span style="opacity: 0.8;" x-text="r.message"></span>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+
                             </div>
                         </template>
                     </div>
                 </template>
 
-                <button class="btn-ok" @click="add_handler()" style="margin-top: 8px;">
+                <button class="btn-cancel" @click="add_handler()" style="margin-top: 8px; padding: 4px 16px; font-size: 0.85rem;">
                     Add Handler
                 </button>
             </div>
