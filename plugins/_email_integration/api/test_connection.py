@@ -8,7 +8,7 @@ from plugins._email_integration.helpers.imap_client import (
     disconnect_imap,
     get_highest_uid,
 )
-from plugins._email_integration.helpers.smtp_client import SmtpConfig, send_reply
+from plugins._email_integration.helpers.smtp_client import SmtpConfig, test_smtp
 
 
 class TestConnection(ApiHandler):
@@ -56,19 +56,14 @@ class TestConnection(ApiHandler):
                 username=handler.get("username", ""),
                 password=handler.get("password", ""),
             )
-            error = await send_reply(
-                config=cfg,
-                to=handler.get("username", ""),
-                subject="Agent Zero - Connection Test",
-                body="SMTP connection test successful.",
-            )
+            error = await test_smtp(cfg)
             if error:
                 results.append({"test": "SMTP", "ok": False, "message": error})
             else:
                 results.append({
                     "test": "SMTP",
                     "ok": True,
-                    "message": "Connected, test email sent to self",
+                    "message": "Authenticated successfully",
                 })
         except Exception as e:
             results.append({

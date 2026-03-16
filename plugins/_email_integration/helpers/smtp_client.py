@@ -87,3 +87,28 @@ async def send_reply(
         error = format_error(e)
         PrintStyle.error(f"Email send failed: {error}")
         return error
+
+
+# ------------------------------------------------------------------
+# Connection test (auth only, no email sent)
+# ------------------------------------------------------------------
+
+async def test_smtp(config: SmtpConfig) -> str | None:
+    loop = asyncio.get_event_loop()
+
+    def _sync_test():
+        if config.use_tls:
+            with smtplib.SMTP(config.server, config.port) as server:
+                server.ehlo()
+                server.starttls()
+                server.ehlo()
+                server.login(config.username, config.password)
+        else:
+            with smtplib.SMTP_SSL(config.server, config.port) as server:
+                server.login(config.username, config.password)
+
+    try:
+        await loop.run_in_executor(None, _sync_test)
+        return None
+    except Exception as e:
+        return format_error(e)
