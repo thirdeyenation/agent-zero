@@ -20,6 +20,8 @@ from helpers.print_style import PrintStyle
 # Data models
 # ------------------------------------------------------------------
 
+SMTP_TIMEOUT: int = 30
+
 @dataclass
 class SmtpConfig:
     server: str
@@ -68,14 +70,14 @@ async def send_reply(
             msg["References"] = references or in_reply_to
 
         if config.use_tls:
-            with smtplib.SMTP(config.server, config.port) as server:
+            with smtplib.SMTP(config.server, config.port, timeout=SMTP_TIMEOUT) as server:
                 server.ehlo()
                 server.starttls()
                 server.ehlo()
                 server.login(config.username, config.password)
                 server.send_message(msg)
         else:
-            with smtplib.SMTP_SSL(config.server, config.port) as server:
+            with smtplib.SMTP_SSL(config.server, config.port, timeout=SMTP_TIMEOUT) as server:
                 server.login(config.username, config.password)
                 server.send_message(msg)
 
@@ -98,13 +100,13 @@ async def test_smtp(config: SmtpConfig) -> str | None:
 
     def _sync_test():
         if config.use_tls:
-            with smtplib.SMTP(config.server, config.port) as server:
+            with smtplib.SMTP(config.server, config.port, timeout=SMTP_TIMEOUT) as server:
                 server.ehlo()
                 server.starttls()
                 server.ehlo()
                 server.login(config.username, config.password)
         else:
-            with smtplib.SMTP_SSL(config.server, config.port) as server:
+            with smtplib.SMTP_SSL(config.server, config.port, timeout=SMTP_TIMEOUT) as server:
                 server.login(config.username, config.password)
 
     try:
