@@ -107,11 +107,11 @@
                                                     <span class="icon material-symbols-outlined">settings</span> Config
                                                 </button>
                                             </template>
-                                            <template x-if="plugin.has_init_script">
+                                            <template x-if="plugin.has_execute_script">
                                                 <button type="button"
                                                     class="button"
                                                     title="Execute"
-                                                    @click="$store.pluginListStore.openPluginInit(plugin)">
+                                                    @click="$store.pluginListStore.openPluginExecute(plugin)">
                                                     <span class="icon material-symbols-outlined">terminal</span> Execute
                                                 </button>
                                             </template>

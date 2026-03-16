@@ -2,7 +2,7 @@ import { createStore } from "/js/AlpineStore.js";
 import * as api from "/js/api.js";
 import { store as pluginSettingsStore } from "/components/plugins/plugin-settings-store.js";
 import { store as pluginToggleStore } from "/components/plugins/toggle/plugin-toggle-store.js";
-import { store as pluginInitStore } from "/components/plugins/list/plugin-init-store.js";
+import { store as pluginExecuteStore } from "/components/plugins/list/plugin-execute-store.js";
 import { store as markdownModalStore } from "/components/modals/markdown/markdown-store.js";
 import { callJsExtensions } from "/js/extensions.js";
 import {
@@ -71,9 +71,9 @@ const model = {
     window.openModal?.(`/plugins/${plugin.name}/webui/main.html`);
   },
 
-  openPluginInit(plugin) {
-    if (!plugin?.name || !plugin?.has_init_script) return;
-    pluginInitStore.open(plugin);
+  openPluginExecute(plugin) {
+    if (!plugin?.name || !plugin?.has_execute_script) return;
+    pluginExecuteStore.open(plugin);
   },
 
   async openPluginConfig(plugin) {

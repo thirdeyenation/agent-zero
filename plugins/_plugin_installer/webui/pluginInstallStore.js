@@ -6,7 +6,7 @@ import { toastFrontendSuccess, toastFrontendError } from "/components/notificati
 import { showConfirmDialog } from "/js/confirmDialog.js";
 import { store as imageViewerStore } from "/components/modals/image-viewer/image-viewer-store.js";
 import { store as pluginListStore } from "/components/plugins/list/pluginListStore.js";
-import { store as pluginInitStore } from "/components/plugins/list/plugin-init-store.js";
+import { store as pluginExecuteStore } from "/components/plugins/list/plugin-execute-store.js";
 
 const PLUGIN_API = "plugins/_plugin_installer/plugin_install";
 const PER_PAGE = 20;
@@ -611,9 +611,9 @@ const model = {
     }
   },
 
-  handleOpenInit() {
+  handleOpenExecute() {
     if (this.installedPluginInfo) {
-      pluginInitStore.open(this.installedPluginInfo);
+      pluginExecuteStore.open(this.installedPluginInfo);
     }
   },
 
