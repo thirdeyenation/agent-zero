@@ -20,6 +20,3 @@ class EmailContextPrompt(Extension):
             system_prompt.append(
                 self.agent.read_prompt("fw.email.system_context_reply.md")
             )
-            system_prompt.append(
-                self.agent.read_prompt("fw.email.tool_email_update.md")
-            )
