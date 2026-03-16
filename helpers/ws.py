@@ -17,7 +17,7 @@ from helpers.websocket import validate_ws_origin
 
 ThreadLockType = Union[threading.Lock, threading.RLock]
 
-CACHE_AREA = "ws_handlers(ws)(plugins)"
+CACHE_AREA = "ws_handlers(api)(plugins)"
 cache.toggle_area(CACHE_AREA, False)  # cache off for now
 
 
@@ -32,6 +32,7 @@ class _SecurityContext:
 
 
 _ws_contexts: dict[str, _SecurityContext] = {}
+_active_handlers: dict[str, list[tuple[str, type["WsHandler"]]]] = {}
 _contexts_lock = threading.Lock()
 
 
@@ -58,6 +59,12 @@ class WsHandler:
 
     @abstractmethod
     async def process(self, data: dict, sid: str) -> dict | None:
+        pass
+
+    async def on_connect(self, sid: str) -> dict | None:
+        return None
+
+    async def on_disconnect(self, sid: str) -> None:
         pass
 
     def use_context(self, ctxid: str, create_if_not_exists: bool = True):
@@ -118,26 +125,35 @@ def register_ws_namespace(
     def _resolve_handler(path: str) -> type[WsHandler] | None:
         handler_cls: type[WsHandler] | None = None
 
-        # Built-in ws/<path>.py
-        builtin_file = files.get_abs_path(f"ws/{path}.py")
-        if files.is_in_dir(builtin_file, files.get_abs_path("ws")) and files.exists(builtin_file):
+        # Check built-in api/<path>.py
+        builtin_file = files.get_abs_path(f"api/{path}.py")
+        if files.is_in_dir(builtin_file, files.get_abs_path("api")) and files.exists(builtin_file):
             classes = load_classes_from_file(builtin_file, WsHandler)
             if classes:
                 handler_cls = classes[0]
 
-        # Plugin ws/<handler>.py — path format: plugins/<plugin_name>/<handler>
+        # Check plugin api/<handler>.py — path format: plugins/<plugin_name>/<handler>
         if handler_cls is None and path.startswith("plugins/"):
             parts = path.split("/", 2)
             if len(parts) == 3:
                 _, plugin_name, handler_name = parts
                 plugin_dir = plugins.find_plugin_dir(plugin_name)
                 if plugin_dir:
-                    plugin_file = Path(plugin_dir) / "ws" / f"{handler_name}.py"
+                    plugin_file = Path(plugin_dir) / "api" / f"{handler_name}.py"
                     if plugin_file.is_file():
                         classes = load_classes_from_file(str(plugin_file), WsHandler)
                         if classes:
                             handler_cls = classes[0]
 
+        return handler_cls
+
+    def _resolve_cached(path: str) -> type[WsHandler] | None:
+        cached = cache.get(CACHE_AREA, path)
+        if cached is not None:
+            return cached
+        handler_cls = _resolve_handler(path)
+        if handler_cls is not None:
+            cache.add(CACHE_AREA, path, handler_cls)
         return handler_cls
 
     @socketio_server.on("connect", namespace="/ws")
@@ -169,12 +185,45 @@ def register_ws_namespace(
             with _contexts_lock:
                 _ws_contexts[sid] = ctx
 
-            return True
+        # Activate handlers declared in auth.handlers
+        handler_paths = []
+        if isinstance(auth, dict):
+            raw = auth.get("handlers")
+            if isinstance(raw, list):
+                handler_paths = [p for p in raw if isinstance(p, str)]
+
+        activated: list[tuple[str, type[WsHandler]]] = []
+        for path in handler_paths:
+            try:
+                handler_cls = _resolve_cached(path)
+                if handler_cls is None:
+                    continue
+                error = _check_security(handler_cls, ctx)
+                if error is not None:
+                    continue
+                instance = handler_cls(socketio_server, lock)
+                await instance.on_connect(sid)
+                activated.append((path, handler_cls))
+            except Exception as e:
+                PrintStyle.error(f"WS on_connect error ({path}): {format_error(e)}")
+
+        with _contexts_lock:
+            _active_handlers[sid] = activated
+
+        return True
 
     @socketio_server.on("disconnect", namespace="/ws")
     async def _on_disconnect(sid):
         with _contexts_lock:
+            activated = _active_handlers.pop(sid, [])
             _ws_contexts.pop(sid, None)
+
+        for path, handler_cls in activated:
+            try:
+                instance = handler_cls(socketio_server, lock)
+                await instance.on_disconnect(sid)
+            except Exception as e:
+                PrintStyle.error(f"WS on_disconnect error ({path}): {format_error(e)}")
 
     @socketio_server.on("*", namespace="/ws")
     async def _dispatch(event, sid, data):
@@ -187,15 +236,9 @@ def register_ws_namespace(
             if ctx is None:
                 return {"ok": False, "error": "No security context", "code": 401}
 
-            # Resolve handler (cache-aware)
-            cached = cache.get(CACHE_AREA, path)
-            if cached is not None:
-                handler_cls = cached
-            else:
-                handler_cls = _resolve_handler(path)
-                if handler_cls is None:
-                    return {"ok": False, "error": f"WS endpoint not found: {path}", "code": 404}
-                cache.add(CACHE_AREA, path, handler_cls)
+            handler_cls = _resolve_cached(path)
+            if handler_cls is None:
+                return {"ok": False, "error": f"WS endpoint not found: {path}", "code": 404}
 
             # Security check
             error = _check_security(handler_cls, ctx)
