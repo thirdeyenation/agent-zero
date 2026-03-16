@@ -87,7 +87,7 @@ class PluginListItem(BaseModel):
     has_config_screen: bool = False
     has_readme: bool = False
     has_license: bool = False
-    has_init_script: bool = False
+    has_execute_script: bool = False
     toggle_state: ToggleState = "disabled"
     current_commit: str = ""
     current_commit_timestamp: str = ""
@@ -162,7 +162,7 @@ def get_enhanced_plugins_list(
                 has_config_screen = files.exists(str(d / "webui" / "config.html"))
                 has_readme = files.exists(str(d / "README.md"))
                 has_license = files.exists(str(d / "LICENSE"))
-                has_init_script = files.exists(str(d / "execute.py"))
+                has_execute_script = files.exists(str(d / "execute.py"))
                 toggle_state = get_toggle_state(d.name)
                 current_commit = ""
                 current_commit_timestamp = ""
@@ -187,7 +187,7 @@ def get_enhanced_plugins_list(
                         has_config_screen=has_config_screen,
                         has_readme=has_readme,
                         has_license=has_license,
-                        has_init_script=has_init_script,
+                        has_execute_script=has_execute_script,
                         toggle_state=toggle_state,
                         current_commit=current_commit,
                         current_commit_timestamp=current_commit_timestamp,
