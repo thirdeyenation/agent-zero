@@ -35,22 +35,60 @@ class MissingApiKeyCheck(Extension):
                     "provider": provider,
                 })
         
-        if not missing_providers:
-            return
-        
-        model_list = ", ".join(
-            f"{p['model_type']} ({p['provider']})" for p in missing_providers
-        )
-        
-        banners.append({
-            "id": "missing-api-key",
-            "type": "error",
-            "priority": 100,
-            "title": "Missing LLM API Key for current settings",
-            "html": f"""No API key configured for: {model_list}.<br>
-                     Agent Zero will not be able to function properly unless you provide an API key or change your settings.<br>
-                     <a href="#" onclick="(async()=>{{await import('/components/plugins/plugin-settings-store.js');const s=Alpine.store('pluginSettingsPrototype');if(s&amp;&amp;s.open){{await s.open('_model_config',{{perProjectConfig:true,perAgentConfig:true}});}}openModal('components/plugins/plugin-settings.html');}})();return false;">
-                     Configure model settings</a>""",
-            "dismissible": False,
-            "source": "backend"
-        })
+        if missing_providers:
+            model_list = ", ".join(
+                f"{p['model_type']} ({p['provider']})" for p in missing_providers
+            )
+            
+            banners.append({
+                "id": "missing-api-key",
+                "type": "error",
+                "priority": 100,
+                "title": "Missing LLM API Key for current settings",
+                "html": f"""No API key configured for: {model_list}.<br>
+                         Agent Zero will not be able to function properly unless you provide an API key or change your settings.<br>
+                         <a href="#" onclick="(async()=>{{await import('/components/plugins/plugin-settings-store.js');const s=Alpine.store('pluginSettingsPrototype');if(s&amp;&amp;s.open){{await s.open('_model_config',{{perProjectConfig:true,perAgentConfig:true}});}}openModal('components/plugins/plugin-settings.html');}})();return false;">
+                         Configure model settings</a>""",
+                "dismissible": False,
+                "source": "backend"
+            })
+
+        # Check preset providers for missing API keys (warning level)
+        if cfg.get("chat_model", {}).get("allow_chat_override"):
+            preset_missing = []
+            seen = set()
+            for preset in cfg.get("model_presets", []):
+                preset_name = preset.get("name", "Unnamed")
+                for slot_key, slot_label in [("chat", "Main"), ("utility", "Utility")]:
+                    slot = preset.get(slot_key, {})
+                    provider = slot.get("provider", "")
+                    if not provider:
+                        continue
+                    provider_lower = provider.lower()
+                    if provider_lower in self.LOCAL_PROVIDERS:
+                        continue
+                    # Skip if already covered by default checks
+                    if provider_lower in seen:
+                        continue
+                    # Skip if preset has its own api_key
+                    if slot.get("api_key", "").strip():
+                        continue
+                    api_key = models.get_api_key(provider_lower)
+                    if not (api_key and api_key.strip() and api_key != "None"):
+                        seen.add(provider_lower)
+                        preset_missing.append(f"{preset_name}/{slot_label} ({provider})")
+
+            if preset_missing:
+                preset_list = ", ".join(preset_missing)
+                banners.append({
+                    "id": "missing-preset-api-key",
+                    "type": "warning",
+                    "priority": 90,
+                    "title": "Missing API Key for model presets",
+                    "html": f"""No API key configured for preset models: {preset_list}.<br>
+                             These presets will not work until you provide the required API keys.<br>
+                             <a href="#" onclick="openModal('/plugins/_model_config/webui/api-keys.html');return false;">
+                             Manage API Keys</a>""",
+                    "dismissible": True,
+                    "source": "backend"
+                })
