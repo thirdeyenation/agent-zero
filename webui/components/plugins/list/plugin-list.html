@@ -156,16 +156,16 @@
                                                             <span>License</span>
                                                         </button>
                                                     </template>
+                                                    <x-extension id="plugins-list-dropdown-end"></x-extension>
                                                     <template x-if="plugin.is_custom">
                                                         <button type="button"
-                                                            class="dropdown-item"
+                                                            class="dropdown-item plugin-dropdown-delete"
                                                             title="Delete"
                                                             @click="$confirmClick($event, () => { $store.pluginListStore.deletePlugin(plugin); actionsOpen = false; })">
                                                             <span class="material-symbols-outlined">delete</span>
                                                             <span>Delete</span>
                                                         </button>
                                                     </template>
-                                                    <x-extension id="plugins-list-dropdown-end"></x-extension>
                                                 </div>
                                             </div>
                                         </div>
@@ -346,6 +346,16 @@
         .plugin-actions-dropdown .dropdown-menu {
             margin-top: 0;
             top: calc(100% - 1px);
+        }
+
+        .plugin-actions-dropdown .plugin-dropdown-delete,
+        .plugin-actions-dropdown .plugin-dropdown-delete .material-symbols-outlined {
+            color: var(--color-accent);
+            opacity: 1;
+        }
+
+        .plugin-actions-dropdown .plugin-dropdown-delete:hover {
+            background-color: color-mix(in srgb, var(--color-accent) 10%, transparent);
         }
 
         .plugin-footer-row {
