@@ -4,6 +4,7 @@ import { store as pluginSettingsStore } from "/components/plugins/plugin-setting
 import { store as pluginToggleStore } from "/components/plugins/toggle/plugin-toggle-store.js";
 import { store as pluginInitStore } from "/components/plugins/list/plugin-init-store.js";
 import { store as markdownModalStore } from "/components/modals/markdown/markdown-store.js";
+import { callJsExtensions } from "/js/extensions.js";
 import {
   store as notificationStore,
   defaultPriority,
@@ -30,6 +31,11 @@ const model = {
     try {
       const response = await api.callJsonApi("plugins_list", { filter });
       this.plugins = Array.isArray(response.plugins) ? response.plugins : [];
+      void callJsExtensions("plugins_list_after_load", {
+        filter: filter ? { ...filter } : null,
+        plugins: this.plugins,
+        store: this,
+      });
     } catch (e) {
       this.plugins = [];
       showErrorNotification(e, "Failed to load plugins list");

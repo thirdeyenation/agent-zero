@@ -38,6 +38,7 @@ const model = {
 
   // Index state
   index: { authors: {}, plugins: {} },
+  indexLoadPromise: null,
   installedPlugins: [],
   installedPluginDetails: {},
   search: "",
@@ -227,18 +228,34 @@ const model = {
 
   // ── Index Browse ─────────────────────────────
 
-  async fetchIndex() {
+  hasIndexData() {
+    const plugins = this.index?.plugins;
+    return !!plugins && typeof plugins === "object" && Object.keys(plugins).length > 0;
+  },
+
+  async fetchIndex(options = {}) {
+    const background = !!options?.background;
+    const suppressErrors = !!options?.suppressErrors;
+    if (this.indexLoadPromise) {
+      return this.indexLoadPromise;
+    }
+
+    const loadPromise = (async () => {
     try {
-      this.loading = true;
-      this.loadingMessage = "Loading plugin index...";
+      if (!background) {
+        this.loading = true;
+        this.loadingMessage = "Loading plugin index...";
+      }
 
       const data = await api.callJsonApi(PLUGIN_API, {
         action: "fetch_index",
       });
 
       if (!data.success) {
-        void toastFrontendError(data.error || "Failed to load index", "Plugin Installer");
-        return;
+        if (!suppressErrors) {
+          void toastFrontendError(data.error || "Failed to load index", "Plugin Installer");
+        }
+        return false;
       }
 
       this.index = data.index;
@@ -251,13 +268,40 @@ const model = {
         installedList.map((plugin) => [plugin.name, plugin])
       );
       this.page = 1;
+      return true;
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
-      void toastFrontendError(`Failed to load plugin index: ${message}`, "Plugin Installer");
+      if (!suppressErrors) {
+        void toastFrontendError(`Failed to load plugin index: ${message}`, "Plugin Installer");
+      }
+      return false;
     } finally {
-      this.loading = false;
-      this.loadingMessage = "";
+      if (!background) {
+        this.loading = false;
+        this.loadingMessage = "";
+      }
     }
+    })();
+
+    this.indexLoadPromise = loadPromise.finally(() => {
+      if (this.indexLoadPromise === loadPromise) {
+        this.indexLoadPromise = null;
+      }
+    });
+
+    return this.indexLoadPromise;
+  },
+
+  async ensureIndexLoaded(options = {}) {
+    if (this.hasIndexData()) {
+      return true;
+    }
+
+    await this.fetchIndex({
+      background: !!options?.background,
+      suppressErrors: !!options?.background,
+    });
+    return this.hasIndexData();
   },
 
   get pluginsList() {
@@ -378,6 +422,32 @@ const model = {
 
   setPage(p) {
     this.page = Math.max(1, Math.min(p, this.totalPages));
+  },
+
+  getMarketplacePluginByKey(pluginKey) {
+    const key = typeof pluginKey === "string" ? pluginKey.trim() : "";
+    if (!key) return null;
+    return this.pluginsList.find((plugin) => plugin.key === key) || null;
+  },
+
+  async openMarketplaceDetailByKey(pluginKey) {
+    const key = typeof pluginKey === "string" ? pluginKey.trim() : "";
+    if (!key) return false;
+
+    const loaded = await this.ensureIndexLoaded();
+    if (!loaded) return false;
+
+    const plugin = this.getMarketplacePluginByKey(key);
+    if (!plugin) {
+      void toastFrontendError(
+        `Plugin "${key}" is not available in the marketplace index`,
+        "Plugin Installer"
+      );
+      return false;
+    }
+
+    this.openDetail(plugin);
+    return true;
   },
 
   openDetail(plugin) {

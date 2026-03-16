@@ -90,7 +90,7 @@
                                             <div class="plugin-title" x-text="plugin.display_name || plugin.name || '(unnamed plugin)'"></div>
                                             <code class="plugin-path" x-text="plugin.path"></code>
                                         </div>
-                                        <div class="plugin-actions">
+                                        <div class="plugin-actions" x-data="{ actionsOpen: false }">
                                             <template x-if="plugin.has_main_screen">
                                                 <button type="button"
                                                     class="button"
@@ -107,44 +107,67 @@
                                                     <span class="icon material-symbols-outlined">settings</span> Config
                                                 </button>
                                             </template>
-                                            <template x-if="plugin.has_readme">
-                                                <button type="button"
-                                                    class="button"
-                                                    title="README"
-                                                    @click="$store.pluginListStore.openPluginDoc(plugin, 'readme')">
-                                                    <span class="icon material-symbols-outlined">description</span> README
-                                                </button>
-                                            </template>
-                                            <template x-if="plugin.has_license">
-                                                <button type="button"
-                                                    class="button"
-                                                    title="LICENSE"
-                                                    @click="$store.pluginListStore.openPluginDoc(plugin, 'license')">
-                                                    <span class="icon material-symbols-outlined">gavel</span> License
-                                                </button>
-                                            </template>
                                             <template x-if="plugin.has_init_script">
                                                 <button type="button"
                                                     class="button"
-                                                    title="Run initializer script"
+                                                    title="Execute"
                                                     @click="$store.pluginListStore.openPluginInit(plugin)">
-                                                    <span class="icon material-symbols-outlined">terminal</span> Init
+                                                    <span class="icon material-symbols-outlined">terminal</span> Execute
                                                 </button>
                                             </template>
                                             <button type="button"
-                                                class="button"
+                                                class="button icon-button"
                                                 title="Info"
+                                                aria-label="Info"
                                                 @click="$store.pluginListStore.openPluginInfo(plugin)">
                                                 <span class="icon material-symbols-outlined">info</span>
                                             </button>
-                                            <template x-if="plugin.is_custom">
+                                            <div class="dropdown plugin-actions-dropdown"
+                                                @click.outside="actionsOpen = false"
+                                                @keydown.escape.window="if (actionsOpen) actionsOpen = false">
                                                 <button type="button"
-                                                    class="button cancel icon-button"
-                                                    title="Delete"
-                                                    @click="$confirmClick($event, () => $store.pluginListStore.deletePlugin(plugin))">
-                                                    <span class="icon material-symbols-outlined">delete</span>
+                                                    class="btn-icon-action dropdown-trigger"
+                                                    title="More actions"
+                                                    aria-label="More actions"
+                                                    @click.stop="actionsOpen = !actionsOpen"
+                                                    :aria-expanded="actionsOpen.toString()">
+                                                    <span class="material-symbols-outlined">more_vert</span>
                                                 </button>
-                                            </template>
+                                                <div class="dropdown-menu"
+                                                    x-show="actionsOpen"
+                                                    x-transition
+                                                    style="display: none;">
+                                                    <x-extension id="plugins-list-dropdown-start"></x-extension>
+                                                    <template x-if="plugin.has_readme">
+                                                        <button type="button"
+                                                            class="dropdown-item"
+                                                            title="README"
+                                                            @click="$store.pluginListStore.openPluginDoc(plugin, 'readme'); actionsOpen = false">
+                                                            <span class="material-symbols-outlined">description</span>
+                                                            <span>README</span>
+                                                        </button>
+                                                    </template>
+                                                    <template x-if="plugin.has_license">
+                                                        <button type="button"
+                                                            class="dropdown-item"
+                                                            title="License"
+                                                            @click="$store.pluginListStore.openPluginDoc(plugin, 'license'); actionsOpen = false">
+                                                            <span class="material-symbols-outlined">gavel</span>
+                                                            <span>License</span>
+                                                        </button>
+                                                    </template>
+                                                    <template x-if="plugin.is_custom">
+                                                        <button type="button"
+                                                            class="dropdown-item"
+                                                            title="Delete"
+                                                            @click="$confirmClick($event, () => { $store.pluginListStore.deletePlugin(plugin); actionsOpen = false; })">
+                                                            <span class="material-symbols-outlined">delete</span>
+                                                            <span>Delete</span>
+                                                        </button>
+                                                    </template>
+                                                    <x-extension id="plugins-list-dropdown-end"></x-extension>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
 
@@ -310,6 +333,19 @@
 
         .plugin-actions .button .icon {
             font-size: 1.1rem;
+        }
+
+        .plugin-actions-dropdown {
+            flex: 0 0 auto;
+        }
+
+        .plugin-actions-dropdown:not(:has(.dropdown-menu .dropdown-item)) {
+            display: none;
+        }
+
+        .plugin-actions-dropdown .dropdown-menu {
+            margin-top: 0;
+            top: calc(100% - 1px);
         }
 
         .plugin-footer-row {
