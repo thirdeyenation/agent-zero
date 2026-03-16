@@ -3,44 +3,6 @@ from helpers.api import ApiHandler, Request, Response
 from helpers.providers import get_provider_config
 import models
 
-_CLOUD_ENDPOINTS: dict[str, str] = {
-    "openai":     "https://api.openai.com/v1/models",
-    "anthropic":  "https://api.anthropic.com/v1/models",
-    "groq":       "https://api.groq.com/openai/v1/models",
-    "deepseek":   "https://api.deepseek.com/models",
-    "mistral":    "https://api.mistral.ai/v1/models",
-    "openrouter": "https://openrouter.ai/api/v1/models",
-    "xai":        "https://api.x.ai/v1/models",
-    "sambanova":  "https://api.sambanova.ai/v1/models",
-    "moonshot":   "https://api.moonshot.cn/v1/models",
-    "google":     "https://generativelanguage.googleapis.com/v1beta/models",
-    "a0_venice":  "https://api.venice.ai/api/v1/models",
-    "venice":     "https://api.venice.ai/api/v1/models",
-}
-
-# Local providers with default base URLs (no auth required).
-_LOCAL_DEFAULTS: dict[str, str] = {
-    "ollama":    "http://host.docker.internal:11434",
-    "lm_studio": "http://host.docker.internal:1234",
-}
-
-# Providers with hardcoded model lists (no listing API available).
-_STATIC_MODELS: dict[str, list[str]] = {
-    "github_copilot": [
-        "gpt-4.1", "gpt-4o", "gpt-5-mini", "oswe-vscode-prime",
-    ],
-    "zai": [
-        "glm-4-plus", "glm-4-air-250414", "glm-4-airx",
-        "glm-4-long", "glm-4-flashx", "glm-4-flash-250414",
-        "glm-4v-plus", "glm-4v", "glm-3-turbo",
-    ],
-    "zai_coding": [
-        "codegeex-4",
-        "glm-4-plus", "glm-4-air-250414", "glm-4-airx",
-        "glm-4-flashx", "glm-4-flash-250414",
-    ],
-}
-
 # Model name substrings to exclude from litellm fallback results
 _LITELLM_EXCLUDE = frozenset({
     "dall-e", "gpt-image", "tts", "whisper", "audio",
@@ -58,40 +20,52 @@ class ModelSearch(ApiHandler):
         if not provider:
             return {"models": []}
 
-        if provider in _STATIC_MODELS:
-            all_models = list(_STATIC_MODELS[provider])
+        cfg = self._get_search_config(model_type, provider)
+
+        static = cfg.get("static_models")
+        if static:
+            all_models = list(static)
         else:
-            provider_cfg = get_provider_config(model_type, provider)
-            all_models = await self._fetch_models(provider, provider_cfg, user_api_base) or []
+            all_models = await self._fetch_models(provider, cfg, user_api_base) or []
 
             if not all_models:
-                litellm_provider = (provider_cfg or {}).get("litellm_provider", provider)
+                litellm_provider = (cfg or {}).get("litellm_provider", provider)
                 if litellm_provider == provider:
-                    all_models = self._litellm_fallback(provider, provider_cfg)
+                    all_models = self._litellm_fallback(provider, cfg)
 
         if query:
             all_models = [m for m in all_models if query in m.lower()]
 
         return {"models": sorted(all_models)[:50], "provider": provider}
 
-    async def _fetch_models(self, provider: str, cfg: dict | None, user_api_base: str = "") -> list[str] | None:
-        api_base = user_api_base or (cfg or {}).get("kwargs", {}).get("api_base", "")
-        api_key = models.get_api_key(provider)
+    @staticmethod
+    def _get_search_config(model_type: str, provider: str) -> dict:
+        """Get provider config with search metadata, falling back to chat config."""
+        cfg = get_provider_config(model_type, provider) or {}
+        if model_type != "chat" and not cfg.get("models_endpoint") and not cfg.get("static_models"):
+            chat_cfg = get_provider_config("chat", provider) or {}
+            merged = dict(cfg)
+            for field in ("models_endpoint", "models_format", "models_params",
+                          "static_models", "default_base"):
+                if field in chat_cfg and field not in merged:
+                    merged[field] = chat_cfg[field]
+            return merged
+        return cfg
 
-        url, fmt = self._resolve_url(provider, api_base)
+    async def _fetch_models(self, provider: str, cfg: dict, user_api_base: str = "") -> list[str] | None:
+        api_key = models.get_api_key(provider)
+        api_base = user_api_base or (cfg or {}).get("kwargs", {}).get("api_base", "")
+
+        url, fmt = self._resolve_url(cfg, api_base)
         if not url:
             return None
 
         headers = self._build_headers(provider, api_key, cfg)
-        params: dict[str, str] = {}
-        if provider == "google":
-            if api_key and api_key != "None":
-                params["key"] = api_key
-            params["pageSize"] = "1000"
-        elif provider == "anthropic":
-            params["limit"] = "1000"
-        elif provider == "azure":
-            params["api-version"] = "2024-10-21"
+        params = dict(cfg.get("models_params", {}) or {})
+
+        # Google uses query-param auth
+        if provider == "google" and api_key and api_key != "None":
+            params.setdefault("key", api_key)
 
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
@@ -105,31 +79,24 @@ class ModelSearch(ApiHandler):
 
         return None
 
-    def _resolve_url(self, provider: str, api_base: str) -> tuple[str | None, str]:
-        if provider == "ollama":
-            base = api_base or _LOCAL_DEFAULTS.get("ollama", "")
-            return (base.rstrip("/") + "/api/tags" if base else None), "ollama"
+    @staticmethod
+    def _resolve_url(cfg: dict, api_base: str) -> tuple[str | None, str]:
+        fmt = cfg.get("models_format", "openai")
+        endpoint = cfg.get("models_endpoint", "")
+        default_base = cfg.get("default_base", "")
 
-        if provider == "google":
-            if api_base:
-                return api_base.rstrip("/") + "/models", "google"
-            return _CLOUD_ENDPOINTS["google"], "google"
+        if endpoint.startswith("http"):
+            return endpoint, fmt
 
-        if provider == "azure":
-            if not api_base:
-                return None, "openai"
-            return api_base.rstrip("/") + "/openai/models", "openai"
+        base = api_base or default_base
+        if not base:
+            return None, fmt
 
-        if provider in _CLOUD_ENDPOINTS:
-            return _CLOUD_ENDPOINTS[provider], "openai"
+        if endpoint:
+            return base.rstrip("/") + endpoint, fmt
 
-        if api_base:
-            return api_base.rstrip("/") + "/models", "openai"
-
-        if provider in _LOCAL_DEFAULTS:
-            return _LOCAL_DEFAULTS[provider] + "/v1/models", "openai"
-
-        return None, "openai"
+        # Generic fallback: base + /models
+        return base.rstrip("/") + "/models", fmt
 
     def _build_headers(self, provider: str, api_key: str, cfg: dict | None) -> dict[str, str]:
         headers: dict[str, str] = {}
