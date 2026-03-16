@@ -4,73 +4,18 @@
 </head>
 
 <body>
-<div x-data="{
-  _fns: null,
-  providers: [],
-  keys: {},
-  loading: true,
-  _debounceTimers: {},
+<script type="module">
+  import { store } from "/plugins/_model_config/webui/model-config-store.js";
+</script>
 
-  async init() {
-    this._fns = await import('/plugins/_model_config/webui/config-store.js');
-    this.loading = true;
-    try {
-      const data = await this._fns.loadConfigData();
-      const chatProviders = data.chat_providers || [];
-      const embedProviders = data.embedding_providers || [];
-      const apiKeyStatus = data.api_key_status || {};
-
-      // Deduplicate providers
-      const seen = new Set();
-      this.providers = [];
-      for (const p of [...chatProviders, ...embedProviders]) {
-        if (!p.value || seen.has(p.value.toLowerCase())) continue;
-        seen.add(p.value.toLowerCase());
-        this.providers.push({
-          value: p.value,
-          label: p.label || p.value,
-          has_key: !!apiKeyStatus[p.value]
-        });
-      }
-      this.providers.sort((a, b) => a.label.localeCompare(b.label));
-
-      this.keys = {};
-      for (const p of this.providers) {
-        this.keys[p.value] = '';
-      }
-    } catch (e) {
-      console.error('Failed to load API key providers:', e);
-    } finally {
-      this.loading = false;
-    }
-  },
-
-  onKeyInput(provider) {
-    clearTimeout(this._debounceTimers[provider]);
-    this._debounceTimers[provider] = setTimeout(() => this.saveKey(provider), 800);
-  },
-
-  async saveKey(provider) {
-    const val = this.keys[provider];
-    if (!val) return;
-    try {
-      await this._fns.saveApiKey(provider, val);
-      const p = this.providers.find(x => x.value === provider);
-      if (p) p.has_key = true;
-    } catch (e) {
-      console.error('Failed to save API key:', e);
-    }
-  },
-
-  async revealKey(provider) {
-    try {
-      const val = await this._fns.revealApiKey(provider);
-      if (val) this.keys[provider] = val;
-    } catch (e) {
-      console.error('Failed to reveal API key:', e);
-    }
-  }
-}">
+<div x-data>
+<template x-if="$store.modelConfig">
+<div x-data="{ keys: {}, loading: true }"
+     x-init="
+       await $store.modelConfig.ensureLoaded();
+       $store.modelConfig.allProviders.forEach(p => keys[p.value] = '');
+       loading = false;
+     ">
 
   <div class="api-keys-section">
     <div class="section-title">API Keys</div>
@@ -84,7 +29,7 @@
     </div>
 
     <div x-show="!loading">
-      <template x-for="provider in providers" :key="provider.value">
+      <template x-for="provider in $store.modelConfig.allProviders" :key="provider.value">
         <div class="field">
           <div class="field-label">
             <div class="field-title" x-text="provider.label"></div>
@@ -94,13 +39,13 @@
                    x-model="keys[provider.value]"
                    :placeholder="provider.has_key ? '••••••••••••' : ''"
                    autocomplete="off"
-                   @input="onKeyInput(provider.value)"
+                   @input.debounce.800ms="keys[provider.value] && $store.modelConfig.saveApiKey(provider.value, keys[provider.value])"
                    style="padding-right:32px;" />
             <span class="material-symbols-outlined eye-toggle"
                   @click="
                     showKey = !showKey;
                     if (showKey && !keys[provider.value] && provider.has_key) {
-                      revealKey(provider.value);
+                      $store.modelConfig.revealApiKey(provider.value).then(v => { if (v) keys[provider.value] = v; });
                     }
                   "
                   x-text="showKey ? 'visibility' : 'visibility_off'"></span>
@@ -113,6 +58,8 @@
   <div class="modal-footer" data-modal-footer>
     <button class="btn btn-cancel" @click="closeModal()">Close</button>
   </div>
+</div>
+</template>
 </div>
 
 <style>

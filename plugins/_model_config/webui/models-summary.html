@@ -4,7 +4,13 @@
 </head>
 
 <body>
+  <script type="module">
+    import { store } from "/plugins/_model_config/webui/model-config-store.js";
+  </script>
+
   <div x-data>
+  <template x-if="$store.modelConfig">
+    <div>
     <div class="section-title">Model Configuration</div>
     <div class="section-description">
       Model settings are managed through the Model Configuration plugin, supporting per-project and per-agent overrides.
@@ -25,39 +31,12 @@
     </div>
 
     <!-- Read-only model config summary -->
-    <div x-data="{
-      loading: true,
-      models: [],
-      async init() {
-        try {
-          const res = await fetchApi('/plugins/_model_config/model_config_get', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({})
-          });
-          const data = await res.json();
-          const cfg = data.config || {};
-          const chatP = data.chat_providers || [];
-          const embedP = data.embedding_providers || [];
-          const label = (list, id) => (list.find(x => x.value === id) || {}).label || id || '\u2014';
-          this.models = [
-            { icon: 'chat', title: 'Main', cfg: cfg.chat_model, pList: chatP },
-            { icon: 'manufacturing', title: 'Utility', cfg: cfg.utility_model, pList: chatP },
-            { icon: 'database', title: 'Embedding', cfg: cfg.embedding_model, pList: embedP },
-          ].map(s => ({
-            icon: s.icon,
-            title: s.title,
-            provider: label(s.pList, s.cfg?.provider),
-            name: s.cfg?.name || '\u2014'
-          }));
-        } catch (e) {
-          console.error('Model summary load failed:', e);
-          this.models = [];
-        } finally {
-          this.loading = false;
-        }
-      }
-    }" class="model-summary">
+    <div x-data="{ loading: true, models: [] }"
+         x-init="
+           models = await $store.modelConfig.loadModelsSummary().catch(() => []);
+           loading = false;
+         "
+         class="model-summary">
       <div x-show="loading" style="text-align:center; padding:12px;">
         <span class="material-symbols-outlined spinning" style="font-size:18px;">progress_activity</span>
       </div>
@@ -77,6 +56,8 @@
         </div>
       </template>
     </div>
+    </div>
+  </template>
   </div>
 
   <style>

@@ -1,41 +1,18 @@
 <html>
 <head>
   <title>Model Configuration</title>
+  <script type="module">
+    import { store } from "/plugins/_model_config/webui/model-config-store.js";
+  </script>
 </head>
 
 <body>
-  <div x-data="{
-    _fns: null,
-    chatProviders: [],
-    embeddingProviders: [],
-    apiKeyStatus: {},
-    apiKeyValues: {},
-    providersReady: false,
-    _debounceTimers: {},
-    modelSections: [],
-    getProviders(key) { return key === 'embedding_model' ? this.embeddingProviders : this.chatProviders; },
-    getSearchType(key) { return key === 'embedding_model' ? 'embedding' : 'chat'; },
-    onApiKeyInput(provider) {
-      clearTimeout(this._debounceTimers['ak_' + provider]);
-      this._debounceTimers['ak_' + provider] = setTimeout(() => this._saveKey(provider), 800);
-    },
-    async _saveKey(provider) {
-      if (!this.apiKeyValues[provider] || !this._fns) return;
-      try {
-        await this._fns.saveApiKey(provider, this.apiKeyValues[provider]);
-        this.apiKeyStatus = { ...this.apiKeyStatus, [provider]: true };
-      } catch (e) { console.error('Failed to save API key:', e); }
-    }
-  }"
+  <div x-data
        x-init="
-         _fns = await import('/plugins/_model_config/webui/config-store.js');
-         modelSections = _fns.MODEL_SECTIONS;
-         try {
-           await _fns.initConfigComponent($data, config);
-         } catch (e) { console.error('Config init failed:', e); }
-         providersReady = true;
+         await $store.modelConfig.ensureLoaded();
+         $store.modelConfig.initConfigFields(config);
        ">
-    <template x-if="config && providersReady">
+    <template x-if="config && $store.modelConfig._loaded">
       <div class="model-config-sections">
 
         <!-- Per-Chat Override -->
@@ -96,9 +73,9 @@
                     </div>
                     <div class="field-control">
                       <select x-model="preset.chat.provider"
-                              x-effect="$nextTick(() => { if (chatProviders.length) $el.value = preset.chat.provider })">
+                              x-effect="$nextTick(() => { if ($store.modelConfig.chatProviders.length) $el.value = preset.chat.provider })">
                         <option value="">&#x2014; select &#x2014;</option>
-                        <template x-for="p in chatProviders" :key="p.value">
+                        <template x-for="p in $store.modelConfig.chatProviders" :key="p.value">
                           <option :value="p.value" x-text="p.label"></option>
                         </template>
                       </select>
@@ -111,7 +88,7 @@
                     </div>
                     <div class="field-control" style="position:relative;"
                          x-data="{ results: [], open: false, searching: false,
-                           doSearch() { this.searching = true; _fns.searchModels(preset.chat.provider, preset.chat.name, 'chat', preset.chat.api_base).then(r => { this.results = r; this.open = true; }).finally(() => this.searching = false); }
+                           doSearch() { this.searching = true; $store.modelConfig.searchModels(preset.chat.provider, preset.chat.name, 'chat', preset.chat.api_base).then(r => { this.results = r; this.open = true; }).finally(() => this.searching = false); }
                          }"
                          @click.outside="open = false">
                       <input type="text" x-model="preset.chat.name" style="padding-right:32px;"
@@ -135,17 +112,17 @@
                   <div class="field">
                     <div class="field-label">
                       <div class="field-title">API key</div>
-                      <div class="field-description">Leave empty to use the global API key for this provider.</div>
+                      <div class="field-description">Leave empty to use the default API key for this provider.</div>
                     </div>
                     <div class="field-control" style="position:relative;" x-data="{ showKey: false, _revealed: '' }">
                       <input :type="showKey ? 'text' : 'password'" x-model="preset.chat.api_key" autocomplete="off"
-                             :placeholder="apiKeyStatus[preset.chat.provider] ? '&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;' : ''"
+                             :placeholder="$store.modelConfig.apiKeyStatus[preset.chat.provider] ? '&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;' : ''"
                              style="padding-right:32px;" />
                       <span class="material-symbols-outlined eye-toggle"
                             @click="
                               showKey = !showKey;
-                              if (showKey && !preset.chat.api_key && apiKeyStatus[preset.chat.provider]) {
-                                _fns.revealApiKey(preset.chat.provider).then(v => { if (v) { preset.chat.api_key = v; _revealed = v; } });
+                              if (showKey && !preset.chat.api_key && $store.modelConfig.apiKeyStatus[preset.chat.provider]) {
+                                $store.modelConfig.revealApiKey(preset.chat.provider).then(v => { if (v) { preset.chat.api_key = v; _revealed = v; } });
                               }
                               if (!showKey && _revealed && preset.chat.api_key === _revealed) {
                                 preset.chat.api_key = ''; _revealed = '';
@@ -162,17 +139,17 @@
                     <div class="field-control"><input type="text" x-model="preset.chat.api_base" /></div>
                   </div>
 
-                  <div class="preset-subheader">Utility Model <span style="opacity:0.5; font-size:0.75rem;">(optional &#x2014; falls back to global Utility Model)</span></div>
+                  <div class="preset-subheader">Utility Model <span style="opacity:0.5; font-size:0.75rem;">(optional &#x2014; falls back to Default Utility Model)</span></div>
                       <div class="field">
                         <div class="field-label">
                           <div class="field-title">Provider</div>
-                          <div class="field-description">Leave empty to use the global Utility Model provider.</div>
+                          <div class="field-description">Leave empty to use the Default Utility Model provider.</div>
                         </div>
                         <div class="field-control">
                           <select x-model="preset.utility.provider"
-                                  x-effect="$nextTick(() => { if (chatProviders.length) $el.value = preset.utility.provider })">
+                                  x-effect="$nextTick(() => { if ($store.modelConfig.chatProviders.length) $el.value = preset.utility.provider })">
                             <option value="">&#x2014; default &#x2014;</option>
-                            <template x-for="p in chatProviders" :key="p.value">
+                            <template x-for="p in $store.modelConfig.chatProviders" :key="p.value">
                               <option :value="p.value" x-text="p.label"></option>
                             </template>
                           </select>
@@ -181,14 +158,14 @@
                       <div class="field">
                         <div class="field-label">
                           <div class="field-title">Model name</div>
-                          <div class="field-description">Model for background tasks. Leave empty to use the global Utility Model.</div>
+                          <div class="field-description">Leave empty to use the Default Utility Model.</div>
                         </div>
                         <div class="field-control" style="position:relative;"
                              x-data="{ results: [], open: false, searching: false,
-                               doSearch() { this.searching = true; _fns.searchModels(preset.utility.provider || preset.chat.provider, preset.utility.name, 'chat', preset.utility.api_base || preset.chat.api_base).then(r => { this.results = r; this.open = true; }).finally(() => this.searching = false); }
+                               doSearch() { this.searching = true; $store.modelConfig.searchModels(preset.utility.provider || preset.chat.provider, preset.utility.name, 'chat', preset.utility.api_base || preset.chat.api_base).then(r => { this.results = r; this.open = true; }).finally(() => this.searching = false); }
                              }"
                              @click.outside="open = false">
-                          <input type="text" x-model="preset.utility.name" placeholder="Leave empty for default" style="padding-right:32px;"
+                          <input type="text" x-model="preset.utility.name" style="padding-right:32px;"
                                  @keydown.enter.prevent="doSearch()" />
                           <span class="model-search-btn"
                                 @click="if (!searching) doSearch()"
@@ -209,18 +186,18 @@
                       <div class="field">
                         <div class="field-label">
                           <div class="field-title">API key</div>
-                          <div class="field-description">Leave empty to use the global API key for this provider.</div>
+                          <div class="field-description">Leave empty to use the default API key for this provider.</div>
                         </div>
                         <div class="field-control" style="position:relative;" x-data="{ showKey: false, _revealed: '' }">
                           <input :type="showKey ? 'text' : 'password'" x-model="preset.utility.api_key" autocomplete="off"
-                                 :placeholder="apiKeyStatus[preset.utility.provider || preset.chat.provider] ? '&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;' : ''"
+                                 :placeholder="$store.modelConfig.apiKeyStatus[preset.utility.provider || preset.chat.provider] ? '&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;' : ''"
                                  style="padding-right:32px;" />
                           <span class="material-symbols-outlined eye-toggle"
                                 @click="
                                   const prov = preset.utility.provider || preset.chat.provider;
                                   showKey = !showKey;
-                                  if (showKey && !preset.utility.api_key && apiKeyStatus[prov]) {
-                                    _fns.revealApiKey(prov).then(v => { if (v) { preset.utility.api_key = v; _revealed = v; } });
+                                  if (showKey && !preset.utility.api_key && $store.modelConfig.apiKeyStatus[prov]) {
+                                    $store.modelConfig.revealApiKey(prov).then(v => { if (v) { preset.utility.api_key = v; _revealed = v; } });
                                   }
                                   if (!showKey && _revealed && preset.utility.api_key === _revealed) {
                                     preset.utility.api_key = ''; _revealed = '';
@@ -255,7 +232,7 @@
         </div>
 
         <!-- Model Sections (Main, Utility, Embedding) -->
-        <template x-for="section in modelSections" :key="section.key">
+        <template x-for="section in $store.modelConfig.MODEL_SECTIONS" :key="section.key">
           <div class="model-section">
             <div class="section-title" x-text="section.title"></div>
             <div class="section-description" x-text="section.desc"></div>
@@ -268,8 +245,8 @@
               </div>
               <div class="field-control">
                 <select x-model="config[section.key].provider"
-                        x-effect="$nextTick(() => { if (getProviders(section.key).length) $el.value = config[section.key].provider })">
-                  <template x-for="p in getProviders(section.key)" :key="p.value">
+                        x-effect="$nextTick(() => { if ($store.modelConfig.getProviders(section.key).length) $el.value = config[section.key].provider })">
+                  <template x-for="p in $store.modelConfig.getProviders(section.key)" :key="p.value">
                     <option :value="p.value" x-text="p.label"></option>
                   </template>
                 </select>
@@ -284,7 +261,7 @@
               </div>
               <div class="field-control" style="position:relative;"
                    x-data="{ results: [], open: false, searching: false,
-                     doSearch() { this.searching = true; _fns.searchModels(config[section.key].provider, config[section.key].name, getSearchType(section.key), config[section.key].api_base).then(r => { this.results = r; this.open = true; }).finally(() => this.searching = false); }
+                     doSearch() { this.searching = true; $store.modelConfig.searchModels(config[section.key].provider, config[section.key].name, $store.modelConfig.getSearchType(section.key), config[section.key].api_base).then(r => { this.results = r; this.open = true; }).finally(() => this.searching = false); }
                    }"
                    @click.outside="open = false">
                 <input type="text" x-model="config[section.key].name" style="padding-right:32px;"
@@ -314,17 +291,17 @@
               </div>
               <div class="field-control" style="position:relative;" x-data="{ showKey: false }">
                 <input :type="showKey ? 'text' : 'password'"
-                       x-model="apiKeyValues[config[section.key].provider]"
-                       :placeholder="apiKeyStatus[config[section.key].provider] ? '&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;' : ''"
+                       x-model="$store.modelConfig.apiKeyValues[config[section.key].provider]"
+                       :placeholder="$store.modelConfig.apiKeyStatus[config[section.key].provider] ? '&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;' : ''"
                        autocomplete="off"
-                       @input="onApiKeyInput(config[section.key].provider)"
+                       @input.debounce.800ms="$store.modelConfig.saveApiKeyIfSet(config[section.key].provider)"
                        style="padding-right:32px;" />
                 <span class="material-symbols-outlined eye-toggle"
                       @click="
                         showKey = !showKey;
                         const prov = config[section.key].provider;
-                        if (showKey && !apiKeyValues[prov] && apiKeyStatus[prov]) {
-                          _fns.revealApiKey(prov).then(v => { if (v) apiKeyValues[prov] = v; });
+                        if (showKey && !$store.modelConfig.apiKeyValues[prov] && $store.modelConfig.apiKeyStatus[prov]) {
+                          $store.modelConfig.revealApiKey(prov).then(v => { if (v) $store.modelConfig.apiKeyValues[prov] = v; });
                         }
                       "
                       x-text="showKey ? 'visibility' : 'visibility_off'"></span>
@@ -454,7 +431,7 @@
               </div>
               <div class="field-control">
                 <textarea x-model="config[section.key]._kwargs_text"
-                          @change="config[section.key].kwargs = _fns.textToKwargs(config[section.key]._kwargs_text)"></textarea>
+                          @change="config[section.key].kwargs = $store.modelConfig.textToKwargs(config[section.key]._kwargs_text)"></textarea>
               </div>
             </div>
 
@@ -469,7 +446,7 @@
                 </div>
                 <div class="field-control">
                   <textarea x-model="config._browser_headers_text"
-                            @change="config.browser_http_headers = _fns.textToHeaders(config._browser_headers_text)"></textarea>
+                            @change="config.browser_http_headers = $store.modelConfig.textToHeaders(config._browser_headers_text)"></textarea>
                 </div>
               </div>
             </template>

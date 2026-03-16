@@ -1,109 +1,67 @@
 <!-- Model Switcher - Floating Preset Selector -->
-<div x-data="{
-  allowed: false,
-  override: null,
-  loading: true,
-  showDropdown: false,
-  presets: [],
-  _fns: null,
+<script type="module">
+  import { store } from "/plugins/_model_config/webui/model-config-store.js";
+</script>
 
-  async init() {
-    this._fns = await import('/plugins/_model_config/webui/model-switcher.js');
-    await this.refresh();
-    this.$watch('$store.chats.selected', () => this.refresh());
-  },
-
-  async refresh() {
-    this.loading = true;
-    try {
-      const contextId = this.$store.chats?.selected || '';
-      const state = await this._fns.loadSwitcherState(contextId);
-      this.allowed = state.allowed;
-      this.presets = state.presets;
-      this.override = state.override;
-    } catch (e) {
-      console.error('Model switcher refresh failed:', e);
-    } finally {
-      this.loading = false;
-    }
-  },
-
-  get currentLabel() {
-    if (!this.override) return 'Default';
-    if (this.override.preset_name) return this.override.preset_name;
-    const p = this.override.provider || '';
-    const n = this.override.name || '';
-    return n || p || 'Custom';
-  },
-
-  get hasOverride() {
-    return !!this.override;
-  },
-
-  async selectPreset(presetName) {
-    const contextId = this.$store.chats?.selected || '';
-    if (!contextId) return;
-    const ok = await this._fns.setPresetOverride(contextId, presetName);
-    if (ok) {
-      this.override = { preset_name: presetName };
-      justToast('Switched to ' + presetName, 'success');
-    }
-    this.showDropdown = false;
-  },
-
-  async clearOverride() {
-    const contextId = this.$store.chats?.selected || '';
-    if (!contextId) return;
-    const ok = await this._fns.clearOverride(contextId);
-    if (ok) {
-      this.override = null;
-      justToast('Reverted to default model', 'info');
-    }
-    this.showDropdown = false;
-  }
-}">
-  <template x-if="allowed && !loading">
+<div x-data>
+<template x-if="$store.modelConfig">
+<div x-data="{ showDropdown: false }"
+     x-init="
+       await $store.modelConfig.refreshSwitcher($store.chats?.selected || '');
+       $watch('$store.chats.selected', v => $store.modelConfig.refreshSwitcher(v || ''));
+     ">
+  <template x-if="$store.modelConfig.switcherAllowed && !$store.modelConfig.switcherLoading">
     <div class="model-switcher-container">
       <div class="model-switcher-anchor">
         <button class="model-switcher-btn"
-                :class="{ 'has-override': hasOverride }"
+                :class="{ 'has-override': !!$store.modelConfig.switcherOverride }"
                 @click="showDropdown = !showDropdown"
                 @click.outside="showDropdown = false">
           <span class="material-symbols-outlined" style="font-size: 15px;">swap_horiz</span>
-          <span class="model-switcher-label" x-text="currentLabel"></span>
+          <span class="model-switcher-label" x-text="$store.modelConfig.getSwitcherLabel()"></span>
           <span class="material-symbols-outlined" style="font-size: 14px;"
                 x-text="showDropdown ? 'expand_less' : 'expand_more'"></span>
         </button>
 
         <div class="model-switcher-dropdown" x-show="showDropdown" x-transition.opacity>
           <!-- Use Default -->
-          <template x-if="hasOverride">
-            <div class="model-switcher-item revert" @click="clearOverride()">
+          <template x-if="$store.modelConfig.switcherOverride">
+            <div class="model-switcher-item revert" @click="
+              $store.modelConfig.clearOverrideSwitch($store.chats?.selected || '');
+              justToast('Reverted to default model', 'info');
+              showDropdown = false;
+            ">
               <span class="material-symbols-outlined" style="font-size: 15px;">undo</span>
               <span>Use Default</span>
             </div>
           </template>
-          <div class="model-switcher-divider" x-show="hasOverride"></div>
+          <div class="model-switcher-divider" x-show="$store.modelConfig.switcherOverride"></div>
 
           <!-- No presets message -->
-          <template x-if="presets.length === 0">
+          <template x-if="$store.modelConfig.switcherPresets.length === 0">
             <div class="model-switcher-item disabled">No presets configured</div>
           </template>
 
           <!-- Preset list -->
-          <template x-for="preset in presets" :key="preset.name">
+          <template x-for="preset in $store.modelConfig.switcherPresets" :key="preset.name">
             <div class="model-switcher-item"
-                 :class="{ 'active': override?.preset_name === preset.name }"
-                 @click="selectPreset(preset.name)">
+                 :class="{ 'active': $store.modelConfig.switcherOverride?.preset_name === preset.name }"
+                 @click="
+                   $store.modelConfig.selectPresetSwitch($store.chats?.selected || '', preset.name);
+                   justToast('Switched to ' + preset.name, 'success');
+                   showDropdown = false;
+                 ">
               <div class="model-switcher-preset-name" x-text="preset.name"></div>
               <div class="model-switcher-preset-detail"
-                   x-text="_fns.getPresetSummary(preset)"></div>
+                   x-text="$store.modelConfig.getPresetSummary(preset)"></div>
             </div>
           </template>
         </div>
       </div>
     </div>
   </template>
+</div>
+</template>
 </div>
 
 <style>
