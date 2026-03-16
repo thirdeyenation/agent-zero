@@ -6,6 +6,9 @@ from helpers.print_style import PrintStyle
 from agent import AgentContext, LoopData, UserMessage
 from plugins._email_integration.helpers.dispatcher import CTX_EMAIL_HANDLER, CTX_EMAIL_ATTACHMENTS
 
+MAX_SEND_RETRIES: int = 2
+CTX_SEND_FAILURES: str = "_email_send_failures"
+
 
 class EmailAutoReply(Extension):
 
@@ -31,8 +34,22 @@ class EmailAutoReply(Extension):
     ):
         from plugins._email_integration.helpers.handler import send_email_reply
         error = await send_email_reply(context, response_text, attachments)
-        if error:
-            _notify_agent_of_failure(context, error)
+        if not error:
+            context.data[CTX_SEND_FAILURES] = 0
+            return
+        failures = context.data.get(CTX_SEND_FAILURES, 0) + 1
+        context.data[CTX_SEND_FAILURES] = failures
+        if failures <= MAX_SEND_RETRIES:
+            _notify_agent_of_failure(context, error, failures)
+        else:
+            PrintStyle.error(
+                f"Email send failed {failures} times, giving up: {error}"
+            )
+            context.log.log(
+                type="error",
+                heading="Email send failed (max retries reached)",
+                content=error,
+            )
 
 
 # ------------------------------------------------------------------
@@ -50,8 +67,13 @@ def _extract_last_response(context: AgentContext) -> str:
     return ""
 
 
-def _notify_agent_of_failure(context: AgentContext, error: str):
+def _notify_agent_of_failure(
+    context: AgentContext, error: str, attempt: int,
+):
     from plugins._email_integration.helpers.handler import _read_fw
-    msg = _read_fw("fw.email.send_failed.md", error=error)
+    msg = _read_fw(
+        "fw.email.send_failed.md", error=error, attempt=str(attempt),
+        max_retries=str(MAX_SEND_RETRIES),
+    )
     context.log.log(type="error", heading="Email send failed", content=error)
     context.communicate(UserMessage(message="", system_message=[msg]))
