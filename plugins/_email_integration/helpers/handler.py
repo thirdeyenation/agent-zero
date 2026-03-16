@@ -9,7 +9,7 @@ import base64
 import json
 import os
 
-from agent import Agent, AgentContext, UserMessage
+from agent import Agent, AgentContext, AgentContextType, UserMessage
 from helpers import guids, plugins, files, runtime
 from helpers import message_queue as mq
 from helpers.notification import NotificationManager, NotificationType, NotificationPriority
@@ -128,7 +128,8 @@ async def _dispatch_all(handler_cfg: dict, messages: list[InboundMessage]):
     ctx = AgentContext.first()
     if not ctx:
         agent_config = initialize_agent()
-        ctx = AgentContext(agent_config, name="Email Dispatcher")
+        ctx = AgentContext(agent_config, name="Email Dispatcher",
+                           type=AgentContextType.BACKGROUND)
     agent = ctx.agent0
 
     for msg in messages:
