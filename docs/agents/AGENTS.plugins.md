@@ -24,10 +24,13 @@ Each plugin lives in usr/plugins/<plugin_name>/.
 ```text
 usr/plugins/<plugin_name>/
 ├── plugin.yaml                   # Required: Title, version, settings + activation metadata
-├── initialize.py                 # Optional: one-time setup script (dependencies, models, etc.)
+├── execute.py                    # Optional: user-triggered plugin script
+├── hooks.py                      # Optional: runtime hook functions callable by the framework
 ├── default_config.yaml           # Optional: fallback settings defaults
 ├── README.md                     # Optional: shown in Plugin List UI
 ├── LICENSE                       # Optional: shown in Plugin List UI
+├── conf/
+│   └── model_providers.yaml      # Optional: add or override model providers
 ├── api/                          # API handlers (ApiHandler subclasses)
 ├── tools/                        # Agent tools (Tool subclasses)
 ├── helpers/                      # Shared Python logic
@@ -41,11 +44,42 @@ usr/plugins/<plugin_name>/
     └── ...                       # Full plugin pages/components
 ```
 
+### Python import rule for user plugins
+
+For plugin-local Python code in `usr/plugins/<plugin_name>/`, import through the
+fully qualified `usr.plugins.<plugin_name>...` package path.
+
+Good (DO):
+
+```python
+from usr.plugins.my_plugin.helpers.runtime import do_work
+import usr.plugins.my_plugin.helpers.state as state
+```
+
+Avoid (DON'T):
+
+```python
+# sys.path hacks
+sys.path.insert(0, ...)
+from helpers.runtime import do_work
+
+# persistent symlink-based imports
+from plugins.my_plugin.helpers.runtime import do_work
+```
+
+Why:
+
+- `usr.plugins...` works without renaming `helpers/`
+- it avoids `sys.path` mutation for plugin-local imports
+- it avoids installation-time symlinks into `/a0/plugins/`
+- it keeps plugin removal reversible, with no import wiring left behind
+
 ### plugin.yaml (runtime manifest)
 
-This is the manifest file that lives inside your plugin directory and drives runtime behavior. It is distinct from the index manifest used when publishing to the Plugin Index (see Section 7).
+This is the manifest file that lives inside your plugin directory and drives runtime behavior. It is distinct from the index manifest (`index.yaml`) used when publishing to the Plugin Index (see Section 7).
 
 ```yaml
+name: my_plugin              # required for community plugins (^[a-z0-9_]+$, must match dir name)
 title: My Plugin
 description: What this plugin does.
 version: 1.0.0
@@ -58,6 +92,7 @@ always_enabled: false
 ```
 
 Field reference:
+- `name`: Plugin identifier. Required by CI when submitting to the Plugin Index. Must be `^[a-z0-9_]+$` and match the index folder name exactly.
 - `title`: UI display name
 - `description`: Short plugin summary
 - `version`: Plugin version string
@@ -65,6 +100,47 @@ Field reference:
 - `per_project_config`: Enables project-scoped settings and toggle rules
 - `per_agent_config`: Enables agent-profile-scoped settings and toggle rules
 - `always_enabled`: Forces ON and disables toggle controls in the UI (reserved for framework use)
+
+### execute.py (plugin script)
+
+Plugins can include an optional `execute.py` file at the plugin root for user-triggered work such as setup, post-install steps, maintenance, migrations, repair flows, or resource refreshes. It is started manually from the Plugins UI, never automatically, and should print progress while returning `0` on success.
+
+Design guidance:
+- use `execute.py` for manual operations the user may need to run again later
+- prefer making it rerunnable or state-aware
+- avoid placing framework-internal automatic behavior here; that belongs in `hooks.py` or lifecycle extensions
+- do not make permanent system modifications that remain after plugin deletion unless the user explicitly asked for them and the plugin also provides a clear cleanup path
+
+### hooks.py (framework runtime hooks)
+
+Plugins can include an optional `hooks.py` file at the plugin root. Agent Zero loads this module on demand and calls exported functions by name through `helpers.plugins.call_plugin_hook(...)`.
+
+- `hooks.py` runs inside the **Agent Zero framework runtime and Python environment**, not the separate agent execution environment.
+- Use it for framework-internal operations such as install-time setup, plugin registration work, filesystem preparation, cache updates, or other tasks that need access to Agent Zero internals.
+- Hook functions may be synchronous or async. Async hooks are awaited by the framework.
+- Hook modules are cached until plugin caches are cleared, so changes may require a plugin refresh/reload cycle.
+- Plugin hooks should be cleanup-safe. A plugin should not leave behind permanent system modifications, symlinks, files outside its owned paths, or background services that survive plugin removal unless that behavior is explicitly part of the user-facing contract.
+
+Current example: the plugin installer calls `install()` from `hooks.py` after a plugin is copied into place.
+
+### Runtime and dependency implications
+
+- If `hooks.py` installs Python packages with `sys.executable -m pip`, those packages are installed into the **same Python environment that runs Agent Zero itself**.
+- This is the correct place for Python dependencies that your plugin's backend code needs while running inside the framework runtime.
+- It is **not** the right place for dependencies meant only for the separate agent execution runtime or for arbitrary system-level tooling.
+
+If your plugin needs to install packages or binaries for the agent execution environment instead of the framework runtime, launch a subprocess that explicitly activates or targets that other environment first. In practice this means invoking the correct interpreter or shell for that environment rather than relying on the current process environment. For example:
+
+- target a specific Python interpreter path for that runtime
+- activate the desired virtualenv inside a subprocess shell command before running `pip`
+- invoke the appropriate package manager from a subprocess prepared for that environment
+
+In Docker deployments, this distinction is especially important:
+
+- Framework runtime: `/opt/venv-a0`
+- Agent execution runtime: `/opt/venv`
+
+So a `hooks.py` install step affects `/opt/venv-a0` unless you intentionally switch to `/opt/venv` (or another target) inside your subprocess.
 
 ---
 
@@ -106,7 +182,35 @@ See [Notifications](../developer/notifications.md) for the full API.
 4. usr/plugins/<name>/config.json
 5. plugins/<name>/default_config.yaml (fallback defaults)
 
-## 5. Plugin Activation Model
+## 5. Model Providers
+
+Plugins can add or override model providers by placing a `conf/model_providers.yaml` inside their plugin directory. The file follows the same format as the main `conf/model_providers.yaml`.
+
+At startup (and whenever a plugin is enabled/disabled), the system:
+1. Loads the base `conf/model_providers.yaml`.
+2. Discovers `conf/model_providers.yaml` from all enabled plugins.
+3. Merges them in order — matching provider IDs are overwritten, new IDs are appended.
+
+Example plugin provider file (`usr/plugins/my_plugin/conf/model_providers.yaml`):
+```yaml
+chat:
+  my_custom_provider:
+    name: My Custom LLM
+    litellm_provider: openai
+    kwargs:
+      api_base: https://my-llm.example.com/v1
+
+embedding:
+  my_custom_embed:
+    name: My Embeddings
+    litellm_provider: openai
+    kwargs:
+      api_base: https://my-embed.example.com/v1
+```
+
+---
+
+## 6. Plugin Activation Model
 
 - Global and scoped activation are independent, with no inheritance between scopes.
 - Activation flags are files: `.toggle-1` (ON) and `.toggle-0` (OFF).
@@ -116,7 +220,7 @@ See [Notifications](../developer/notifications.md) for the full API.
 
 ---
 
-## 6. Routes
+## 7. Routes
 
 | Route | Purpose |
 |---|---|
@@ -126,16 +230,17 @@ See [Notifications](../developer/notifications.md) for the full API.
 
 ---
 
-## 7. Plugin Index & Community Sharing
+## 8. Plugin Index & Community Sharing
 
 The **Plugin Index** is a community-maintained repository at https://github.com/agent0ai/a0-plugins that lists plugins available to the Agent Zero community. Plugins listed there can be discovered and installed by other users.
 
-### Two Distinct plugin.yaml Files
+### Two Distinct Manifest Files
 
-There are two completely different `plugin.yaml` schemas used at different stages. They must not be confused:
+There are two completely different manifest files used at different stages. They must not be confused:
 
-**Runtime manifest** (inside your plugin repo/directory, drives Agent Zero behavior):
+**Runtime manifest** (`plugin.yaml`, inside your plugin repo/directory — drives Agent Zero behavior):
 ```yaml
+name: my_plugin              # REQUIRED for index submission; must match index folder name
 title: My Plugin
 description: What this plugin does.
 version: 1.0.0
@@ -146,7 +251,7 @@ per_agent_config: false
 always_enabled: false
 ```
 
-**Index manifest** (submitted to the `a0-plugins` repo under `plugins/<your-plugin-name>/`, drives discoverability only):
+**Index manifest** (`index.yaml`, submitted to the `a0-plugins` repo under `plugins/<your_plugin_name>/` — drives discoverability only):
 ```yaml
 title: My Plugin
 description: What this plugin does.
@@ -154,9 +259,11 @@ github: https://github.com/yourname/your-plugin-repo
 tags:
   - tools
   - example
+screenshots:                    # optional, up to 5 full image URLs
+  - https://raw.githubusercontent.com/yourname/your-plugin-repo/main/docs/screen.png
 ```
 
-The index manifest contains only four fields (`title`, `description`, `github`, `tags`) and must not include runtime fields. The `github` field must point to the root of a GitHub repository that itself contains a runtime `plugin.yaml` at the repository root.
+The index manifest is named `index.yaml` (not `plugin.yaml`). Required fields: `title`, `description`, `github`. Optional: `tags` (up to 5), `screenshots` (up to 5 URLs). The `github` field must point to the root of a GitHub repository that contains a runtime `plugin.yaml` at the repository root, and that `plugin.yaml` must include a `name` field matching the index folder name exactly.
 
 ### Repository Structure for Community Plugins
 
@@ -178,23 +285,31 @@ Users install it locally by cloning (or downloading) the repo contents into `/a0
 
 ### Submitting to the Plugin Index
 
-1. Create a GitHub repository for your plugin with the runtime `plugin.yaml` at the repo root.
+1. Create a GitHub repository for your plugin with the runtime `plugin.yaml` (including the `name` field) at the repo root.
 2. Fork `https://github.com/agent0ai/a0-plugins`.
-3. Create a folder `plugins/<your-plugin-name>/` containing only an index `plugin.yaml` (and optionally a square thumbnail image ≤ 20 KB).
+3. Create a folder `plugins/<your_plugin_name>/` containing only an `index.yaml` (and optionally a square thumbnail image ≤ 20 KB).
 4. Open a Pull Request with exactly one new plugin folder.
 5. CI validates the submission automatically. A maintainer reviews and merges.
 
 Index submission rules:
 - One plugin per PR
-- Folder name must be unique, stable, lowercase, kebab-case
+- Folder name: unique, stable, `^[a-z0-9_]+$` (lowercase, numbers, underscores — no hyphens)
+- Folder name must exactly match the `name` field in your remote `plugin.yaml`
 - Folders starting with `_` are reserved for internal use
-- `github` must point to a public repo that contains `plugin.yaml` at its root
+- `github` must point to a public repo that contains `plugin.yaml` at its root with a matching `name` field
 - `title` max 50 characters, `description` max 500 characters
+- `index.yaml` total max 2000 characters
 - `tags`: optional, up to 5, use recommended tags from https://github.com/agent0ai/a0-plugins/blob/main/TAGS.md
+- `screenshots`: optional, up to 5 full image URLs (png/jpg/webp, each ≤ 2 MB)
 
-### Plugin Marketplace (Coming Soon)
+### Plugin Marketplace
 
-A built-in **Plugin Marketplace** plugin (always active) will allow users to browse the Plugin Index and install or update community plugins directly from the Agent Zero UI. This section will be updated once the marketplace plugin is released.
+The marketplace is provided by the always-enabled `_plugin_installer` plugin. Users can reach it from the **Plugins** dialog in two ways:
+
+- the **Browse** tab in `webui/components/plugins/list/plugin-list.html`
+- the **Install** toolbar action injected by `plugins/_plugin_installer/extensions/webui/plugins-list-header-buttons/install-buttons.html`, which opens `plugins/_plugin_installer/webui/main.html` on its own **Browse** tab
+
+Both routes surface Plugin Index entries inside Agent Zero. The marketplace supports search, filtering, sorting, and a detail view with README content and installation actions.
 
 ---
 
