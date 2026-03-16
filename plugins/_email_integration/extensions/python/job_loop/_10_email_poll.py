@@ -56,7 +56,7 @@ async def _handler_poll_loop(handler_name: str) -> None:
         _state_lock,
     )
 
-    first_poll = True
+    last_unread_days = 0
 
     while True:
         config = plugins.get_plugin_config(PLUGIN_NAME) or {}
@@ -71,13 +71,12 @@ async def _handler_poll_loop(handler_name: str) -> None:
         try:
             async with _state_lock:
                 state = _load_state()
-                # On first poll after startup, reset state so the first-run
-                # path processes recent unread emails via date-based search.
-                # Subsequent polls use normal UID tracking.
-                if first_poll:
-                    if int(handler_cfg.get("process_unread_days", 0)) > 0:
-                        state.pop(handler_name, None)
-                    first_poll = False
+                # Reset state when process_unread_days is enabled or changed
+                # so the first-run path processes recent unread via date search.
+                unread_days = int(handler_cfg.get("process_unread_days", 0))
+                if unread_days > 0 and unread_days != last_unread_days:
+                    state.pop(handler_name, None)
+                last_unread_days = unread_days
                 await _poll_single_handler(handler_cfg, state)
                 _save_state(state)
         except Exception as e:
