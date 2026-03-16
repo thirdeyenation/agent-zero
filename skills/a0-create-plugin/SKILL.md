@@ -373,8 +373,8 @@ For a fully guided contribution flow (including git operations), read `/a0/skill
 
 ---
 
-## Plugin Index & Marketplace
+## Plugin Index & Plugin Hub
 
 The **Plugin Index** is the community hub at https://github.com/agent0ai/a0-plugins.
 
-Agent Zero now exposes indexed plugins through the built-in **Plugin Marketplace**. Users can open it from the **Plugins** dialog either through the **Browse** tab or through the **Install** button, then inspect plugin details and install directly from the UI.
+Agent Zero now exposes indexed plugins through the built-in **Plugin Hub**. Users can open it from the **Plugins** dialog either through the **Browse** tab or through the **Install** button, then inspect plugin details and install directly from the UI.

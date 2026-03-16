@@ -45,8 +45,8 @@ const model = {
   },
 
   async setTab(tab) {
-    if (tab === "marketplace") {
-      this.activeTab = "marketplace";
+    if (tab === "pluginHub") {
+      this.activeTab = "pluginHub";
       this.loading = false;
       return;
     }
@@ -60,7 +60,7 @@ const model = {
   },
 
   async refresh() {
-    if (this.activeTab === "marketplace") {
+    if (this.activeTab === "pluginHub") {
       return;
     }
     await this.setTab(this.activeTab);

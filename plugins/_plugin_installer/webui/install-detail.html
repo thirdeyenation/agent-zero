@@ -186,7 +186,7 @@
                 </div>
 
                 <div class="pi-version-section"
-                     x-show="$store.pluginInstallStore.getCurrentInstalledVersion() || $store.pluginInstallStore.getCurrentInstalledCommit() || $store.pluginInstallStore.getLatestMarketplaceVersion() || $store.pluginInstallStore.getLatestMarketplaceCommit()">
+                     x-show="$store.pluginInstallStore.getCurrentInstalledVersion() || $store.pluginInstallStore.getCurrentInstalledCommit() || $store.pluginInstallStore.getLatestPluginHubVersion() || $store.pluginInstallStore.getLatestPluginHubCommit()">
                     <div class="pi-version-header">Version</div>
                     <div class="pi-version-grid">
                         <div class="pi-version-card"
@@ -209,23 +209,23 @@
                                  x-text="$store.pluginInstallStore.formatUserLocaleDateTime($store.pluginInstallStore.getCurrentInstalledCommitTimestamp()) || 'Timestamp unavailable'"></div>
                         </div>
                         <div class="pi-version-card"
-                             x-show="$store.pluginInstallStore.getLatestMarketplaceVersion() || $store.pluginInstallStore.getLatestMarketplaceCommit()">
+                             x-show="$store.pluginInstallStore.getLatestPluginHubVersion() || $store.pluginInstallStore.getLatestPluginHubCommit()">
                             <div class="pi-version-label">Latest</div>
                             <div class="pi-version-name"
-                                 x-text="$store.pluginInstallStore.getLatestMarketplaceVersion() || 'Unknown version'"></div>
-                            <template x-if="$store.pluginInstallStore.getLatestMarketplaceCommit() && $store.pluginInstallStore.getRepoCommitUrl($store.pluginInstallStore.selectedPlugin, $store.pluginInstallStore.getLatestMarketplaceCommit())">
+                                 x-text="$store.pluginInstallStore.getLatestPluginHubVersion() || 'Unknown version'"></div>
+                            <template x-if="$store.pluginInstallStore.getLatestPluginHubCommit() && $store.pluginInstallStore.getRepoCommitUrl($store.pluginInstallStore.selectedPlugin, $store.pluginInstallStore.getLatestPluginHubCommit())">
                                 <a class="pi-version-commit"
-                                   :href="$store.pluginInstallStore.getRepoCommitUrl($store.pluginInstallStore.selectedPlugin, $store.pluginInstallStore.getLatestMarketplaceCommit())"
+                                   :href="$store.pluginInstallStore.getRepoCommitUrl($store.pluginInstallStore.selectedPlugin, $store.pluginInstallStore.getLatestPluginHubCommit())"
                                    target="_blank"
                                    rel="noopener noreferrer"
-                                   x-text="$store.pluginInstallStore.getCommitShortHash($store.pluginInstallStore.getLatestMarketplaceCommit())"></a>
+                                   x-text="$store.pluginInstallStore.getCommitShortHash($store.pluginInstallStore.getLatestPluginHubCommit())"></a>
                             </template>
-                            <template x-if="!($store.pluginInstallStore.getLatestMarketplaceCommit() && $store.pluginInstallStore.getRepoCommitUrl($store.pluginInstallStore.selectedPlugin, $store.pluginInstallStore.getLatestMarketplaceCommit()))">
+                            <template x-if="!($store.pluginInstallStore.getLatestPluginHubCommit() && $store.pluginInstallStore.getRepoCommitUrl($store.pluginInstallStore.selectedPlugin, $store.pluginInstallStore.getLatestPluginHubCommit()))">
                                 <div class="pi-version-commit"
-                                     x-text="$store.pluginInstallStore.getCommitShortHash($store.pluginInstallStore.getLatestMarketplaceCommit()) || 'Unknown'"></div>
+                                     x-text="$store.pluginInstallStore.getCommitShortHash($store.pluginInstallStore.getLatestPluginHubCommit()) || 'Unknown'"></div>
                             </template>
                             <div class="pi-version-time"
-                                 x-text="$store.pluginInstallStore.formatUserLocaleDateTime($store.pluginInstallStore.getLatestMarketplaceCommitTimestamp()) || 'Timestamp unavailable'"></div>
+                                 x-text="$store.pluginInstallStore.formatUserLocaleDateTime($store.pluginInstallStore.getLatestPluginHubCommitTimestamp()) || 'Timestamp unavailable'"></div>
                         </div>
                     </div>
                 </div>

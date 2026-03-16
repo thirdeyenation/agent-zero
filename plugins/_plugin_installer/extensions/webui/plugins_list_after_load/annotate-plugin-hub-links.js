@@ -4,19 +4,19 @@ function getPluginName(plugin) {
   return typeof plugin?.name === "string" ? plugin.name.trim() : "";
 }
 
-function getMarketplaceMatch(plugin, marketplacePlugins) {
+function getPluginHubMatch(plugin, pluginHubPlugins) {
   const pluginName = getPluginName(plugin);
-  if (!pluginName || !marketplacePlugins?.[pluginName]) {
+  if (!pluginName || !pluginHubPlugins?.[pluginName]) {
     return null;
   }
 
   return {
     key: pluginName,
-    title: marketplacePlugins[pluginName]?.title || pluginName,
+    title: pluginHubPlugins[pluginName]?.title || pluginName,
   };
 }
 
-export default async function annotateMarketplaceLinks(context) {
+export default async function annotatePluginHubLinks(context) {
   const plugins = Array.isArray(context?.plugins) ? context.plugins : null;
   const store = context?.store;
   if (!plugins?.length) return;
@@ -24,19 +24,19 @@ export default async function annotateMarketplaceLinks(context) {
   const loaded = await pluginInstallStore.ensureIndexLoaded({ background: true });
   if (!loaded) return;
 
-  const marketplacePlugins = pluginInstallStore.index?.plugins;
-  if (!marketplacePlugins || typeof marketplacePlugins !== "object") return;
+  const pluginHubPlugins = pluginInstallStore.index?.plugins;
+  if (!pluginHubPlugins || typeof pluginHubPlugins !== "object") return;
 
   let changed = false;
   for (const plugin of plugins) {
     if (!plugin || typeof plugin !== "object") continue;
 
-    const nextMarketplace = getMarketplaceMatch(plugin, marketplacePlugins);
-    const currentKey = plugin?.marketplace?.key || "";
-    const nextKey = nextMarketplace?.key || "";
+    const nextPluginHub = getPluginHubMatch(plugin, pluginHubPlugins);
+    const currentKey = plugin?.pluginHub?.key || "";
+    const nextKey = nextPluginHub?.key || "";
     if (currentKey === nextKey) continue;
 
-    plugin.marketplace = nextMarketplace;
+    plugin.pluginHub = nextPluginHub;
     changed = true;
   }
 

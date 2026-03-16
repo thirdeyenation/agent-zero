@@ -38,19 +38,19 @@
                     </li>
                     <li class="nav-item" role="presentation">
                         <button class="nav-link"
-                            :class="{ active: $store.pluginListStore.activeTab === 'marketplace' }"
-                            id="plugins-marketplace-tab"
+                            :class="{ active: $store.pluginListStore.activeTab === 'pluginHub' }"
+                            id="plugins-plugin-hub-tab"
                             type="button"
                             role="tab"
-                            aria-controls="plugins-marketplace"
-                            :aria-selected="$store.pluginListStore.activeTab === 'marketplace'"
-                            @click="$store.pluginListStore.setTab('marketplace')">
+                            aria-controls="plugins-plugin-hub"
+                            :aria-selected="$store.pluginListStore.activeTab === 'pluginHub'"
+                            @click="$store.pluginListStore.setTab('pluginHub')">
                             <span class="material-symbols-outlined pi-tab-icon">store</span> Browse
                         </button>
                     </li>
                 </ul>
 
-                <template x-if="$store.pluginListStore.activeTab !== 'marketplace'">
+                <template x-if="$store.pluginListStore.activeTab !== 'pluginHub'">
                     <div>
                         <div class="plugins-toolbar">
                             <div class="plugins-toolbar-search">
@@ -200,7 +200,7 @@
                     </div>
                 </template>
 
-                <template x-if="$store.pluginListStore.activeTab === 'marketplace'">
+                <template x-if="$store.pluginListStore.activeTab === 'pluginHub'">
                     <x-component path="/plugins/_plugin_installer/webui/install-index.html"></x-component>
                 </template>
             </div>
