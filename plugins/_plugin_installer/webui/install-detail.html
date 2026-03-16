@@ -245,6 +245,12 @@
                                 <span>Plugin Index</span>
                             </a>
                         </template>
+                        <template x-if="$store.pluginInstallStore.getReportUrl($store.pluginInstallStore.selectedPlugin)">
+                            <a :href="$store.pluginInstallStore.getReportUrl($store.pluginInstallStore.selectedPlugin)" target="_blank" class="pi-dev-link pi-report-link">
+                                <span class="material-symbols-outlined">report</span>
+                                <span>Report malicious plugin</span>
+                            </a>
+                        </template>
                     </div>
                 </div>
             </div>
@@ -794,6 +800,13 @@
 
         .pi-dev-link:hover .material-symbols-outlined {
             color: var(--color-highlight);
+        }
+
+        .pi-dev-link.pi-report-link,
+        .pi-dev-link.pi-report-link:hover,
+        .pi-dev-link.pi-report-link .material-symbols-outlined,
+        .pi-dev-link.pi-report-link:hover .material-symbols-outlined {
+            color: var(--color-error-text);
         }
 
         .pi-footer .buttons-container {

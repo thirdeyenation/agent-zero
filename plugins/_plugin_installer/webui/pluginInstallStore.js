@@ -705,6 +705,25 @@ const model = {
     });
   },
 
+  getReportUrl(plugin) {
+    const githubUrl = plugin?.github;
+    if (!githubUrl || typeof githubUrl !== "string") return "";
+    try {
+      const url = new URL(githubUrl.trim().replace(/\.git$/i, ""));
+      if (!url.hostname.includes("github.com")) return "";
+      const parts = url.pathname.split("/").filter(Boolean);
+      if (parts.length >= 1) {
+        const username = parts[0];
+        const contentUrl = encodeURIComponent(githubUrl);
+        const report = encodeURIComponent(`${username} (user)`);
+        return `https://github.com/contact/report-content?content_url=${contentUrl}&report=${report}`;
+      }
+    } catch (e) {
+      // ignore
+    }
+    return "";
+  },
+
   // ── Shared ───────────────────────────────────
 
   resetZip() {
