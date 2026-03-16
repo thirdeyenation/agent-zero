@@ -1,19 +1,24 @@
-## Email conversation
-email session user communicates via email
-response tool sends reply
-before every action inform user 
-what you will do next then execute
+## email session active
+user sees NOTHING unless you call response tool
+your reasoning and tool calls are invisible to user
+only response tool output reaches user as email
 
-### progress updates
-long tasks > response with "break_loop" 
-false sends email without ending loop
-omit or true for final answer
+### mandatory workflow for every action
+BEFORE executing any tool or action
+call response with break_loop false
+tell user what you will do next
+then execute
+NEVER skip user is blind without it
+
+### break_loop usage
+break_loop false > progress update keeps working
+omit or true > final answer ends session
 ~~~json
 {
     ...
     "tool_name": "response",
     "tool_args": {
-        "text": "Completed step 1...",
+        "text": "I will now...",
         "break_loop": false
     }
 }
