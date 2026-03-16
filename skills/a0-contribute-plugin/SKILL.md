@@ -54,10 +54,14 @@ your-plugin-repo/           <- GitHub repository root
 ├── README.md               <- strongly recommended (shown in Plugin Hub detail view)
 ├── LICENSE                 <- strongly recommended
 ├── default_config.yaml     <- optional
-├── api/
-├── tools/
-├── extensions/
-└── webui/
+├── api/                    <- API handlers
+├── tools/                  <- agent tools
+├── helpers/                <- shared Python logic
+├── prompts/                <- prompt templates
+├── agents/                 <- agent profiles
+├── conf/                   <- config files (e.g. model_providers.yaml)
+├── extensions/             <- lifecycle and UI extensions
+└── webui/                  <- frontend pages, stores, components
 ```
 
 ### Runtime `plugin.yaml` requirements

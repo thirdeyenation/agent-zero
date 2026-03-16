@@ -203,6 +203,10 @@ save_plugin_config(
     <profile>/agent.yaml # Optional plugin-distributed agent profile
   api/                  # API Handlers (ApiHandler base class)
   tools/                # Tool subclasses
+  helpers/              # Shared Python logic
+  prompts/              # Prompt templates
+  conf/
+    model_providers.yaml # Optional: add or override model providers
   extensions/
     python/agent_init/  # Python lifecycle extensions
     webui/<point>/      # HTML/JS hook extensions
