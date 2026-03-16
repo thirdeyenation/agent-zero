@@ -16,6 +16,7 @@ from helpers.files import get_abs_path
 from helpers import runtime, dotenv, process
 from helpers.websocket import WebSocketHandler, validate_ws_origin
 from helpers.api import register_api_route, requires_auth, csrf_protect
+from helpers.ws import register_ws_namespace
 from helpers.print_style import PrintStyle
 from helpers import login
 import socketio  # type: ignore[import-untyped]
@@ -387,12 +388,15 @@ def run():
     register_api_route(webapp, lock)
 
     handlers_by_namespace = _build_websocket_handlers_by_namespace(socketio_server, lock)
-    configure_websocket_namespaces(
+    allowed_namespaces = configure_websocket_namespaces(
         webapp=webapp,
         socketio_server=socketio_server,
         websocket_manager=websocket_manager,
         handlers_by_namespace=handlers_by_namespace,
     )
+
+    register_ws_namespace(socketio_server, webapp, lock)
+    allowed_namespaces.add("/ws")
 
     init_a0()
 
