@@ -28,7 +28,15 @@ class EmailUpdate(Tool):
         attachments = list(self.args.get("attachments", []))
 
         from plugins._email_integration.helpers.handler import send_email_reply
-        await send_email_reply(self.agent.context, text, attachments or None)
+        error = await send_email_reply(self.agent.context, text, attachments or None)
+
+        if error:
+            return Response(
+                message=self.agent.read_prompt(
+                    "fw.email.update_error.md", error=error,
+                ),
+                break_loop=False,
+            )
 
         return Response(
             message=self.agent.read_prompt("fw.email.update_ok.md"),

@@ -41,7 +41,7 @@ async def send_reply(
     in_reply_to: str = "",
     references: str = "",
     attachments: list[tuple[str, bytes]] | None = None,
-) -> bool:
+) -> str | None:
     loop = asyncio.get_event_loop()
 
     def _sync_send():
@@ -82,7 +82,8 @@ async def send_reply(
     try:
         await loop.run_in_executor(None, _sync_send)
         PrintStyle.success(f"Email sent to {to}: {subject}")
-        return True
+        return None
     except Exception as e:
-        PrintStyle.error(f"Email send failed: {format_error(e)}")
-        return False
+        error = format_error(e)
+        PrintStyle.error(f"Email send failed: {error}")
+        return error

@@ -333,15 +333,14 @@ async def send_email_reply(
     context: AgentContext,
     response_text: str,
     attachments: list[str] | None = None,
-):
+) -> str | None:
     handler_name = context.data.get(disp.CTX_EMAIL_HANDLER)
     if not handler_name:
-        return
+        return "No email handler configured"
 
     cfg = _get_handler_config(handler_name)
     if not cfg:
-        PrintStyle.error(f"Email: handler config not found for '{handler_name}'")
-        return
+        return f"Handler config not found for '{handler_name}'"
 
     sender = context.data.get(disp.CTX_EMAIL_SENDER, "")
     original_subject = context.data.get(disp.CTX_EMAIL_SUBJECT, "")
@@ -361,7 +360,7 @@ async def send_email_reply(
     # Read attachment files via RFC (they live in the execution runtime)
     attachment_data = await _read_attachments_via_rfc(attachments)
 
-    await send_reply(
+    return await send_reply(
         config=smtp_cfg,
         to=sender,
         subject=subject,

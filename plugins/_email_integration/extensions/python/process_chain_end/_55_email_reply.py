@@ -3,7 +3,7 @@
 import asyncio
 from helpers.extension import Extension
 from helpers.print_style import PrintStyle
-from agent import AgentContext, LoopData
+from agent import AgentContext, LoopData, UserMessage
 from plugins._email_integration.helpers.dispatcher import CTX_EMAIL_HANDLER, CTX_EMAIL_ATTACHMENTS
 
 
@@ -30,7 +30,9 @@ class EmailAutoReply(Extension):
         self, context: AgentContext, response_text: str, attachments: list[str],
     ):
         from plugins._email_integration.helpers.handler import send_email_reply
-        await send_email_reply(context, response_text, attachments)
+        error = await send_email_reply(context, response_text, attachments)
+        if error:
+            _notify_agent_of_failure(context, error)
 
 
 # ------------------------------------------------------------------
@@ -46,3 +48,10 @@ def _extract_last_response(context: AgentContext) -> str:
         if item.type == "response":
             return item.content or ""
     return ""
+
+
+def _notify_agent_of_failure(context: AgentContext, error: str):
+    from plugins._email_integration.helpers.handler import _read_fw
+    msg = _read_fw("fw.email.send_failed.md", error=error)
+    context.log.log(type="error", heading="Email send failed", content=error)
+    context.communicate(UserMessage(message="", system_message=[msg]))
