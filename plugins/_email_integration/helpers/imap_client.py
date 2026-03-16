@@ -1,4 +1,8 @@
-"""IMAP/Exchange email reader. No agent/tool dependencies."""
+"""
+IMAP/Exchange email reader. 
+
+No agent/tool dependencies.
+"""
 
 import asyncio
 import email
@@ -6,6 +10,7 @@ import os
 import re
 import uuid
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
 from email.header import decode_header
 from email.message import Message as EmailMessage
 from fnmatch import fnmatch
@@ -133,6 +138,56 @@ async def get_highest_uid(client: IMAPClient) -> int:
     return await loop.run_in_executor(None, _search)
 
 
+async def fetch_unread_since(
+    client: IMAPClient,
+    download_folder: str,
+    days: int,
+    sender_whitelist: list[str] | None = None,
+    max_messages: int = 10,
+) -> tuple[list[InboundMessage], int]:
+    """Fetch unread emails from the last N days. Returns (messages, highest_uid)."""
+    loop = asyncio.get_event_loop()
+    since_date = datetime.now() - timedelta(days=days)
+
+    def _search():
+        client.select_folder("INBOX")
+        try:
+            return client.gmail_search(
+                f"category:primary is:unread after:{since_date.strftime('%Y/%m/%d')}"
+            )
+        except Exception:
+            return client.search(["UNSEEN", "SINCE", since_date.date()])  # type: ignore[arg-type]
+
+    msg_ids = await loop.run_in_executor(None, _search)
+    if not msg_ids:
+        return [], 0
+
+    highest_uid = max(msg_ids)
+
+    if len(msg_ids) > max_messages:
+        PrintStyle.standard(
+            f"Email: {len(msg_ids)} unread, processing latest {max_messages}"
+        )
+        msg_ids = msg_ids[-max_messages:]
+    else:
+        PrintStyle.standard(
+            f"Email: found {len(msg_ids)} unread messages from last {days} days"
+        )
+
+    results: list[InboundMessage] = []
+    for msg_id in msg_ids:
+        try:
+            msg = await _fetch_single(client, msg_id, download_folder, sender_whitelist)
+            if msg:
+                results.append(msg)
+        except Exception as e:
+            PrintStyle.error(
+                f"Email: error processing message {msg_id}: {format_error(e)}"
+            )
+
+    return results, highest_uid
+
+
 async def _fetch_single(
     client: IMAPClient,
     msg_id: int,
@@ -208,13 +263,18 @@ async def fetch_unread_exchange(
     account,
     download_folder: str,
     sender_whitelist: list[str] | None = None,
+    since_days: int = 0,
 ) -> list[InboundMessage]:
     from exchangelib import Q
 
     loop = asyncio.get_event_loop()
 
     def _sync():
-        return list(account.inbox.filter(Q(is_read=False)))
+        q = Q(is_read=False)
+        if since_days > 0:
+            since = datetime.now(tz=account.default_timezone) - timedelta(days=since_days)
+            q &= Q(datetime_received__gte=since)
+        return list(account.inbox.filter(q))
 
     items = await loop.run_in_executor(None, _sync)
     results: list[InboundMessage] = []

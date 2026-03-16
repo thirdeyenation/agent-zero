@@ -24,6 +24,7 @@ from plugins._email_integration.helpers.imap_client import (
     connect_imap,
     disconnect_imap,
     fetch_new,
+    fetch_unread_since,
     get_highest_uid,
     connect_exchange,
     fetch_unread_exchange,
@@ -78,9 +79,10 @@ async def _poll_single_handler(handler_cfg: dict, state: dict):
     account_type = handler_cfg.get("account_type", "imap")
     whitelist = handler_cfg.get("sender_whitelist") or []
     last_uid = state.get(name, {}).get("last_uid", 0)
+    process_unread_days = int(handler_cfg.get("process_unread_days", 0))
 
     if account_type == "exchange":
-        messages = await _fetch_exchange(handler_cfg, whitelist)
+        messages = await _fetch_exchange(handler_cfg, whitelist, process_unread_days)
         if messages:
             await _dispatch_all(handler_cfg, messages)
         return
@@ -92,11 +94,28 @@ async def _poll_single_handler(handler_cfg: dict, state: dict):
         password=handler_cfg.get("password", ""),
     )
     try:
-        # First run: record current highest UID, don't process old emails
+        # First run: optionally process unread from last N days
         if last_uid == 0:
-            highest = await get_highest_uid(client)
-            state[name] = {"last_uid": highest}
-            PrintStyle.info(f"Email ({name}): initialized, tracking from UID {highest}")
+            if process_unread_days > 0:
+                messages, highest = await fetch_unread_since(
+                    client, DOWNLOAD_FOLDER, process_unread_days, whitelist or None,
+                )
+                highest = highest or await get_highest_uid(client)
+                state[name] = {"last_uid": highest}
+                if messages:
+                    PrintStyle.info(
+                        f"Email ({name}): processing {len(messages)} unread"
+                        f" from last {process_unread_days} days"
+                    )
+                    await _dispatch_all(handler_cfg, messages)
+                else:
+                    PrintStyle.info(
+                        f"Email ({name}): no unread in last {process_unread_days} days"
+                    )
+            else:
+                highest = await get_highest_uid(client)
+                state[name] = {"last_uid": highest}
+                PrintStyle.info(f"Email ({name}): initialized, tracking from UID {highest}")
             return
 
         messages, new_uid = await fetch_new(
@@ -114,13 +133,17 @@ async def _poll_single_handler(handler_cfg: dict, state: dict):
         await disconnect_imap(client)
 
 
-async def _fetch_exchange(cfg: dict, whitelist: list[str]) -> list[InboundMessage]:
+async def _fetch_exchange(
+    cfg: dict, whitelist: list[str], since_days: int = 0,
+) -> list[InboundMessage]:
     account = await connect_exchange(
         server=cfg.get("imap_server", ""),
         username=cfg.get("username", ""),
         password=cfg.get("password", ""),
     )
-    return await fetch_unread_exchange(account, DOWNLOAD_FOLDER, whitelist or None)
+    return await fetch_unread_exchange(
+        account, DOWNLOAD_FOLDER, whitelist or None, since_days=since_days,
+    )
 
 
 async def _dispatch_all(handler_cfg: dict, messages: list[InboundMessage]):
