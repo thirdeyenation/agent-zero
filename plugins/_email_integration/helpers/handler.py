@@ -202,6 +202,17 @@ async def _dispatch_message(agent: Agent, handler_cfg: dict, msg: InboundMessage
     _send_notification(msg, "new_chat", reason=reason)
 
 
+async def _call_model(
+    agent: Agent, handler_cfg: dict, system: str, prompt: str,
+):
+    if handler_cfg.get("dispatcher_model", "utility") == "chat":
+        from langchain_core.messages import SystemMessage, HumanMessage
+        messages = [SystemMessage(content=system), HumanMessage(content=prompt)]
+        response, _ = await agent.call_chat_model(messages)
+        return response
+    return await agent.call_utility_model(system=system, message=prompt)
+
+
 async def _call_dispatcher(
     agent: Agent,
     handler_cfg: dict,
@@ -228,8 +239,9 @@ async def _call_dispatcher(
     system = agent.read_prompt("fw.email.dispatcher_system.md")
 
     try:
-        response = await agent.call_utility_model(system=system, message=prompt)
+        response = await _call_model(agent, handler_cfg, system, prompt)
         return disp.parse_dispatcher_response(str(response))
+        
     except Exception as e:
         PrintStyle.error(f"Dispatcher error: {format_error(e)}")
         return disp.DispatchDecision(action="new_chat", reason="dispatcher error")

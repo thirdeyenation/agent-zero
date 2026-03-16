@@ -15,5 +15,6 @@ handlers: []
 #   process_unread_days: 0
 #   sender_whitelist: []
 #   project: ""
+#   dispatcher_model: utility
 #   dispatcher_instructions: ""
 #   agent_instructions: ""
