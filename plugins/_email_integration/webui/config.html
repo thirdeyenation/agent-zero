@@ -91,6 +91,7 @@
                                 <div class="field">
                                     <div class="field-label">
                                         <div class="field-title">Handler Name</div>
+                                        <div class="field-description">Unique identifier for this email handler</div>
                                     </div>
                                     <div class="field-control">
                                         <input type="text" x-model="handler.name" placeholder="e.g. support" />
@@ -100,6 +101,7 @@
                                 <div class="field">
                                     <div class="field-label">
                                         <div class="field-title">Account Type</div>
+                                        <div class="field-description">IMAP for most providers, Exchange for Microsoft Exchange/Office 365</div>
                                     </div>
                                     <div class="field-control">
                                         <select x-model="handler.account_type">
@@ -112,6 +114,7 @@
                                 <div class="field">
                                     <div class="field-label">
                                         <div class="field-title">IMAP Server</div>
+                                        <div class="field-description">Incoming mail server hostname</div>
                                     </div>
                                     <div class="field-control">
                                         <input type="text" x-model="handler.imap_server" placeholder="imap.gmail.com" />
@@ -121,15 +124,17 @@
                                 <div class="field">
                                     <div class="field-label">
                                         <div class="field-title">IMAP Port</div>
+                                        <div class="field-description">SSL port for incoming mail, usually 993</div>
                                     </div>
                                     <div class="field-control">
-                                        <input type="number" x-model.number="handler.imap_port" />
+                                        <input type="number" x-model.number="handler.imap_port" placeholder="993" />
                                     </div>
                                 </div>
 
                                 <div class="field">
                                     <div class="field-label">
                                         <div class="field-title">SMTP Server</div>
+                                        <div class="field-description">Outgoing mail server hostname. Defaults to IMAP server if empty</div>
                                     </div>
                                     <div class="field-control">
                                         <input type="text" x-model="handler.smtp_server" placeholder="smtp.gmail.com" />
@@ -139,15 +144,17 @@
                                 <div class="field">
                                     <div class="field-label">
                                         <div class="field-title">SMTP Port</div>
+                                        <div class="field-description">TLS port for outgoing mail, usually 587</div>
                                     </div>
                                     <div class="field-control">
-                                        <input type="number" x-model.number="handler.smtp_port" />
+                                        <input type="number" x-model.number="handler.smtp_port" placeholder="587" />
                                     </div>
                                 </div>
 
                                 <div class="field">
                                     <div class="field-label">
                                         <div class="field-title">Username</div>
+                                        <div class="field-description">Email account login, usually the full email address</div>
                                     </div>
                                     <div class="field-control">
                                         <input type="text" x-model="handler.username" placeholder="user@domain.com" />
@@ -157,6 +164,7 @@
                                 <div class="field">
                                     <div class="field-label">
                                         <div class="field-title">Password</div>
+                                        <div class="field-description">Account password or app-specific password</div>
                                     </div>
                                     <div class="field-control">
                                         <input type="password" x-model="handler.password" />
@@ -166,6 +174,7 @@
                                 <div class="field">
                                     <div class="field-label">
                                         <div class="field-title">Poll Mode</div>
+                                        <div class="field-description">How to schedule inbox checks</div>
                                     </div>
                                     <div class="field-control">
                                         <select x-model="handler.poll_mode">
@@ -198,7 +207,7 @@
                                 <div class="field">
                                     <div class="field-label">
                                         <div class="field-title">Process Unread (days)</div>
-                                        <div class="field-description">On first run, process unread emails from the last N days. 0 = skip existing emails.</div>
+                                        <div class="field-description">Process unread emails from the last N days on every startup. 0 = only track new emails</div>
                                     </div>
                                     <div class="field-control">
                                         <input type="number" x-model.number="handler.process_unread_days" min="0" placeholder="0" />
