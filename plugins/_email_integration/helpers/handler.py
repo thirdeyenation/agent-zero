@@ -155,21 +155,27 @@ async def _dispatch_message(agent: Agent, handler_cfg: dict, msg: InboundMessage
                 await _route_to_chat(
                     agent, handler_cfg, msg, chat["context_id"],
                 )
+                _send_notification(msg, "continue_chat", chat["context_id"],
+                                   reason="thread ID match")
                 return
 
     # Dispatcher AI decides
     decision = await _call_dispatcher(agent, handler_cfg, msg, existing)
+    reason = decision.reason or ""
 
     if decision.action == "continue_chat" and decision.context_id:
         ctx = AgentContext.get(decision.context_id)
         if ctx:
             await _route_to_chat(agent, handler_cfg, msg, decision.context_id)
+            _send_notification(msg, "continue_chat", decision.context_id,
+                               reason=reason)
             return
         PrintStyle.warning(
             f"Dispatcher referenced unknown context {decision.context_id}, starting new chat"
         )
 
     await _start_new_chat(agent, handler_cfg, msg)
+    _send_notification(msg, "new_chat", reason=reason)
 
 
 async def _call_dispatcher(
@@ -242,7 +248,6 @@ async def _start_new_chat(agent: Agent, handler_cfg: dict, msg: InboundMessage):
     ))
 
     PrintStyle.success(f"Email: new chat {context.id} for '{msg.subject}' from {msg.sender}")
-    _send_notification(msg, "new_chat", context.id)
 
 
 async def _route_to_chat(
@@ -268,7 +273,6 @@ async def _route_to_chat(
 
     save_tmp_chat(context)
     PrintStyle.info(f"Email: continuing chat {context_id}")
-    _send_notification(msg, "continue_chat", context_id)
 
 
 # ------------------------------------------------------------------
@@ -413,14 +417,21 @@ def _get_handler_config(handler_name: str) -> dict | None:
 # Notifications
 # ------------------------------------------------------------------
 
-def _send_notification(msg: InboundMessage, action: str, context_id: str):
+def _send_notification(
+    msg: InboundMessage,
+    action: str,
+    context_id: str = "",
+    reason: str = "",
+):
     subject = msg.subject[:80] if msg.subject else "(no subject)"
     if action == "new_chat":
-        title = "New email session"
+        title = "Email: new chat"
         message = f"From {msg.sender}: {subject}"
     else:
-        title = "Email follow-up"
+        title = "Email: continuing chat"
         message = f"From {msg.sender}: {subject} → {context_id}"
+    if reason:
+        message += f" ({reason})"
     NotificationManager.send_notification(
         type=NotificationType.INFO,
         priority=NotificationPriority.HIGH,
