@@ -143,8 +143,14 @@ async def _fetch_exchange(
 async def _dispatch_all(handler_cfg: dict, messages: list[InboundMessage]):
     own_address = (handler_cfg.get("username") or "").lower()
 
-    # Need an agent for dispatcher AI calls — use first available or create temp
-    ctx = AgentContext.first()
+    # Need an agent for dispatcher AI calls 
+    # find existing dispatcher or create new background context
+    ctx = None
+    for c in AgentContext._contexts.values():
+        if isinstance(c, AgentContext) and c.name == "Email Dispatcher":
+            ctx = c
+            break
+
     if not ctx:
         agent_config = initialize_agent()
         ctx = AgentContext(agent_config, name="Email Dispatcher",
