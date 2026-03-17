@@ -13,13 +13,13 @@
   <template x-if="$store.modelConfig.switcherAllowed && !$store.modelConfig.switcherLoading">
     <div class="model-switcher-container">
       <div class="model-switcher-anchor">
-        <button class="model-switcher-btn"
+        <button class="btn-icon-action model-switcher-btn"
                 :class="{ 'has-override': !!$store.modelConfig.switcherOverride }"
                 @click="showDropdown = !showDropdown"
                 @click.outside="showDropdown = false">
-          <span class="material-symbols-outlined" style="font-size: 15px;">swap_horiz</span>
+          <span class="material-symbols-outlined">neurology</span>
           <span class="model-switcher-label" x-text="$store.modelConfig.getSwitcherLabel()"></span>
-          <span class="material-symbols-outlined" style="font-size: 14px;"
+          <span class="material-symbols-outlined" style="font-size: 0.75rem;"
                 x-text="showDropdown ? 'expand_less' : 'expand_more'"></span>
         </button>
 
@@ -74,6 +74,21 @@
               </div>
             </div>
           </template>
+
+          <!-- Edit Presets shortcut -->
+          <div class="model-switcher-divider" style="opacity:0.2;"></div>
+          <div class="model-switcher-item model-switcher-edit" @click="
+            (async () => {
+              await import('/components/plugins/plugin-settings-store.js');
+              const s = Alpine.store('pluginSettingsPrototype');
+              if (s && s.open) await s.open('_model_config', { perProjectConfig: true, perAgentConfig: true });
+              openModal('components/plugins/plugin-settings.html');
+            })();
+            showDropdown = false;
+          ">
+            <span class="material-symbols-outlined" style="font-size: 14px;">settings</span>
+            <span>Edit Presets</span>
+          </div>
         </div>
       </div>
     </div>
@@ -84,37 +99,26 @@
 
 <style>
   .model-switcher-container {
-    position: absolute;
-    bottom: calc(100% + 50px);
-    right: 16px;
+    position: relative;
     z-index: 10;
-    pointer-events: auto;
   }
   .model-switcher-anchor {
     position: relative;
   }
   .model-switcher-btn {
-    display: inline-flex;
-    align-items: center;
+    width: auto;
+    height: auto;
     gap: 4px;
-    padding: 3px 10px;
-    border: 1px solid var(--color-border);
-    border-radius: 16px;
-    background: var(--color-panel);
-    color: var(--color-text-secondary, #999);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border: none;
     font-size: 0.75rem;
-    cursor: pointer;
-    transition: all 0.15s ease;
     white-space: nowrap;
-    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.25);
   }
   .model-switcher-btn:hover {
-    border-color: var(--color-border);
-    color: var(--color-text-secondary, #666);
+    border: none;
   }
   .model-switcher-btn.has-override {
-    border-color: var(--color-highlight);
-    color: var(--color-highlight);
+    color: var(--color-text);
   }
   .model-switcher-label {
     max-width: 160px;
@@ -132,7 +136,7 @@
     border: 1px solid var(--color-border);
     border-radius: 8px;
     padding: 6px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
     z-index: 100;
   }
   .model-switcher-item {
@@ -195,5 +199,12 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+  .model-switcher-edit {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    opacity: 0.6;
+    font-size: 0.75rem;
   }
 </style>
