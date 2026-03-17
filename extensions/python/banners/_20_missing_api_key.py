@@ -87,8 +87,8 @@ class MissingApiKeyCheck(Extension):
                     "title": "Missing API Key for model presets",
                     "html": f"""No API key configured for preset models: {preset_list}.<br>
                              These presets will not work until you provide the required API keys.<br>
-                             <a href="#" onclick="openModal('/plugins/_model_config/webui/api-keys.html');return false;">
-                             Manage API Keys</a>""",
+                             <a href="#" onclick="(async()=>{{await import('/components/plugins/plugin-settings-store.js');const s=Alpine.store('pluginSettingsPrototype');if(s&amp;&amp;s.open){{await s.open('_model_config',{{perProjectConfig:true,perAgentConfig:true}});}}openModal('components/plugins/plugin-settings.html');}})();return false;">
+                             Configure model settings</a>""",
                     "dismissible": True,
                     "source": "backend"
                 })
