@@ -28,7 +28,6 @@
           <template x-if="$store.modelConfig.switcherOverride">
             <div class="model-switcher-item revert" @click="
               $store.modelConfig.clearOverrideSwitch($store.chats?.selected || '');
-              justToast('Reverted to default model', 'info');
               showDropdown = false;
             ">
               <span class="material-symbols-outlined" style="font-size: 15px;">undo</span>
@@ -48,12 +47,31 @@
                  :class="{ 'active': $store.modelConfig.switcherOverride?.preset_name === preset.name }"
                  @click="
                    $store.modelConfig.selectPresetSwitch($store.chats?.selected || '', preset.name);
-                   justToast('Switched to ' + preset.name, 'success');
                    showDropdown = false;
                  ">
               <div class="model-switcher-preset-name" x-text="preset.name"></div>
-              <div class="model-switcher-preset-detail"
-                   x-text="$store.modelConfig.getPresetSummary(preset)"></div>
+              <div class="model-switcher-preset-models">
+                <template x-if="preset.chat?.name">
+                  <div class="model-switcher-model-row">
+                    <span class="model-switcher-model-label">Main</span>
+                    <span class="model-switcher-model-value">
+                      <span x-text="preset.chat.provider" style="opacity:0.5;"></span>
+                      <span style="opacity:0.3; margin:0 3px;">/</span>
+                      <span x-text="preset.chat.name"></span>
+                    </span>
+                  </div>
+                </template>
+                <template x-if="preset.utility?.name">
+                  <div class="model-switcher-model-row">
+                    <span class="model-switcher-model-label">Utility</span>
+                    <span class="model-switcher-model-value">
+                      <span x-text="preset.utility.provider" style="opacity:0.5;"></span>
+                      <span style="opacity:0.3; margin:0 3px;">/</span>
+                      <span x-text="preset.utility.name"></span>
+                    </span>
+                  </div>
+                </template>
+              </div>
             </div>
           </template>
         </div>
@@ -95,8 +113,8 @@
     color: var(--color-text-secondary, #666);
   }
   .model-switcher-btn.has-override {
-    border-color: var(--color-accent, #4a9eff);
-    color: var(--color-accent, #4a9eff);
+    border-color: var(--color-highlight);
+    color: var(--color-highlight);
   }
   .model-switcher-label {
     max-width: 160px;
@@ -128,8 +146,7 @@
     background: var(--color-background-hover, rgba(255,255,255,0.06));
   }
   .model-switcher-item.active {
-    background: var(--color-accent-bg, rgba(74, 158, 255, 0.12));
-    color: var(--color-accent, #4a9eff);
+    background: color-mix(in srgb, var(--color-highlight) 12%, transparent);
   }
   .model-switcher-item.revert {
     display: flex;
@@ -153,9 +170,30 @@
   .model-switcher-preset-name {
     font-weight: 500;
   }
-  .model-switcher-preset-detail {
+  .model-switcher-preset-models {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-top: 4px;
+  }
+  .model-switcher-model-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
     font-size: 0.7rem;
-    opacity: 0.6;
-    margin-top: 1px;
+    opacity: 0.7;
+  }
+  .model-switcher-model-label {
+    width: 40px;
+    flex-shrink: 0;
+    font-weight: 500;
+    opacity: 0.7;
+  }
+  .model-switcher-model-value {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 </style>

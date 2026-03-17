@@ -50,7 +50,7 @@
                   <span class="preset-card-summary" x-show="!expanded"
                         x-text="(preset.chat?.provider ? preset.chat.provider + '/' : '') + (preset.chat?.name || '')"></span>
                   <button class="text-button preset-delete-btn"
-                          @click.stop="config.model_presets = config.model_presets.filter((_, i) => i !== idx)"
+                          @click.stop="$confirmClick($event, () => { config.model_presets = config.model_presets.filter((_, i) => i !== idx) })"
                           title="Remove preset">
                     <span class="material-symbols-outlined" style="font-size:16px;">close</span>
                   </button>
@@ -62,7 +62,8 @@
                       <div class="field-title">Preset name</div>
                       <div class="field-description">Display name shown in the model switcher dropdown.</div>
                     </div>
-                    <div class="field-control"><input type="text" x-model="preset.name" placeholder="e.g. GPT-4o, Claude Sonnet" /></div>
+                    <div class="field-control"><input type="text" x-model="preset.name" placeholder="e.g. GPT-4o, Claude Sonnet"
+                         @blur="if (!preset.name.trim()) preset.name = 'Preset ' + (idx + 1)" required /></div>
                   </div>
 
                   <div class="preset-subheader">Main Model</div>
@@ -221,7 +222,7 @@
                     @click="
                       if (!config.model_presets) config.model_presets = [];
                       config.model_presets = [...config.model_presets, {
-                        name: '',
+                        name: 'Preset ' + (config.model_presets.length + 1),
                         chat: { provider: config.chat_model.provider || '', name: config.chat_model.name || '', api_key: '', api_base: config.chat_model.api_base || '' },
                         utility: { provider: '', name: '', api_key: '', api_base: '' }
                       }]">

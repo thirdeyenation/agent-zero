@@ -175,7 +175,7 @@ export const store = createStore("modelConfig", {
       const cfgData = await this._fetchConfigData();
       const chatCfg = cfgData.config?.chat_model || {};
       result.allowed = !!chatCfg.allow_chat_override;
-      result.presets = cfgData.config?.model_presets || [];
+      result.presets = (cfgData.config?.model_presets || []).filter(p => p.name);
       if (!result.allowed) return result;
       if (contextId) {
         const overRes = await fetchApi(`${API_BASE}/model_override`, {
