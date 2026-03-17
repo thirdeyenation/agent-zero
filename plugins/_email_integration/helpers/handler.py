@@ -366,9 +366,11 @@ def _is_own_email(sender: str, own_address: str) -> bool:
 # ------------------------------------------------------------------
 
 def _build_user_message(agent: Agent, msg: InboundMessage, handler_cfg: dict) -> str:
+    recipient = handler_cfg.get("username", "")
     text = agent.read_prompt(
         "fw.email.user_message.md",
         sender=msg.sender,
+        recipient=recipient,
         subject=msg.subject,
         body=msg.body,
     )
