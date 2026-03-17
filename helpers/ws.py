@@ -32,7 +32,7 @@ class _SecurityContext:
 
 
 _ws_contexts: dict[str, _SecurityContext] = {}
-_active_handlers: dict[str, list[tuple[str, type["WsHandler"]]]] = {}
+_active_handlers: dict[str, dict[str, "WsHandler"]] = {}
 _contexts_lock = threading.Lock()
 
 
@@ -156,7 +156,7 @@ def register_ws_namespace(
             cache.add(CACHE_AREA, path, handler_cls)
         return handler_cls
 
-    @socketio_server.on("connect", namespace="/ws")
+    @socketio_server.on("connect", namespace="/ws") # type: ignore
     async def _on_connect(sid, environ, auth):
         with webapp.request_context(environ):
             origin_ok, origin_reason = validate_ws_origin(environ)
@@ -192,7 +192,7 @@ def register_ws_namespace(
             if isinstance(raw, list):
                 handler_paths = [p for p in raw if isinstance(p, str)]
 
-        activated: list[tuple[str, type[WsHandler]]] = []
+        activated: dict[str, WsHandler] = {}
         for path in handler_paths:
             try:
                 handler_cls = _resolve_cached(path)
@@ -203,7 +203,7 @@ def register_ws_namespace(
                     continue
                 instance = handler_cls(socketio_server, lock)
                 await instance.on_connect(sid)
-                activated.append((path, handler_cls))
+                activated[path] = instance
             except Exception as e:
                 PrintStyle.error(f"WS on_connect error ({path}): {format_error(e)}")
 
@@ -212,20 +212,19 @@ def register_ws_namespace(
 
         return True
 
-    @socketio_server.on("disconnect", namespace="/ws")
+    @socketio_server.on("disconnect", namespace="/ws") # type: ignore
     async def _on_disconnect(sid):
         with _contexts_lock:
-            activated = _active_handlers.pop(sid, [])
+            activated = _active_handlers.pop(sid, {})
             _ws_contexts.pop(sid, None)
 
-        for path, handler_cls in activated:
+        for path, instance in activated.items():
             try:
-                instance = handler_cls(socketio_server, lock)
                 await instance.on_disconnect(sid)
             except Exception as e:
                 PrintStyle.error(f"WS on_disconnect error ({path}): {format_error(e)}")
 
-    @socketio_server.on("*", namespace="/ws")
+    @socketio_server.on("*", namespace="/ws") # type: ignore
     async def _dispatch(event, sid, data):
         path = event
         payload = data if isinstance(data, dict) else {}
@@ -233,20 +232,20 @@ def register_ws_namespace(
         try:
             with _contexts_lock:
                 ctx = _ws_contexts.get(sid)
+                activated = _active_handlers.get(sid, {})
             if ctx is None:
                 return {"ok": False, "error": "No security context", "code": 401}
 
-            handler_cls = _resolve_cached(path)
-            if handler_cls is None:
-                return {"ok": False, "error": f"WS endpoint not found: {path}", "code": 404}
+            instance = activated.get(path)
+            if instance is None:
+                return {"ok": False, "error": f"WS endpoint not activated: {path}", "code": 404}
 
             # Security check
-            error = _check_security(handler_cls, ctx)
+            error = _check_security(type(instance), ctx)
             if error is not None:
                 return error
 
-            # Instantiate and process
-            instance = handler_cls(socketio_server, lock)
+            # Use cached instance and process
             return await instance.process(payload, sid)
 
         except Exception as e:

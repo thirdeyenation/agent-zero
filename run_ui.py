@@ -149,9 +149,10 @@ async def serve_plugin_asset(plugin_name, asset_path):
 @webapp.route("/extensions/webui/<path:asset_path>", methods=["GET"])
 @requires_auth
 async def serve_extension_asset(asset_path):
-    path = files.get_abs_path("extensions/webui", asset_path)
-    if not files.is_in_dir(path, "extensions/webui"):
-        return Response("Access denied", 403)
+    exts = files.get_abs_path("extensions/webui")
+    path = files.get_abs_path(exts, asset_path)
+    if not files.is_in_dir(path, exts):
+        return Response(f"Access denied", 403)
     return send_file(path)
 
 
