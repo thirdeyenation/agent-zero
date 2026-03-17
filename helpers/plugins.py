@@ -465,17 +465,15 @@ def get_plugin_config(
         )(files.read_file(file_path))
 
     # call plugin hook to modify the standard result if needed
-    new_result = call_plugin_hook(
+    result = call_plugin_hook(
         plugin_name,
-        "save_plugin_config",
-        result=result,
+        "get_plugin_config",
+        default=result,
         agent=agent,
         project_name=project_name,
         agent_profile=agent_profile,
     )
 
-    if new_result is not None:
-        return new_result
     return result 
 
 
@@ -487,7 +485,7 @@ def get_default_plugin_config(plugin_name: str):
     # call plugin hook to get the result
     result = call_plugin_hook(
         plugin_name,
-        "save_plugin_config",
+        "get_default_plugin_config",
         file_path = file_path
     )
 
@@ -512,7 +510,7 @@ def save_plugin_config(
     new_settings = call_plugin_hook(
         plugin_name,
         "save_plugin_config",
-        result=None,
+        default=settings,
         project_name=project_name,
         agent_profile=agent_profile,
         settings=settings,
@@ -712,7 +710,7 @@ def send_frontend_reload_notification(plugin_names: list[str] | None = None):
     DeferredTask().start_task(_send_later)
 
 
-def call_plugin_hook(plugin_name: str, hook_name: str, *args, **kwargs):
+def call_plugin_hook(plugin_name: str, hook_name: str, default: Any=None, *args, **kwargs):
     hooks = None
 
     # use cached hooks if enabled
@@ -728,13 +726,13 @@ def call_plugin_hook(plugin_name: str, hook_name: str, *args, **kwargs):
         hooks = cache.get(HOOKS_CACHE_AREA, plugin_name)
 
     if not hooks:
-        return
+        return default
 
     hook = getattr(hooks, hook_name, None)
     if not hook:
-        return
+        return default
 
     if asyncio.iscoroutinefunction(hook):
-        return asyncio.run(hook(*args, **kwargs))
+        return asyncio.run(hook(*args, **kwargs, default=default))
 
-    return hook(*args, **kwargs)
+    return hook(*args, **kwargs, default=default)
