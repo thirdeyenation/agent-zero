@@ -13,55 +13,51 @@ _LITELLM_EXCLUDE = frozenset({
 class ModelSearch(ApiHandler):
     async def process(self, input: dict, request: Request) -> dict | Response:
         provider = input.get("provider", "")
-        query = input.get("query", "").lower()
         model_type = input.get("model_type", "chat")
         user_api_base = input.get("api_base", "")
 
         if not provider:
             return {"models": []}
 
-        cfg = self._get_search_config(model_type, provider)
+        cfg = self._get_provider_cfg(model_type, provider)
+        ml = self._get_models_list(cfg)
 
-        static = cfg.get("static_models")
-        if static:
-            all_models = list(static)
-        else:
-            all_models = await self._fetch_models(provider, cfg, user_api_base) or []
+        all_models = await self._fetch_models(provider, cfg, ml, user_api_base) or []
 
-            if not all_models:
-                litellm_provider = (cfg or {}).get("litellm_provider", provider)
-                if litellm_provider == provider:
-                    all_models = self._litellm_fallback(provider, cfg)
+        if not all_models:
+            litellm_provider = cfg.get("litellm_provider", provider)
+            if litellm_provider == provider:
+                all_models = self._litellm_fallback(provider, cfg)
 
-        if query:
-            all_models = [m for m in all_models if query in m.lower()]
-
-        return {"models": sorted(all_models)[:50], "provider": provider}
+        return {"models": sorted(all_models), "provider": provider}
 
     @staticmethod
-    def _get_search_config(model_type: str, provider: str) -> dict:
-        """Get provider config with search metadata, falling back to chat config."""
+    def _get_provider_cfg(model_type: str, provider: str) -> dict:
+        """Get provider config, falling back to chat config for models_list."""
         cfg = get_provider_config(model_type, provider) or {}
-        if model_type != "chat" and not cfg.get("models_endpoint") and not cfg.get("static_models"):
+        if model_type != "chat" and not cfg.get("models_list"):
             chat_cfg = get_provider_config("chat", provider) or {}
-            merged = dict(cfg)
-            for field in ("models_endpoint", "models_format", "models_params",
-                          "static_models", "default_base"):
-                if field in chat_cfg and field not in merged:
-                    merged[field] = chat_cfg[field]
-            return merged
+            if chat_cfg.get("models_list"):
+                merged = dict(cfg)
+                merged["models_list"] = chat_cfg["models_list"]
+                return merged
         return cfg
 
-    async def _fetch_models(self, provider: str, cfg: dict, user_api_base: str = "") -> list[str] | None:
+    @staticmethod
+    def _get_models_list(cfg: dict) -> dict:
+        """Extract models_list sub-config."""
+        return cfg.get("models_list") or {}
+
+    async def _fetch_models(self, provider: str, cfg: dict, ml: dict, user_api_base: str = "") -> list[str] | None:
         api_key = models.get_api_key(provider)
         api_base = user_api_base or (cfg or {}).get("kwargs", {}).get("api_base", "")
 
-        url, fmt = self._resolve_url(cfg, api_base)
+        url, fmt = self._resolve_url(ml, api_base)
         if not url:
             return None
 
         headers = self._build_headers(provider, api_key, cfg)
-        params = dict(cfg.get("models_params", {}) or {})
+        params = dict(ml.get("params", {}) or {})
 
         # Google uses query-param auth
         if provider == "google" and api_key and api_key != "None":
@@ -80,10 +76,10 @@ class ModelSearch(ApiHandler):
         return None
 
     @staticmethod
-    def _resolve_url(cfg: dict, api_base: str) -> tuple[str | None, str]:
-        fmt = cfg.get("models_format", "openai")
-        endpoint = cfg.get("models_endpoint", "")
-        default_base = cfg.get("default_base", "")
+    def _resolve_url(ml: dict, api_base: str) -> tuple[str | None, str]:
+        fmt = ml.get("format", "openai")
+        endpoint = ml.get("endpoint_url", "")
+        default_base = ml.get("default_base", "")
 
         if endpoint.startswith("http"):
             return endpoint, fmt

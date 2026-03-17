@@ -89,7 +89,8 @@
                     </div>
                     <div class="field-control" style="position:relative;"
                          x-data="{ results: [], open: false, searching: false,
-                           doSearch() { this.searching = true; $store.modelConfig.searchModels(preset.chat.provider, preset.chat.name, 'chat', preset.chat.api_base).then(r => { this.results = r; this.open = true; }).finally(() => this.searching = false); }
+                           doSearch() { this.searching = true; $store.modelConfig.searchModels(preset.chat.provider, preset.chat.name, 'chat', preset.chat.api_base).then(r => { this.results = r; this.open = true; }).finally(() => this.searching = false); },
+                           grouped() { return $store.modelConfig.groupResults(this.results, preset.chat.name); }
                          }"
                          @click.outside="open = false">
                       <input type="text" x-model="preset.chat.name" style="padding-right:32px;"
@@ -101,7 +102,11 @@
                         <span class="material-symbols-outlined model-search-spinner" :style="!searching && 'opacity:0'">progress_activity</span>
                       </span>
                       <div class="model-search-results" x-show="open && results.length > 0" x-transition.opacity>
-                        <template x-for="m in results" :key="m">
+                        <template x-for="m in grouped().matched" :key="'m_'+m">
+                          <div class="model-search-item matched" @click="preset.chat.name = m; open = false;" x-text="m"></div>
+                        </template>
+                        <div class="model-search-separator" x-show="grouped().matched.length > 0 && grouped().rest.length > 0"></div>
+                        <template x-for="m in grouped().rest" :key="'r_'+m">
                           <div class="model-search-item" @click="preset.chat.name = m; open = false;" x-text="m"></div>
                         </template>
                       </div>
@@ -163,7 +168,8 @@
                         </div>
                         <div class="field-control" style="position:relative;"
                              x-data="{ results: [], open: false, searching: false,
-                               doSearch() { this.searching = true; $store.modelConfig.searchModels(preset.utility.provider || preset.chat.provider, preset.utility.name, 'chat', preset.utility.api_base || preset.chat.api_base).then(r => { this.results = r; this.open = true; }).finally(() => this.searching = false); }
+                               doSearch() { this.searching = true; $store.modelConfig.searchModels(preset.utility.provider || preset.chat.provider, preset.utility.name, 'chat', preset.utility.api_base || preset.chat.api_base).then(r => { this.results = r; this.open = true; }).finally(() => this.searching = false); },
+                               grouped() { return $store.modelConfig.groupResults(this.results, preset.utility.name); }
                              }"
                              @click.outside="open = false">
                           <input type="text" x-model="preset.utility.name" style="padding-right:32px;"
@@ -175,7 +181,11 @@
                             <span class="material-symbols-outlined model-search-spinner" :style="!searching && 'opacity:0'">progress_activity</span>
                           </span>
                           <div class="model-search-results" x-show="open && results.length > 0" x-transition.opacity>
-                            <template x-for="m in results" :key="m">
+                            <template x-for="m in grouped().matched" :key="'m_'+m">
+                              <div class="model-search-item matched" @click="preset.utility.name = m; open = false;" x-text="m"></div>
+                            </template>
+                            <div class="model-search-separator" x-show="grouped().matched.length > 0 && grouped().rest.length > 0"></div>
+                            <template x-for="m in grouped().rest" :key="'r_'+m">
                               <div class="model-search-item" @click="preset.utility.name = m; open = false;" x-text="m"></div>
                             </template>
                           </div>
@@ -262,7 +272,8 @@
               </div>
               <div class="field-control" style="position:relative;"
                    x-data="{ results: [], open: false, searching: false,
-                     doSearch() { this.searching = true; $store.modelConfig.searchModels(config[section.key].provider, config[section.key].name, $store.modelConfig.getSearchType(section.key), config[section.key].api_base).then(r => { this.results = r; this.open = true; }).finally(() => this.searching = false); }
+                     doSearch() { this.searching = true; $store.modelConfig.searchModels(config[section.key].provider, config[section.key].name, $store.modelConfig.getSearchType(section.key), config[section.key].api_base).then(r => { this.results = r; this.open = true; }).finally(() => this.searching = false); },
+                     grouped() { return $store.modelConfig.groupResults(this.results, config[section.key].name); }
                    }"
                    @click.outside="open = false">
                 <input type="text" x-model="config[section.key].name" style="padding-right:32px;"
@@ -274,7 +285,11 @@
                   <span class="material-symbols-outlined model-search-spinner" :style="!searching && 'opacity:0'">progress_activity</span>
                 </span>
                 <div class="model-search-results" x-show="open && results.length > 0" x-transition.opacity>
-                  <template x-for="m in results" :key="m">
+                  <template x-for="m in grouped().matched" :key="'m_'+m">
+                    <div class="model-search-item matched" @click="config[section.key].name = m; open = false;" x-text="m"></div>
+                  </template>
+                  <div class="model-search-separator" x-show="grouped().matched.length > 0 && grouped().rest.length > 0"></div>
+                  <template x-for="m in grouped().rest" :key="'r_'+m">
                     <div class="model-search-item" @click="config[section.key].name = m; open = false;" x-text="m"></div>
                   </template>
                 </div>
@@ -607,6 +622,15 @@
     opacity: 0.4;
     cursor: default;
     font-style: italic;
+  }
+  .model-search-item.matched {
+    font-weight: 500;
+  }
+  .model-search-separator {
+    height: 1px;
+    margin: 4px 8px;
+    background: var(--color-border);
+    opacity: 0.5;
   }
   .model-search-item.disabled:hover {
     background: transparent;

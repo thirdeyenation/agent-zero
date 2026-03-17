@@ -168,6 +168,18 @@ export const store = createStore("modelConfig", {
     }
   },
 
+  groupResults(models, query) {
+    const q = (query || '').trim().toLowerCase();
+    if (!q) return { matched: [], rest: models };
+    const matched = [];
+    const rest = [];
+    for (const m of models) {
+      if (m.toLowerCase().includes(q)) matched.push(m);
+      else rest.push(m);
+    }
+    return { matched, rest };
+  },
+
   // Model Switcher
   async loadSwitcherState(contextId) {
     const result = { allowed: false, presets: [], override: null };
