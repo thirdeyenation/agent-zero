@@ -442,7 +442,12 @@ def _is_noreply(sender: str) -> bool:
 
 
 def _matches_whitelist(sender: str, whitelist: list[str]) -> bool:
-    sender_lower = sender.lower()
+    addr = sender
+    match = re.search(r"<([^>]+)>", sender)
+    if match:
+        addr = match.group(1).strip()
+    
+    sender_lower = addr.lower()
     for pattern in whitelist:
         if fnmatch(sender_lower, pattern.lower()):
             return True
