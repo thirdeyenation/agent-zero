@@ -78,12 +78,7 @@
           <!-- Edit Presets shortcut -->
           <div class="model-switcher-divider" style="opacity:0.2;"></div>
           <div class="model-switcher-item model-switcher-edit" @click="
-            (async () => {
-              await import('/components/plugins/plugin-settings-store.js');
-              const s = Alpine.store('pluginSettingsPrototype');
-              if (s && s.open) await s.open('_model_config', { perProjectConfig: true, perAgentConfig: true });
-              openModal('components/plugins/plugin-settings.html');
-            })();
+            openModal('/plugins/_model_config/webui/main.html');
             showDropdown = false;
           ">
             <span class="material-symbols-outlined" style="font-size: 14px;">settings</span>

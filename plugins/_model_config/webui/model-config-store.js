@@ -55,6 +55,10 @@ export const store = createStore("modelConfig", {
   allProviders: [],
   _loaded: false,
 
+  // Global presets state
+  globalPresets: [],
+  _presetsLoaded: false,
+
   // Switcher state
   switcherAllowed: false,
   switcherOverride: null,
@@ -106,13 +110,42 @@ export const store = createStore("modelConfig", {
     if (config?.utility_model) config.utility_model._kwargs_text = kwargsToText(config.utility_model.kwargs);
     if (config?.embedding_model) config.embedding_model._kwargs_text = kwargsToText(config.embedding_model.kwargs);
     if (config) config._browser_headers_text = Object.entries(config.browser_http_headers || {}).map(([k, v]) => k + '=' + v).join('\n');
-    if (config) {
-      if (!config.model_presets) config.model_presets = [];
-      config.model_presets = config.model_presets.map(p => ({
+  },
+
+  // Global presets
+  async loadGlobalPresets() {
+    try {
+      const res = await fetchApi(`${API_BASE}/model_presets`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'get' })
+      });
+      const data = await res.json();
+      this.globalPresets = (data.presets || []).map(p => ({
         name: p.name || '',
         chat: { provider: '', name: '', api_key: '', api_base: '', ...(p.chat || {}) },
         utility: { provider: '', name: '', api_key: '', api_base: '', ...(p.utility || {}) },
       }));
+    } catch (e) {
+      console.error('Failed to load global presets:', e);
+      this.globalPresets = [];
+    }
+    this._presetsLoaded = true;
+  },
+
+  async saveGlobalPresets(presets) {
+    try {
+      await fetchApi(`${API_BASE}/model_presets`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'save', presets })
+      });
+      this.globalPresets = presets;
+      this.switcherPresets = presets.filter(p => p.name);
+      justToast('Presets saved');
+    } catch (e) {
+      console.error('Failed to save global presets:', e);
+      justToast('Failed to save presets');
     }
   },
 
@@ -184,11 +217,8 @@ export const store = createStore("modelConfig", {
   async loadSwitcherState(contextId) {
     const result = { allowed: false, presets: [], override: null };
     try {
-      const cfgData = await this._fetchConfigData();
-      const chatCfg = cfgData.config?.chat_model || {};
-      result.allowed = !!chatCfg.allow_chat_override;
-      result.presets = (cfgData.config?.model_presets || []).filter(p => p.name);
-      if (!result.allowed) return result;
+      await this.loadGlobalPresets();
+      result.presets = this.globalPresets.filter(p => p.name);
       if (contextId) {
         const overRes = await fetchApi(`${API_BASE}/model_override`, {
           method: "POST",
@@ -196,6 +226,7 @@ export const store = createStore("modelConfig", {
           body: JSON.stringify({ action: "get", context_id: contextId }),
         });
         const overData = await overRes.json();
+        result.allowed = !!overData.allowed;
         result.override = overData.override || null;
       }
     } catch (e) {

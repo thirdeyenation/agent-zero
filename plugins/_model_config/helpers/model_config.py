@@ -1,6 +1,21 @@
 import models
-from helpers import plugins, settings, projects
-from helpers.providers import get_providers, get_raw_providers
+from helpers import plugins, files
+from helpers import yaml as yaml_helper
+from helpers.providers import get_providers
+
+PRESETS_FILE = "presets.yaml"
+DEFAULT_PRESETS_FILE = "default_presets.yaml"
+
+
+def _get_presets_path() -> str:
+    """Return the path to the user's global presets file (usr/plugins/_model_config/presets.yaml)."""
+    return files.get_abs_path(files.USER_DIR, files.PLUGINS_DIR, "_model_config", PRESETS_FILE)
+
+
+def _get_default_presets_path() -> str:
+    """Return the path to the default presets file shipped with the plugin."""
+    plugin_dir = plugins.find_plugin_dir("_model_config")
+    return files.get_abs_path(plugin_dir, DEFAULT_PRESETS_FILE) if plugin_dir else ""
 
 
 def get_config(agent=None, project_name=None, agent_profile=None):
@@ -13,15 +28,31 @@ def get_config(agent=None, project_name=None, agent_profile=None):
     ) or {}
 
 
-def get_presets(agent=None, project_name=None, agent_profile=None) -> list:
-    """Get model presets list from config."""
-    cfg = get_config(agent, project_name, agent_profile)
-    return cfg.get("model_presets", [])
+def get_presets() -> list:
+    """Get global model presets list (not scoped to project/agent)."""
+    path = _get_presets_path()
+    if files.exists(path):
+        data = yaml_helper.loads(files.read_file(path))
+        if isinstance(data, list):
+            return data
+    # Fall back to defaults bundled with the plugin
+    default_path = _get_default_presets_path()
+    if default_path and files.exists(default_path):
+        data = yaml_helper.loads(files.read_file(default_path))
+        if isinstance(data, list):
+            return data
+    return []
 
 
-def get_preset_by_name(name: str, agent=None) -> dict | None:
-    """Find a preset by name."""
-    for p in get_presets(agent):
+def save_presets(presets: list) -> None:
+    """Save the global presets list."""
+    path = _get_presets_path()
+    files.write_file(path, yaml_helper.dumps(presets))
+
+
+def get_preset_by_name(name: str) -> dict | None:
+    """Find a preset by name from the global presets list."""
+    for p in get_presets():
         if p.get("name") == name:
             return p
     return None
@@ -30,8 +61,10 @@ def get_preset_by_name(name: str, agent=None) -> dict | None:
 def _resolve_override(agent) -> dict | None:
     """Resolve the active per-chat override config dict.
     Supports both raw override dicts and preset-based overrides.
-    Returns None if no override is active."""
+    Returns None if no override is active or if override is not allowed."""
     if not agent:
+        return None
+    if not is_chat_override_allowed(agent):
         return None
     override = agent.context.get_data("chat_model_override")
     if not override:
@@ -39,7 +72,7 @@ def _resolve_override(agent) -> dict | None:
 
     # If this is a preset reference, resolve it
     if "preset_name" in override:
-        preset = get_preset_by_name(override["preset_name"], agent)
+        preset = get_preset_by_name(override["preset_name"])
         if not preset:
             return None
         return preset

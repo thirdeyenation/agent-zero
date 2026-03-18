@@ -8,12 +8,15 @@ class IncludeAgentInfo(Extension):
             return
 
         # read prompt
-        from plugins._model_config.helpers.model_config import get_chat_model_config
+        from plugins._model_config.helpers.model_config import get_chat_model_config, is_chat_override_allowed
         chat_cfg = get_chat_model_config(self.agent)
 
-        # detect active preset
-        override = self.agent.context.get_data("chat_model_override")
-        preset_name = override.get("preset_name", "") if isinstance(override, dict) else ""
+        # detect active preset (only when override is allowed)
+        preset_name = ""
+        if is_chat_override_allowed(self.agent):
+            override = self.agent.context.get_data("chat_model_override")
+            if isinstance(override, dict):
+                preset_name = override.get("preset_name", "")
 
         agent_info_prompt = self.agent.read_prompt(
             "agent.extras.agent_info.md",

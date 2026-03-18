@@ -12,6 +12,13 @@ class ModelConfigSet(ApiHandler):
         if not config or not isinstance(config, dict):
             return Response(status=400, response="Missing or invalid config")
 
+        # Read previous config BEFORE saving so we can detect changes
+        prev_config = plugins.get_plugin_config(
+            "_model_config",
+            project_name=project_name or None,
+            agent_profile=agent_profile or None,
+        ) or {}
+
         plugins.save_plugin_config(
             "_model_config",
             project_name=project_name,
@@ -20,7 +27,6 @@ class ModelConfigSet(ApiHandler):
         )
 
         # Check if embedding model changed and notify
-        prev_config = plugins.get_plugin_config("_model_config") or {}
         prev_embed = prev_config.get("embedding_model", {})
         new_embed = config.get("embedding_model", {})
         if (
