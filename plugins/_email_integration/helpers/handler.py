@@ -269,8 +269,18 @@ async def _start_new_chat(agent: Agent, handler_cfg: dict, msg: InboundMessage):
     context.data[disp.CTX_EMAIL_SENDER] = msg.sender
     context.data[disp.CTX_EMAIL_THREAD_ID] = thread_id
     context.data[disp.CTX_EMAIL_SUBJECT] = msg.subject
+    context.data[disp.CTX_EMAIL_LAST_BODY] = msg.body
     context.data[disp.CTX_EMAIL_MESSAGE_ID] = msg.message_id
-    context.data[disp.CTX_EMAIL_REFERENCES] = msg.references
+    
+    refs_list = []
+    if msg.references:
+        for r in msg.references.split():
+            if r not in refs_list:
+                refs_list.append(r)
+    if msg.message_id and msg.message_id not in refs_list:
+        refs_list.append(msg.message_id)
+        
+    context.data[disp.CTX_EMAIL_REFERENCES] = " ".join(refs_list)
 
     project = handler_cfg.get("project", "")
     if project:
@@ -302,8 +312,20 @@ async def _route_to_chat(
         return
 
     context.data[disp.CTX_EMAIL_MESSAGE_ID] = msg.message_id
+    context.data[disp.CTX_EMAIL_LAST_BODY] = msg.body
+    
+    refs = context.data.get(disp.CTX_EMAIL_REFERENCES, "")
+    refs_list = refs.split() if refs else []
+    
     if msg.references:
-        context.data[disp.CTX_EMAIL_REFERENCES] = msg.references
+        for r in msg.references.split():
+            if r not in refs_list:
+                refs_list.append(r)
+                
+    if msg.message_id and msg.message_id not in refs_list:
+        refs_list.append(msg.message_id)
+        
+    context.data[disp.CTX_EMAIL_REFERENCES] = " ".join(refs_list)
 
     user_msg = _build_user_message(agent, msg, handler_cfg)
     mq.log_user_message(context, user_msg, msg.attachments or [], source=" (email)")
@@ -422,6 +444,11 @@ async def send_email_reply(
 
     # Read attachment files via RFC (they live in the execution runtime)
     attachment_data = await _read_attachments_via_rfc(attachments)
+
+    last_body = context.data.get(disp.CTX_EMAIL_LAST_BODY, "").strip()
+    if last_body:
+        quoted = "\n> " + "\n> ".join(last_body.splitlines())
+        response_text = f"{response_text}\n\nOn previous message:\n{quoted}"
 
     return await send_reply(
         config=smtp_cfg,
