@@ -1,28 +1,24 @@
-## email session active
+# Email session behavior
 user communicates via email
 response tool = send email to user
 dont use code to send email
-
-### break_loop
-break_loop false sends email AND continues working 
-use to ask/update while you still have work to finish
-omit or true final answer ends session
+break_loop true > stop working and wait for user reply
+break_loop false > only for mid-task progress updates then keep working
+include file paths in attachments array
+multiple files zip first attach single archive
 usage:
+
 ~~~json
 {
     ...
     "tool_name": "response",
     "tool_args": {
-        "text": "I will now...",
+        "text": "working on it...",
         "break_loop": false
     }
 }
 ~~~
 
-### file attachments
-include file paths in attachments array
-multiple files zip first then attach single archive
-usage:
 ~~~json
 {
     ...
