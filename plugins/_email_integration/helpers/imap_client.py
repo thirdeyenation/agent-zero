@@ -442,13 +442,38 @@ def _is_noreply(sender: str) -> bool:
 
 
 def _matches_whitelist(sender: str, whitelist: list[str]) -> bool:
-    addr = sender
-    match = re.search(r"<([^>]+)>", sender)
-    if match:
-        addr = match.group(1).strip()
-    
-    sender_lower = addr.lower()
+    sender_email = _extract_email_from_sender(sender.lower())
     for pattern in whitelist:
-        if fnmatch(sender_lower, pattern.lower()):
+        if fnmatch(sender_email, pattern.lower()):
             return True
     return False
+
+
+def _extract_email_from_sender(sender: str) -> str:
+    """Extract email address from sender string.
+    
+    Handles formats like:
+    - "email@example.com"
+    - "Name <email@example.com>"
+    - "\"Display Name\" <email@example.com>"
+    
+    Uses content inside angle brackets as authoritative to prevent spoofing
+    by fake emails in the display name (e.g., "John ceo@company.com <real@email.com>").
+    """
+    import re
+    # Look for email inside angle brackets - this is the authoritative source
+    match = re.search(r"<([^>]+)>", sender)
+    if match:
+        email = match.group(1).strip()
+        # Validate it looks like an email
+        if re.match(r"^[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+$", email):
+            return email
+    
+    # No angle brackets - extract email from the whole string
+    # This handles plain "email@example.com" or malformed input
+    email_match = re.search(r"[^\s<>]+@[^\s<>]+\.[^\s<>]+", sender)
+    if email_match:
+        return email_match.group(0)
+    
+    # Fallback: return the whole string (will likely fail pattern match)
+    return sender
