@@ -7,6 +7,8 @@ from functools import wraps
 import inspect
 import os
 
+from helpers.print_style import PrintStyle
+
 if TYPE_CHECKING:
     from agent import Agent
 
@@ -295,3 +297,21 @@ def _get_extensions(folder: str):
     classes = extract_tools.load_classes_from_folder(folder, "*", Extension)
     cache.add(_EXTENSIONS_CACHE_AREA, folder, classes)
     return classes
+
+def register_extensions_watchdogs():
+    from helpers import watchdog
+
+    def extensions_changed(items: list[watchdog.WatchItem]):
+        cache.clear(_EXTENSIONS_CACHE_AREA)
+        cache.clear(_CLASSES_CACHE_AREA)
+        PrintStyle.debug("Extensions watchdog triggered:", items)
+
+    watchdog.add_watchdog(
+        id="extensions",
+        roots=[
+            files.get_abs_path(files.EXTENSIONS_DIR),
+            files.get_abs_path(files.USER_DIR, files.EXTENSIONS_DIR)
+            ],
+        handler=extensions_changed
+    )
+    # TODO - watch extensions under projects/agents

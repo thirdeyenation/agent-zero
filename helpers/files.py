@@ -16,6 +16,7 @@ from helpers import yaml
 AGENTS_DIR = "agents"
 PLUGINS_DIR = "plugins"
 PROJECTS_DIR = "projects"
+EXTENSIONS_DIR = "extensions"
 USER_DIR = "usr"
 TEMP_DIR = "tmp"
 _base_dir = os.path.dirname(os.path.abspath(os.path.join(__file__, "../")))
