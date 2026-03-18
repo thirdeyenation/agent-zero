@@ -14,13 +14,8 @@ const PER_PAGE = 20;
 const SECURITY_WARNING = {
   title: "Security Warning",
   message: `
-    <p><strong>Plugins from third parties can be a great risk, keep in mind that:</strong></p>
-    <ul style="margin: 0.75em 0; padding-left: 1.5em;">
-      <li>You can be hacked the moment you install it</li>
-      <li>We can not prevent it or help you</li>
-      <li>It is your responsibility</li>
-    </ul>
-    <p style="margin-top: 0.75em;">We can never fully guarantee that plugins are safe because there are many ways to obfuscate malicious code.</p>
+    <p><strong>Third-party plugins may contain malicious code.</strong> <br> We can't guarantee their safety &mdash; install at your own risk.</p>
+    <p style="margin-top: 0.75em;">We recommend scanning all plugins with A0 first.</p>
   `,
   type: "warning",
   confirmText: "Install Anyway",
