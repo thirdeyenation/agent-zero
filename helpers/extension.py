@@ -16,7 +16,7 @@ USER_EXTENSIONS_FOLDER = "usr/extensions"
 
 _EXTENSIONS_CACHE_AREA = "extension_folder_classes(extensions)"
 _CLASSES_CACHE_AREA = "extension_classes(extensions)"
-cache.toggle_area(_EXTENSIONS_CACHE_AREA, False)
+# cache.toggle_area(_EXTENSIONS_CACHE_AREA, False)
 # cache.toggle_area(_CLASSES_CACHE_AREA, False)
 
 
