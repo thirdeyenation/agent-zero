@@ -1,0 +1,22 @@
+- name: "Efficiency"
+  chat:
+    provider: "openrouter"
+    name: "openai/gpt-5.2-chat"
+    api_key: ""
+    api_base: ""
+  utility:
+    provider: "openrouter"
+    name: "openai/gpt-5-nano"
+    api_key: ""
+    api_base: ""
+- name: "Intelligence"
+  chat:
+    provider: "openrouter"
+    name: "anthropic/claude-opus-4.6"
+    api_key: ""
+    api_base: ""
+  utility:
+    provider: "openrouter"
+    name: "google/gemini-3-flash-preview"
+    api_key: ""
+    api_base: ""
