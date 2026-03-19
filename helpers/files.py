@@ -19,6 +19,7 @@ PROJECTS_DIR = "projects"
 EXTENSIONS_DIR = "extensions"
 USER_DIR = "usr"
 TEMP_DIR = "tmp"
+API_DIR = "api"
 _base_dir = os.path.dirname(os.path.abspath(os.path.join(__file__, "../")))
 
 class VariablesPlugin(ABC):

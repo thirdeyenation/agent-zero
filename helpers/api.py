@@ -288,14 +288,16 @@ def register_api_route(app: Flask, lock: ThreadLockType) -> None:
 def register_watchdogs():
     from helpers import watchdog
 
-    def on_api_change(items:list[watchdog.WatchItem]):
+    def on_api_change(items: list[watchdog.WatchItem]):
         PrintStyle.debug("API endpoint watchdog triggered:", items)
         cache.clear(CACHE_AREA)
-        
 
     watchdog.add_watchdog(
         "api_handlers",
-        roots=[files.get_abs_path("api")],
+        roots=[
+            files.get_abs_path(files.API_DIR),
+            files.get_abs_path(files.USER_DIR, files.API_DIR),
+        ],
         patterns=["*.py"],
         handler=on_api_change,
     )

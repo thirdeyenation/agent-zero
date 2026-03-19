@@ -621,7 +621,7 @@ def save_plugin_config(
     # or do standard load
     if new_settings is not None and file_path:
         files.write_file(file_path, json.dumps(new_settings))
-        after_plugin_change([plugin_name])
+        # after_plugin_change([plugin_name]) # don't trigger when only config changes
 
 
 def find_plugin_asset(
