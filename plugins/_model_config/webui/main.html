@@ -338,10 +338,7 @@
           </button>
           <button class="text-button" @click="(async () => {
             await import('/components/plugins/plugin-settings-store.js');
-            const pluginMeta = { name: '_model_config', always_enabled: true, per_project_config: true, per_agent_config: true, has_config_screen: true };
-            if ($store.pluginToggle?.open) await $store.pluginToggle.open(pluginMeta);
-            await $store.pluginSettingsPrototype.open('_model_config', { perProjectConfig: true, perAgentConfig: true });
-            openModal('components/plugins/plugin-settings.html');
+            await $store.pluginSettingsPrototype.openConfig('_model_config');
           })()">
             <span class="material-symbols-outlined" style="font-size:15px;">settings</span>
             <span>Settings</span>

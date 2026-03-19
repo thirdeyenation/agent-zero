@@ -7,6 +7,7 @@
 <body>
   <script type="module">
     import { store } from "/plugins/_model_config/webui/model-config-store.js";
+    import { store as pluginListStore } from "/components/plugins/list/pluginListStore.js";
   </script>
 
   <div x-data>
@@ -48,11 +49,14 @@
         </div>
 
         <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px;">
-          <button class="btn btn-field" @click="$store.pluginListStore.openPluginConfig('_model_config')">
+          <button class="btn btn-field" @click="$store.pluginListStore.openPluginConfig({ name: '_model_config', has_config_screen: true })">
             Configure Models
           </button>
+          <button class="btn btn-field" @click="openModal('/plugins/_model_config/webui/main.html')">
+            Configure Presets
+          </button>
           <button class="btn btn-field" @click="openModal('/plugins/_model_config/webui/api-keys.html')">
-            Manage API Keys
+            Configure API Keys
           </button>
         </div>
 
