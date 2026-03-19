@@ -486,8 +486,10 @@ def move_dir(old_path: str, new_path: str):
 
     try:
         os.rename(abs_old, abs_new)
-    except Exception:
-        pass  # suppress all errors, keep behavior consistent
+    except OSError:
+        # os.rename fails across Docker volume mount points
+        import shutil
+        shutil.move(abs_old, abs_new)
 
 
 # move dir safely, remove with number if needed
