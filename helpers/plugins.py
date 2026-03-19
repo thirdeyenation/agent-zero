@@ -798,7 +798,10 @@ def call_plugin_hook(
 
     # use cached hooks if enabled
     if not cache.has(HOOKS_CACHE_AREA, plugin_name):
-        hooks_script = files.get_abs_path(find_plugin_dir(plugin_name), HOOKS_SCRIPT)
+        plugin_dir = find_plugin_dir(plugin_name)
+        if not plugin_dir:
+            return default  # plugin directory not found, skip hooks
+        hooks_script = files.get_abs_path(plugin_dir, HOOKS_SCRIPT)
         hooks = (
             extract_tools.import_module(hooks_script)
             if files.exists(hooks_script)
