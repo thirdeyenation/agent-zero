@@ -54,7 +54,7 @@ class MissingApiKeyCheck(Extension):
             })
 
         # Check preset providers for missing API keys (warning level)
-        if cfg.get("chat_model", {}).get("allow_chat_override"):
+        if cfg.get("allow_chat_override"):
             preset_missing = []
             seen = set()
             for preset in cfg.get("model_presets", []):

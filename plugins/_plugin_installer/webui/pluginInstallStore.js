@@ -654,7 +654,14 @@ const model = {
   formatUserLocaleDateTime(value) {
     if (!value || typeof value !== "string") return "";
 
-    const normalizedValue = /t/i.test(value) ? value : value.replace(" ", "T");
+    const trimmedValue = value.trim();
+    const hasExplicitTimezone = /([zZ]|[+-]\d{2}:?\d{2})$/.test(trimmedValue);
+    let normalizedValue = /t/i.test(trimmedValue) ? trimmedValue : trimmedValue.replace(" ", "T");
+
+    if (!hasExplicitTimezone && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?$/.test(normalizedValue)) {
+      normalizedValue = `${normalizedValue}Z`;
+    }
+
     const date = new Date(normalizedValue);
     if (Number.isNaN(date.getTime())) return value;
 

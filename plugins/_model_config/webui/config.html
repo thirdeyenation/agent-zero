@@ -35,15 +35,15 @@
             </div>
             <div class="field-control">
               <label class="toggle">
-                <input type="checkbox" x-model="config.chat_model.allow_chat_override" />
+                <input type="checkbox" x-model="config.allow_chat_override" />
                 <span class="toggler"></span>
               </label>
             </div>
           </div>
 
-          <div class="override-presets-link" x-show="config.chat_model.allow_chat_override">
+          <div class="override-presets-link" x-show="config.allow_chat_override">
             <button class="text-button" @click="openModal('/plugins/_model_config/webui/main.html')">
-              <span class="material-symbols-outlined" style="font-size:15px;">tune</span>
+              <span class="material-symbols-outlined">tune</span>
               <span>Edit Presets</span>
             </button>
           </div>

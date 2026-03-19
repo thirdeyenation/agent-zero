@@ -51,6 +51,7 @@ class MigrateModelConfig(Extension):
 
         # Build plugin config from legacy settings
         plugin_config = {
+            "allow_chat_override": False,
             "chat_model": {
                 "provider": raw.get("chat_model_provider", "openrouter"),
                 "name": raw.get("chat_model_name", ""),
@@ -62,7 +63,6 @@ class MigrateModelConfig(Extension):
                 "rl_input": raw.get("chat_model_rl_input", 0),
                 "rl_output": raw.get("chat_model_rl_output", 0),
                 "kwargs": raw.get("chat_model_kwargs", {}),
-                "allow_chat_override": False,
             },
             "utility_model": {
                 "provider": raw.get("util_model_provider", "openrouter"),

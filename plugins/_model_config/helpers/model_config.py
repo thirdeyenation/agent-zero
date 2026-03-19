@@ -127,8 +127,7 @@ def get_browser_http_headers(agent=None) -> dict:
 def is_chat_override_allowed(agent=None) -> bool:
     """Check if per-chat model override is enabled."""
     cfg = get_config(agent)
-    chat_cfg = cfg.get("chat_model", {})
-    return bool(chat_cfg.get("allow_chat_override", False))
+    return bool(cfg.get("allow_chat_override", False))
 
 
 def get_ctx_history(agent=None) -> float:
