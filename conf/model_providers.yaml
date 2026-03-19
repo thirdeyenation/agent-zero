@@ -124,9 +124,7 @@ chat:
       extra_headers:
         "HTTP-Referer": "https://agent-zero.ai/"
         "X-Title": "Agent Zero"
-        "X-OpenRouter-Categories":
-          - personal-agent
-          - cloud-agent
+        "X-OpenRouter-Categories": "personal-agent,cloud-agent"
   sambanova:
     name: Sambanova
     litellm_provider: sambanova
