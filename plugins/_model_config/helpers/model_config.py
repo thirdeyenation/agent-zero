@@ -1,3 +1,4 @@
+import os
 import models
 from helpers import plugins, files
 from helpers import yaml as yaml_helper
@@ -48,6 +49,14 @@ def save_presets(presets: list) -> None:
     """Save the global presets list."""
     path = _get_presets_path()
     files.write_file(path, yaml_helper.dumps(presets))
+
+
+def reset_presets() -> list:
+    """Delete user presets so get_presets() falls back to bundled defaults. Returns the default presets."""
+    path = _get_presets_path()
+    if os.path.exists(path):
+        os.remove(path)
+    return get_presets()
 
 
 def get_preset_by_name(name: str) -> dict | None:

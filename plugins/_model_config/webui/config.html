@@ -11,6 +11,14 @@
        x-init="
          await $store.modelConfig.ensureLoaded();
          $store.modelConfig.initConfigFields(config);
+         const _origReset = context.resetToDefault.bind(context);
+         context.resetToDefault = async () => {
+           const before = context.settings;
+           await _origReset();
+           if (context.settings !== before) {
+             await $store.modelConfig.resetGlobalPresets();
+           }
+         };
        ">
     <template x-if="config && $store.modelConfig._loaded">
       <div class="model-config-sections">
@@ -18,12 +26,12 @@
         <!-- Per-Chat Override -->
         <div class="model-section">
           <div class="section-title">Per-Chat Override</div>
-          <div class="section-description">Allow switching model presets from the chat navigation bar. Changes sync across all chats in the same project, and new chats inherit the active preset.</div>
+          <div class="section-description">Allow switching model presets from the chat navigation bar. New chats inherit the active preset.</div>
 
           <div class="field">
             <div class="field-label">
               <div class="field-title">Enable model switcher</div>
-              <div class="field-description">Show a preset switcher in the chat navigation bar. Overrides main and utility model. Switching applies to all chats within the same project.</div>
+              <div class="field-description">Show a preset switcher in the chat navigation bar. Overrides main and utility model for the current chat.</div>
             </div>
             <div class="field-control">
               <label class="toggle">
@@ -31,6 +39,13 @@
                 <span class="toggler"></span>
               </label>
             </div>
+          </div>
+
+          <div class="override-presets-link" x-show="config.chat_model.allow_chat_override">
+            <button class="text-button" @click="openModal('/plugins/_model_config/webui/main.html')">
+              <span class="material-symbols-outlined" style="font-size:15px;">tune</span>
+              <span>Edit Presets</span>
+            </button>
           </div>
         </div>
 
@@ -279,6 +294,13 @@
   }
   .model-section .section-title {
     margin-top: 0;
+  }
+  .override-presets-link {
+    margin-top: 4px;
+  }
+  .override-presets-link .text-button {
+    font-size: 0.78rem;
+    gap: 4px;
   }
   .eye-toggle {
     position: absolute;
