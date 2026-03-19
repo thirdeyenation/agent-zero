@@ -265,8 +265,10 @@ class CodeExecution(Tool):
                 )
                 last_lines.reverse()
                 for idx, line in enumerate(last_lines):
+                    line = line.strip()
+                    line = line if len(line) <= 500 else line[:250] + line[-250:]
                     for pat in prompt_patterns:
-                        if pat.search(line.strip()):
+                        if pat.search(line):
                             PrintStyle.info(
                                 "Detected shell prompt, returning output early."
                             )
