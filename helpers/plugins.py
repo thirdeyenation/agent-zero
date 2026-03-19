@@ -128,10 +128,20 @@ def register_watchdogs():
         print_style.PrintStyle.debug("Plugins watchdog triggered", plugin_names)
         after_plugin_change(plugin_names or None)
 
+    relevant_patterns = ["**/extensions/**/*", TOGGLE_FILE_PATTERN, HOOKS_SCRIPT]
+
+    # combine relevant patterns with base path
+    def expand_patterns(base_path:str):
+        result = []
+        for pattern in relevant_patterns:
+            result.append(base_path+pattern)
+        return result
+
     # add watchdogs for plugin roots
     watchdog.add_watchdog(
         id="plugins_roots",
         roots=get_plugin_roots(),
+        patterns = [*expand_patterns("*/")],
         handler=on_plugin_change,
     )
 
@@ -143,8 +153,8 @@ def register_watchdogs():
         id="plugins_projects",
         roots=[files.get_abs_path(projects.PROJECTS_PARENT_DIR)],
         patterns=[
-            f"*/{projects.PROJECT_META_DIR}/plugins/**/*",
-            f"*/{projects.PROJECT_META_DIR}/agents/*/plugins/**/*",
+            *expand_patterns(f"*/{projects.PROJECT_META_DIR}/plugins/"),
+            *expand_patterns(f"*/{projects.PROJECT_META_DIR}/agents/*/plugins/"),
         ],
         handler=on_plugin_change,
     )
@@ -156,7 +166,7 @@ def register_watchdogs():
             files.get_abs_path(subagents.DEFAULT_AGENTS_DIR),
             files.get_abs_path(subagents.USER_AGENTS_DIR),
         ],
-        patterns=[f"*/plugins/**/*"],
+        patterns=[*expand_patterns(f"*/plugins/*/")],
         handler=on_plugin_change,
     )
 
