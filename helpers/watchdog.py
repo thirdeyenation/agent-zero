@@ -256,7 +256,7 @@ class _WatchRegistry:
 def _normalize_root(root: str) -> str:
     normalized = os.path.abspath(os.path.normpath(root))
     if not os.path.exists(normalized):
-        raise FileNotFoundError(normalized)
+        os.makedirs(normalized, exist_ok=True)
     if not os.path.isdir(normalized):
         raise NotADirectoryError(normalized)
     return normalized
