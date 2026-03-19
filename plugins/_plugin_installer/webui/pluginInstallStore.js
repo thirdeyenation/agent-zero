@@ -515,6 +515,7 @@ const model = {
         action: "install_git",
         git_url: plugin.github,
         plugin_name: plugin.key,
+        thumbnail_url: this.getThumbnailUrl(plugin) || "",
       });
 
       if (!data.success) {

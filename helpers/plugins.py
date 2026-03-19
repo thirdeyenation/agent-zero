@@ -99,6 +99,7 @@ class PluginListItem(BaseModel):
     toggle_state: ToggleState = "disabled"
     current_commit: str = ""
     current_commit_timestamp: str = ""
+    thumbnail_url: str = ""
 
 
 class PluginUpdateInfo(BaseModel):
@@ -226,6 +227,13 @@ def get_enhanced_plugins_list(
                 has_license = files.exists(str(d / "LICENSE"))
                 has_execute_script = files.exists(str(d / "execute.py"))
                 toggle_state = get_toggle_state(d.name)
+                thumbnail_url = ""
+                _thumb_exts = ("png", "jpg", "jpeg", "gif", "webp")
+                for _ext in _thumb_exts:
+                    _thumb = d / "webui" / f"thumbnail.{_ext}"
+                    if _thumb.is_file():
+                        thumbnail_url = f"/plugins/{d.name}/webui/thumbnail.{_ext}"
+                        break
                 current_commit = ""
                 current_commit_timestamp = ""
                 if is_custom:
@@ -253,6 +261,7 @@ def get_enhanced_plugins_list(
                         toggle_state=toggle_state,
                         current_commit=current_commit,
                         current_commit_timestamp=current_commit_timestamp,
+                        thumbnail_url=thumbnail_url,
                     )
                 )
             except Exception as e:
