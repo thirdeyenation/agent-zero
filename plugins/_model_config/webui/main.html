@@ -97,7 +97,7 @@
               <div class="field">
                 <div class="field-label">
                   <div class="field-title">API key</div>
-                  <div class="field-description">Leave empty to use the default API key for this provider.</div>
+                  <div class="field-description">Authentication key for this provider. Shared across all model slots using the same provider.</div>
                 </div>
                 <div class="field-control" style="position:relative;" x-data="{ showKey: false, _revealed: '' }">
                   <input :type="showKey ? 'text' : 'password'" x-model="preset.chat.api_key" autocomplete="off"
@@ -122,6 +122,76 @@
                   <div class="field-description">Custom endpoint URL. Leave empty for the provider's default.</div>
                 </div>
                 <div class="field-control"><input type="text" x-model="preset.chat.api_base" /></div>
+              </div>
+              <div class="field">
+                <div class="field-label">
+                  <div class="field-title">Context length</div>
+                  <div class="field-description">Maximum number of tokens in the context window. System prompt, chat history, RAG and response all count towards this limit.</div>
+                </div>
+                <div class="field-control"><input type="number" x-model.number="preset.chat.ctx_length" /></div>
+              </div>
+              <div class="field">
+                <div class="field-label">
+                  <div class="field-title">Context window space for chat history</div>
+                  <div class="field-description">Portion of context window dedicated to chat history visible to the agent. Smaller size will result in shorter and more summarized history.</div>
+                </div>
+                <div class="field-control">
+                  <input type="range" min="0.01" max="1" step="0.01" x-model.number="preset.chat.ctx_history" />
+                  <span class="range-value" x-text="preset.chat.ctx_history || ''"></span>
+                </div>
+              </div>
+              <div class="field">
+                <div class="field-label">
+                  <div class="field-title">Supports Vision</div>
+                  <div class="field-description">Models capable of Vision can for example natively see the content of image attachments.</div>
+                </div>
+                <div class="field-control">
+                  <label class="toggle">
+                    <input type="checkbox" x-model="preset.chat.vision" />
+                    <span class="toggler"></span>
+                  </label>
+                </div>
+              </div>
+              <div class="field">
+                <div class="field-label">
+                  <div class="field-title">Requests per minute limit</div>
+                  <div class="field-description">Limits the number of requests per minute. Waits if the limit is exceeded. Set to 0 to disable.</div>
+                </div>
+                <div class="field-control"><input type="number" x-model.number="preset.chat.rl_requests" /></div>
+              </div>
+              <div class="field">
+                <div class="field-label">
+                  <div class="field-title">Input tokens per minute limit</div>
+                  <div class="field-description">Limits the number of input tokens per minute. Waits if the limit is exceeded. Set to 0 to disable.</div>
+                </div>
+                <div class="field-control"><input type="number" x-model.number="preset.chat.rl_input" /></div>
+              </div>
+              <div class="field">
+                <div class="field-label">
+                  <div class="field-title">Output tokens per minute limit</div>
+                  <div class="field-description">Limits the number of output tokens per minute. Waits if the limit is exceeded. Set to 0 to disable.</div>
+                </div>
+                <div class="field-control"><input type="number" x-model.number="preset.chat.rl_output" /></div>
+              </div>
+              <div class="field field-full">
+                <div class="field-label">
+                  <div class="field-title">Additional parameters</div>
+                  <div class="field-description">Any other parameters supported by <a href='https://docs.litellm.ai/docs/set_keys' target='_blank'>LiteLLM</a>. Format is KEY=VALUE on individual lines. Value can be JSON objects; unquoted is treated as object/number, quoted as string.</div>
+                </div>
+                <div class="field-control">
+                  <textarea x-model="preset.chat._kwargs_text"
+                            @change="preset.chat.kwargs = $store.modelConfig.textToKwargs(preset.chat._kwargs_text)"></textarea>
+                </div>
+              </div>
+              <div class="field field-full">
+                <div class="field-label">
+                  <div class="field-title">Browser HTTP Headers</div>
+                  <div class="field-description">Custom HTTP headers sent with browser requests. The browser agent uses the main model. Format is KEY=VALUE, one per line.</div>
+                </div>
+                <div class="field-control">
+                  <textarea x-model="preset.chat._browser_headers_text"
+                            @change="preset.chat.browser_http_headers = $store.modelConfig.textToHeaders(preset.chat._browser_headers_text)"></textarea>
+                </div>
               </div>
 
               <div class="preset-subheader">Utility Model <span style="opacity:0.5; font-size:0.75rem;">(optional &#x2014; falls back to the configured Utility Model)</span></div>
@@ -176,7 +246,7 @@
               <div class="field">
                 <div class="field-label">
                   <div class="field-title">API key</div>
-                  <div class="field-description">Leave empty to use the default API key for this provider.</div>
+                  <div class="field-description">Authentication key for this provider. Shared across all model slots using the same provider.</div>
                 </div>
                 <div class="field-control" style="position:relative;" x-data="{ showKey: false, _revealed: '' }">
                   <input :type="showKey ? 'text' : 'password'" x-model="preset.utility.api_key" autocomplete="off"
@@ -203,20 +273,84 @@
                 </div>
                 <div class="field-control"><input type="text" x-model="preset.utility.api_base" /></div>
               </div>
+              <div class="field">
+                <div class="field-label">
+                  <div class="field-title">Context length</div>
+                  <div class="field-description">Maximum number of tokens in the context window. System prompt, chat history, RAG and response all count towards this limit.</div>
+                </div>
+                <div class="field-control"><input type="number" x-model.number="preset.utility.ctx_length" /></div>
+              </div>
+              <div class="field">
+                <div class="field-label">
+                  <div class="field-title">Context window space for utility input</div>
+                  <div class="field-description">Portion of context window used for utility model input messages.</div>
+                </div>
+                <div class="field-control">
+                  <input type="range" min="0.01" max="1" step="0.01" x-model.number="preset.utility.ctx_input" />
+                  <span class="range-value" x-text="preset.utility.ctx_input || ''"></span>
+                </div>
+              </div>
+              <div class="field">
+                <div class="field-label">
+                  <div class="field-title">Requests per minute limit</div>
+                  <div class="field-description">Limits the number of requests per minute. Waits if the limit is exceeded. Set to 0 to disable.</div>
+                </div>
+                <div class="field-control"><input type="number" x-model.number="preset.utility.rl_requests" /></div>
+              </div>
+              <div class="field">
+                <div class="field-label">
+                  <div class="field-title">Input tokens per minute limit</div>
+                  <div class="field-description">Limits the number of input tokens per minute. Waits if the limit is exceeded. Set to 0 to disable.</div>
+                </div>
+                <div class="field-control"><input type="number" x-model.number="preset.utility.rl_input" /></div>
+              </div>
+              <div class="field">
+                <div class="field-label">
+                  <div class="field-title">Output tokens per minute limit</div>
+                  <div class="field-description">Limits the number of output tokens per minute. Waits if the limit is exceeded. Set to 0 to disable.</div>
+                </div>
+                <div class="field-control"><input type="number" x-model.number="preset.utility.rl_output" /></div>
+              </div>
+              <div class="field field-full">
+                <div class="field-label">
+                  <div class="field-title">Additional parameters</div>
+                  <div class="field-description">Any other parameters supported by <a href='https://docs.litellm.ai/docs/set_keys' target='_blank'>LiteLLM</a>. Format is KEY=VALUE on individual lines. Value can be JSON objects; unquoted is treated as object/number, quoted as string.</div>
+                </div>
+                <div class="field-control">
+                  <textarea x-model="preset.utility._kwargs_text"
+                            @change="preset.utility.kwargs = $store.modelConfig.textToKwargs(preset.utility._kwargs_text)"></textarea>
+                </div>
+              </div>
             </div>
           </div>
         </template>
 
-        <button class="text-button preset-add-btn"
-                @click="
-                  presets = [...presets, {
-                    name: 'Preset ' + (presets.length + 1),
-                    chat: { provider: '', name: '', api_key: '', api_base: '' },
-                    utility: { provider: '', name: '', api_key: '', api_base: '' }
-                  }]">
-          <span class="material-symbols-outlined" style="font-size:16px;">add</span>
-          <span>Add Preset</span>
-        </button>
+        <div class="presets-actions">
+          <button class="text-button preset-add-btn"
+                  @click="
+                    presets = [...presets, {
+                      name: 'Preset ' + (presets.length + 1),
+                      chat: { provider: '', name: '', api_key: '', api_base: '', ctx_length: 128000, ctx_history: 0.7, vision: true, rl_requests: 0, rl_input: 0, rl_output: 0, kwargs: {}, browser_http_headers: {}, _kwargs_text: '', _browser_headers_text: '' },
+                      utility: { provider: '', name: '', api_key: '', api_base: '', ctx_length: 128000, ctx_input: 0.7, rl_requests: 0, rl_input: 0, rl_output: 0, kwargs: {}, _kwargs_text: '' }
+                    }]">
+            <span class="material-symbols-outlined" style="font-size:16px;">add</span>
+            <span>Add Preset</span>
+          </button>
+          <button class="text-button" @click="(async () => {
+            await import('/components/plugins/plugin-settings-store.js');
+            const pluginMeta = { name: '_model_config', always_enabled: true, per_project_config: true, per_agent_config: true, has_config_screen: true };
+            if ($store.pluginToggle?.open) await $store.pluginToggle.open(pluginMeta);
+            await $store.pluginSettingsPrototype.open('_model_config', { perProjectConfig: true, perAgentConfig: true });
+            openModal('components/plugins/plugin-settings.html');
+          })()">
+            <span class="material-symbols-outlined" style="font-size:15px;">settings</span>
+            <span>Settings</span>
+          </button>
+          <button class="text-button" @click="openModal('/plugins/_model_config/webui/api-keys.html')">
+            <span class="material-symbols-outlined" style="font-size:15px;">key</span>
+            <span>API Keys</span>
+          </button>
+        </div>
 
         <div class="presets-footer">
           <button class="button" @click="$store.modelConfig.saveGlobalPresets(presets)">
@@ -290,7 +424,11 @@
     padding-top: 8px;
     border-top: 1px dashed var(--color-border);
   }
-  .preset-add-btn {
+  .presets-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: center;
     margin-top: 4px;
   }
   .eye-toggle {

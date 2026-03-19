@@ -18,6 +18,7 @@
 
     <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px;">
       <button class="btn btn-field" @click="(async () => {
+        await import('/components/plugins/plugin-settings-store.js');
         const pluginMeta = { name: '_model_config', always_enabled: true, per_project_config: true, per_agent_config: true, has_config_screen: true };
         if ($store.pluginToggle?.open) await $store.pluginToggle.open(pluginMeta);
         await $store.pluginSettingsPrototype.open('_model_config', { perProjectConfig: true, perAgentConfig: true });
@@ -25,8 +26,11 @@
       })()">
         Configure Models
       </button>
+      <button class="btn btn-field" @click="openModal('/plugins/_model_config/webui/main.html')">
+        Configure Presets
+      </button>
       <button class="btn btn-field" @click="openModal('/plugins/_model_config/webui/api-keys.html')">
-        Manage API Keys
+        Configure API Keys
       </button>
     </div>
 

@@ -67,6 +67,14 @@ export const store = createStore("modelConfig", {
 
   init() {},
 
+  _normalizePresets(rawPresets) {
+    return (rawPresets || []).map(p => ({
+      name: p.name || '',
+      chat: { provider: '', name: '', api_key: '', api_base: '', ctx_length: 128000, ctx_history: 0.7, vision: true, rl_requests: 0, rl_input: 0, rl_output: 0, kwargs: {}, browser_http_headers: {}, _kwargs_text: kwargsToText(p.chat?.kwargs), _browser_headers_text: Object.entries(p.chat?.browser_http_headers || {}).map(([k, v]) => k + '=' + v).join('\n'), ...(p.chat || {}) },
+      utility: { provider: '', name: '', api_key: '', api_base: '', ctx_length: 128000, ctx_input: 0.7, rl_requests: 0, rl_input: 0, rl_output: 0, kwargs: {}, _kwargs_text: kwargsToText(p.utility?.kwargs), ...(p.utility || {}) },
+    }));
+  },
+
   async ensureLoaded() {
     if (this._loaded) return;
     const data = await this._fetchConfigData();
@@ -121,11 +129,7 @@ export const store = createStore("modelConfig", {
         body: JSON.stringify({ action: 'get' })
       });
       const data = await res.json();
-      this.globalPresets = (data.presets || []).map(p => ({
-        name: p.name || '',
-        chat: { provider: '', name: '', api_key: '', api_base: '', ...(p.chat || {}) },
-        utility: { provider: '', name: '', api_key: '', api_base: '', ...(p.utility || {}) },
-      }));
+      this.globalPresets = this._normalizePresets(data.presets);
     } catch (e) {
       console.error('Failed to load global presets:', e);
       this.globalPresets = [];
@@ -134,11 +138,22 @@ export const store = createStore("modelConfig", {
   },
 
   async saveGlobalPresets(presets) {
+    // Strip UI-only fields before saving
+    const clean = presets.map(p => {
+      const c = { name: p.name };
+      for (const slot of ['chat', 'utility']) {
+        if (p[slot]) {
+          const { _kwargs_text, _browser_headers_text, ...rest } = p[slot];
+          c[slot] = rest;
+        }
+      }
+      return c;
+    });
     try {
       await fetchApi(`${API_BASE}/model_presets`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'save', presets })
+        body: JSON.stringify({ action: 'save', presets: clean })
       });
       this.globalPresets = presets;
       this.switcherPresets = presets.filter(p => p.name);
@@ -146,6 +161,22 @@ export const store = createStore("modelConfig", {
     } catch (e) {
       console.error('Failed to save global presets:', e);
       justToast('Failed to save presets');
+    }
+  },
+
+  async resetGlobalPresets() {
+    try {
+      const res = await fetchApi(`${API_BASE}/model_presets`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'reset' })
+      });
+      const data = await res.json();
+      this.globalPresets = this._normalizePresets(data.presets);
+      this.switcherPresets = this.globalPresets.filter(p => p.name);
+      this._presetsLoaded = true;
+    } catch (e) {
+      console.error('Failed to reset presets:', e);
     }
   },
 
@@ -318,7 +349,7 @@ export const store = createStore("modelConfig", {
 
   getSwitcherLabel() {
     const o = this.switcherOverride;
-    if (!o) return 'Default';
+    if (!o) return 'Default LLM';
     return o.preset_name || o.name || o.provider || 'Custom';
   },
 
