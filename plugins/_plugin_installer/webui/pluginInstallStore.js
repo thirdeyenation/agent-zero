@@ -7,6 +7,7 @@ import { showConfirmDialog } from "/js/confirmDialog.js";
 import { store as imageViewerStore } from "/components/modals/image-viewer/image-viewer-store.js";
 import { store as pluginListStore } from "/components/plugins/list/pluginListStore.js";
 import { store as pluginExecuteStore } from "/components/plugins/list/plugin-execute-store.js";
+import { store as pluginSettingsStore } from "/components/plugins/plugin-settings-store.js";
 
 const PLUGIN_API = "plugins/_plugin_installer/plugin_install";
 const PER_PAGE = 20;
@@ -590,7 +591,12 @@ const model = {
 
   async handleOpenConfig() {
     if (this.installedPluginInfo) {
-      await pluginListStore.openPluginConfig(this.installedPluginInfo);
+      try {
+        await pluginSettingsStore.openConfig(this.installedPluginInfo.name);
+      } catch (e) {
+        const message = e instanceof Error ? e.message : String(e);
+        void toastFrontendError(message, "Plugin Installer");
+      }
     }
   },
 
