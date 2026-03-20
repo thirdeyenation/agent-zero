@@ -142,7 +142,7 @@ class ApiMessage(ApiHandler):
             )
 
             # Send message to agent
-            task = context.communicate(UserMessage(message, attachment_paths))
+            task = context.communicate(UserMessage(message=message, attachments=attachment_paths))
             result = await task.result()
 
             # Clean up expired chats

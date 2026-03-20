@@ -186,7 +186,7 @@ def clear_plugin_cache():
 
     DeferredTask().start_task(
         send_data,
-        endpoint_name="/state_sync",
+        endpoint_name="/webui",
         event_name="clear_cache",
         data={"areas": areas},
     )

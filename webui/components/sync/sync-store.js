@@ -6,7 +6,7 @@ import { store as chatTopStore } from "/components/chat/top-section/chat-top-sto
 import { store as notificationStore } from "/components/notifications/notification-store.js";
 import * as Extensions from "/js/extensions.js"
 
-const stateSocket = getNamespacedClient("/state_sync");
+const stateSocket = getNamespacedClient("/webui");
 
 const SYNC_MODES = {
   DISCONNECTED: "DISCONNECTED",
@@ -317,7 +317,7 @@ const model = {
 
       // handle all requests with extensions
       await stateSocket.on("*", (eventType, envelope) => {
-        console.log(`[syncStore] *${eventType} received`);
+        // console.log(`[syncStore] *${eventType} received`);
         this.handleEvent(eventType, envelope)
       });
 
@@ -330,7 +330,7 @@ const model = {
   },
 
   async handleEvent(eventType, envelope){
-    await Extensions.callJsExtensions("ws_sync_push", eventType, envelope);
+    await Extensions.callJsExtensions("webui_ws_push", eventType, envelope);
   },
 
   async sendStateRequest(options = {}) {

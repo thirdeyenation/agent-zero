@@ -336,22 +336,6 @@ def configure_websocket_namespaces(
         async def _disconnect(sid, _namespace: str = namespace):  # type: ignore[override]
             await websocket_manager.handle_disconnect(_namespace, sid)
 
-        def _register_socketio_event(event_type: str) -> None:
-            @socketio_server.on(event_type, namespace=namespace)
-            async def _event_handler(
-                sid,
-                data,
-                _event_type: str = event_type,
-                _namespace: str = namespace,
-            ):
-                payload = data or {}
-                return await websocket_manager.route_event(
-                    _namespace, _event_type, payload, sid
-                )
-
-        for _event_type in websocket_manager.iter_event_types(namespace):
-            _register_socketio_event(_event_type)
-
         @socketio_server.on("*", namespace=namespace)
         async def _catch_all(event, sid, data, _namespace: str = namespace):
             payload = data or {}
