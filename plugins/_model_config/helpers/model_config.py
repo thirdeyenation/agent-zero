@@ -117,13 +117,6 @@ def get_embedding_model_config(agent=None) -> dict:
     cfg = get_config(agent)
     return cfg.get("embedding_model", {})
 
-
-def get_browser_http_headers(agent=None) -> dict:
-    """Get browser HTTP headers from config."""
-    cfg = get_config(agent)
-    return cfg.get("browser_http_headers", {})
-
-
 def is_chat_override_allowed(agent=None) -> bool:
     """Check if per-chat model override is enabled."""
     cfg = get_config(agent)

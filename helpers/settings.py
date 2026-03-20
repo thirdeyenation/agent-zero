@@ -262,7 +262,7 @@ def convert_out(settings: Settings) -> SettingsOutput:
     # normalize certain fields
     for key, value in list(out["settings"].items()):
         # convert kwargs dicts to .env format
-        if (key.endswith("_kwargs") or key=="browser_http_headers") and isinstance(value, dict):
+        if (key.endswith("_kwargs")) and isinstance(value, dict):
             out["settings"][key] = _dict_to_env(value)
     return out
 
@@ -281,8 +281,8 @@ def convert_in(settings: Settings) -> Settings:
     current = get_settings()
 
     for key, value in settings.items():
-        # Special handling for browser_http_headers and *_kwargs (stored as .env text)
-        if (key == "browser_http_headers" or key.endswith("_kwargs")) and isinstance(value, str):
+        # Special handling for *_kwargs (stored as .env text)
+        if (key.endswith("_kwargs")) and isinstance(value, str):
             current[key] = _env_to_dict(value)
             continue
 

@@ -267,10 +267,6 @@
                     Custom HTTP headers sent with browser requests. The browser agent uses the main model. Format is KEY=VALUE, one per line.
                   </div>
                 </div>
-                <div class="field-control">
-                  <textarea x-model="config._browser_headers_text"
-                            @change="config.browser_http_headers = $store.modelConfig.textToHeaders(config._browser_headers_text)"></textarea>
-                </div>
               </div>
             </template>
 

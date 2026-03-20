@@ -14,6 +14,7 @@ from typing import (
     TYPE_CHECKING,
     TypedDict,
 )
+from helpers.settings import get_default_value
 
 from regex import W
 
@@ -359,10 +360,20 @@ def delete_plugin(plugin_name: str):
     custom_plugins_dir = files.get_abs_path(files.USER_DIR, files.PLUGINS_DIR)
     if not files.is_in_dir(plugin_dir, custom_plugins_dir):
         raise ValueError("Only custom plugins can be deleted")
+
+    # delete additional plugin folders
+    assets = find_plugin_assets("",plugin_name=plugin_name)
+    for asset in assets:
+        files.delete_dir(asset["path"])
+
+
     send_frontend_reload_notification(
         [plugin_name]
     )  # send before deletion to properly check the extensions, second notification will be skipped automatically
+    
+    # delete main plugin folder
     files.delete_dir(plugin_dir)
+    
     after_plugin_change([plugin_name])
 
 
@@ -540,6 +551,8 @@ def get_plugin_config(
     agent_profile: str | None = None,
 ):
 
+    default_used = False
+
     if project_name is None and agent is not None:
         from helpers import projects
 
@@ -561,12 +574,16 @@ def get_plugin_config(
         file_path = files.get_abs_path(
             find_plugin_dir(plugin_name), CONFIG_DEFAULT_FILE_NAME
         )
+        default_used = True
 
     result = None
     if file_path and files.exists(file_path):
         result = (
             json.loads if file_path.lower().endswith(".json") else yaml_helper.loads
         )(files.read_file(file_path))
+
+        if default_used:
+            _apply_defaults_from_env(plugin_name, result)
 
     # call plugin hook to modify the standard result if needed
     result = call_plugin_hook(
@@ -838,6 +855,17 @@ def call_plugin_hook(
         return default
 
     if asyncio.iscoroutinefunction(hook):
-        return asyncio.run(hook(*args, **kwargs, default=default))
+        return asyncio.run(extract_tools.safe_call(hook, *args, default=default, **kwargs))
 
-    return hook(*args, **kwargs, default=default)
+    return extract_tools.safe_call(hook, *args, default=default, **kwargs)
+
+
+def _apply_defaults_from_env(plugin_name: str, config: dict[str, Any]):
+    def _apply(prefix: list[str], value: dict[str, Any]):
+        for key, child in value.items():
+            env_name = "__".join([plugin_name, *prefix, key])
+            value[key] = get_default_value(env_name, child)
+            if isinstance(value[key], dict):
+                _apply([*prefix, key], value[key])
+
+    _apply([], config)

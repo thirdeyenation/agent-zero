@@ -70,7 +70,7 @@ export const store = createStore("modelConfig", {
   _normalizePresets(rawPresets) {
     return (rawPresets || []).map(p => ({
       name: p.name || '',
-      chat: { provider: '', name: '', api_key: '', api_base: '', ctx_length: 128000, ctx_history: 0.7, vision: true, rl_requests: 0, rl_input: 0, rl_output: 0, kwargs: {}, browser_http_headers: {}, _kwargs_text: kwargsToText(p.chat?.kwargs), _browser_headers_text: Object.entries(p.chat?.browser_http_headers || {}).map(([k, v]) => k + '=' + v).join('\n'), ...(p.chat || {}) },
+      chat: { provider: '', name: '', api_key: '', api_base: '', ctx_length: 128000, ctx_history: 0.7, vision: true, rl_requests: 0, rl_input: 0, rl_output: 0, kwargs: {}, _kwargs_text: kwargsToText(p.chat?.kwargs), ...(p.chat || {}) },
       utility: { provider: '', name: '', api_key: '', api_base: '', ctx_length: 128000, ctx_input: 0.7, rl_requests: 0, rl_input: 0, rl_output: 0, kwargs: {}, _kwargs_text: kwargsToText(p.utility?.kwargs), ...(p.utility || {}) },
     }));
   },
@@ -117,7 +117,6 @@ export const store = createStore("modelConfig", {
     if (config?.chat_model) config.chat_model._kwargs_text = kwargsToText(config.chat_model.kwargs);
     if (config?.utility_model) config.utility_model._kwargs_text = kwargsToText(config.utility_model.kwargs);
     if (config?.embedding_model) config.embedding_model._kwargs_text = kwargsToText(config.embedding_model.kwargs);
-    if (config) config._browser_headers_text = Object.entries(config.browser_http_headers || {}).map(([k, v]) => k + '=' + v).join('\n');
   },
 
   // Global presets
@@ -143,7 +142,7 @@ export const store = createStore("modelConfig", {
       const c = { name: p.name };
       for (const slot of ['chat', 'utility']) {
         if (p[slot]) {
-          const { _kwargs_text, _browser_headers_text, ...rest } = p[slot];
+          const { _kwargs_text, ...rest } = p[slot];
           c[slot] = rest;
         }
       }

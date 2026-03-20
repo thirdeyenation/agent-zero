@@ -5,6 +5,8 @@ from .dirty_json import DirtyJson
 from .files import get_abs_path, deabsolute_path
 import regex
 from fnmatch import fnmatch
+import inspect
+
 
 def json_parse_dirty(json:str) -> dict[str,Any] | None:
     if not json or not isinstance(json, str):
@@ -118,3 +120,35 @@ def load_classes_from_file(file: str, base_class: type[T], one_per_file: bool = 
                 break
                 
     return classes
+
+def safe_call(func, *args, **kwargs):
+    sig = inspect.signature(func)
+
+    bound_args = []
+    bound_kwargs = {}
+
+    params = sig.parameters
+
+    # Check if function accepts *args / **kwargs
+    accepts_var_args = any(p.kind == p.VAR_POSITIONAL for p in params.values())
+    accepts_var_kwargs = any(p.kind == p.VAR_KEYWORD for p in params.values())
+
+    # Handle positional args
+    if accepts_var_args:
+        bound_args = args
+    else:
+        max_positional = sum(
+            1 for p in params.values()
+            if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)
+        )
+        bound_args = args[:max_positional]
+
+    # Handle kwargs
+    if accepts_var_kwargs:
+        bound_kwargs = kwargs
+    else:
+        bound_kwargs = {
+            k: v for k, v in kwargs.items() if k in params
+        }
+
+    return func(*bound_args, **bound_kwargs)

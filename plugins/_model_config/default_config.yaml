@@ -30,5 +30,3 @@ embedding_model:
   rl_requests: 0
   rl_input: 0
   kwargs: {}
-
-browser_http_headers: {}

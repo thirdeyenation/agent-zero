@@ -44,8 +44,8 @@ class State:
         )
 
     def _get_browser_http_headers(self):
-        from plugins._model_config.helpers.model_config import get_browser_http_headers
-        return get_browser_http_headers(self.agent) or {}
+        # ignored for now
+        return {}
 
     def _get_browser_vision(self):
         from plugins._model_config.helpers.model_config import get_chat_model_config

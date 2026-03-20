@@ -83,7 +83,6 @@ class MigrateModelConfig(Extension):
                 "rl_input": raw.get("embed_model_rl_input", 0),
                 "kwargs": raw.get("embed_model_kwargs", {}),
             },
-            "browser_http_headers": raw.get("browser_http_headers", {}),
         }
 
         # Ensure kwargs are dicts (might be strings from .env format)
@@ -91,9 +90,6 @@ class MigrateModelConfig(Extension):
             kw = plugin_config[section].get("kwargs")
             if isinstance(kw, str):
                 plugin_config[section]["kwargs"] = {}
-
-        if isinstance(plugin_config["browser_http_headers"], str):
-            plugin_config["browser_http_headers"] = {}
 
         # Save as global plugin config
         plugins.save_plugin_config("_model_config", "", "", plugin_config)

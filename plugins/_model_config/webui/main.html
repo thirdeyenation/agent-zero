@@ -188,10 +188,6 @@
                   <div class="field-title">Browser HTTP Headers</div>
                   <div class="field-description">Custom HTTP headers sent with browser requests. The browser agent uses the main model. Format is KEY=VALUE, one per line.</div>
                 </div>
-                <div class="field-control">
-                  <textarea x-model="preset.chat._browser_headers_text"
-                            @change="preset.chat.browser_http_headers = $store.modelConfig.textToHeaders(preset.chat._browser_headers_text)"></textarea>
-                </div>
               </div>
 
               <div class="preset-subheader">Utility Model <span style="opacity:0.5; font-size:0.75rem;">(optional &#x2014; falls back to the configured Utility Model)</span></div>
@@ -330,21 +326,21 @@
                   @click="
                     presets = [...presets, {
                       name: 'Preset ' + (presets.length + 1),
-                      chat: { provider: '', name: '', api_key: '', api_base: '', ctx_length: 128000, ctx_history: 0.7, vision: true, rl_requests: 0, rl_input: 0, rl_output: 0, kwargs: {}, browser_http_headers: {}, _kwargs_text: '', _browser_headers_text: '' },
+                      chat: { provider: '', name: '', api_key: '', api_base: '', ctx_length: 128000, ctx_history: 0.7, vision: true, rl_requests: 0, rl_input: 0, rl_output: 0, kwargs: {}, _kwargs_text: '' },
                       utility: { provider: '', name: '', api_key: '', api_base: '', ctx_length: 128000, ctx_input: 0.7, rl_requests: 0, rl_input: 0, rl_output: 0, kwargs: {}, _kwargs_text: '' }
                     }]">
-            <span class="material-symbols-outlined" style="font-size:16px;">add</span>
+            <span class="material-symbols-outlined">add</span>
             <span>Add Preset</span>
           </button>
           <button class="text-button" @click="(async () => {
             await import('/components/plugins/plugin-settings-store.js');
             await $store.pluginSettingsPrototype.openConfig('_model_config');
           })()">
-            <span class="material-symbols-outlined" style="font-size:15px;">settings</span>
+            <span class="material-symbols-outlined">settings</span>
             <span>Settings</span>
           </button>
           <button class="text-button" @click="openModal('/plugins/_model_config/webui/api-keys.html')">
-            <span class="material-symbols-outlined" style="font-size:15px;">key</span>
+            <span class="material-symbols-outlined">key</span>
             <span>API Keys</span>
           </button>
         </div>
