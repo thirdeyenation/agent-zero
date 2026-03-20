@@ -14,7 +14,6 @@ from typing import (
     TYPE_CHECKING,
     TypedDict,
 )
-from helpers.settings import get_default_value
 
 from regex import W
 
@@ -133,17 +132,17 @@ def register_watchdogs():
     relevant_patterns = ["**/extensions/**/*", TOGGLE_FILE_PATTERN, HOOKS_SCRIPT]
 
     # combine relevant patterns with base path
-    def expand_patterns(base_path:str):
+    def expand_patterns(base_path: str):
         result = []
         for pattern in relevant_patterns:
-            result.append(base_path+pattern)
+            result.append(base_path + pattern)
         return result
 
     # add watchdogs for plugin roots
     watchdog.add_watchdog(
         id="plugins_roots",
         roots=get_plugin_roots(),
-        patterns = [*expand_patterns("*/")],
+        patterns=[*expand_patterns("*/")],
         handler=on_plugin_change,
     )
 
@@ -180,9 +179,17 @@ def after_plugin_change(plugin_names: list[str] | None = None):
 
 
 def clear_plugin_cache():
-    cache.clear("*(plugins)*")
-    cache.clear("*(extensions)*")
-    cache.clear("*(api)*")
+    areas = ["*(plugins)*", "*(extensions)*", "*(api)*"]
+    for area in areas:
+        cache.clear(area)
+    from helpers.websocket_manager import send_data
+
+    DeferredTask().start_task(
+        send_data,
+        endpoint_name="/state_sync",
+        event_name="clear_cache",
+        data={"areas": areas},
+    )
 
 
 def get_plugin_roots(plugin_name: str = "") -> List[str]:
@@ -362,18 +369,17 @@ def delete_plugin(plugin_name: str):
         raise ValueError("Only custom plugins can be deleted")
 
     # delete additional plugin folders
-    assets = find_plugin_assets("",plugin_name=plugin_name)
+    assets = find_plugin_assets("", plugin_name=plugin_name)
     for asset in assets:
         files.delete_dir(asset["path"])
-
 
     send_frontend_reload_notification(
         [plugin_name]
     )  # send before deletion to properly check the extensions, second notification will be skipped automatically
-    
+
     # delete main plugin folder
     files.delete_dir(plugin_dir)
-    
+
     after_plugin_change([plugin_name])
 
 
@@ -855,12 +861,16 @@ def call_plugin_hook(
         return default
 
     if asyncio.iscoroutinefunction(hook):
-        return asyncio.run(extract_tools.safe_call(hook, *args, default=default, **kwargs))
+        return asyncio.run(
+            extract_tools.safe_call(hook, *args, default=default, **kwargs)
+        )
 
     return extract_tools.safe_call(hook, *args, default=default, **kwargs)
 
 
 def _apply_defaults_from_env(plugin_name: str, config: dict[str, Any]):
+    from helpers.settings import get_default_value
+
     def _apply(prefix: list[str], value: dict[str, Any]):
         for key, child in value.items():
             env_name = "__".join([plugin_name, *prefix, key])

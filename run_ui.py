@@ -24,7 +24,7 @@ from socketio import ASGIApp, packet
 from starlette.applications import Starlette
 from starlette.routing import Mount
 from uvicorn.middleware.wsgi import WSGIMiddleware
-from helpers.websocket_manager import WebSocketManager
+from helpers.websocket_manager import WebSocketManager, set_shared_websocket_manager
 from helpers.websocket_namespace_discovery import discover_websocket_namespaces
 from flask import send_file
 
@@ -74,6 +74,7 @@ socketio_server = socketio.AsyncServer(
 )
 
 websocket_manager = WebSocketManager(socketio_server, lock)
+set_shared_websocket_manager(websocket_manager)
 _settings = settings_helper.get_settings()
 settings_helper.set_runtime_settings_snapshot(_settings)
 websocket_manager.set_server_restart_broadcast(

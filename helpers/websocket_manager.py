@@ -19,10 +19,34 @@ from helpers.state_monitor import _ws_debug_enabled
 
 BUFFER_MAX_SIZE = 100
 BUFFER_TTL = timedelta(hours=1)
+_shared_websocket_manager: WebSocketManager | None = None
 
 
 def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def set_shared_websocket_manager(manager: "WebSocketManager") -> None:
+    global _shared_websocket_manager
+    _shared_websocket_manager = manager
+
+
+def get_shared_websocket_manager() -> "WebSocketManager":
+    manager = _shared_websocket_manager
+    if manager is None:
+        raise RuntimeError("Shared WebSocketManager has not been initialized")
+    return manager
+
+
+async def send_data(
+    endpoint_name: str,
+    event_name: str,
+    data: dict[str, Any],
+    connection_id: str | None = None,
+) -> None:
+    manager = get_shared_websocket_manager()
+    print(f"Sending data to {endpoint_name}/{event_name} with data {data}")
+    await manager.send_data(endpoint_name, event_name, data, connection_id)
 
 
 @dataclass
@@ -978,6 +1002,18 @@ class WebSocketManager:
                     "payloadSummary": self._summarize_payload(data),
                 }
             )
+
+    async def send_data(
+        self,
+        endpoint_name: str,
+        event_name: str,
+        data: dict[str, Any],
+        connection_id: str | None = None,
+    ) -> None:
+        if connection_id is not None:
+            await self.emit_to(endpoint_name, connection_id, event_name, data)
+            return
+        await self.broadcast(endpoint_name, event_name, data)
 
     async def broadcast(
         self,
