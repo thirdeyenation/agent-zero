@@ -133,10 +133,10 @@ def read_prompt_file(
 
     # Find the file in the directories
     absolute_path = find_file_in_dirs(_file, _directories)
+    source_dir = os.path.dirname(absolute_path)
 
     # Read the file content
     with open(absolute_path, "r", encoding=_encoding) as f:
-        # content = remove_code_fences(f.read())
         content = f.read()
 
     variables = load_plugin_variables(_file, _directories, **kwargs) or {}  # type: ignore
@@ -148,11 +148,13 @@ def read_prompt_file(
     # Replace placeholders with values from kwargs
     content = replace_placeholders_text(content, **variables)
 
-    # Process include statements
+    # Process include statements (with source tracking for {{include original}})
     content = process_includes(
         # here we use kwargs, the plugin variables are not inherited
         content,
         _directories,
+        _source_file=_file,
+        _source_dir=source_dir,
         **kwargs,
     )
 
@@ -326,24 +328,56 @@ def replace_placeholders_dict(_content: dict, **kwargs):
     return replace_value(_content)
 
 
-def process_includes(_content: str, _directories: list[str], **kwargs):
-    # Regex to find {{ include 'path' }} or {{include'path'}}
+def process_includes(
+    _content: str,
+    _directories: list[str],
+    _source_file: str = "",
+    _source_dir: str = "",
+    **kwargs,
+):
+    # {{include original}} — include same file from lower-priority directory
+    original_pattern = re.compile(r"{{\s*include\s+original\s*}}")
+
+    def replace_original(match):
+        if not _source_file or not _source_dir:
+            return match.group(0)
+        remaining_dirs = _get_dirs_after(_directories, _source_dir)
+        if not remaining_dirs:
+            return ""
+        try:
+            return read_prompt_file(_source_file, remaining_dirs, **kwargs)
+        except FileNotFoundError:
+            return ""
+
+    _content = re.sub(original_pattern, replace_original, _content)
+
+    # {{ include 'path' }} — include a named file
     include_pattern = re.compile(r"{{\s*include\s*['\"](.*?)['\"]\s*}}")
 
     def replace_include(match):
         include_path = match.group(1)
-        # if the path is absolute, do not process it
         if os.path.isabs(include_path):
             return match.group(0)
-        # Search for the include file in the directories
         try:
-            included_content = read_prompt_file(include_path, _directories, **kwargs)
-            return included_content
+            return read_prompt_file(include_path, _directories, **kwargs)
         except FileNotFoundError:
-            return match.group(0)  # Return original if file not found
+            return match.group(0)
 
-    # Replace all includes with the file content
     return re.sub(include_pattern, replace_include, _content)
+
+
+def _get_dirs_after(_directories: list[str], _source_dir: str) -> list[str]:
+    """Return directories after _source_dir in the priority list."""
+    source_abs = os.path.normpath(os.path.abspath(_source_dir))
+    found = False
+    result: list[str] = []
+    for d in _directories:
+        d_abs = os.path.normpath(os.path.abspath(get_abs_path(d)))
+        if found:
+            result.append(d)
+        elif d_abs == source_abs:
+            found = True
+    return result
 
 
 def find_file_in_dirs(_filename: str, _directories: list[str]):
