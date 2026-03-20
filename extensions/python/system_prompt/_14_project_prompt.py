@@ -1,6 +1,6 @@
 from typing import Any
 
-from helpers.extension import Extension, call_extensions_async
+from helpers.extension import Extension, extensible
 from helpers import projects
 from agent import Agent, LoopData
 
@@ -20,6 +20,7 @@ class ProjectPrompt(Extension):
             system_prompt.append(prompt)
 
 
+@extensible
 async def build_prompt(agent: Agent) -> str:
     result = agent.read_prompt("agent.system.projects.main.md")
     project_name = agent.context.get_data(projects.CONTEXT_DATA_KEY_PROJECT)
@@ -30,7 +31,4 @@ async def build_prompt(agent: Agent) -> str:
         )
     else:
         result += "\n\n" + agent.read_prompt("agent.system.projects.inactive.md")
-
-    data: dict[str, Any] = {"prompt": result}
-    await call_extensions_async("system_prompt_project", agent=agent, data=data)
-    return data["prompt"]
+    return result

@@ -1,6 +1,6 @@
 from typing import Any
 
-from helpers.extension import Extension, call_extensions_async
+from helpers.extension import Extension, extensible
 from agent import Agent, LoopData
 
 
@@ -19,6 +19,7 @@ class SecretsPrompt(Extension):
             system_prompt.append(prompt)
 
 
+@extensible
 async def build_prompt(agent: Agent) -> str:
     try:
         from helpers.secrets import get_secrets_manager
@@ -27,12 +28,8 @@ async def build_prompt(agent: Agent) -> str:
         secrets_manager = get_secrets_manager(agent.context)
         secrets = secrets_manager.get_secrets_for_prompt()
         variables = get_settings()["variables"]
-        prompt = agent.read_prompt(
+        return agent.read_prompt(
             "agent.system.secrets.md", secrets=secrets, vars=variables
         )
-
-        data: dict[str, Any] = {"prompt": prompt}
-        await call_extensions_async("system_prompt_secrets", agent=agent, data=data)
-        return data["prompt"]
     except Exception:
         return ""

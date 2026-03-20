@@ -1,6 +1,6 @@
 from typing import Any
 
-from helpers.extension import Extension, call_extensions_async
+from helpers.extension import Extension, extensible
 from helpers import skills as skills_helper
 from agent import Agent, LoopData
 
@@ -20,6 +20,7 @@ class SkillsPrompt(Extension):
             system_prompt.append(prompt)
 
 
+@extensible
 async def build_prompt(agent: Agent) -> str:
     available = skills_helper.list_skills(agent=agent)
     result: list[str] = []
@@ -31,8 +32,4 @@ async def build_prompt(agent: Agent) -> str:
     if not result:
         return ""
 
-    prompt = agent.read_prompt("agent.system.skills.md", skills="\n".join(result))
-
-    data: dict[str, Any] = {"prompt": prompt}
-    await call_extensions_async("system_prompt_skills", agent=agent, data=data)
-    return data["prompt"]
+    return agent.read_prompt("agent.system.skills.md", skills="\n".join(result))

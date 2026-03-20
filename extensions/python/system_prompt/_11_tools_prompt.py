@@ -1,7 +1,7 @@
 import os
 from typing import Any
 
-from helpers.extension import Extension, call_extensions_async
+from helpers.extension import Extension, extensible
 from helpers import files, subagents
 from helpers.print_style import PrintStyle
 from agent import Agent, LoopData
@@ -24,6 +24,7 @@ class ToolsPrompt(Extension):
         system_prompt.append(prompt)
 
 
+@extensible
 async def build_prompt(agent: Agent) -> str:
     # collect tool files from all prompt directories
     prompt_dirs = subagents.get_paths(agent, "prompts")
@@ -54,6 +55,4 @@ async def build_prompt(agent: Agent) -> str:
     if chat_cfg.get("vision", False):
         prompt += "\n\n" + agent.read_prompt("agent.system.tools_vision.md")
 
-    data: dict[str, Any] = {"prompt": prompt}
-    await call_extensions_async("system_prompt_tools", agent=agent, data=data)
-    return data["prompt"]
+    return prompt

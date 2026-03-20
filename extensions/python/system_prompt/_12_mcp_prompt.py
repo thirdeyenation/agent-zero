@@ -1,6 +1,6 @@
 from typing import Any
 
-from helpers.extension import Extension, call_extensions_async
+from helpers.extension import Extension, extensible
 from helpers.mcp_handler import MCPConfig
 from agent import Agent, LoopData
 
@@ -20,6 +20,7 @@ class MCPToolsPrompt(Extension):
             system_prompt.append(prompt)
 
 
+@extensible
 async def build_prompt(agent: Agent) -> str:
     mcp_config = MCPConfig.get_instance()
     if not mcp_config.servers:
@@ -29,7 +30,4 @@ async def build_prompt(agent: Agent) -> str:
     agent.context.log.set_progress("Collecting MCP tools")
     tools = mcp_config.get_tools_prompt()
     agent.context.log.set_progress(pre_progress)
-
-    data: dict[str, Any] = {"prompt": tools}
-    await call_extensions_async("system_prompt_mcp", agent=agent, data=data)
-    return data["prompt"]
+    return tools
