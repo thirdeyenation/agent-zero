@@ -1,0 +1,311 @@
+<html>
+<head>
+  <title>Telegram Integration</title>
+  <script type="module">
+    import { store } from "/plugins/_telegram_integration/webui/telegram-config-store.js";
+  </script>
+</head>
+
+<body>
+  <div x-data x-init="$store.telegramConfig.init()">
+    <template x-if="config">
+      <div class="tg-page">
+        <div class="section-title">Telegram Integration</div>
+        <div class="section-description">
+          Configure Telegram bots to communicate with Agent Zero via Telegram.
+          Each bot connects to a Telegram Bot API token and handles messages from allowed users.
+        </div>
+
+        <!-- Bot cards -->
+        <template x-for="(bot, idx) in (config.bots || [])" :key="idx">
+          <div class="bot-card">
+            <div class="bot-card-header" @click="$store.telegramConfig.toggle(idx)">
+              <span class="material-symbols-outlined bot-expand-icon"
+                    :class="{ 'expanded': $store.telegramConfig.expandedIdx === idx }">chevron_right</span>
+              <span class="bot-card-name" x-text="bot.name || '(unnamed)'"></span>
+              <span class="bot-card-summary" x-show="$store.telegramConfig.expandedIdx !== idx"
+                    x-text="bot.enabled ? 'Enabled' : 'Disabled'"></span>
+              <button class="text-button bot-delete-btn"
+                      @click.stop="$confirmClick($event, () => $store.telegramConfig.removeBot(config, idx))"
+                      title="Remove bot">
+                <span class="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            <div class="bot-card-body" x-show="$store.telegramConfig.expandedIdx === idx" x-transition.opacity>
+
+              <div class="field">
+                <div class="field-label">
+                  <div class="field-title">Enabled</div>
+                  <div class="field-description">Enable or disable this Telegram bot</div>
+                </div>
+                <div class="field-control">
+                  <label class="toggle">
+                    <input type="checkbox" x-model="bot.enabled" />
+                    <span class="toggler"></span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="field">
+                <div class="field-label">
+                  <div class="field-title">Bot Name</div>
+                  <div class="field-description">Unique identifier for this bot configuration</div>
+                </div>
+                <div class="field-control">
+                  <input type="text" x-model="bot.name" placeholder="e.g. my_bot" />
+                </div>
+              </div>
+
+              <div class="field">
+                <div class="field-label">
+                  <div class="field-title">Bot Token</div>
+                  <div class="field-description">Token from @BotFather on Telegram</div>
+                </div>
+                <div class="field-control">
+                  <input type="password" x-model="bot.token" placeholder="123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11" />
+                </div>
+              </div>
+
+              <div class="field">
+                <div class="field-label">
+                  <div class="field-title">Mode</div>
+                  <div class="field-description">Polling: no public IP needed. Webhook: requires HTTPS endpoint</div>
+                </div>
+                <div class="field-control">
+                  <select x-model="bot.mode">
+                    <option value="polling">Polling</option>
+                    <option value="webhook">Webhook</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="field" x-show="bot.mode === 'webhook'">
+                <div class="field-label">
+                  <div class="field-title">Webhook URL</div>
+                  <div class="field-description">Public HTTPS URL for Telegram to send updates to</div>
+                </div>
+                <div class="field-control">
+                  <input type="text" x-model="bot.webhook_url" placeholder="https://yourdomain.com/telegram/my_bot" />
+                </div>
+              </div>
+
+              <div class="field" x-show="bot.mode === 'webhook'">
+                <div class="field-label">
+                  <div class="field-title">Webhook Secret</div>
+                  <div class="field-description">Optional shared secret for webhook verification</div>
+                </div>
+                <div class="field-control">
+                  <input type="password" x-model="bot.webhook_secret" />
+                </div>
+              </div>
+
+              <div class="field">
+                <div class="field-label">
+                  <div class="field-title">Allowed Users</div>
+                  <div class="field-description">Comma-separated Telegram user IDs or @usernames. Empty = allow all</div>
+                </div>
+                <div class="field-control">
+                  <input type="text"
+                         :value="$store.telegramConfig.whitelistText(bot)"
+                         @input="$store.telegramConfig.setWhitelist(bot, $event.target.value)"
+                         placeholder="123456789, @username" />
+                </div>
+              </div>
+
+              <div class="field">
+                <div class="field-label">
+                  <div class="field-title">Group Mode</div>
+                  <div class="field-description">How the bot responds in group chats</div>
+                </div>
+                <div class="field-control">
+                  <select x-model="bot.group_mode">
+                    <option value="mention">Respond when @mentioned or replied to</option>
+                    <option value="all">Respond to every message</option>
+                    <option value="off">Ignore group messages</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="field">
+                <div class="field-label">
+                  <div class="field-title">User → Project Mapping</div>
+                  <div class="field-description">Map user IDs to projects. Format: user_id=project_name, comma-separated</div>
+                </div>
+                <div class="field-control">
+                  <input type="text"
+                         :value="$store.telegramConfig.userProjectsText(bot)"
+                         @input="$store.telegramConfig.setUserProjects(bot, $event.target.value)"
+                         placeholder="123456=my_project, 789012=other_project" />
+                </div>
+              </div>
+
+              <div class="field">
+                <div class="field-label">
+                  <div class="field-title">Default Project</div>
+                  <div class="field-description">Fallback project if user not in the mapping above</div>
+                </div>
+                <div class="field-control">
+                  <select x-model="bot.default_project">
+                    <option value="">No project</option>
+                    <template x-for="proj in $store.telegramConfig.projects" :key="proj.name">
+                      <option :value="proj.name" x-text="proj.title || proj.name"></option>
+                    </template>
+                  </select>
+                </div>
+              </div>
+
+              <div class="field">
+                <div class="field-label">
+                  <div class="field-title">Attachment Max Age</div>
+                  <div class="field-description">Auto-delete downloaded attachments older than this many hours. 0 = keep forever</div>
+                </div>
+                <div class="field-control">
+                  <input type="number" x-model.number="bot.attachment_max_age_hours" min="0" step="1" placeholder="0" />
+                </div>
+              </div>
+
+              <div class="field">
+                <div class="field-label">
+                  <div class="field-title">Agent Instructions</div>
+                  <div class="field-description">Extra instructions for the agent in Telegram chats</div>
+                </div>
+                <div class="field-control">
+                  <textarea x-model="bot.agent_instructions" rows="3" placeholder="e.g. Always respond concisely for mobile..."></textarea>
+                </div>
+              </div>
+
+              <!-- Test connection + results -->
+              <div class="bot-test-row">
+                <button class="btn btn-field"
+                        @click.stop="$store.telegramConfig.testConnection(config, idx)"
+                        :disabled="$store.telegramConfig.testing === idx">
+                  <span x-show="$store.telegramConfig.testing !== idx">Test Connection</span>
+                  <span x-show="$store.telegramConfig.testing === idx">Testing...</span>
+                </button>
+                <template x-if="$store.telegramConfig.testResults && $store.telegramConfig.expandedIdx === idx">
+                  <div class="bot-test-results">
+                    <template x-for="r in $store.telegramConfig.testResults.results" :key="r.test">
+                      <div class="bot-test-result-row">
+                        <span class="bot-test-icon"
+                              x-text="r.ok ? '✓' : '✗'"
+                              :class="r.ok ? 'ok' : 'fail'"></span>
+                        <span class="bot-test-label" x-text="r.test"></span>
+                        <span class="bot-test-msg" x-text="r.message"></span>
+                      </div>
+                    </template>
+                  </div>
+                </template>
+              </div>
+
+            </div>
+          </div>
+        </template>
+
+        <button class="text-button bot-add-btn" @click="$store.telegramConfig.addBot(config)">
+          <span class="material-symbols-outlined">add</span>
+          <span>Add Bot</span>
+        </button>
+      </div>
+    </template>
+  </div>
+
+  <style>
+  .tg-page {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .bot-card {
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .bot-card-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+    cursor: pointer;
+    font-size: 0.85rem;
+  }
+  .bot-card-header:hover {
+    background: var(--color-background-hover, rgba(255,255,255,0.04));
+  }
+  .bot-expand-icon {
+    font-size: 16px;
+    transition: transform 0.15s ease;
+  }
+  .bot-expand-icon.expanded {
+    transform: rotate(90deg);
+  }
+  .bot-card-name {
+    font-weight: 500;
+  }
+  .bot-card-summary {
+    flex: 1;
+    text-align: right;
+    opacity: 0.5;
+    font-size: 0.75rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .bot-delete-btn {
+    margin-left: auto;
+    opacity: 0.5;
+    padding: 2px !important;
+  }
+  .bot-delete-btn:hover {
+    opacity: 1;
+    color: var(--color-error, #f44) !important;
+  }
+  .bot-delete-btn .material-symbols-outlined {
+    font-size: 16px;
+  }
+  .bot-card-body {
+    padding: 4px 12px 12px;
+    border-top: 1px solid var(--color-border);
+  }
+  .bot-add-btn {
+    margin-top: 4px;
+  }
+  .bot-test-row {
+    margin-top: 12px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .bot-test-results {
+    padding: 4px 0;
+    font-size: 0.85rem;
+    flex: 1;
+    min-width: 200px;
+  }
+  .bot-test-result-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+  }
+  .bot-test-icon {
+    font-weight: bold;
+  }
+  .bot-test-icon.ok {
+    color: #4caf50;
+  }
+  .bot-test-icon.fail {
+    color: #f44336;
+  }
+  .bot-test-label {
+    font-weight: 500;
+    min-width: 80px;
+  }
+  .bot-test-msg {
+    opacity: 0.8;
+  }
+  </style>
+</body>
+
+</html>
