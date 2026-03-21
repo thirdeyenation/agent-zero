@@ -47,7 +47,7 @@ def create_bot(
     on_callback_query: Callable[..., Awaitable] | None = None,
     group_mode: str = "mention",
 ) -> BotInstance:
-    bot = Bot(token=token, default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN))
+    bot = Bot(token=token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     dp = Dispatcher()
     router = Router()
 

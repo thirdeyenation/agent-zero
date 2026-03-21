@@ -4,10 +4,13 @@ import threading
 import time
 import uuid
 
+from aiogram import Bot
+from aiogram.client.default import DefaultBotProperties
+from aiogram.enums import ParseMode
 from aiogram.types import Message as TgMessage, CallbackQuery
 
 from agent import AgentContext, UserMessage
-from helpers import plugins, files
+from helpers import plugins, files, projects
 from helpers import message_queue as mq
 from helpers.notification import NotificationManager, NotificationType, NotificationPriority
 from helpers.persist_chat import save_tmp_chat
@@ -28,6 +31,7 @@ CTX_TG_BOT = "telegram_bot"
 CTX_TG_CHAT_ID = "telegram_chat_id"
 CTX_TG_USER_ID = "telegram_user_id"
 CTX_TG_USERNAME = "telegram_username"
+CTX_TG_TYPING_STOP = "_telegram_typing_stop"
 
 # Transient
 CTX_TG_ATTACHMENTS = "_telegram_response_attachments"
@@ -122,17 +126,19 @@ async def handle_start(message: TgMessage, bot_name: str, bot_cfg: dict):
         return
 
     if not _is_allowed(bot_cfg, user.id, user.username):
-        await message.reply("⛔ You are not authorized to use this bot.")
+        await message.reply("You are not authorized to use this bot.")
         return
 
     instance = get_bot(bot_name)
     if not instance:
         return
 
-    await message.reply(
-        f"👋 Hello {user.first_name}! I'm connected to Agent Zero.\n\n"
+    await _send_with_temp_bot(
+        instance.bot.token, message.chat.id,
+        f"\U0001f44b Hello {user.first_name}! I'm connected to Agent Zero.\n\n"
         "Send me a message and I'll process it.\n"
-        "Use /clear to reset the conversation."
+        "Use /clear to reset the conversation.",
+        parse_mode=None,
     )
 
     # Ensure a chat context exists
@@ -161,9 +167,9 @@ async def handle_clear(message: TgMessage, bot_name: str, bot_cfg: dict):
 
     instance = get_bot(bot_name)
     if instance:
-        await tc.send_text(
-            instance.bot, message.chat.id,
-            "🗑 Chat cleared. Send a new message to start fresh.",
+        await _send_with_temp_bot(
+            instance.bot.token, message.chat.id,
+            "Chat cleared. Send a new message to start fresh.",
             parse_mode=None,
         )
 
@@ -192,22 +198,35 @@ async def handle_message(message: TgMessage, bot_name: str, bot_cfg: dict):
     if not instance:
         return
 
-    # Send typing indicator
-    await tc.send_typing(instance.bot, message.chat.id)
+    # Start persistent typing indicator (thread-based, works across event loops)
+    typing_stop = _start_typing(instance.bot.token, message.chat.id)
 
     # Get or create agent context
     context = await _get_or_create_context(bot_name, bot_cfg, message)
     if not context:
-        await tc.send_text(
-            instance.bot, message.chat.id,
-            "❌ Failed to create chat session.",
+        typing_stop.set()
+        await _send_with_temp_bot(
+            instance.bot.token, message.chat.id,
+            "Failed to create chat session.",
             parse_mode=None,
         )
         return
 
+    # Store stop event so send_telegram_reply can cancel typing
+    context.data[CTX_TG_TYPING_STOP] = typing_stop
+
     # Build user message text
     text = _extract_message_content(message)
-    attachments = await _download_attachments(instance.bot, message, bot_name=bot_name)
+
+    # Use temp bot for downloads (cross-event-loop safe)
+    dl_bot = Bot(token=instance.bot.token)
+    try:
+        attachments = await _download_attachments(dl_bot, message, bot_name=bot_name)
+    finally:
+        try:
+            await dl_bot.session.close()
+        except Exception:
+            pass
 
     # Build user message with prompt
     agent = context.agent0
@@ -332,7 +351,6 @@ async def _get_or_create_context_from_user(
 
             project = _get_project(bot_cfg, user_id)
             if project:
-                from helpers import projects
                 projects.activate_project(ctx.id, project)
 
             chats[key] = ctx.id
@@ -445,10 +463,6 @@ async def send_telegram_reply(
     keyboard: list[list[dict]] | None = None,
 ) -> str | None:
     """Send reply to Telegram user. Returns error string or None on success."""
-    from aiogram import Bot
-    from aiogram.client.default import DefaultBotProperties
-    from aiogram.enums import ParseMode
-
     bot_name = context.data.get(CTX_TG_BOT)
     if not bot_name:
         return "No Telegram bot configured on context"
@@ -461,11 +475,14 @@ async def send_telegram_reply(
     if not chat_id:
         return "No chat_id on context"
 
-    # Create a temporary Bot bound to the current event loop to avoid
-    # cross-event-loop issues with the shared instance's aiohttp session.
+    # Cancel persistent typing indicator
+    typing_stop = context.data.pop(CTX_TG_TYPING_STOP, None)
+    if typing_stop:
+        typing_stop.set()
+
     reply_bot = Bot(
         token=instance.bot.token,
-        default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN),
+        default=DefaultBotProperties(parse_mode=ParseMode.HTML),
     )
     try:
         # Send attachments first
@@ -476,14 +493,15 @@ async def send_telegram_reply(
                 else:
                     await tc.send_file(reply_bot, chat_id, path)
 
-        # Send text (with or without keyboard)
+        # Send text (with or without keyboard), convert Markdown → HTML
         if response_text:
+            html_text = tc.md_to_telegram_html(response_text)
             if keyboard:
                 await tc.send_text_with_keyboard(
-                    reply_bot, chat_id, response_text, keyboard,
+                    reply_bot, chat_id, html_text, keyboard,
                 )
             else:
-                await tc.send_text(reply_bot, chat_id, response_text)
+                await tc.send_text(reply_bot, chat_id, html_text)
 
         return None
 
@@ -498,6 +516,50 @@ async def send_telegram_reply(
             pass
 
 # Helpers
+
+async def _send_with_temp_bot(token: str, chat_id: int, text: str, parse_mode: str | None = None):
+    """Send text using a temporary Bot to avoid cross-event-loop session issues."""
+    bot = Bot(token=token)
+    try:
+        await tc.send_text(bot, chat_id, text, parse_mode=parse_mode)
+    finally:
+        try:
+            await bot.session.close()
+        except Exception:
+            pass
+
+
+def _start_typing(token: str, chat_id: int) -> threading.Event:
+    """Spawn a daemon thread that sends typing every 4s. Returns a stop Event."""
+    stop = threading.Event()
+
+    def _run():
+        import asyncio
+
+        async def _loop():
+            bot = Bot(token=token)
+            try:
+                while not stop.is_set():
+                    await tc.send_typing(bot, chat_id)
+                    # Sleep 4s total, checking stop every 0.5s
+                    for _ in range(8):
+                        if stop.is_set():
+                            return
+                        await asyncio.sleep(0.5)
+            except Exception:
+                pass
+            finally:
+                try:
+                    await bot.session.close()
+                except Exception:
+                    pass
+
+        asyncio.run(_loop())
+
+    t = threading.Thread(target=_run, daemon=True)
+    t.start()
+    return stop
+
 
 def _format_user(user) -> str:
     name = user.first_name or ""

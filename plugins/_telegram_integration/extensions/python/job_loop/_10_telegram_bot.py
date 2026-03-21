@@ -52,10 +52,13 @@ class TelegramBotManager(Extension):
                 continue
             if name in running:
                 inst = running[name]
-                # Already running: polling (task alive) or webhook (active)
-                if (inst.task and not inst.task.done()) or inst.webhook_active:
-                    continue
-                # Instance exists but is dead — stop and recreate
+                current_mode = bot_cfg.get("mode", "polling")
+                running_mode = "webhook" if inst.webhook_active else "polling"
+                if current_mode == running_mode:
+                    # Same mode and still alive → skip
+                    if (inst.task and not inst.task.done()) or inst.webhook_active:
+                        continue
+                # Mode changed or instance died — stop and recreate
                 await stop_bot(name)
 
             try:
