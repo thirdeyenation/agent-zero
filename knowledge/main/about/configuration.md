@@ -2,16 +2,15 @@
 
 ## LLM Roles
 
-Agent Zero uses four distinct LLM roles, each configurable independently:
+Agent Zero uses three configurable LLM roles:
 
 | Role | Purpose |
 |------|---------|
-| `chat_llm` | Primary model for all agent reasoning and tool use |
+| `chat_llm` | Primary model for all agent reasoning, tool use, and the Browser Agent |
 | `utility_llm` | Secondary model for internal framework tasks: memory summarization, query generation, history compression, memory recall filtering |
-| `browser_llm` | Model used by the browser agent; vision capability recommended |
 | `embedding_llm` | Produces vector embeddings for memory and knowledge indexing |
 
-The utility model handles high-volume, lower-stakes operations and can be a cheaper/faster model than the chat model. Changing the embedding model invalidates the existing vector index - the entire knowledge base is re-indexed automatically.
+The utility model handles high-volume, lower-stakes operations and can be a cheaper/faster model than the chat model. The Browser Agent uses the effective chat model resolved by `_model_config`, including per-chat overrides and the chat model vision flag. Changing the embedding model invalidates the existing vector index - the entire knowledge base is re-indexed automatically.
 
 ## Model Providers
 

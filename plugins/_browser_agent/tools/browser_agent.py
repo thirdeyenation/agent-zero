@@ -6,14 +6,17 @@ from pathlib import Path
 
 from helpers.tool import Tool, Response
 from helpers import files, defer, persist_chat, strings
-from helpers.browser_use import browser_use  # type: ignore[attr-defined]
+from plugins._browser_agent.helpers.browser_use import browser_use  # type: ignore[attr-defined]
 from helpers.print_style import PrintStyle
-from helpers.playwright import ensure_playwright_binary
+from plugins._browser_agent.helpers.playwright import ensure_playwright_binary
 from helpers.secrets import get_secrets_manager
 from extensions.python.message_loop_start._10_iteration_no import get_iter_no
 from pydantic import BaseModel
 import uuid
 from helpers.dirty_json import DirtyJson
+
+
+PLUGIN_DIR = Path(__file__).resolve().parents[1]
 
 
 class State:
@@ -105,7 +108,7 @@ class State:
         
         # Add init script to the browser session
         if self.browser_session and self.browser_session.browser_context:
-            js_override = files.get_abs_path("lib/browser/init_override.js")
+            js_override = str(PLUGIN_DIR / "assets" / "init_override.js")
             await self.browser_session.browser_context.add_init_script(path=js_override) if self.browser_session else None
 
     def start_task(self, task: str):

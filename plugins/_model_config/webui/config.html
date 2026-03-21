@@ -257,19 +257,6 @@
                           @change="config[section.key].kwargs = $store.modelConfig.textToKwargs(config[section.key]._kwargs_text)"></textarea>
               </div>
             </div>
-
-            <!-- Browser HTTP Headers -->
-            <template x-if="section.key === 'chat_model'">
-              <div class="field field-full">
-                <div class="field-label">
-                  <div class="field-title">Browser HTTP Headers</div>
-                  <div class="field-description">
-                    Custom HTTP headers sent with browser requests. The browser agent uses the main model. Format is KEY=VALUE, one per line.
-                  </div>
-                </div>
-              </div>
-            </template>
-
           </div>
         </template>
 

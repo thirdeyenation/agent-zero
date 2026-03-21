@@ -94,8 +94,6 @@ export async function getMessageHandler(type) {
       return drawMessageResponse;
     case "tool":
       return drawMessageTool;
-    case "browser":
-      return drawMessageBrowser;
     case "progress":
       return drawMessageProgress;
     case "mcp":
@@ -1195,48 +1193,6 @@ export function drawMessageToolSimple({
     id,
     title,
     code: code || "USE",
-    classes: undefined,
-    kvps: displayKvps,
-    content,
-    // contentClasses: [],
-    actionButtons,
-    log: arguments[0],
-  });
-}
-
-/**
- * @param {MessageHandlerArgs & Record<string, any>} param0
- * @returns {MessageHandlerResult}
- */
-export function drawMessageBrowser({
-  id,
-  type,
-  heading,
-  content,
-  kvps,
-  timestamp,
-  agentno = 0,
-  ...additional
-}) {
-  const title = cleanStepTitle(heading);
-  let displayKvps = { ...kvps };
-  const answerText = String(kvps?.answer ?? "");
-  const actionButtons = answerText.trim()
-    ? [
-        createActionButton("detail", "", () =>
-          stepDetailStore.showStepDetail(
-            buildDetailPayload(arguments[0], { headerLabels: [] }),
-          ),
-        ),
-        createActionButton("speak", "", () => speechStore.speak(answerText)),
-        createActionButton("copy", "", () => copyToClipboard(answerText)),
-      ].filter(Boolean)
-    : [];
-
-  return drawProcessStep({
-    id,
-    title,
-    code: "WWW",
     classes: undefined,
     kvps: displayKvps,
     content,
