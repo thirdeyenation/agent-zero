@@ -81,8 +81,9 @@ export const store = createStore("telegramConfig", {
       .map((s) => s.trim())
       .filter((s) => s)
       .forEach((item) => {
-        const [k, v] = item.split("=").map((p) => p.trim());
-        if (k && v) obj[k] = v;
+        const parts = item.split("=").map((p) => p.trim());
+        const k = parts[0];
+        if (k) obj[k] = parts[1] || "";
       });
     bot.user_projects = obj;
   },

@@ -52,8 +52,11 @@ class TelegramBotManager(Extension):
                 continue
             if name in running:
                 inst = running[name]
-                if inst.task and not inst.task.done():
-                    continue  # already running
+                # Already running: polling (task alive) or webhook (active)
+                if (inst.task and not inst.task.done()) or inst.webhook_active:
+                    continue
+                # Instance exists but is dead — stop and recreate
+                await stop_bot(name)
 
             try:
                 # Create handler closures that capture bot_name and config
@@ -97,21 +100,30 @@ class TelegramBotManager(Extension):
 
 # Wrapper functions for aiogram handlers
 
+def _get_current_bot_cfg(bot_name: str) -> dict:
+    """Fetch the latest bot config by name, so handlers always use fresh settings."""
+    config = plugins.get_plugin_config(PLUGIN_NAME) or {}
+    for b in config.get("bots", []):
+        if b.get("name") == bot_name:
+            return b
+    return {}
+
+
 async def _wrap_start(message, bot_name: str, bot_cfg: dict):
     from plugins._telegram_integration.helpers.handler import handle_start
-    await handle_start(message, bot_name, bot_cfg)
+    await handle_start(message, bot_name, _get_current_bot_cfg(bot_name) or bot_cfg)
 
 
 async def _wrap_clear(message, bot_name: str, bot_cfg: dict):
     from plugins._telegram_integration.helpers.handler import handle_clear
-    await handle_clear(message, bot_name, bot_cfg)
+    await handle_clear(message, bot_name, _get_current_bot_cfg(bot_name) or bot_cfg)
 
 
 async def _wrap_message(message, bot_name: str, bot_cfg: dict):
     from plugins._telegram_integration.helpers.handler import handle_message
-    await handle_message(message, bot_name, bot_cfg)
+    await handle_message(message, bot_name, _get_current_bot_cfg(bot_name) or bot_cfg)
 
 
 async def _wrap_callback(query, bot_name: str, bot_cfg: dict):
     from plugins._telegram_integration.helpers.handler import handle_callback_query
-    await handle_callback_query(query, bot_name, bot_cfg)
+    await handle_callback_query(query, bot_name, _get_current_bot_cfg(bot_name) or bot_cfg)

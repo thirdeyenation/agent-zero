@@ -83,10 +83,10 @@
               <div class="field" x-show="bot.mode === 'webhook'">
                 <div class="field-label">
                   <div class="field-title">Webhook URL</div>
-                  <div class="field-description">Public HTTPS URL for Telegram to send updates to</div>
+                  <div class="field-description">Your Agent Zero base URL (e.g. https://yourdomain.com). The webhook path is appended automatically</div>
                 </div>
                 <div class="field-control">
-                  <input type="text" x-model="bot.webhook_url" placeholder="https://yourdomain.com/telegram/my_bot" />
+                  <input type="text" x-model="bot.webhook_url" placeholder="https://yourdomain.com" />
                 </div>
               </div>
 
@@ -107,8 +107,8 @@
                 </div>
                 <div class="field-control">
                   <input type="text"
-                         :value="$store.telegramConfig.whitelistText(bot)"
-                         @input="$store.telegramConfig.setWhitelist(bot, $event.target.value)"
+                         x-effect="if (document.activeElement !== $el) $el.value = $store.telegramConfig.whitelistText(bot)"
+                         @change="$store.telegramConfig.setWhitelist(bot, $event.target.value)"
                          placeholder="123456789, @username" />
                 </div>
               </div>
@@ -134,8 +134,8 @@
                 </div>
                 <div class="field-control">
                   <input type="text"
-                         :value="$store.telegramConfig.userProjectsText(bot)"
-                         @input="$store.telegramConfig.setUserProjects(bot, $event.target.value)"
+                         x-effect="if (document.activeElement !== $el) $el.value = $store.telegramConfig.userProjectsText(bot)"
+                         @change="$store.telegramConfig.setUserProjects(bot, $event.target.value)"
                          placeholder="123456=my_project, 789012=other_project" />
                 </div>
               </div>
@@ -146,7 +146,8 @@
                   <div class="field-description">Fallback project if user not in the mapping above</div>
                 </div>
                 <div class="field-control">
-                  <select x-model="bot.default_project">
+                  <select x-effect="void $store.telegramConfig.projects; $nextTick(() => $el.value = bot.default_project)"
+                          @change="bot.default_project = $event.target.value">
                     <option value="">No project</option>
                     <template x-for="proj in $store.telegramConfig.projects" :key="proj.name">
                       <option :value="proj.name" x-text="proj.title || proj.name"></option>

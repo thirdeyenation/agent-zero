@@ -7,7 +7,6 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode, ChatType
 from aiogram.filters import Command, CommandStart
 from aiogram.types import Message, CallbackQuery
-from aiogram.webhook.aiohttp_server import SimpleRequestHandler
 
 from helpers.errors import format_error
 from helpers.print_style import PrintStyle
@@ -21,7 +20,8 @@ class BotInstance:
     dispatcher: Dispatcher
     router: Router
     task: asyncio.Task | None = None  # polling task
-    webhook_app: object | None = None  # aiohttp app for webhook mode
+    webhook_active: bool = False  # True when webhook mode is registered
+    webhook_secret: str = ""  # secret for webhook verification
     bot_info: object | None = None  # cached result of bot.get_me()
 
 # Bot registry (singleton, persists across module reloads)
@@ -130,6 +130,12 @@ def _make_group_mention_filter(handler: Callable, bot: Bot):
 # Polling
 
 async def start_polling(instance: BotInstance) -> asyncio.Task:
+    # Ensure any leftover webhook is removed before polling
+    try:
+        await instance.bot.delete_webhook()
+    except Exception:
+        pass
+
     async def _poll():
         try:
             PrintStyle.info(f"Telegram ({instance.name}): starting polling")
@@ -159,25 +165,18 @@ async def stop_polling(instance: BotInstance):
 
 # Webhook
 
-async def setup_webhook(instance: BotInstance, url: str, secret: str = ""):
-    """Set Telegram webhook and return aiohttp app for local serving."""
-    from aiohttp import web
+async def setup_webhook(instance: BotInstance, webhook_url: str, secret: str = ""):
+    """Register webhook with Telegram. Updates are received via the API handler."""
+    full_url = f"{webhook_url.rstrip('/')}/api/plugins/_telegram_integration/webhook?bot={instance.name}"
 
     await instance.bot.set_webhook(
-        url=url,
+        url=full_url,
         secret_token=secret or None,
     )
 
-    app = web.Application()
-    handler = SimpleRequestHandler(
-        dispatcher=instance.dispatcher,
-        bot=instance.bot,
-        secret_token=secret or None,
-    )
-    handler.register(app, path=f"/telegram/{instance.name}")
-    instance.webhook_app = app
-    PrintStyle.info(f"Telegram ({instance.name}): webhook set to {url}")
-    return app
+    instance.webhook_active = True
+    instance.webhook_secret = secret
+    PrintStyle.info(f"Telegram ({instance.name}): webhook active via {webhook_url.rstrip('/')}")
 
 
 async def remove_webhook(instance: BotInstance):
@@ -185,6 +184,8 @@ async def remove_webhook(instance: BotInstance):
         await instance.bot.delete_webhook()
     except Exception as e:
         PrintStyle.error(f"Telegram ({instance.name}): remove webhook error: {format_error(e)}")
+    instance.webhook_active = False
+    instance.webhook_secret = ""
 
 # Cleanup
 
