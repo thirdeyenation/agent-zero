@@ -1,14 +1,13 @@
 import asyncio
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Callable, Awaitable
 
 from aiogram import Bot, Dispatcher, Router, F
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode, ChatType
-from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command, CommandStart
-from aiogram.types import Message, CallbackQuery, Update
-from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
+from aiogram.types import Message, CallbackQuery
+from aiogram.webhook.aiohttp_server import SimpleRequestHandler
 
 from helpers.errors import format_error
 from helpers.print_style import PrintStyle
@@ -96,7 +95,6 @@ def _make_group_mention_filter(handler: Callable, bot: Bot):
         if message.chat.type == ChatType.PRIVATE:
             return
         # Use cached bot_info from the instance
-        inst = get_bot(handler.__name__.split('_')[-1]) if hasattr(handler, '__name__') else None
         bot_info = None
         for b in _bots.values():
             if b.bot is bot:
@@ -204,10 +202,6 @@ async def stop_bot(name: str):
         pass
     PrintStyle.info(f"Telegram ({name}): stopped")
 
-
-async def stop_all_bots():
-    for name in list(_bots.keys()):
-        await stop_bot(name)
 
 # Test connection
 

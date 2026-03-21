@@ -1,11 +1,8 @@
-import asyncio
 import os
-from typing import BinaryIO
 
 from aiogram import Bot
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import (
-    BufferedInputFile,
     FSInputFile,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
@@ -104,26 +101,6 @@ async def send_photo(
         PrintStyle.error(f"Telegram send_photo failed: {format_error(e)}")
         return None
 
-
-async def send_file_bytes(
-    bot: Bot,
-    chat_id: int,
-    content: bytes,
-    filename: str,
-    caption: str = "",
-) -> int | None:
-    """Send file from bytes content."""
-    try:
-        input_file = BufferedInputFile(content, filename=filename)
-        msg = await bot.send_document(
-            chat_id=chat_id,
-            document=input_file,
-            caption=caption[:1024] if caption else None,
-        )
-        return msg.message_id
-    except Exception as e:
-        PrintStyle.error(f"Telegram send_file_bytes failed: {format_error(e)}")
-        return None
 
 # Inline keyboards
 

@@ -6,8 +6,8 @@ import uuid
 
 from aiogram.types import Message as TgMessage, CallbackQuery
 
-from agent import Agent, AgentContext, AgentContextType, UserMessage
-from helpers import guids, plugins, files
+from agent import AgentContext, UserMessage
+from helpers import plugins, files
 from helpers import message_queue as mq
 from helpers.notification import NotificationManager, NotificationType, NotificationPriority
 from helpers.persist_chat import save_tmp_chat
@@ -28,7 +28,6 @@ CTX_TG_BOT = "telegram_bot"
 CTX_TG_CHAT_ID = "telegram_chat_id"
 CTX_TG_USER_ID = "telegram_user_id"
 CTX_TG_USERNAME = "telegram_username"
-CTX_TG_LAST_MSG_ID = "telegram_last_msg_id"
 
 # Transient
 CTX_TG_ATTACHMENTS = "_telegram_response_attachments"
@@ -209,9 +208,6 @@ async def handle_message(message: TgMessage, bot_name: str, bot_cfg: dict):
     # Build user message text
     text = _extract_message_content(message)
     attachments = await _download_attachments(instance.bot, message, bot_name=bot_name)
-
-    # Store last incoming message ID for reply threading
-    context.data[CTX_TG_LAST_MSG_ID] = message.message_id
 
     # Build user message with prompt
     agent = context.agent0
@@ -508,10 +504,3 @@ def _format_user(user) -> str:
         name += f" (@{user.username})"
     return name.strip() or str(user.id)
 
-
-def find_context_for_bot_chat(bot_name: str, chat_id: int) -> AgentContext | None:
-    """Find active context matching a Telegram bot + chat_id."""
-    for ctx in AgentContext.all():
-        if ctx.data.get(CTX_TG_BOT) == bot_name and ctx.data.get(CTX_TG_CHAT_ID) == chat_id:
-            return ctx
-    return None
