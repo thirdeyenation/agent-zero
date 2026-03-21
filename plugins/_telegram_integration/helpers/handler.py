@@ -492,7 +492,10 @@ async def send_telegram_reply(
         PrintStyle.error(f"Telegram reply failed: {error}")
         return error
     finally:
-        await reply_bot.session.close()
+        try:
+            await reply_bot.session.close()
+        except Exception:
+            pass
 
 # Helpers
 

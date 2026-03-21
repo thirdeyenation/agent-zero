@@ -188,7 +188,7 @@ def _split_text(text: str, max_len: int) -> list[str]:
             break
         # Try to split at newline
         split_at = text.rfind("\n", 0, max_len)
-        if split_at < max_len // 2:
+        if split_at == -1 or split_at < max_len // 2:
             split_at = max_len
         chunks.append(text[:split_at])
         text = text[split_at:].lstrip("\n")

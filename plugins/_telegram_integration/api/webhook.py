@@ -20,7 +20,7 @@ class TelegramWebhook(ApiHandler):
     async def process(self, input: dict, request: Request) -> dict | Response:
         from aiogram.types import Update
 
-        from plugins._telegram_integration.helpers.bot_manager import get_bot, get_all_bots
+        from plugins._telegram_integration.helpers.bot_manager import get_bot
 
         # Identify which bot this update is for
         bot_name = request.args.get("bot", "")
