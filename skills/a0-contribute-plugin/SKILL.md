@@ -52,7 +52,7 @@ The plugin must live in its **own standalone GitHub repository** with plugin con
 your-plugin-repo/           <- GitHub repository root
 ├── plugin.yaml             <- runtime manifest (REQUIRED)
 ├── README.md               <- strongly recommended (shown in Plugin Hub detail view)
-├── LICENSE                 <- strongly recommended
+├── LICENSE                 <- REQUIRED for Plugin Index submission (place at repo root)
 ├── default_config.yaml     <- optional
 ├── api/                    <- API handlers
 ├── tools/                  <- agent tools
@@ -174,6 +174,7 @@ Run these checks locally before opening the PR (mirrors what CI will verify):
 | `github` URL | Points to existing public repo |
 | Remote `plugin.yaml` | Exists at repo root |
 | Remote `plugin.yaml` `name` field | Matches index folder name exactly |
+| Remote `LICENSE` | Exists at repo root (Plugin Index policy) |
 | Folder name pattern | `^[a-z0-9_]+$`, no leading `_` |
 | `github` URL uniqueness | Not already in the index for another plugin |
 
@@ -227,6 +228,8 @@ gh pr create \
 
 ## References
 
+- Plugin architecture: `/a0/docs/agents/AGENTS.plugins.md`
+- Developer lifecycle guide: `/a0/docs/developer/plugins.md`
 - Plugin Index repo: https://github.com/agent0ai/a0-plugins
 - Recommended tags: https://github.com/agent0ai/a0-plugins/blob/main/TAGS.md
 - Review before contributing: read `/a0/skills/a0-review-plugin/SKILL.md`

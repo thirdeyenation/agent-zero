@@ -14,6 +14,7 @@ For detailed guides on how to create, extend, or configure plugins, refer to:
 - [`docs/agents/AGENTS.plugins.md`](../docs/agents/AGENTS.plugins.md): Full-stack plugin architecture, manifest format, extension points, and Plugin Index submission.
 - [`docs/developer/plugins.md`](../docs/developer/plugins.md): Human-facing developer guide covering the full plugin lifecycle.
 - [`AGENTS.md`](../AGENTS.md): Main framework guide and backend context.
+- [`skills/a0-plugin-router/SKILL.md`](../skills/a0-plugin-router/SKILL.md): Agent-facing entry point that routes plugin tasks to the appropriate specialist skill.
 - [`skills/a0-create-plugin/SKILL.md`](../skills/a0-create-plugin/SKILL.md): Agent-facing authoring workflow (local and community plugins).
 
 ## What a Plugin Can Provide
@@ -31,6 +32,7 @@ Plugins are automatically discovered based on the presence of a `plugin.yaml` fi
 Every plugin requires a `plugin.yaml` at its root:
 
 ```yaml
+name: my_plugin              # required for community plugins
 title: My Plugin
 description: What this plugin does.
 version: 1.0.0
@@ -68,7 +70,7 @@ The **Plugin Index** at https://github.com/agent0ai/a0-plugins is the community-
 
 To share a plugin with the community:
 
-1. Create a standalone GitHub repository with the plugin contents at the repo root. The runtime `plugin.yaml` must include a `name` field matching the intended index folder name.
+1. Create a standalone GitHub repository with the plugin contents at the repo root. The runtime `plugin.yaml` must include a `name` field matching the intended index folder name. Add a `LICENSE` file at the repo root (required for Plugin Index listings so users have explicit terms of use).
 2. Fork `https://github.com/agent0ai/a0-plugins` and add a folder `plugins/<your_plugin_name>/` containing a separate index manifest named `index.yaml` (not `plugin.yaml`):
 
 ```yaml
