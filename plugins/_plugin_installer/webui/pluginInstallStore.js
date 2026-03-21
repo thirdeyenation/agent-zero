@@ -608,9 +608,21 @@ const model = {
   },
 
   handleOpenInfo() {
-    if (this.installedPluginInfo) {
-      pluginListStore.openPluginInfo(this.installedPluginInfo);
-    }
+    if (!this.installedPluginInfo) return;
+    const pluginHubKey = (this.selectedPlugin?.key || "").trim();
+    const plugin = pluginHubKey
+      ? {
+          ...this.installedPluginInfo,
+          pluginHub: {
+            key: pluginHubKey,
+            title:
+              this.selectedPlugin?.title ||
+              this.installedPluginInfo.display_name ||
+              this.installedPluginInfo.name,
+          },
+        }
+      : this.installedPluginInfo;
+    pluginListStore.openPluginInfo(plugin);
   },
 
   handleOpenExecute() {
