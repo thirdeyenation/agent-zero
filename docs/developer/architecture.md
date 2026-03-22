@@ -206,6 +206,7 @@ The `prompts` directory contains various Markdown files that control agent behav
 | agent.system.main.communication.md | Specifies how the agent should communicate |
 | agent.system.main.solving.md | Describes the agent's approach to tasks |
 | agent.system.main.tips.md | Provides additional tips or guidance |
+| agent.system.main.specifics.md | Empty by default — override per profile for agent-specific instructions |
 | agent.system.main.behaviour.md | Controls dynamic behavior adjustments and rules |
 | agent.system.main.environment.md | Defines the runtime environment context |
 | agent.system.tools.md | Organizes and calls the individual tool prompt files |
@@ -222,6 +223,18 @@ The `prompts` directory contains various Markdown files that control agent behav
 2. Add only the prompt files you want to override in `agents/<agent_profile>/prompts/`
 3. Agent Zero merges these overrides with the default prompts automatically
 4. Select the **Agent Profile** in Settings to activate the overrides
+
+#### Prompt Inheritance with `{{include original}}`
+When overriding a prompt, you can extend the original instead of replacing it entirely. Use `{{include original}}` to pull in the default version and add your changes on top:
+
+```markdown
+{{include original}}
+
+## Additional instructions
+- my custom additions here
+```
+
+This keeps overrides small and ensures they stay in sync when the default prompt is updated.
 
 #### Dynamic Behavior System
 - **Behavior Adjustment**: 
