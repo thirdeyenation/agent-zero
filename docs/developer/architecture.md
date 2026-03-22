@@ -227,14 +227,27 @@ The `prompts` directory contains various Markdown files that control agent behav
 #### Prompt Inheritance with `{{include original}}`
 When overriding a prompt, you can extend the original instead of replacing it entirely. Use `{{include original}}` to pull in the default version and add your changes on top:
 
+**Example:** `agents/developer/prompts/agent.system.main.communication.md`:
 ```markdown
 {{include original}}
 
-## Additional instructions
-- my custom additions here
+- always explain your reasoning
+- include code snippets in responses
 ```
 
-This keeps overrides small and ensures they stay in sync when the default prompt is updated.
+This finds `agent.system.main.communication.md` in the next directory up the hierarchy → includes the default from `prompts/` → appends the additions. Result:
+
+```markdown
+## Communication
+- be concise
+- use markdown formatting
+- ask clarifying questions when unsure
+
+- always explain your reasoning
+- include code snippets in responses
+```
+
+Overrides stay small and automatically inherit any future changes to the default.
 
 #### Dynamic Behavior System
 - **Behavior Adjustment**: 

@@ -225,9 +225,19 @@ When overriding a prompt file, you can **extend** the original instead of replac
 - include code snippets in responses
 ```
 
-This includes the default `prompts/agent.system.main.communication.md` first, then appends the developer-specific additions. If the default file changes later, the override automatically inherits the changes.
+This resolves to: find `agent.system.main.communication.md` in the next directory up the hierarchy → finds the default in `prompts/` → includes it. Result:
 
-Works at any level of the hierarchy — if multiple overrides each use `{{include original}}`, they chain together from highest to lowest priority.
+```markdown
+## Communication
+- be concise
+- use markdown formatting
+- ask clarifying questions when unsure
+
+- always explain your reasoning
+- include code snippets in responses
+```
+
+The override stays small and automatically inherits any future changes to the default file. Works at any level of the hierarchy — if multiple overrides each use `{{include original}}`, they chain together from highest to lowest priority.
 
 ##### Agent Specifics File
 The default `agent.system.main.md` includes `agent.system.main.specifics.md` — an empty file by default. Subagent profiles can override just this file to add profile-specific instructions without touching role, communication, or other sections.
