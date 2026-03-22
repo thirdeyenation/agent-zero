@@ -16,9 +16,11 @@ class RetryCriticalException(Extension):
 
         exception = data.get("exception")
         if not exception:
+            self.agent.set_data(DATA_NAME_COUNTER, 0) # reset counter if exception has been handled
             return
 
         if isinstance(exception, (HandledException, RepairableException)):
+            self.agent.set_data(DATA_NAME_COUNTER, 0) # reset counter if exception has been handled
             return
 
         max_retries = 1

@@ -56,6 +56,7 @@ class VisionLoad(Tool):
         # build image data messages for LLMs, or error message
         content = []
         if self.images_dict:
+            self.agent.hist_add_tool_result(self.name, f"Processed {len(self.images_dict)} images") # some model providers break when they get have images in message history without text
             for path, image in self.images_dict.items():
                 if image:
                     content.append(
