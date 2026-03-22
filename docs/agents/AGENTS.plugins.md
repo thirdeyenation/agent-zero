@@ -27,8 +27,8 @@ usr/plugins/<plugin_name>/
 ├── execute.py                    # Optional: user-triggered plugin script
 ├── hooks.py                      # Optional: runtime hook functions callable by the framework
 ├── default_config.yaml           # Optional: fallback settings defaults
-├── README.md                     # Optional: shown in Plugin List UI
-├── LICENSE                       # Optional: shown in Plugin List UI
+├── README.md                     # Optional locally; strongly recommended for community plugins (Plugin Hub)
+├── LICENSE                       # Optional locally (shown in Plugin List UI when present); required at repo root for Plugin Index submission
 ├── conf/
 │   └── model_providers.yaml      # Optional: add or override model providers
 ├── api/                          # API handlers (ApiHandler subclasses)
@@ -263,7 +263,7 @@ screenshots:                    # optional, up to 5 full image URLs
   - https://raw.githubusercontent.com/yourname/your-plugin-repo/main/docs/screen.png
 ```
 
-The index manifest is named `index.yaml` (not `plugin.yaml`). Required fields: `title`, `description`, `github`. Optional: `tags` (up to 5), `screenshots` (up to 5 URLs). The `github` field must point to the root of a GitHub repository that contains a runtime `plugin.yaml` at the repository root, and that `plugin.yaml` must include a `name` field matching the index folder name exactly.
+The index manifest is named `index.yaml` (not `plugin.yaml`). Required fields: `title`, `description`, `github`. Optional: `tags` (up to 5), `screenshots` (up to 5 URLs). The `github` field must point to the root of a GitHub repository that contains a runtime `plugin.yaml` at the repository root, and that `plugin.yaml` must include a `name` field matching the index folder name exactly. That repository must also include a `LICENSE` file at its root so community users have explicit terms of use.
 
 ### Repository Structure for Community Plugins
 
@@ -274,7 +274,7 @@ your-plugin-repo/          ← GitHub repository root
 ├── plugin.yaml            ← runtime manifest (title, description, version, ...)
 ├── default_config.yaml
 ├── README.md
-├── LICENSE
+├── LICENSE                ← required for Plugin Index (community) plugins
 ├── api/
 ├── tools/
 ├── extensions/
@@ -297,6 +297,7 @@ Index submission rules:
 - Folder name must exactly match the `name` field in your remote `plugin.yaml`
 - Folders starting with `_` are reserved for internal use
 - `github` must point to a public repo that contains `plugin.yaml` at its root with a matching `name` field
+- The same repo must contain `LICENSE` at its root (community contribution requirement)
 - `title` max 50 characters, `description` max 500 characters
 - `index.yaml` total max 2000 characters
 - `tags`: optional, up to 5, use recommended tags from https://github.com/agent0ai/a0-plugins/blob/main/TAGS.md
@@ -313,4 +314,9 @@ Both routes surface Plugin Index entries inside Agent Zero. The Plugin Hub suppo
 
 ---
 
-*Refer to AGENTS.md for the main framework guide.*
+## 9. See Also
+
+- `docs/developer/plugins.md` for the developer-facing plugin lifecycle and publishing guide
+- `plugins/README.md` for the bundled-vs-user plugin directory overview and quick links
+- `skills/a0-plugin-router/SKILL.md` for the agent-facing entry point that routes plugin tasks to the right specialist skill
+- `AGENTS.md` for the main framework guide

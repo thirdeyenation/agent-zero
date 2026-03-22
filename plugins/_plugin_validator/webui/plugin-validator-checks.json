@@ -7,7 +7,7 @@
   "checks": {
     "manifest": {
       "label": "Manifest Validation",
-      "detail": "Validate plugin.yaml at the plugin root. Confirm it is parseable YAML, contains the required name/title/description/version fields, uses a valid plugin name matching ^[a-z0-9_]+$, keeps boolean fields typed correctly, restricts settings_sections to the documented values, and avoids unknown schema keys.",
+      "detail": "Validate plugin.yaml at the plugin root. Confirm it is parseable YAML, contains the required title/description/version fields (and a valid name when intended for the community index), uses a plugin name matching ^[a-z0-9_]+$ when present, keeps boolean fields typed correctly, restricts settings_sections to the documented values, and avoids unknown schema keys.",
       "criteria": {
         "pass": "plugin.yaml exists, parses, and matches the expected schema with no required fixes",
         "warning": "Manifest is mostly valid but has extra keys, weak metadata, or non-blocking schema issues",
@@ -16,10 +16,10 @@
     },
     "structure": {
       "label": "Structure Validation",
-      "detail": "Inspect the directory layout and role of each top-level file or folder. Check that api/ contains Python ApiHandler files, tools/ contains Tool subclasses, extensions/ follows python/<point>/ or webui/<point>/ conventions, webui/config.html is backed by settings_sections, hooks.py exposes install when expected, execute.py follows the main()/sys.exit(main()) pattern, and the root contains only expected plugin files.",
+      "detail": "Inspect the directory layout and role of each top-level file or folder. Check that api/ contains Python ApiHandler files, tools/ contains Tool subclasses, extensions/ follows python/<point>/ or webui/<point>/ conventions, webui/config.html is backed by settings_sections, hooks.py exposes install when expected, execute.py follows the main()/sys.exit(main()) pattern, and the root contains only expected plugin files. Also verify a file named LICENSE exists at the plugin root (same directory as plugin.yaml). Agent Zero does not require LICENSE for loading a local plugin, but the Plugin Index requires LICENSE at the repository root for community listings; a missing LICENSE must not be rated pass for this phase.",
       "criteria": {
-        "pass": "Directory layout cleanly matches Agent Zero plugin conventions",
-        "warning": "Structure mostly works but contains unusual files or minor convention drift",
+        "pass": "Directory layout cleanly matches Agent Zero plugin conventions and LICENSE exists at the plugin root",
+        "warning": "Layout mostly works but LICENSE is missing at the plugin root (required for Plugin Index submission; optional for local-only use), or there are unusual files or minor convention drift",
         "fail": "Layout or required files clearly break plugin loading, installation, or contribution expectations"
       }
     },

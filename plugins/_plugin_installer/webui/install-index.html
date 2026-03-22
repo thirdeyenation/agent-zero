@@ -86,18 +86,13 @@
                                         x-text="$store.pluginInstallStore.getBrowseSubtitle(plugin)">
                                     </div>
 
-                                    <div class="pi-card-pills">
-                                        <template x-if="plugin.installed">
-                                            <span class="pi-card-installed-pill">Installed</span>
-                                        </template>
-                                        <template x-if="plugin.has_update">
-                                            <span class="pi-card-update-pill">New version</span>
-                                        </template>
-                                    </div>
+                                    <span class="pi-card-stars">
+                                        <span class="material-symbols-outlined">star</span>
+                                        <span x-text="plugin.stars || 0"></span>
+                                    </span>
 
                                 </div>
 
-                                <span class="material-symbols-outlined pi-card-arrow">arrow_outward</span>
                             </div>
 
                             <div class="pi-card-body">
@@ -109,16 +104,32 @@
                             </div>
 
                             <div class="pi-card-footer">
-                                <span class="pi-card-stars">
-                                    <span class="material-symbols-outlined">star</span>
-                                    <span x-text="plugin.stars || 0"></span>
-                                </span>
 
-                                <template x-if="$store.pluginInstallStore.getBrowsePrimaryTag(plugin)">
-                                    <span class="pi-card-tag"
-                                        x-text="$store.pluginInstallStore.getBrowsePrimaryTag(plugin)">
-                                    </span>
-                                </template>
+                                <div class="pi-card-bubbles pi-card-bubbles-tags">
+                                    <template x-if="$store.pluginInstallStore.getBrowsePrimaryTag(plugin)">
+                                        <span class="pi-card-bubble pi-card-bubble-tag">
+                                            <span class="material-symbols-outlined">sell</span>
+                                            <span class="pi-card-bubble-text"
+                                                x-text="$store.pluginInstallStore.getBrowsePrimaryTag(plugin)"></span>
+                                        </span>
+                                    </template>
+                                </div>
+
+                                <div class="pi-card-bubbles pi-card-bubbles-status">
+                                    <template x-if="plugin.installed">
+                                        <span class="pi-card-bubble pi-card-bubble-installed">
+                                            <span class="material-symbols-outlined">check_circle</span>
+                                            <span class="pi-card-bubble-text">Installed</span>
+                                        </span>
+                                    </template>
+                                    <template x-if="plugin.has_update">
+                                        <span class="pi-card-bubble pi-card-bubble-update">
+                                            <span class="material-symbols-outlined">update</span>
+                                            <span class="pi-card-bubble-text">New version</span>
+                                        </span>
+                                    </template>
+                                </div>
+
                             </div>
                         </button>
                     </template>
@@ -394,7 +405,7 @@
             width: 100%;
             padding: 0;
             border: 1px solid var(--color-border);
-            border-radius: 16px;
+            border-radius: 10px;
             background: var(--color-background);
             color: inherit;
             text-align: left;
@@ -425,7 +436,8 @@
             justify-content: center;
             border-radius: 0.5rem;
             overflow: hidden;
-            background: var(--color-panel);
+            background: radial-gradient(circle at top, #6b728089, var(--color-panel)),
+                var(--color-panel);
             border: 1px solid var(--color-border);
         }
 
@@ -481,51 +493,12 @@
             color: var(--color-text-secondary);
         }
 
-        .pi-card-pills {
-            display: flex;
-            flex-wrap: wrap;
-            padding: var(--spacing-xs) 0;
-            gap: 0.4rem;
-        }
-
-        .pi-card-pills 
-
-        .pi-card-installed-pill {
-            display: inline-flex;
-            padding: 0.24rem 0.5rem;
-            border-radius: 0.5rem;
-            background: rgba(34, 197, 94, 0.15);
-            color: #4ade80;
-            font-size: 0.72rem;
-            font-weight: 700;
-        }
-
-        body.light-mode .pi-card-installed-pill {
-            background: rgba(34, 197, 94, 0.22);
-            color: #166534;
-        }
-
-        .pi-card-update-pill {
-            display: inline-flex;
-            padding: 0.24rem 0.5rem;
-            border-radius: 0.5rem;
-            background: rgba(59, 130, 246, 0.16);
-            color: #60a5fa;
-            font-size: 0.72rem;
-            font-weight: 700;
-        }
-
-        body.light-mode .pi-card-update-pill {
-            background: rgba(59, 130, 246, 0.2);
-            color: #1d4ed8;
-        }
-
         .pi-card-footer {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 0.5rem;
-            padding: 0.9rem 1rem 1rem;
+            gap: 0.75rem;
+            padding: 0.65rem 0.85rem 0.75rem;
             border-top: 1px solid var(--color-border);
         }
 
@@ -533,6 +506,7 @@
             display: inline-flex;
             align-items: center;
             gap: 0.3rem;
+            padding: var(--spacing-xxs) 0;
             font-size: 0.85rem;
             color: var(--color-text-secondary);
         }
@@ -542,14 +516,127 @@
             color: #fbbf24;
         }
 
-        .pi-card-tag {
-            padding: 0.22rem 0.55rem;
-            border-radius: 0.5rem;
-            font-size: 0.75rem;
-            font-weight: 600;
-            background: var(--color-panel);
-            color: var(--color-text-secondary);
+        .pi-card-bubbles {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            flex-shrink: 0;
+        }
+
+        .pi-card-bubbles-tags {
+            min-width: 0;
+            flex: 1 1 auto;
+            justify-content: flex-start;
+        }
+
+        .pi-card-bubbles-status {
+            justify-content: flex-end;
+        }
+
+        .pi-card-bubble {
+            display: inline-flex;
+            align-items: center;
+            height: 26px;
+            padding: 0 0.45rem;
+            border-radius: 6px;
             border: 1px solid var(--color-border);
+            background: var(--color-panel);
+            overflow: hidden;
+            cursor: default;
+            transition: background 0.2s ease, border-color 0.2s ease;
+        }
+
+        .pi-card-bubble .material-symbols-outlined {
+            font-size: 0.95rem;
+            flex-shrink: 0;
+            line-height: 1;
+        }
+
+        .pi-card-bubble-text {
+            max-width: 0;
+            opacity: 0;
+            overflow: hidden;
+            white-space: nowrap;
+            font-size: 0.72rem;
+            font-weight: 600;
+            transition: max-width 0.25s ease, opacity 0.2s ease, margin-left 0.2s ease;
+            margin-left: 0;
+        }
+
+        /* Category tag (left): label always visible */
+        .pi-card-bubbles-tags .pi-card-bubble {
+            min-width: 0;
+            max-width: 100%;
+        }
+
+        .pi-card-bubbles-tags .pi-card-bubble-text {
+            flex: 1 1 auto;
+            min-width: 0;
+            max-width: 10rem;
+            opacity: 1;
+            margin-left: 0.3rem;
+            text-overflow: ellipsis;
+        }
+
+        /* Status pills (right): icon until hover */
+        .pi-card-bubbles-status .pi-card-bubble:hover .pi-card-bubble-text {
+            max-width: 8rem;
+            opacity: 1;
+            margin-left: 0.3rem;
+        }
+
+        .pi-card-bubble-tag .material-symbols-outlined {
+            color: var(--color-text-muted);
+        }
+
+        .pi-card-bubble-tag .pi-card-bubble-text {
+            color: var(--color-text-secondary);
+        }
+
+        .pi-card-bubble-installed .material-symbols-outlined {
+            color: #4ade80;
+        }
+
+        .pi-card-bubble-installed .pi-card-bubble-text {
+            color: #4ade80;
+        }
+
+        .pi-card-bubble-installed:hover {
+            background: rgba(34, 197, 94, 0.1);
+            border-color: rgba(34, 197, 94, 0.3);
+        }
+
+        .pi-card-bubble-update .material-symbols-outlined {
+            color: #60a5fa;
+        }
+
+        .pi-card-bubble-update .pi-card-bubble-text {
+            color: #60a5fa;
+        }
+
+        .pi-card-bubble-update:hover {
+            background: rgba(59, 130, 246, 0.1);
+            border-color: rgba(59, 130, 246, 0.3);
+        }
+
+        body.light-mode .pi-card-bubble-installed .material-symbols-outlined,
+        body.light-mode .pi-card-bubble-installed .pi-card-bubble-text {
+            color: #166534;
+        }
+
+        body.light-mode .pi-card-bubble-installed:hover {
+            background: rgba(34, 197, 94, 0.12);
+            border-color: rgba(34, 197, 94, 0.35);
+        }
+
+        body.light-mode .pi-card-bubble-update .material-symbols-outlined,
+        body.light-mode .pi-card-bubble-update .pi-card-bubble-text {
+            color: #1d4ed8;
+        }
+
+        body.light-mode .pi-card-bubble-update:hover {
+            background: rgba(59, 130, 246, 0.1);
+            border-color: rgba(59, 130, 246, 0.35);
         }
 
         .pi-pagination {

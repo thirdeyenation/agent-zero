@@ -86,6 +86,8 @@ class PluginListItem(BaseModel):
     display_name: str = ""
     description: str = ""
     version: str = ""
+    author: str = ""
+    repo: str = ""
     settings_sections: List[str] = Field(default_factory=list)
     per_project_config: bool = False
     per_agent_config: bool = False
@@ -254,11 +256,16 @@ def get_enhanced_plugins_list(
                         break
                 current_commit = ""
                 current_commit_timestamp = ""
+                author = ""
+                repo_name = ""
                 if is_custom:
                     repo_info = git.get_repo_release_info(str(d))
-                    if repo_info.is_git_repo and repo_info.head:
-                        current_commit = repo_info.head.hash
-                        current_commit_timestamp = repo_info.head.committed_at
+                    if repo_info.is_git_repo:
+                        author = repo_info.author
+                        repo_name = repo_info.repo
+                        if repo_info.head:
+                            current_commit = repo_info.head.hash
+                            current_commit_timestamp = repo_info.head.committed_at
                 results.append(
                     PluginListItem(
                         name=d.name,
@@ -266,6 +273,8 @@ def get_enhanced_plugins_list(
                         display_name=meta.title or d.name,
                         description=meta.description,
                         version=meta.version,
+                        author=author,
+                        repo=repo_name,
                         settings_sections=meta.settings_sections,
                         per_project_config=meta.per_project_config,
                         per_agent_config=meta.per_agent_config,

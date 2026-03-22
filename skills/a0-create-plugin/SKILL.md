@@ -24,6 +24,7 @@ Primary references:
 - /a0/docs/agents/AGENTS.components.md (Component system deep dive)
 - /a0/docs/agents/AGENTS.modals.md (Modal system & CSS conventions)
 - /a0/docs/agents/AGENTS.plugins.md (Extension points, plugin.yaml, settings system, Plugin Index)
+- /a0/docs/developer/plugins.md (Developer lifecycle and publishing)
 
 ---
 
@@ -184,8 +185,8 @@ save_plugin_config(
   execute.py            # Optional user-triggered setup, post-install, or maintenance script
   hooks.py              # Optional framework runtime hook functions
   default_config.yaml   # Optional default settings fallback
-  README.md             # Optional, shown in Plugin List UI
-  LICENSE               # Optional, shown in Plugin List UI
+  README.md             # Optional locally; strongly recommended for community plugins
+  LICENSE               # Optional locally (shown in Plugin List UI when present); required at repo root for Plugin Index submission
   agents/
     <profile>/agent.yaml # Optional plugin-distributed agent profile
   api/                  # API Handlers (ApiHandler base class)
@@ -306,7 +307,7 @@ your-plugin-repo/          ← GitHub repository root
 ├── plugin.yaml            ← runtime manifest (must include name field!)
 ├── default_config.yaml
 ├── README.md
-├── LICENSE
+├── LICENSE                ← required at repo root before Plugin Index submission
 ├── api/
 ├── tools/
 ├── extensions/

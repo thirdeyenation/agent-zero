@@ -3,6 +3,7 @@ import * as api from "/js/api.js";
 import { store as pluginSettingsStore } from "/components/plugins/plugin-settings-store.js";
 import { store as pluginToggleStore } from "/components/plugins/toggle/plugin-toggle-store.js";
 import { store as pluginExecuteStore } from "/components/plugins/list/plugin-execute-store.js";
+import { store as fileBrowserStore } from "/components/modals/file-browser/file-browser-store.js";
 import { store as markdownModalStore } from "/components/modals/markdown/markdown-store.js";
 import { callJsExtensions } from "/js/extensions.js";
 import {
@@ -154,6 +155,20 @@ const model = {
     if (!plugin) return;
     this.selectedPlugin = plugin;
     window.openModal?.("components/plugins/plugin-info.html");
+  },
+
+  async openPluginFolder(plugin) {
+    if (!plugin?.path) return;
+    await fileBrowserStore.open(plugin.path);
+  },
+
+  async openPluginHub(plugin) {
+    const pluginKey = (plugin?.pluginHub?.key || "").trim();
+    if (!pluginKey) return;
+    const { store: pluginInstallStore } = await import(
+      "/plugins/_plugin_installer/webui/pluginInstallStore.js"
+    );
+    await pluginInstallStore.openPluginHubDetailByKey(pluginKey);
   },
 
   async deletePlugin(plugin) {

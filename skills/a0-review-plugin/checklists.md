@@ -264,7 +264,7 @@ Must: return `0` on success, non-zero on failure. Print progress. Be safe to rer
 ## plugin.yaml Schema Reference
 
 ```yaml
-name: my_plugin              # required for CI (^[a-z0-9_]+$, must match dir name)
+name: my_plugin              # required for community index (^[a-z0-9_]+$, must match dir name)
 title: My Plugin             # required, UI display name
 description: What it does.   # required
 version: 1.0.0               # required
@@ -289,6 +289,9 @@ When submitting to https://github.com/agent0ai/a0-plugins, CI validates:
 **Remote `plugin.yaml`** (your plugin's own repo):
 - Must exist at repo root
 - Must contain `name` field matching the index folder name exactly
+
+**`LICENSE`** (your plugin's own repo):
+- Must exist at repo root for Plugin Index / community listings (policy; same terms users expect from any open repo)
 
 **Folder name**:
 - Pattern: `^[a-z0-9_]+$` (underscores, no hyphens)

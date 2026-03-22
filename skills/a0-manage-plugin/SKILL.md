@@ -358,6 +358,7 @@ Plugins with `always_enabled: true` in `plugin.yaml` cannot be toggled (framewor
 ## References
 
 - Plugin architecture: `/a0/docs/agents/AGENTS.plugins.md`
+- Developer lifecycle guide: `/a0/docs/developer/plugins.md`
 - Debug a broken plugin: read `/a0/skills/a0-debug-plugin/SKILL.md`
 - Create a new plugin: read `/a0/skills/a0-create-plugin/SKILL.md`
 - Review a plugin: read `/a0/skills/a0-review-plugin/SKILL.md`
