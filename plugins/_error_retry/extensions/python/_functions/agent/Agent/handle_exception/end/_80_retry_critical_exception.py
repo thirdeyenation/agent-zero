@@ -7,7 +7,7 @@ from helpers.errors import RepairableException, HandledException
 from helpers import errors
 from helpers.print_style import PrintStyle
 
-from plugins._error_retry.extensions.python.agent_Agent_monologue_start._10_reset_critical_exception_counter import DATA_NAME_COUNTER
+from plugins._error_retry.extensions.python._functions.agent.Agent.monologue.start._10_reset_critical_exception_counter import DATA_NAME_COUNTER
 
 class RetryCriticalException(Extension):
     async def execute(self, data: dict = {}, **kwargs):

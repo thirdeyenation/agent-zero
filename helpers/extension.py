@@ -52,10 +52,25 @@ def _log_extension_call(name: str):
 def extensible(func):
     """Make a function emit two implicit extension points around its execution.
 
-    The decorator derives two extension point names from the wrapped function:
+    The decorator derives two extension point folder paths from the wrapped
+    function:
 
-    - ``{func.__module__}_{func.__qualname__}_start`` with `.` replaced by `_`
-    - ``{func.__module__}_{func.__qualname__}_end`` with `.` replaced by `_`
+    - ``_functions/<module path>/<qualname path>/start``
+    - ``_functions/<module path>/<qualname path>/end``
+
+    Module path segments come from ``func.__module__`` split by ``.``.
+    Qualname path segments come from the full nested ``func.__qualname__`` split
+    by ``.``, excluding ``<locals>``.
+
+    Example:
+
+    - module ``helpers.something``
+    - qualname ``Outer.Inner.__init__``
+
+    becomes:
+
+    - ``_functions/helpers/something/Outer/Inner/__init__/start``
+    - ``_functions/helpers/something/Outer/Inner/__init__/end``
 
     When the wrapped function is called, the decorator builds a mutable ``data``
     payload and passes it to both extension points:
@@ -72,11 +87,11 @@ def extensible(func):
 
     Behavior:
 
-    - ``-start`` extensions run first and may mutate inputs or set
+    - ``start`` extensions run first and may mutate inputs or set
       ``data["result"]`` / ``data["exception"]``.
     - If ``data["result"]`` is still unset, the decorator calls the wrapped
       function using the possibly modified ``data["args"]`` / ``data["kwargs"]``.
-    - ``-end`` extensions run last and may rewrite ``data["result"]`` or replace /
+    - ``end`` extensions run last and may rewrite ``data["result"]`` or replace /
       clear ``data["exception"]``.
 
     Finally, if ``data["exception"]`` contains an exception it is raised;
@@ -97,13 +112,19 @@ def extensible(func):
         return None
 
     def _prepare_inputs(args, kwargs):
-        module_name = getattr(func, "__module__", "").replace(".", "_")
-        qual_name = getattr(func, "__qualname__", "").replace(".", "_")
+        module_name = getattr(func, "__module__", "")
+        qual_name = getattr(func, "__qualname__", "")
         if not module_name or not qual_name:
             return None
 
-        start_point = f"{module_name}_{qual_name}_start"
-        end_point = f"{module_name}_{qual_name}_end"
+        module_parts = [part for part in module_name.split(".") if part]
+        qual_parts = [part for part in qual_name.split(".") if part and part != "<locals>"]
+        if not module_parts or not qual_parts:
+            return None
+
+        base_path = os.path.join("_functions", *module_parts, *qual_parts)
+        start_point = os.path.join(base_path, "start")
+        end_point = os.path.join(base_path, "end")
 
         agent = _get_agent(args, kwargs)
 

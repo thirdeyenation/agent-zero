@@ -77,7 +77,24 @@ The system prompt is built by multiple focused extensions in `extensions/python/
 | `_13_secrets_prompt.py` | Secrets and variables | `@extensible` |
 | `_14_project_prompt.py` | Project context | `@extensible` |
 
-Each extension exposes a top-level `build_prompt(agent)` function decorated with `@extensible`, which auto-creates `_start` and `_end` hooks. Plugins can hook into these to modify the prompt before or after it's built.
+Each extension exposes a top-level `build_prompt(agent)` function decorated with `@extensible`, which auto-creates implicit `start` and `end` extension folders. Plugins can hook into these to modify the prompt before or after it's built.
+
+The implicit path is composed from the function's full module path and full nested `__qualname__` path:
+
+- `_functions/<module path>/<qualname path>/start`
+- `_functions/<module path>/<qualname path>/end`
+
+For example, a top-level function `build_prompt` in module `extensions.python.system_prompt._10_main_prompt` maps to:
+
+- `extensions/python/_functions/extensions/python/system_prompt/_10_main_prompt/build_prompt/start/`
+- `extensions/python/_functions/extensions/python/system_prompt/_10_main_prompt/build_prompt/end/`
+
+For nested callables, every namespace-like segment is kept. For example, `helpers.something -> Outer.Inner.__init__` maps to:
+
+- `_functions/helpers/something/Outer/Inner/__init__/start`
+- `_functions/helpers/something/Outer/Inner/__init__/end`
+
+This deep directory structure avoids collisions between functions that previously would have been flattened into the same extension point name.
 
 Numbers `_10`–`_14` run before plugin extensions (which start at `_15`+), ensuring core prompt sections are built first.
 
