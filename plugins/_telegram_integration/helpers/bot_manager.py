@@ -6,7 +6,7 @@ from aiogram import Bot, Dispatcher, Router, F
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode, ChatType
 from aiogram.filters import Command, CommandStart
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message
 
 from helpers.errors import format_error
 from helpers.print_style import PrintStyle
@@ -22,6 +22,7 @@ class BotInstance:
     task: asyncio.Task | None = None  # polling task
     webhook_active: bool = False  # True when webhook mode is registered
     webhook_secret: str = ""  # secret for webhook verification
+    group_mode: str = "mention"  # current group_mode setting
     bot_info: object | None = None  # cached result of bot.get_me()
 
 # Bot registry (singleton, persists across module reloads)
@@ -77,7 +78,7 @@ def create_bot(
         router.message.register(on_message)
 
     dp.include_router(router)
-    instance = BotInstance(name=name, bot=bot, dispatcher=dp, router=router)
+    instance = BotInstance(name=name, bot=bot, dispatcher=dp, router=router, group_mode=group_mode)
     _bots[name] = instance
     return instance
 

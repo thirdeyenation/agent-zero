@@ -29,6 +29,7 @@ STATE_FILE = "usr/telegram/state.json"
 
 # Context data keys
 CTX_TG_BOT = "telegram_bot"
+CTX_TG_BOT_CFG = "telegram_bot_cfg"
 CTX_TG_CHAT_ID = "telegram_chat_id"
 CTX_TG_USER_ID = "telegram_user_id"
 CTX_TG_USERNAME = "telegram_username"
@@ -232,19 +233,9 @@ async def handle_message(message: TgMessage, bot_name: str, bot_cfg: dict):
         body=text,
     )
 
-    instructions = bot_cfg.get("agent_instructions", "")
-    if instructions:
-        user_msg += agent.read_prompt(
-            "fw.telegram.user_message_instructions.md",
-            instructions=instructions,
-        )
-
-    system_ctx = agent.read_prompt("fw.telegram.system_context.md")
-
     mq.log_user_message(context, user_msg, attachments, source=" (telegram)")
     context.communicate(UserMessage(
         message=user_msg,
-        system_message=[system_ctx],
         attachments=attachments,
     ))
 
@@ -331,6 +322,7 @@ async def _get_or_create_context_from_user(
         if ctx_id:
             ctx = AgentContext.get(ctx_id)
             if ctx:
+                ctx.data[CTX_TG_CHAT_ID] = chat_id  # always track latest chat
                 return ctx
             # Context was garbage collected, remove stale mapping
             chats.pop(key, None)
@@ -342,6 +334,7 @@ async def _get_or_create_context_from_user(
             ctx = AgentContext(config, name=f"Telegram: {display_name}")
 
             ctx.data[CTX_TG_BOT] = bot_name
+            ctx.data[CTX_TG_BOT_CFG] = bot_cfg
             ctx.data[CTX_TG_CHAT_ID] = chat_id
             ctx.data[CTX_TG_USER_ID] = user_id
             ctx.data[CTX_TG_USERNAME] = username or ""

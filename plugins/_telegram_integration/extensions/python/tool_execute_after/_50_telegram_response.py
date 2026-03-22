@@ -1,5 +1,4 @@
 from helpers.extension import Extension
-from helpers.print_style import PrintStyle
 from helpers.tool import Response
 from plugins._telegram_integration.helpers.handler import (
     CTX_TG_BOT,

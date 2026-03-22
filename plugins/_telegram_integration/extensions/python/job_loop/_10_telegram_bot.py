@@ -53,7 +53,8 @@ class TelegramBotManager(Extension):
                 inst = running[name]
                 current_mode = bot_cfg.get("mode", "polling")
                 running_mode = "webhook" if inst.webhook_active else "polling"
-                if current_mode == running_mode:
+                current_group_mode = bot_cfg.get("group_mode", "mention")
+                if current_mode == running_mode and current_group_mode == inst.group_mode:
                     # Same mode and still alive → skip
                     if (inst.task and not inst.task.done()) or inst.webhook_active:
                         continue
