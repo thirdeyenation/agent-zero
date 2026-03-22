@@ -11,7 +11,7 @@ import { store as pluginExecuteStore } from "/components/plugins/list/plugin-exe
 import { store as pluginSettingsStore } from "/components/plugins/plugin-settings-store.js";
 
 const PLUGIN_API = "plugins/_plugin_installer/plugin_install";
-const PER_PAGE = 20;
+const PER_PAGE = 24;
 
 const SECURITY_WARNING = {
   title: "Security Warning",
@@ -143,7 +143,7 @@ const model = {
     if (!filterKey || filterKey === "all") return true;
     if (filterKey === "installed") return !!plugin?.installed;
     if (filterKey === "update") return !!plugin?.has_update;
-    if (filterKey === "popular") return (plugin?.stars || 0) > 0;
+    if (filterKey === "popular") return (plugin?.stars || 0) >= 3;
     if (filterKey.startsWith("tag:")) {
       return this._pluginPrimaryTag(plugin) === filterKey.slice(4);
     }

@@ -73,6 +73,32 @@
                     <div class="plugin-info-value"
                         x-text="$store.pluginListStore.selectedPlugin.has_config_screen ? 'Available' : 'Not available'"></div>
                 </div>
+
+                <div class="plugin-info-readme-section"
+                    x-show="$store.pluginListStore.selectedPlugin.has_readme || $store.pluginListStore.readmeLoading || $store.pluginListStore.readmeError || $store.pluginListStore.readmeContent">
+                    <button type="button"
+                        class="plugin-info-readme-toggle"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#plugin-info-readme-collapse"
+                        aria-expanded="false"
+                        aria-controls="plugin-info-readme-collapse">
+                        <span>README</span>
+                        <span class="material-symbols-outlined plugin-info-readme-toggle-icon">expand_more</span>
+                    </button>
+                    <div class="collapse" id="plugin-info-readme-collapse">
+                        <div class="plugin-info-readme-body">
+                            <div x-show="$store.pluginListStore.readmeLoading" class="plugin-info-loading-text">
+                                Loading readme...
+                            </div>
+                            <div x-show="$store.pluginListStore.readmeError && !$store.pluginListStore.readmeLoading"
+                                class="plugin-info-readme-error"
+                                x-text="$store.pluginListStore.readmeError"></div>
+                            <div x-show="$store.pluginListStore.readmeContent && !$store.pluginListStore.readmeLoading"
+                                class="plugin-info-readme-content"
+                                x-html="$store.pluginListStore.readmeContent"></div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </template>
 
@@ -168,6 +194,146 @@
             display: grid;
             grid-template-columns: 12rem 1fr;
             gap: 0.5rem 0.75rem;
+        }
+
+        .plugin-info-readme-section {
+            margin-top: 1.5rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--color-border);
+        }
+
+        .plugin-info-readme-toggle {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            padding: 0;
+            border: 0;
+            background: transparent;
+            color: var(--color-text-primary);
+            font-size: 0.95rem;
+            font-weight: 600;
+            text-align: left;
+            cursor: pointer;
+        }
+
+        .plugin-info-readme-toggle-icon {
+            transition: transform 0.2s ease;
+        }
+
+        .plugin-info-readme-toggle[aria-expanded="true"] .plugin-info-readme-toggle-icon {
+            transform: rotate(180deg);
+        }
+
+        .plugin-info-readme-body {
+            padding-top: 0.85rem;
+        }
+
+        .plugin-info-loading-text,
+        .plugin-info-readme-error {
+            color: var(--color-text-secondary);
+        }
+
+        .plugin-info-readme-content {
+            font-size: 0.95rem;
+            line-height: 1.6;
+            color: var(--color-text-primary);
+            overflow-x: auto;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+
+        .plugin-info-readme-content::-webkit-scrollbar {
+            display: none;
+        }
+
+        .plugin-info-readme-content h1,
+        .plugin-info-readme-content h2,
+        .plugin-info-readme-content h3,
+        .plugin-info-readme-content h4 {
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+            color: var(--color-text-primary);
+        }
+
+        .plugin-info-readme-content h1 { font-size: 1.5rem; }
+        .plugin-info-readme-content h2 { font-size: 1.25rem; }
+        .plugin-info-readme-content h3 { font-size: 1.1rem; }
+        .plugin-info-readme-content h4 { font-size: 1rem; }
+
+        .plugin-info-readme-content p {
+            margin-bottom: 0.75rem;
+        }
+
+        .plugin-info-readme-content code {
+            background: var(--color-panel);
+            padding: 0.15rem 0.35rem;
+            border-radius: 4px;
+            font-family: var(--font-family-mono);
+            font-size: 0.85em;
+        }
+
+        .plugin-info-readme-content pre {
+            background: var(--color-panel);
+            padding: 1rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin-bottom: 1rem;
+        }
+
+        .plugin-info-readme-content pre code {
+            background: none;
+            padding: 0;
+        }
+
+        .plugin-info-readme-content ul,
+        .plugin-info-readme-content ol {
+            margin-bottom: 0.75rem;
+            padding-left: 1.5rem;
+        }
+
+        .plugin-info-readme-content li {
+            margin-bottom: 0.25rem;
+        }
+
+        .plugin-info-readme-content a {
+            color: var(--color-highlight);
+            text-decoration: none;
+        }
+
+        .plugin-info-readme-content a:hover {
+            text-decoration: underline;
+        }
+
+        .plugin-info-readme-content img {
+            max-width: 100%;
+            border-radius: 8px;
+            margin: 0.5rem 0;
+        }
+
+        .plugin-info-readme-content blockquote {
+            border-left: 3px solid var(--color-border);
+            padding-left: 1rem;
+            margin-left: 0;
+            color: var(--color-text-secondary);
+        }
+
+        .plugin-info-readme-content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 1rem;
+        }
+
+        .plugin-info-readme-content th,
+        .plugin-info-readme-content td {
+            border: 1px solid var(--color-border);
+            padding: 0.5rem;
+            text-align: left;
+        }
+
+        .plugin-info-readme-content th {
+            background: var(--color-panel);
         }
 
         .plugin-info-grid-pair {

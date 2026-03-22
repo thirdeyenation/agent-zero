@@ -1,5 +1,7 @@
 import { createStore } from "/js/AlpineStore.js";
 import * as api from "/js/api.js";
+import { marked } from "/vendor/marked/marked.esm.js";
+import { addBlankTargetsToLinks } from "/js/messages.js";
 import { store as pluginSettingsStore } from "/components/plugins/plugin-settings-store.js";
 import { store as pluginToggleStore } from "/components/plugins/toggle/plugin-toggle-store.js";
 import { store as pluginExecuteStore } from "/components/plugins/list/plugin-execute-store.js";
@@ -17,6 +19,9 @@ const model = {
   plugins: [],
   selectedPlugin: null,
   activeTab: "custom",
+  readmeContent: "",
+  readmeLoading: false,
+  readmeError: "",
 
   async init() {
     this.loading = false;
@@ -151,9 +156,36 @@ const model = {
     }
   },
 
+  async loadPluginReadme(plugin) {
+    this.readmeLoading = true;
+    this.readmeContent = "";
+    this.readmeError = "";
+    try {
+      const response = await api.callJsonApi("plugins", {
+        action: "get_doc",
+        plugin_name: plugin.name,
+        doc: "readme",
+      });
+      if (response?.error) throw new Error(response.error);
+      const html = marked.parse(response.content || "", { breaks: true });
+      this.readmeContent = addBlankTargetsToLinks(html);
+    } catch (e) {
+      const error = e instanceof Error ? e : new Error(String(e));
+      this.readmeError = error.message || "Failed to load README";
+    } finally {
+      this.readmeLoading = false;
+    }
+  },
+
   openPluginInfo(plugin) {
     if (!plugin) return;
     this.selectedPlugin = plugin;
+    this.readmeContent = "";
+    this.readmeLoading = false;
+    this.readmeError = "";
+    if (plugin.has_readme) {
+      void this.loadPluginReadme(plugin);
+    }
     window.openModal?.("components/plugins/plugin-info.html");
   },
 
