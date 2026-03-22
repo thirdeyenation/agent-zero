@@ -13,8 +13,47 @@
         <div class="section-title">Telegram Integration</div>
         <div class="section-description">
           Configure Telegram bots to communicate with Agent Zero via Telegram.
-          Each bot connects to a Telegram Bot API token and handles messages from allowed users.
         </div>
+
+        <!-- Quick Start Guide (collapsible) -->
+        <details class="tg-guide">
+          <summary class="tg-guide-toggle">Quick Start Guide</summary>
+          <div class="tg-guide-body">
+            <div class="tg-guide-section tg-guide-section-first">
+              <div class="tg-guide-row">
+                <div class="tg-guide-steps">
+                  <div class="tg-guide-section-title">Get Bot Token</div>
+                  <ol>
+                    <li>Click <a href="https://t.me/BotFather" target="_blank" rel="noopener">@BotFather</a> or scan the QR code on your mobile device, or search <strong>@BotFather</strong> in Telegram</li>
+                    <li>Send <strong>/newbot</strong> and follow the prompts to create a bot</li>
+                    <li>Copy the API token provided by BotFather</li>
+                    <li>Click <strong>Add Bot</strong> below, paste the token, and save</li>
+                  </ol>
+                </div>
+                <img class="tg-qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAHQAAAB0AQAAAAB84SuKAAAA50lEQVR4nMWVQWoFMQxDnz+zl2/w73+suYF8Aheni98ux1BqglEgQjOx7ETzM+r1awt/v4+ILCAHLPjqJivLAx7zLwjh7Dxg+T/pKj84/4nr5FHPgxb6bRLjAY/50QE6sED3Uz79HZrr7/ZzPiM/X2B7w/cw263uFZ+2sOb6rMf8iyZNNiqt6lfFG1fembHxzxszKQ1a9a8SO26STf9RU8MUqUX/0DLSmULSpn4T6Kx+zn+d+cMdJrWYP4zvxjy91SeSt6mKjf51cinGgOznsVP2rn7dksaEU8uF/yPAGvsu/B///H59AYlVhAI4J5PTAAAAAElFTkSuQmCC"
+                     alt="Scan to open @BotFather" title="@BotFather" />
+              </div>
+            </div>
+            <div class="tg-guide-section">
+              <div class="tg-guide-row">
+                <div class="tg-guide-steps">
+                  <div class="tg-guide-section-title">Set Allowed Users</div>
+                  <ol>
+                    <li>Enter your Telegram handle (e.g. <strong>@yourname</strong>) in the <strong>Allowed Users</strong> field below.</li>
+                    <li>If you don't know your handle, click <a href="https://t.me/userinfobot" target="_blank" rel="noopener">@userinfobot</a> or scan the QR code, then send <strong>/start</strong> to get your numeric ID</li>
+                  </ol>
+                </div>
+                <img class="tg-qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAHQAAAB0AQAAAAB84SuKAAAA5klEQVR4nMWVUWrEQAxDn5f+yzfY+x8rN7BPoOLZhW0/Yyg1A6OBOJbHihLmZ/Tj1xH+/hwRGUEesMiXjSs4YMMnkqaGQG77UVJ14/lPfL331Gtf1HfRVdSA2/nhubkDG3Td5+/XW3TAQj/RmYWahPvzDydUUmEC366P36tkrFroTzkKpHtEuJjfVdEJfmqhX6a0LSGrXKt8kCnDqn9kkSZKG/6qo9waGW74T0zmsLif/zi2czmfJN76D32NhbDqH830zhC84H9CTak6l/5TgccJtPSfLOdYwEq/oDM/1eL7i3/+f30Di2x7PjI9e0cAAAAASUVORK5CYII="
+                     alt="Scan to open @userinfobot" title="@userinfobot" />
+              </div>
+            </div>
+            <div class="tg-guide-note">
+              <strong>Group chats:</strong> To let the bot respond to all group messages (not just @mentions),
+              go to @BotFather → <em>/mybots</em> → select your bot → <em>Bot Settings</em> →
+              <em>Group Privacy</em> → <em>Turn off</em>.
+            </div>
+          </div>
+        </details>
 
         <!-- Bot cards -->
         <template x-for="(bot, idx) in (config.bots || [])" :key="idx">
@@ -49,6 +88,19 @@
 
               <div class="field">
                 <div class="field-label">
+                  <div class="field-title">Message Notifications</div>
+                  <div class="field-description">Show a WebUI notification for each incoming Telegram message</div>
+                </div>
+                <div class="field-control">
+                  <label class="toggle">
+                    <input type="checkbox" x-model="bot.notify_messages" />
+                    <span class="toggler"></span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="field">
+                <div class="field-label">
                   <div class="field-title">Bot Name</div>
                   <div class="field-description">Unique identifier for this bot configuration</div>
                 </div>
@@ -70,7 +122,7 @@
               <div class="field">
                 <div class="field-label">
                   <div class="field-title">Mode</div>
-                  <div class="field-description">Polling: no public IP needed. Webhook: requires HTTPS endpoint</div>
+                  <div class="field-description">Polling: no public IP required. Webhook: needs HTTPS URL</div>
                 </div>
                 <div class="field-control">
                   <select x-model="bot.mode">
@@ -83,7 +135,7 @@
               <div class="field" x-show="bot.mode === 'webhook'">
                 <div class="field-label">
                   <div class="field-title">Webhook URL</div>
-                  <div class="field-description">Your Agent Zero base URL (e.g. https://yourdomain.com). The webhook path is appended automatically</div>
+                  <div class="field-description">Your Agent Zero base URL, e.g. https://yourdomain.com</div>
                 </div>
                 <div class="field-control">
                   <input type="text" x-model="bot.webhook_url" placeholder="https://yourdomain.com" />
@@ -103,7 +155,7 @@
               <div class="field">
                 <div class="field-label">
                   <div class="field-title">Allowed Users</div>
-                  <div class="field-description">Comma-separated Telegram user IDs or @usernames. Empty = allow all</div>
+                  <div class="field-description">Comma-separated user IDs or @usernames. Empty = anyone can use</div>
                 </div>
                 <div class="field-control">
                   <input type="text"
@@ -129,8 +181,8 @@
 
               <div class="field">
                 <div class="field-label">
-                  <div class="field-title">User → Project Mapping</div>
-                  <div class="field-description">Map user IDs to projects. Format: user_id=project_name, comma-separated</div>
+                  <div class="field-title">User Project Mapping</div>
+                  <div class="field-description">Map user IDs to projects: user_id=project, separate by comma</div>
                 </div>
                 <div class="field-control">
                   <input type="text"
@@ -159,7 +211,7 @@
               <div class="field">
                 <div class="field-label">
                   <div class="field-title">Attachment Max Age</div>
-                  <div class="field-description">Auto-delete downloaded attachments older than this many hours. 0 = keep forever</div>
+                  <div class="field-description">Hours before attachments auto-delete. 0 = keep forever</div>
                 </div>
                 <div class="field-control">
                   <input type="number" x-model.number="bot.attachment_max_age_hours" min="0" step="1" placeholder="0" />
@@ -217,6 +269,71 @@
     flex-direction: column;
     gap: 8px;
   }
+  .tg-guide {
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    font-size: 0.85rem;
+  }
+  .tg-guide-toggle {
+    padding: 8px 10px;
+    cursor: pointer;
+    opacity: 0.8;
+  }
+  .tg-guide-toggle:hover {
+    opacity: 1;
+  }
+  .tg-guide-body {
+    padding: 4px 12px 12px;
+    border-top: 1px solid var(--color-border);
+  }
+  .tg-guide-section {
+    margin-top: 10px;
+  }
+  .tg-guide-section-first {
+    margin-top: 15px;
+  }
+  .tg-guide-steps {
+    flex: 1;
+  }
+  .tg-guide-section-title {
+    font-weight: 600;
+    font-size: 0.85rem;
+    margin-bottom: 4px;
+    opacity: 0.9;
+  }
+  .tg-guide-body ol {
+    margin: 4px 0;
+    padding-left: 20px;
+  }
+  .tg-guide-body li {
+    margin-bottom: 4px;
+  }
+  .tg-guide-body a {
+    color: var(--color-highlight);
+  }
+  .tg-guide-note {
+    margin-top: 15px;
+    padding: 6px 10px;
+    background: var(--color-background-hover, rgba(255,255,255,0.04));
+    border-radius: 4px;
+    font-size: 0.8rem;
+    opacity: 0.85;
+  }
+  .tg-guide-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .tg-guide-row ol {
+    flex: 1;
+  }
+  .tg-qr {
+    width: 88px;
+    height: 88px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    image-rendering: pixelated;
+  }
   .bot-card {
     border: 1px solid var(--color-border);
     border-radius: 6px;
@@ -270,6 +387,7 @@
   }
   .bot-add-btn {
     margin-top: 4px;
+    width: fit-content;
   }
   .bot-test-row {
     margin-top: 12px;

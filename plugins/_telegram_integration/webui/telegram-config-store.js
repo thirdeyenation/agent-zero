@@ -24,7 +24,8 @@ export const store = createStore("telegramConfig", {
   defaultBot() {
     return {
       name: "",
-      enabled: false,
+      enabled: true,
+      notify_messages: false,
       token: "",
       mode: "polling",
       webhook_url: "",

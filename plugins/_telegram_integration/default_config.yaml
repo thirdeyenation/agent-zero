@@ -2,6 +2,7 @@ bots: []
 # Example bot:
 # - name: my_bot
 #   enabled: true
+#   notify_messages: false       # Show a WebUI notification for each incoming Telegram message.
 #   token: ""
 #   mode: polling                # polling or webhook
 #   webhook_url: ""              # required if mode=webhook, your A0 base URL e.g. https://yourdomain.com (webhook path appended automatically)

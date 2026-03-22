@@ -175,15 +175,16 @@ async def handle_clear(message: TgMessage, bot_name: str, bot_cfg: dict):
         )
 
     # Send notification
-    username_str = f"@{user.username}" if user.username else str(user.id)
-    NotificationManager.send_notification(
-        type=NotificationType.INFO,
-        priority=NotificationPriority.NORMAL,
-        title="Telegram: chat cleared",
-        message=f"{username_str} cleared their chat via /clear",
-        display_time=5,
-        group="telegram",
-    )
+    if bot_cfg.get("notify_messages", False):
+        username_str = f"@{user.username}" if user.username else str(user.id)
+        NotificationManager.send_notification(
+            type=NotificationType.INFO,
+            priority=NotificationPriority.NORMAL,
+            title="Telegram: chat cleared",
+            message=f"{username_str} cleared their chat via /clear",
+            display_time=5,
+            group="telegram",
+        )
 
 
 async def handle_message(message: TgMessage, bot_name: str, bot_cfg: dict):
@@ -250,16 +251,17 @@ async def handle_message(message: TgMessage, bot_name: str, bot_cfg: dict):
     save_tmp_chat(context)
 
     # Send notification
-    username_str = f"@{user.username}" if user.username else str(user.id)
-    preview = (text[:80] + "...") if len(text) > 80 else text
-    NotificationManager.send_notification(
-        type=NotificationType.INFO,
-        priority=NotificationPriority.HIGH,
-        title="Telegram: new message",
-        message=f"From {username_str}: {preview}",
-        display_time=10,
-        group="telegram",
-    )
+    if bot_cfg.get("notify_messages", False):
+        username_str = f"@{user.username}" if user.username else str(user.id)
+        preview = (text[:80] + "...") if len(text) > 80 else text
+        NotificationManager.send_notification(
+            type=NotificationType.INFO,
+            priority=NotificationPriority.HIGH,
+            title="Telegram: new message",
+            message=f"From {username_str}: {preview}",
+            display_time=10,
+            group="telegram",
+        )
 
 
 async def handle_callback_query(query: CallbackQuery, bot_name: str, bot_cfg: dict):
