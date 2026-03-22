@@ -4,7 +4,7 @@ from typing import Callable, Awaitable
 
 from aiogram import Bot, Dispatcher, Router, F
 from aiogram.client.default import DefaultBotProperties
-from aiogram.enums import ParseMode, ChatType
+from aiogram.enums import ParseMode, ChatType, ContentType
 from aiogram.filters import Command, CommandStart
 from aiogram.types import Message
 
@@ -46,6 +46,7 @@ def create_bot(
     on_command_start: Callable[..., Awaitable],
     on_command_clear: Callable[..., Awaitable],
     on_callback_query: Callable[..., Awaitable] | None = None,
+    on_new_members: Callable[..., Awaitable] | None = None,
     group_mode: str = "mention",
 ) -> BotInstance:
     bot = Bot(token=token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
@@ -58,6 +59,9 @@ def create_bot(
 
     if on_callback_query:
         router.callback_query.register(on_callback_query)
+
+    if on_new_members:
+        router.message.register(on_new_members, F.content_type == ContentType.NEW_CHAT_MEMBERS)
 
     # Register message handler with group filtering
     if group_mode == "off":

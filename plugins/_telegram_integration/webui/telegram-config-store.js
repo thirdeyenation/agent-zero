@@ -32,6 +32,8 @@ export const store = createStore("telegramConfig", {
       webhook_secret: "",
       allowed_users: [],
       group_mode: "mention",
+      welcome_enabled: false,
+      welcome_message: "",
       user_projects: {},
       default_project: "",
       agent_instructions: "",

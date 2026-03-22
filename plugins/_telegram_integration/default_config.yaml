@@ -9,6 +9,8 @@ bots: []
 #   webhook_secret: ""           # optional shared secret for webhook verification
 #   allowed_users: []            # Telegram user IDs or @usernames. Empty = allow all.
 #   group_mode: mention          # mention (respond when @mentioned or replied to) | all (respond to every message) | off (ignore groups)
+#   welcome_enabled: false       # Send a greeting when someone joins the group
+#   welcome_message: ""          # Welcome template. Use {name} for the new member's name. Default: "Welcome, {name}!"
 #   user_projects: {}            # Map Telegram user_id to project name, e.g. { "123456": "my_project" }
 #   default_project: ""          # Fallback project if user not in user_projects
 #   attachment_max_age_hours: 0  # Hours to keep downloaded attachments. 0 = keep forever.

@@ -179,6 +179,29 @@
                 </div>
               </div>
 
+              <div class="field" x-show="bot.group_mode !== 'off'">
+                <div class="field-label">
+                  <div class="field-title">Welcome New Members</div>
+                  <div class="field-description">Send a greeting when someone joins the group</div>
+                </div>
+                <div class="field-control">
+                  <label class="toggle">
+                    <input type="checkbox" x-model="bot.welcome_enabled" />
+                    <span class="toggler"></span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="field" x-show="bot.group_mode !== 'off' && bot.welcome_enabled">
+                <div class="field-label">
+                  <div class="field-title">Welcome Message</div>
+                  <div class="field-description">Use {name} for the new member's name</div>
+                </div>
+                <div class="field-control">
+                  <input type="text" x-model="bot.welcome_message" placeholder="Welcome, {name}!" />
+                </div>
+              </div>
+
               <div class="field">
                 <div class="field-label">
                   <div class="field-title">User Project Mapping</div>

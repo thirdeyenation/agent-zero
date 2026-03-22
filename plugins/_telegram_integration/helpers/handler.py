@@ -289,6 +289,31 @@ async def handle_callback_query(query: CallbackQuery, bot_name: str, bot_cfg: di
     context.communicate(UserMessage(message=user_msg))
     save_tmp_chat(context)
 
+
+async def handle_new_members(message: TgMessage, bot_name: str, bot_cfg: dict):
+    """Send welcome message when new members join a group."""
+    if not bot_cfg.get("welcome_enabled", False):
+        return
+
+    new_members = message.new_chat_members or []
+    if not new_members:
+        return
+
+    instance = get_bot(bot_name)
+    if not instance:
+        return
+
+    template = bot_cfg.get("welcome_message", "").strip()
+    if not template:
+        template = "Welcome, {name}!"
+
+    for member in new_members:
+        if member.is_bot:
+            continue
+        name = member.full_name or member.first_name or str(member.id)
+        text = template.replace("{name}", name)
+        await _send_with_temp_bot(instance.bot.token, message.chat.id, text, parse_mode=None)
+
 # Context management
 
 async def _get_or_create_context(

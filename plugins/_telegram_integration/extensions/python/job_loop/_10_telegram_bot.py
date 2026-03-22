@@ -26,6 +26,7 @@ class TelegramBotManager(Extension):
             handle_clear,
             handle_message,
             handle_callback_query,
+            handle_new_members,
             cleanup_old_attachments,
         )
 
@@ -67,6 +68,7 @@ class TelegramBotManager(Extension):
                 _on_clear = partial(_wrap_clear, bot_name=name, bot_cfg=bot_cfg)
                 _on_message = partial(_wrap_message, bot_name=name, bot_cfg=bot_cfg)
                 _on_callback = partial(_wrap_callback, bot_name=name, bot_cfg=bot_cfg)
+                _on_new_members = partial(_wrap_new_members, bot_name=name, bot_cfg=bot_cfg)
 
                 instance = create_bot(
                     name=name,
@@ -75,6 +77,7 @@ class TelegramBotManager(Extension):
                     on_command_start=_on_start,
                     on_command_clear=_on_clear,
                     on_callback_query=_on_callback,
+                    on_new_members=_on_new_members,
                     group_mode=bot_cfg.get("group_mode", "mention"),
                 )
 
@@ -130,3 +133,8 @@ async def _wrap_message(message, bot_name: str, bot_cfg: dict):
 async def _wrap_callback(query, bot_name: str, bot_cfg: dict):
     from plugins._telegram_integration.helpers.handler import handle_callback_query
     await handle_callback_query(query, bot_name, _get_current_bot_cfg(bot_name) or bot_cfg)
+
+
+async def _wrap_new_members(message, bot_name: str, bot_cfg: dict):
+    from plugins._telegram_integration.helpers.handler import handle_new_members
+    await handle_new_members(message, bot_name, _get_current_bot_cfg(bot_name) or bot_cfg)
