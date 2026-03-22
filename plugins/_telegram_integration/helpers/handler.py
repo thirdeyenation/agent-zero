@@ -3,6 +3,7 @@ import os
 import threading
 import time
 import uuid
+from contextlib import asynccontextmanager, suppress
 
 from aiogram import Bot
 from aiogram.client.default import DefaultBotProperties
@@ -219,14 +220,8 @@ async def handle_message(message: TgMessage, bot_name: str, bot_cfg: dict):
     text = _extract_message_content(message)
 
     # Use temp bot for downloads (cross-event-loop safe)
-    dl_bot = Bot(token=instance.bot.token)
-    try:
+    async with _temp_bot(instance.bot.token) as dl_bot:
         attachments = await _download_attachments(dl_bot, message, bot_name=bot_name)
-    finally:
-        try:
-            await dl_bot.session.close()
-        except Exception:
-            pass
 
     # Build user message with prompt
     agent = context.agent0
@@ -353,6 +348,9 @@ async def _get_or_create_context_from_user(
             if project:
                 projects.activate_project(ctx.id, project)
 
+            # Inherit model override from an existing context in the same project
+            _inherit_model_override(ctx)
+
             chats[key] = ctx.id
             _save_state(state)
 
@@ -376,24 +374,20 @@ def _extract_message_content(message: TgMessage) -> str:
         parts.append(message.caption)
 
     if message.location:
-        parts.append(f"[Location: {message.location.latitude}, {message.location.longitude}]")
+        loc = message.location
+        parts.append(f"[Location: {loc.latitude}, {loc.longitude}]")
 
     if message.contact:
-        parts.append(
-            f"[Contact: {message.contact.first_name} "
-            f"{message.contact.last_name or ''} "
-            f"phone={message.contact.phone_number}]"
-        )
+        c = message.contact
+        parts.append(f"[Contact: {c.first_name} {c.last_name or ''} phone={c.phone_number}]")
 
     if message.sticker:
-        emoji = message.sticker.emoji or ""
-        parts.append(f"[Sticker: {emoji}]")
+        parts.append(f"[Sticker: {message.sticker.emoji or ''}]")
 
-    if message.voice:
-        parts.append("[Voice message — see attachment]")
-
-    if message.video_note:
-        parts.append("[Video note — see attachment]")
+    # Simple attachment indicators
+    for attr, label in [("voice", "Voice message"), ("video_note", "Video note")]:
+        if getattr(message, attr, None):
+            parts.append(f"[{label} — see attachment]")
 
     return "\n".join(parts) if parts else "[No text content]"
 
@@ -416,39 +410,20 @@ async def _download_attachments(bot, message: TgMessage, bot_name: str = "") -> 
         if path:
             paths.append(path)
 
-    # Document
-    if message.document:
-        fname = message.document.file_name or f"file_{message.document.file_unique_id}"
-        path = await _dl(message.document.file_id, fname)
-        if path:
-            paths.append(path)
-
-    # Audio
-    if message.audio:
-        fname = message.audio.file_name or f"audio_{message.audio.file_unique_id}.mp3"
-        path = await _dl(message.audio.file_id, fname)
-        if path:
-            paths.append(path)
-
-    # Voice
-    if message.voice:
-        path = await _dl(message.voice.file_id, f"voice_{message.voice.file_unique_id}.ogg")
-        if path:
-            paths.append(path)
-
-    # Video
-    if message.video:
-        fname = message.video.file_name or f"video_{message.video.file_unique_id}.mp4"
-        path = await _dl(message.video.file_id, fname)
-        if path:
-            paths.append(path)
-
-    # Video note
-    if message.video_note:
-        path = await _dl(
-            message.video_note.file_id,
-            f"videonote_{message.video_note.file_unique_id}.mp4",
-        )
+    # Other attachment types: (attr, default_prefix, default_ext)
+    _types = [
+        ("document",   "file",      None),
+        ("audio",      "audio",     ".mp3"),
+        ("voice",      "voice",     ".ogg"),
+        ("video",      "video",     ".mp4"),
+        ("video_note", "videonote", ".mp4"),
+    ]
+    for attr, prefix, ext in _types:
+        obj = getattr(message, attr, None)
+        if not obj:
+            continue
+        fname = getattr(obj, "file_name", None) or f"{prefix}_{obj.file_unique_id}{ext or ''}"
+        path = await _dl(obj.file_id, fname)
         if path:
             paths.append(path)
 
@@ -480,28 +455,21 @@ async def send_telegram_reply(
     if typing_stop:
         typing_stop.set()
 
-    reply_bot = Bot(
-        token=instance.bot.token,
-        default=DefaultBotProperties(parse_mode=ParseMode.HTML),
-    )
     try:
-        # Send attachments first
-        if attachments:
-            for path in attachments:
-                if tc.is_image_file(path):
-                    await tc.send_photo(reply_bot, chat_id, path)
-                else:
-                    await tc.send_file(reply_bot, chat_id, path)
+        async with _temp_bot(instance.bot.token, default=DefaultBotProperties(parse_mode=ParseMode.HTML)) as reply_bot:
+            if attachments:
+                for path in attachments:
+                    if tc.is_image_file(path):
+                        await tc.send_photo(reply_bot, chat_id, path)
+                    else:
+                        await tc.send_file(reply_bot, chat_id, path)
 
-        # Send text (with or without keyboard), convert Markdown → HTML
-        if response_text:
-            html_text = tc.md_to_telegram_html(response_text)
-            if keyboard:
-                await tc.send_text_with_keyboard(
-                    reply_bot, chat_id, html_text, keyboard,
-                )
-            else:
-                await tc.send_text(reply_bot, chat_id, html_text)
+            if response_text:
+                html_text = tc.md_to_telegram_html(response_text)
+                if keyboard:
+                    await tc.send_text_with_keyboard(reply_bot, chat_id, html_text, keyboard)
+                else:
+                    await tc.send_text(reply_bot, chat_id, html_text)
 
         return None
 
@@ -509,24 +477,24 @@ async def send_telegram_reply(
         error = format_error(e)
         PrintStyle.error(f"Telegram reply failed: {error}")
         return error
-    finally:
-        try:
-            await reply_bot.session.close()
-        except Exception:
-            pass
 
 # Helpers
 
+@asynccontextmanager
+async def _temp_bot(token: str, **kwargs):
+    """Create a temporary Bot, yield it, and ensure the session is closed."""
+    bot = Bot(token=token, **kwargs)
+    try:
+        yield bot
+    finally:
+        with suppress(Exception):
+            await bot.session.close()
+
+
 async def _send_with_temp_bot(token: str, chat_id: int, text: str, parse_mode: str | None = None):
     """Send text using a temporary Bot to avoid cross-event-loop session issues."""
-    bot = Bot(token=token)
-    try:
+    async with _temp_bot(token) as bot:
         await tc.send_text(bot, chat_id, text, parse_mode=parse_mode)
-    finally:
-        try:
-            await bot.session.close()
-        except Exception:
-            pass
 
 
 def _start_typing(token: str, chat_id: int) -> threading.Event:
@@ -537,27 +505,20 @@ def _start_typing(token: str, chat_id: int) -> threading.Event:
         import asyncio
 
         async def _loop():
-            bot = Bot(token=token)
-            try:
+            async with _temp_bot(token) as bot:
                 while not stop.is_set():
                     await tc.send_typing(bot, chat_id)
-                    # Sleep 4s total, checking stop every 0.5s
                     for _ in range(8):
                         if stop.is_set():
                             return
                         await asyncio.sleep(0.5)
-            except Exception:
-                pass
-            finally:
-                try:
-                    await bot.session.close()
-                except Exception:
-                    pass
 
-        asyncio.run(_loop())
+        try:
+            asyncio.run(_loop())
+        except Exception:
+            pass
 
-    t = threading.Thread(target=_run, daemon=True)
-    t.start()
+    threading.Thread(target=_run, daemon=True).start()
     return stop
 
 
@@ -568,4 +529,25 @@ def _format_user(user) -> str:
     if user.username:
         name += f" (@{user.username})"
     return name.strip() or str(user.id)
+
+
+def _inherit_model_override(ctx: AgentContext):
+    """Copy chat_model_override from the most recent sibling context in the same project."""
+    project = ctx.get_data("project")
+    if not project:
+        return
+    try:
+        from plugins._model_config.helpers.model_config import is_chat_override_allowed
+        if not is_chat_override_allowed(ctx.agent0):
+            return
+    except Exception:
+        return
+    source = max(
+        (c for c in AgentContext.all()
+         if c.id != ctx.id and c.get_data("project") == project and c.get_data("chat_model_override")),
+        key=lambda c: c.last_message,
+        default=None,
+    )
+    if source:
+        ctx.set_data("chat_model_override", source.get_data("chat_model_override"))
 
