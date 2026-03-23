@@ -321,6 +321,7 @@ async def _parse_body(
     body = ""
     attachments: list[str] = []
     cid_map: dict[str, str] = {}
+    body_parts: list[str] = []
 
     if email_msg.is_multipart():
         for part in email_msg.walk():
@@ -341,17 +342,27 @@ async def _parse_body(
                         cid = part.get("Content-ID")
                         if cid:
                             cid_map[cid.strip("<>")] = path
+                        
+                        if not cid and body_parts:
+                            body_parts.append(f"\n[attachment://{path}]\n")
 
-            elif content_type == "text/plain" and not body:
-                charset = part.get_content_charset() or "utf-8"
-                payload = part.get_payload(decode=True)
-                body = payload.decode(charset, errors="ignore") if isinstance(payload, bytes) else ""
+            elif content_type == "text/plain":
+                if not body:
+                    charset = part.get_content_charset() or "utf-8"
+                    payload = part.get_payload(decode=True)
+                    body = payload.decode(charset, errors="ignore") if isinstance(payload, bytes) else ""
+                    body_parts.append(body)
 
-            elif content_type == "text/html" and not body:
-                charset = part.get_content_charset() or "utf-8"
-                payload = part.get_payload(decode=True)
-                html = payload.decode(charset, errors="ignore") if isinstance(payload, bytes) else ""
-                body = _html_to_text(html, cid_map)
+            elif content_type == "text/html":
+                if not body:
+                    charset = part.get_content_charset() or "utf-8"
+                    payload = part.get_payload(decode=True)
+                    html = payload.decode(charset, errors="ignore") if isinstance(payload, bytes) else ""
+                    body = _html_to_text(html, cid_map)
+                    body_parts.append(body)
+
+        if len(body_parts) > 1:
+            body = "".join(body_parts)
     else:
         content_type = email_msg.get_content_type()
         charset = email_msg.get_content_charset() or "utf-8"
@@ -394,7 +405,7 @@ def _html_to_text(html_content: str, cid_map: dict[str, str] | None = None) -> s
             if src.startswith("cid:"):
                 cid = src[4:]
                 if cid in cid_map:
-                    img.replace_with(soup.new_string(f"[file://{cid_map[cid]}]"))
+                    img.replace_with(soup.new_string(f"[attachment://{cid_map[cid]}]"))
         html_content = str(soup)
 
     h = html2text.HTML2Text()
