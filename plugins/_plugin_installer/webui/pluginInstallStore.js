@@ -64,6 +64,10 @@ const model = {
   setTab(tab) {
     this.activeTab = tab;
     this.result = null;
+    if (tab === "store") {
+      this.resetIndex();
+      void this.fetchIndex();
+    }
   },
 
   setBrowseFilter(filter) {
