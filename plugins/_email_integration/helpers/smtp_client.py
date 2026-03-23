@@ -47,10 +47,34 @@ async def send_reply(
     loop = asyncio.get_event_loop()
 
     def _sync_send():
-        msg = MIMEMultipart() if attachments else MIMEText(body, "plain", "utf-8")
+        import markdown
+        
+        html_body = markdown.markdown(body, extensions=['extra', 'nl2br'])
+        html_content = f"""
+        <html>
+        <head>
+        <style>
+            body {{ font-family: sans-serif; line-height: 1.5; }}
+            blockquote {{ border-left: 4px solid #ccc; margin: 0; padding-left: 1em; color: #666; }}
+            pre {{ background-color: #f6f8fa; padding: 1em; border-radius: 4px; overflow-x: auto; }}
+            code {{ font-family: monospace; background-color: #f6f8fa; padding: 0.2em 0.4em; border-radius: 3px; }}
+            pre code {{ padding: 0; background-color: transparent; }}
+        </style>
+        </head>
+        <body>
+        {html_body}
+        </body>
+        </html>
+        """
 
         if attachments:
-            msg.attach(MIMEText(body, "plain", "utf-8"))
+            msg = MIMEMultipart("mixed")
+            
+            alt_part = MIMEMultipart("alternative")
+            alt_part.attach(MIMEText(body, "plain", "utf-8"))
+            alt_part.attach(MIMEText(html_content, "html", "utf-8"))
+            msg.attach(alt_part)
+            
             for filename, content in attachments:
                 part = MIMEBase("application", "octet-stream")
                 part.set_payload(content)
@@ -60,6 +84,10 @@ async def send_reply(
                     f"attachment; filename={filename}",
                 )
                 msg.attach(part)
+        else:
+            msg = MIMEMultipart("alternative")
+            msg.attach(MIMEText(body, "plain", "utf-8"))
+            msg.attach(MIMEText(html_content, "html", "utf-8"))
 
         msg["From"] = config.username
         msg["To"] = to
