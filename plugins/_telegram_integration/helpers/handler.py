@@ -24,8 +24,8 @@ from plugins._telegram_integration.helpers.bot_manager import get_bot
 
 
 PLUGIN_NAME = "_telegram_integration"
-DOWNLOAD_FOLDER = "usr/telegram/attachments"
-STATE_FILE = "usr/telegram/state.json"
+DOWNLOAD_FOLDER = "usr/uploads"
+STATE_FILE = "usr/plugins/_telegram_integration/state.json"
 
 # Context data keys
 CTX_TG_BOT = "telegram_bot"
@@ -69,6 +69,9 @@ def cleanup_old_attachments():
     config = plugins.get_plugin_config(PLUGIN_NAME) or {}
     bots_cfg = config.get("bots") or []
     total_removed = 0
+    upload_dir = files.get_abs_path(DOWNLOAD_FOLDER)
+    if not os.path.isdir(upload_dir):
+        return
     for bot_cfg in bots_cfg:
         bot_name = bot_cfg.get("name", "")
         if not bot_name:
@@ -76,12 +79,12 @@ def cleanup_old_attachments():
         max_age_hours = bot_cfg.get("attachment_max_age_hours", 0)
         if not max_age_hours or max_age_hours <= 0:
             continue
-        folder = os.path.join(files.get_abs_path(DOWNLOAD_FOLDER), bot_name)
-        if not os.path.isdir(folder):
-            continue
+        prefix = f"tg_{bot_name}_"
         cutoff = time.time() - max_age_hours * 3600
-        for name in os.listdir(folder):
-            path = os.path.join(folder, name)
+        for name in os.listdir(upload_dir):
+            if not name.startswith(prefix):
+                continue
+            path = os.path.join(upload_dir, name)
             try:
                 if os.path.isfile(path) and os.path.getmtime(path) < cutoff:
                     os.remove(path)
@@ -415,13 +418,20 @@ def _extract_message_content(message: TgMessage) -> str:
 async def _download_attachments(bot, message: TgMessage, bot_name: str = "") -> list[str]:
     """Download photos, documents, audio, voice, video from message."""
     paths: list[str] = []
-    sub = bot_name if bot_name else "_default"
-    download_base = os.path.join(files.get_abs_path(DOWNLOAD_FOLDER), sub)
-    os.makedirs(download_base, exist_ok=True)
+    tg_prefix = f"tg_{bot_name}_" if bot_name else "tg_"
+    # Host-local path for actual file I/O
+    download_dir = files.get_abs_path(DOWNLOAD_FOLDER)
+    os.makedirs(download_dir, exist_ok=True)
+    # Docker-style path for agent references
+    download_dir_ref = files.get_abs_path_dockerized(DOWNLOAD_FOLDER)
 
     async def _dl(file_id: str, filename: str) -> str | None:
-        dest = os.path.join(download_base, f"{uuid.uuid4().hex[:8]}_{filename}")
-        return await tc.download_file(bot, file_id, dest)
+        safe_name = f"{tg_prefix}{uuid.uuid4().hex[:8]}_{filename}"
+        dest = os.path.join(download_dir, safe_name)
+        result = await tc.download_file(bot, file_id, dest)
+        if result:
+            return os.path.join(download_dir_ref, safe_name)
+        return None
 
     # Photo: get largest resolution
     if message.photo:
@@ -479,10 +489,11 @@ async def send_telegram_reply(
         async with _temp_bot(instance.bot.token, default=DefaultBotProperties(parse_mode=ParseMode.HTML)) as reply_bot:
             if attachments:
                 for path in attachments:
-                    if tc.is_image_file(path):
-                        await tc.send_photo(reply_bot, chat_id, path)
+                    local_path = files.fix_dev_path(path)
+                    if tc.is_image_file(local_path):
+                        await tc.send_photo(reply_bot, chat_id, local_path)
                     else:
-                        await tc.send_file(reply_bot, chat_id, path)
+                        await tc.send_file(reply_bot, chat_id, local_path)
 
             if response_text:
                 html_text = tc.md_to_telegram_html(response_text)
