@@ -28,7 +28,7 @@ class MigrateModelConfig(Extension):
         "browser_model_rl_output", "browser_model_kwargs", "browser_http_headers",
     ]
 
-    async def execute(self, **kwargs):
+    def execute(self, **kwargs):
         # Check if global plugin config already exists
         global_config_path = files.get_abs_path("plugins/_model_config/config.json")
         if os.path.exists(global_config_path):

@@ -54,8 +54,8 @@ usr/plugins/<plugin_name>/
 ├── execute.py                       # optional user-triggered plugin script
 ├── hooks.py                         # optional runtime hook functions callable by the framework
 ├── default_config.yaml              # optional defaults
-├── README.md                        # optional, shown in Plugin List UI
-├── LICENSE                          # optional, shown in Plugin List UI
+├── README.md                        # optional locally; strongly recommended for community plugins
+├── LICENSE                          # optional locally (shown in Plugin List UI when present); required at repo root for Plugin Index submission
 ├── api/                             # ApiHandler implementations
 ├── tools/                           # Tool implementations
 ├── helpers/                         # shared Python logic
@@ -251,7 +251,7 @@ screenshots:                    # optional, up to 5 full image URLs
   - https://raw.githubusercontent.com/yourname/your-plugin-repo/main/docs/screen.png
 ```
 
-The index manifest file is named `index.yaml` (not `plugin.yaml`). Required fields: `title`, `description`, `github`. Optional: `tags` (up to 5), `screenshots` (up to 5 URLs). The `github` URL must point to a public GitHub repository that contains a runtime `plugin.yaml` at the **repository root**, and that `plugin.yaml` must include a `name` field matching the index folder name exactly.
+The index manifest file is named `index.yaml` (not `plugin.yaml`). Required fields: `title`, `description`, `github`. Optional: `tags` (up to 5), `screenshots` (up to 5 URLs). The `github` URL must point to a public GitHub repository that contains a runtime `plugin.yaml` at the **repository root**, and that `plugin.yaml` must include a `name` field matching the index folder name exactly. That repository must also include a `LICENSE` file at its root (Plugin Index / community contribution requirement).
 
 ### Repository Structure for Community Plugins
 
@@ -262,7 +262,7 @@ your-plugin-repo/          ← GitHub repository root
 ├── plugin.yaml            ← runtime manifest (must include name field)
 ├── default_config.yaml
 ├── README.md
-├── LICENSE
+├── LICENSE                ← required for Plugin Index listings
 ├── api/
 ├── tools/
 ├── extensions/
@@ -280,6 +280,7 @@ your-plugin-repo/          ← GitHub repository root
 Submission rules:
 - Folder name: unique, stable, `^[a-z0-9_]+$` (lowercase, numbers, underscores — no hyphens)
 - Folder name must exactly match the `name` field in your remote `plugin.yaml`
+- The GitHub repo must include `LICENSE` at its root (community contribution requirement)
 - Folders starting with `_` are reserved for internal use
 - `title`: max 50 characters
 - `description`: max 500 characters
@@ -310,7 +311,8 @@ This keeps toasts and notification history consistent. See [Notifications](notif
 ## See Also
 
 - `docs/agents/AGENTS.plugins.md` for full architecture details
-- `skills/a0-create-plugin/SKILL.md` for plugin authoring workflow (agent-facing)
+- `skills/a0-plugin-router/SKILL.md` for the primary agent-facing entry point across plugin create/review/manage/contribute/debug tasks
+- `skills/a0-create-plugin/SKILL.md` for direct plugin authoring workflow when the task is specifically to build or extend a plugin
 - `plugins/README.md` for core plugin directory overview
 
 ## Frontend Extension Notes

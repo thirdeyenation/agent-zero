@@ -390,7 +390,7 @@ def _html_to_text(html_content: str, cid_map: dict[str, str] | None = None) -> s
     if cid_map:
         soup = BeautifulSoup(html_content, "html.parser")
         for img in soup.find_all("img"):
-            src = str(img.get("src", ""))
+            src = str(img.get("src", "")) # type: ignore
             if src.startswith("cid:"):
                 cid = src[4:]
                 if cid in cid_map:

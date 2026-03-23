@@ -1,5 +1,6 @@
 import { createStore } from "/js/AlpineStore.js";
 import * as api from "/js/api.js";
+import { addBlankTargetsToLinks } from "/js/messages.js";
 import { openModal } from "/js/modals.js";
 import { marked } from "/vendor/marked/marked.esm.js";
 import { toastFrontendSuccess, toastFrontendError } from "/components/notifications/notification-store.js";
@@ -10,7 +11,7 @@ import { store as pluginExecuteStore } from "/components/plugins/list/plugin-exe
 import { store as pluginSettingsStore } from "/components/plugins/plugin-settings-store.js";
 
 const PLUGIN_API = "plugins/_plugin_installer/plugin_install";
-const PER_PAGE = 20;
+const PER_PAGE = 24;
 
 const SECURITY_WARNING = {
   title: "Security Warning",
@@ -78,6 +79,52 @@ const model = {
     return url.replace("https://github.com/", "https://raw.githubusercontent.com/");
   },
 
+  _rebaseReadmeLinks(html, githubUrl, branch) {
+    if (!html || typeof html !== "string" || !githubUrl || !branch) return html;
+
+    let repoUrl;
+    try {
+      repoUrl = new URL(githubUrl.trim().replace(/\.git$/i, ""));
+    } catch {
+      return html;
+    }
+
+    if (repoUrl.hostname !== "github.com") return html;
+
+    const [owner, repo] = repoUrl.pathname
+      .replace(/^\/+|\/+$/g, "")
+      .split("/");
+    if (!owner || !repo) return html;
+
+    const repoBlobBase = `https://github.com/${owner}/${repo}/blob/${branch}`;
+    const doc = new DOMParser().parseFromString(html, "text/html");
+
+    doc.querySelectorAll("a[href]").forEach((anchor) => {
+      const href = (anchor.getAttribute("href") || "").trim();
+      if (
+        !href ||
+        href.startsWith("#") ||
+        href.startsWith("//") ||
+        /^[a-zA-Z][a-zA-Z\d+.-]*:/.test(href)
+      ) {
+        return;
+      }
+
+      try {
+        const resolved = new URL(href, "https://repo-root.invalid/");
+        const repoPath = resolved.pathname.replace(/^\/+/, "");
+        anchor.setAttribute(
+          "href",
+          `${repoBlobBase}/${repoPath}${resolved.search}${resolved.hash}`,
+        );
+      } catch {
+        // Leave malformed links unchanged.
+      }
+    });
+
+    return doc.body.innerHTML;
+  },
+
   _pluginPrimaryTag(plugin) {
     const tags = Array.isArray(plugin?.tags) ? plugin.tags.filter(Boolean) : [];
     return tags[0] || "";
@@ -96,7 +143,7 @@ const model = {
     if (!filterKey || filterKey === "all") return true;
     if (filterKey === "installed") return !!plugin?.installed;
     if (filterKey === "update") return !!plugin?.has_update;
-    if (filterKey === "popular") return (plugin?.stars || 0) > 0;
+    if (filterKey === "popular") return (plugin?.stars || 0) >= 3;
     if (filterKey.startsWith("tag:")) {
       return this._pluginPrimaryTag(plugin) === filterKey.slice(4);
     }
@@ -474,7 +521,9 @@ const model = {
           if (!response.ok) continue;
 
           const readme = await response.text();
-          this.readmeContent = marked.parse(readme, { breaks: true });
+          let html = marked.parse(readme, { breaks: true });
+          html = this._rebaseReadmeLinks(html, plugin?.github, branch);
+          this.readmeContent = addBlankTargetsToLinks(html);
           return;
         } catch (error) {
           lastError = error;
@@ -608,9 +657,21 @@ const model = {
   },
 
   handleOpenInfo() {
-    if (this.installedPluginInfo) {
-      pluginListStore.openPluginInfo(this.installedPluginInfo);
-    }
+    if (!this.installedPluginInfo) return;
+    const pluginHubKey = (this.selectedPlugin?.key || "").trim();
+    const plugin = pluginHubKey
+      ? {
+          ...this.installedPluginInfo,
+          pluginHub: {
+            key: pluginHubKey,
+            title:
+              this.selectedPlugin?.title ||
+              this.installedPluginInfo.display_name ||
+              this.installedPluginInfo.name,
+          },
+        }
+      : this.installedPluginInfo;
+    pluginListStore.openPluginInfo(plugin);
   },
 
   handleOpenExecute() {

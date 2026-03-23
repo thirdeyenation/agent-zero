@@ -27,7 +27,7 @@ Read `usr/plugins/<name>/plugin.yaml`. Check:
 
 - [ ] File exists at plugin root
 - [ ] Valid YAML (parseable, mapping at top level)
-- [ ] `name` field present, non-empty, matches `^[a-z0-9_]+$` and matches the directory name
+- [ ] `name` field handling matches the intended distribution target: for community / Plugin Index plugins it must be present, non-empty, match `^[a-z0-9_]+$`, and match the directory name; for local-only plugins, a missing `name` is a WARN rather than a FAIL
 - [ ] `title` present and non-empty
 - [ ] `description` present and non-empty
 - [ ] `version` present, follows semver or simple `x.y.z` format
@@ -54,10 +54,11 @@ Inspect the plugin directory layout:
 - [ ] If `webui/config.html` exists: plugin must declare at least one `settings_sections` entry
 - [ ] If `hooks.py` exists: warn if it does NOT contain an `install` function (common oversight)
 - [ ] If `execute.py` exists: check it has a `main()` function and `if __name__ == "__main__": sys.exit(main())`
+- [ ] `LICENSE` at plugin root: Agent Zero does not require it for local plugins, but it is **required** at the repo root before submitting to the Plugin Index. If missing → **WARN** — `LICENSE absent — required for community contribution (Plugin Index); optional for local-only use`
 - [ ] `default_config.yaml` (if present): valid YAML
 - [ ] No unexpected top-level entries (WARN for anything outside the standard layout)
 
-Standard top-level layout: `plugin.yaml`, `execute.py`, `hooks.py`, `default_config.yaml`, `README.md`, `LICENSE`, `__init__.py`, `api/`, `tools/`, `extensions/`, `webui/`, `helpers/`, `prompts/`, `agents/`, `conf/`
+Standard top-level layout: `plugin.yaml`, `execute.py`, `hooks.py`, `default_config.yaml`, optional `README.md`, `LICENSE`, `__init__.py`, plus `api/`, `tools/`, `extensions/`, `webui/`, `helpers/`, `prompts/`, `agents/`, `conf/`
 
 ---
 
@@ -125,9 +126,9 @@ Check:
 ### Community readiness assessment
 
 Summarize whether the plugin is ready for contribution:
-- READY: all FAIL items resolved, no WARN items blocking
+- READY: all FAIL items resolved; for Plugin Index submission, no blocking WARN items (a missing `LICENSE` is a WARN but blocks contribution readiness until fixed)
 - NEEDS WORK: list specific FAIL items to fix
-- OPTIONAL IMPROVEMENTS: list WARN items
+- OPTIONAL IMPROVEMENTS: list non-blocking WARN items (if the user is only using the plugin locally, a missing `LICENSE` can be noted as optional)
 
 ---
 
@@ -168,5 +169,6 @@ Fix required: version missing in plugin.yaml, inline error box in webui/settings
 
 - Detailed pattern checklists: read `checklists.md` in this skill directory
 - Plugin architecture: `/a0/docs/agents/AGENTS.plugins.md`
+- Developer lifecycle guide: `/a0/docs/developer/plugins.md`
 - Component system: `/a0/docs/agents/AGENTS.components.md`
 - If review passes and user wants to publish: read `/a0/skills/a0-contribute-plugin/SKILL.md`
