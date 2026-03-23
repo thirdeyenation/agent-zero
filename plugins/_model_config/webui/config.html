@@ -188,6 +188,19 @@
                     </label>
                   </div>
                 </div>
+                <template x-if="config.chat_model.vision">
+                  <div class="field">
+                    <div class="field-label">
+                      <div class="field-title">Max embeds</div>
+                      <div class="field-description">
+                        Maximum number of embedded images used by the chat model. Set to 0 for unlimited.
+                      </div>
+                    </div>
+                    <div class="field-control">
+                      <input type="number" min="0" x-model.number="config.chat_model.max_embeds" x-init="if (!config.chat_model.max_embeds) config.chat_model.max_embeds = 10" />
+                    </div>
+                  </div>
+                </template>
               </div>
             </template>
 
@@ -258,17 +271,6 @@
               </div>
             </div>
 
-            <!-- Browser HTTP Headers -->
-            <template x-if="section.key === 'chat_model'">
-              <div class="field field-full">
-                <div class="field-label">
-                  <div class="field-title">Browser HTTP Headers</div>
-                  <div class="field-description">
-                    Custom HTTP headers sent with browser requests. The browser agent uses the main model. Format is KEY=VALUE, one per line.
-                  </div>
-                </div>
-              </div>
-            </template>
 
           </div>
         </template>

@@ -119,6 +119,20 @@ print('Done')
 "
 ```
 
+If the `pre_update()` hook is not running before plugin updates:
+- Check the function is named exactly `pre_update`
+- Check for exceptions in the function
+- Manually trigger it in the **framework runtime** the same way:
+
+```bash
+cd /a0 && /opt/venv-a0/bin/python -c "
+import asyncio
+from helpers.plugins import call_plugin_hook
+asyncio.run(call_plugin_hook('<plugin_name>', 'pre_update'))
+print('Done')
+"
+```
+
 ---
 
 ## 8. Check Agent Zero logs

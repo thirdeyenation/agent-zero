@@ -119,7 +119,7 @@ def register_ws_namespace(
     webapp: Flask,
     lock: ThreadLockType,
 ) -> None:
-    from helpers.extract_tools import load_classes_from_file
+    from helpers.modules import load_classes_from_file
     from helpers import plugins, runtime
 
     def _resolve_handler(path: str) -> type[WsHandler] | None:

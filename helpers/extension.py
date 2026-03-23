@@ -1,6 +1,6 @@
 from abc import abstractmethod
 from typing import Any, Awaitable, Type, cast
-from helpers import extract_tools, files
+from helpers import modules, files
 from helpers import cache, subagents
 from typing import TYPE_CHECKING
 from functools import wraps
@@ -316,7 +316,7 @@ def _get_extensions(folder: str):
     if not files.exists(folder):
         return []
 
-    classes = extract_tools.load_classes_from_folder(folder, "*", Extension)
+    classes = modules.load_classes_from_folder(folder, "*", Extension)
     cache.add(_EXTENSIONS_CACHE_AREA, folder, classes)
     return classes
 

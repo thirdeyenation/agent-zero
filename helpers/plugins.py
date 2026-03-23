@@ -26,7 +26,8 @@ from helpers import (
     cache,
     extension,
     watchdog,
-    extract_tools,
+    modules,
+    functions,
 )
 from pydantic import BaseModel, Field
 
@@ -129,7 +130,8 @@ def register_watchdogs():
             if plugin_name and plugin_name not in plugin_names:
                 plugin_names.append(plugin_name)
         print_style.PrintStyle.debug("Plugins watchdog triggered", plugin_names)
-        after_plugin_change(plugin_names or None)
+        python_change = any(path.endswith('.py') for path, _event in events)
+        after_plugin_change(plugin_names or None, python_change=python_change)
 
     relevant_patterns = ["**/extensions/**/*", TOGGLE_FILE_PATTERN, HOOKS_SCRIPT]
 
@@ -175,15 +177,31 @@ def register_watchdogs():
 
 
 @extension.extensible
-def after_plugin_change(plugin_names: list[str] | None = None):
-    clear_plugin_cache()
+def after_plugin_change(plugin_names: list[str] | None = None, python_change:bool=False):
+    clear_plugin_cache(plugin_names)
+    if python_change:
+        refresh_plugin_modules(plugin_names)
     send_frontend_reload_notification(plugin_names)
 
 
-def clear_plugin_cache():
+def refresh_plugin_modules(plugin_names: list[str] | None = None):
+    if plugin_names:
+        clear_plugins = any(name.startswith("_") for name in plugin_names)
+        clear_usr_plugins = any(not name.startswith("_") for name in plugin_names)
+        if clear_plugins:
+            modules.purge_namespace("plugins")
+        if clear_usr_plugins:
+            modules.purge_namespace("usr.plugins")
+    else:
+        modules.purge_namespace("plugins")
+        modules.purge_namespace("usr.plugins")
+
+
+def clear_plugin_cache(plugin_names: list[str] | None = None):
     areas = ["*(plugins)*", "*(extensions)*", "*(api)*"]
     for area in areas:
         cache.clear(area)
+
     from helpers.websocket_manager import send_data
 
     DeferredTask().start_task(
@@ -378,7 +396,7 @@ def delete_plugin(plugin_name: str):
         raise ValueError("Only custom plugins can be deleted")
 
     # delete additional plugin folders
-    assets = find_plugin_assets("", plugin_name=plugin_name)
+    assets = [asset for asset in find_plugin_assets("", plugin_name=plugin_name) if not asset["path"].startswith(plugin_dir)]
     for asset in assets:
         files.delete_dir(asset["path"])
 
@@ -386,10 +404,13 @@ def delete_plugin(plugin_name: str):
         [plugin_name]
     )  # send before deletion to properly check the extensions, second notification will be skipped automatically
 
+    # does it have python files?
+    python_change = bool(files.find_existing_paths_by_pattern(plugin_dir+"/**/*.py"))
+
     # delete main plugin folder
     files.delete_dir(plugin_dir)
 
-    after_plugin_change([plugin_name])
+    after_plugin_change([plugin_name], python_change=python_change)
 
 
 def get_plugin_paths(*subpaths: str) -> List[str]:
@@ -854,9 +875,7 @@ def call_plugin_hook(
             return default  # plugin directory not found, skip hooks
         hooks_script = files.get_abs_path(plugin_dir, HOOKS_SCRIPT)
         hooks = (
-            extract_tools.import_module(hooks_script)
-            if files.exists(hooks_script)
-            else None
+            modules.import_module(hooks_script) if files.exists(hooks_script) else None
         )
         cache.add(HOOKS_CACHE_AREA, plugin_name, hooks)
     else:
@@ -870,11 +889,9 @@ def call_plugin_hook(
         return default
 
     if asyncio.iscoroutinefunction(hook):
-        return asyncio.run(
-            extract_tools.safe_call(hook, *args, default=default, **kwargs)
-        )
+        return asyncio.run(functions.safe_call(hook, *args, default=default, **kwargs))
 
-    return extract_tools.safe_call(hook, *args, default=default, **kwargs)
+    return functions.safe_call(hook, *args, default=default, **kwargs)
 
 
 def _apply_defaults_from_env(plugin_name: str, config: dict[str, Any]):

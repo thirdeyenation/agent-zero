@@ -275,9 +275,11 @@ Users trigger it from the Plugins UI. Treat it as a manual, rerunnable operation
 If your plugin needs framework-internal hook points, add a `hooks.py` file at the plugin root. The framework can call exported functions by name via `helpers.plugins.call_plugin_hook(...)`.
 
 - `hooks.py` runs inside the **Agent Zero framework runtime**, not the separate agent execution environment.
-- Use it for things like install hooks, plugin registration work, cache setup, file preparation, or other internal framework operations.
+- Use it for things like install hooks, pre-update hooks, plugin registration work, cache setup, file preparation, or other internal framework operations.
+- Current built-in usage:
+  - the plugin installer calls `install()` in `hooks.py` after placing a plugin in `usr/plugins/`
+  - the plugin updater calls `pre_update()` in `hooks.py` immediately before pulling new plugin code into place
 - Hook functions may be sync or async.
-- Current example: the plugin installer calls `install()` in `hooks.py` after placing a plugin in `usr/plugins/`.
 - Hooks should be reversible and cleanup-safe. Prefer framework-managed state and plugin-owned paths over permanent system modifications.
 
 ### Environment targeting rules

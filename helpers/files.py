@@ -47,9 +47,9 @@ def load_plugin_variables(
 
     if plugin_file and exists(plugin_file):
 
-        from helpers import extract_tools
+        from helpers import modules
 
-        classes = extract_tools.load_classes_from_file(
+        classes = modules.load_classes_from_file(
             plugin_file, VariablesPlugin, one_per_file=False
         )
         for cls in classes:

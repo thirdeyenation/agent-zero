@@ -1,10 +1,11 @@
 import asyncio
 from datetime import datetime, timezone
+import litellm
 from helpers.extension import Extension
 from agent import LoopData
 from helpers.localization import Localization
 from helpers.errors import RepairableException, HandledException
-from helpers import errors
+from helpers import errors, plugins
 from helpers.print_style import PrintStyle
 
 from plugins._error_retry.extensions.python._functions.agent.Agent.monologue.start._10_reset_critical_exception_counter import DATA_NAME_COUNTER
@@ -28,6 +29,7 @@ class RetryCriticalException(Extension):
 
         counter = self.agent.get_data(DATA_NAME_COUNTER) or 0
         if counter >= max_retries:
+            self.when_critical(data)
             return
 
         self.agent.set_data(DATA_NAME_COUNTER, counter + 1)
@@ -51,4 +53,37 @@ class RetryCriticalException(Extension):
 
         data["exception"] = None
 
+
+    def when_critical(self, data: dict = {}):
+        if not self.agent:
+            return
+
+        self.try_clear_embeds(data)
+
+    def try_clear_embeds(self, data: dict = {}):
+        """Try to clear embeds before failing on LiteLLM errors"""
         
+        if not self.agent:
+            return
+
+        exc = data.get("exception")
+        if not isinstance(exc, litellm.exceptions.BadRequestError):
+            return
+
+        cfg = plugins.get_plugin_config("_error_retry", agent=self.agent) or {}
+        if not cfg.get("try_clear_embeds", False):
+            return
+
+        removed = self.agent.history.remove_all_embeds()
+        if removed <= 0:
+            return
+
+        data["exception"] = None
+        self.agent.context.log.log(
+            type="warning",
+            heading="Cleared embedded media from history",
+            content=f"Persistent LiteLLM bad request detected. Removed {removed} embedded media messages from history to help recover.",
+        )
+        PrintStyle(font_color="orange", padding=True).print(
+            f"Cleared {removed} embedded media messages from history after persistent LiteLLM bad request."
+        )

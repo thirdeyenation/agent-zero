@@ -134,7 +134,11 @@ def install_from_zip(zip_path: str, original_filename: str | None = None) -> dic
             files.delete_dir(dest)
             raise
 
-        after_plugin_change([plugin_name])
+
+        # does it have python files?
+        python_change = bool(files.find_existing_paths_by_pattern(dest+"/**/*.py"))
+
+        after_plugin_change([plugin_name], python_change=python_change)
 
         return {
             "success": True,
@@ -209,7 +213,10 @@ def install_from_git(url: str, token: str | None = None, plugin_name: str = "", 
         files.delete_dir(final_dir)
         raise
 
-    after_plugin_change([plugin_name])
+    # does it have python files?
+    python_change = bool(files.find_existing_paths_by_pattern(final_dir+"/**/*.py"))
+
+    after_plugin_change([plugin_name],python_change=python_change)
 
     return {
         "success": True,
@@ -231,6 +238,14 @@ def update_from_git(plugin_name: str) -> dict:
     custom_plugins_dir = files.get_abs_path(files.USER_DIR, files.PLUGINS_DIR)
     if not files.is_in_dir(plugin_dir, custom_plugins_dir):
         raise ValueError("Only custom plugins can be updated")
+
+    try:
+        run_pre_update_hook(plugin_name)
+    except Exception as e:
+        print_style.PrintStyle.error(
+            f"Failed to run pre-update hook for {plugin_name}: {e}"
+        )
+        raise
 
     try:
         repo = git.update_repo(plugin_dir)
@@ -268,6 +283,8 @@ def update_from_git(plugin_name: str) -> dict:
 def run_install_hook(plugin_name: str):
     return plugins.call_plugin_hook(plugin_name, "install")
 
+def run_pre_update_hook(plugin_name: str):
+    return plugins.call_plugin_hook(plugin_name, "pre_update")
 
 def get_plugin_hub_index() -> dict[str, Any]:
     """Return the plugin index plus installed Plugin Hub keys."""
