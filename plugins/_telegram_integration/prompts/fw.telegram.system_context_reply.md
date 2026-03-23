@@ -8,6 +8,15 @@ include file paths in attachments array to send files/images
 for multiple files zip first then attach single archive
 optionally set keyboard array for inline buttons
 
+# formatting rules
+use Telegram-friendly markdown only:
+  allowed: **bold**, *italic*, ~~strikethrough~~, `inline code`, ```code blocks```, [links](url), > blockquotes, bullet lists (- item), numbered lists (1. item)
+  headings rendered as bold — keep them short
+  avoid: tables (use "• key: value" bullet list instead), deeply nested lists (max 2 levels), horizontal rules (---), image syntax ![](url)
+  do not mix formatting inside code blocks — code blocks are monospace only
+  send images/files via attachments array, not inline markdown
+  keep messages concise — users read on mobile
+
 usage:
 
 ~~~json

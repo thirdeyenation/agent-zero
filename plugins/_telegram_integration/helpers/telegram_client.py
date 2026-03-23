@@ -218,11 +218,7 @@ def is_image_file(path: str) -> bool:
 
 
 def md_to_telegram_html(text: str) -> str:
-    """Convert standard Markdown to Telegram-compatible HTML.
-
-    Handles: fenced code blocks, inline code, bold, italic, strikethrough,
-    links, headings, blockquotes, tables, and nested lists.
-    """
+    """Convert Markdown to Telegram-compatible HTML."""
     stash: list[str] = []
 
     def _put(html: str) -> str:
@@ -232,109 +228,79 @@ def md_to_telegram_html(text: str) -> str:
     def _esc(t: str) -> str:
         return t.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
-    # Stash fenced code blocks
-    def _code_block(m: re.Match) -> str:
-        lang, code = m.group(1) or "", _esc(m.group(2))
-        tag = f'<pre><code class="language-{lang}">{code}</code></pre>' if lang else f"<pre>{code}</pre>"
-        return _put(tag)
+    # Stash code blocks & inline code
+    def _code_block(m):
+        lang, body = m.group(1), m.group(2).rstrip("\n")
+        if lang:
+            return _put(f'<pre><code class="language-{lang}">{_esc(body)}</code></pre>')
+        return _put(f"<pre>{_esc(body)}</pre>")
 
-    text = re.sub(r"```(\w*)\n(.*?)```", _code_block, text, flags=re.DOTALL)
-
-    # Stash inline code
+    text = re.sub(r"(?:```|~~~)(\w*)\n?(.*?)(?:```|~~~)", _code_block, text, flags=re.DOTALL)
     text = re.sub(r"`([^`]+)`", lambda m: _put(f"<code>{_esc(m.group(1))}</code>"), text)
 
-    # Stash Markdown tables as list-style text
-    text = _stash_tables(text, _put, _esc)
+    # Strip unsupported syntax
+    text = _strip_tables(text)
+    text = re.sub(r"^[ \t]*[-*_=]{3,}[ \t]*$", "", text, flags=re.MULTILINE)
+    text = re.sub(r"!\[([^\]]*)\]\(([^)]+)\)", r"[\1](\2)", text)
 
-    # Escape remaining HTML chars
+    # Stash links
+    text = re.sub(
+        r"\[([^\]]+)\]\(([^)]+)\)",
+        lambda m: _put(
+            f'<a href="{m.group(2).replace("&", "&amp;").replace(chr(34), "&quot;")}">{_esc(m.group(1))}</a>'
+        ),
+        text,
+    )
+
+    # Escape HTML & apply inline formatting
     text = _esc(text)
-
-    # Inline formatting
+    text = re.sub(r"\*\*\*(.+?)\*\*\*", r"<b><i>\1</i></b>", text)
     text = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", text)
     text = re.sub(r"__(.+?)__", r"<b>\1</b>", text)
     text = re.sub(r"(?<!\w)\*([^*]+?)\*(?!\w)", r"<i>\1</i>", text)
     text = re.sub(r"(?<!\w)_([^_]+?)_(?!\w)", r"<i>\1</i>", text)
     text = re.sub(r"~~(.+?)~~", r"<s>\1</s>", text)
-    text = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", r'<a href="\2">\1</a>', text)
     text = re.sub(r"^#{1,6}\s+(.+)$", r"<b>\1</b>", text, flags=re.MULTILINE)
 
-    # Blockquotes: > text → <blockquote>
+    # Block-level formatting
     text = _convert_blockquotes(text)
-
-    # Lists (nested + ordered)
     text = _convert_lists(text)
 
-    # Restore all stashed blocks
+    # Restore stash
     for i, block in enumerate(stash):
         text = text.replace(f"\x00B{i}\x00", block)
     return text
 
 
-# ── Helpers for md_to_telegram_html ──
 
-_TABLE_ROW = re.compile(r"^\|(.+)\|$")
+_TABLE_RE = re.compile(r"^\|(.+)\|$")
 _TABLE_SEP = re.compile(r"^[\s|:-]+$")
 
 
-def _stash_tables(text: str, put_fn, esc_fn) -> str:
-    """Convert Markdown tables to key-value list format and stash them.
-
-    | Name  | Age |
-    |-------|-----|
-    | Alice | 30  |   →   • Name: Alice, Age: 30
-    | Bob   | 25  |       • Name: Bob, Age: 25
-    """
-    lines = text.split("\n")
+def _strip_tables(text: str) -> str:
+    """Strip Markdown table pipe syntax, keeping cell content as plain text."""
     out: list[str] = []
-    headers: list[str] = []
-    data_rows: list[list[str]] = []
-
-    def _flush():
-        if not headers and not data_rows:
-            return
-        if headers and data_rows:
-            items: list[str] = []
-            for row in data_rows:
-                pairs = ", ".join(
-                    f"{headers[i]}: {row[i]}" if i < len(row) else headers[i]
-                    for i in range(len(headers))
-                )
-                items.append(f"\u2022 {pairs}")
-            out.append(put_fn(esc_fn("\n".join(items))))
-        elif data_rows:
-            # No header row — just bullet each row
-            for row in data_rows:
-                out.append(put_fn(esc_fn(f"\u2022 {', '.join(row)}")))
-        headers.clear()
-        data_rows.clear()
-
-    for line in lines:
-        m = _TABLE_ROW.match(line.strip())
+    for line in text.split("\n"):
+        stripped = line.strip()
+        if _TABLE_SEP.match(stripped):
+            continue
+        m = _TABLE_RE.match(stripped)
         if m:
-            if _TABLE_SEP.match(line.strip()):
-                continue
-            cells = [c.strip() for c in m.group(1).split("|")]
-            if not headers:
-                headers.extend(cells)
-            else:
-                data_rows.append(cells)
+            out.append("  ".join(c.strip() for c in m.group(1).split("|")))
         else:
-            _flush()
             out.append(line)
-    _flush()
     return "\n".join(out)
 
 
-_LIST_ITEM = re.compile(r"^( *)([-*+]|\d+\.)\s+(.*)$")
-_BULLETS = ["\u2022", "\u25e6", "\u25aa"]  # •  ◦  ▪
+_LIST_RE = re.compile(r"^( *)([-*+]|\d+\.)\s+(.*)$")
+_BULLETS = ("\u2022", "\u25e6", "\u25aa")
 
 
 def _convert_lists(text: str) -> str:
-    """Convert Markdown list items to indented bullet / numbered lines."""
-    lines = text.split("\n")
+    """Convert Markdown list markers to Unicode bullets."""
     out: list[str] = []
-    for line in lines:
-        m = _LIST_ITEM.match(line)
+    for line in text.split("\n"):
+        m = _LIST_RE.match(line)
         if m:
             depth = len(m.group(1)) // 2
             marker, content = m.group(2), m.group(3)
@@ -349,20 +315,19 @@ def _convert_lists(text: str) -> str:
 
 
 def _convert_blockquotes(text: str) -> str:
-    """Convert Markdown blockquotes (> text) to <blockquote> tags."""
-    lines = text.split("\n")
+    """Convert Markdown blockquotes to Telegram <blockquote> tags."""
     out: list[str] = []
-    quote_buf: list[str] = []
+    buf: list[str] = []
 
     def _flush():
-        if quote_buf:
-            out.append("<blockquote>" + "\n".join(quote_buf) + "</blockquote>")
-            quote_buf.clear()
+        if buf:
+            out.append("<blockquote>" + "\n".join(buf) + "</blockquote>")
+            buf.clear()
 
-    for line in lines:
-        m = re.match(r"^&gt;\s?(.*)", line)  # > is already HTML-escaped at this point
+    for line in text.split("\n"):
+        m = re.match(r"^&gt;\s?(.*)", line)
         if m:
-            quote_buf.append(m.group(1))
+            buf.append(m.group(1))
         else:
             _flush()
             out.append(line)

@@ -34,6 +34,7 @@ CTX_TG_CHAT_ID = "telegram_chat_id"
 CTX_TG_USER_ID = "telegram_user_id"
 CTX_TG_USERNAME = "telegram_username"
 CTX_TG_TYPING_STOP = "_telegram_typing_stop"
+CTX_TG_REPLY_TO = "_telegram_reply_to_message_id"
 
 # Transient
 CTX_TG_ATTACHMENTS = "_telegram_response_attachments"
@@ -220,6 +221,15 @@ async def handle_message(message: TgMessage, bot_name: str, bot_cfg: dict):
 
     # Store stop event so send_telegram_reply can cancel typing
     context.data[CTX_TG_TYPING_STOP] = typing_stop
+
+    # In group chats, if user replied to the bot's message, reply to the user's message
+    reply_to_id = None
+    if message.chat.type != "private" and instance.bot_info:
+        if (message.reply_to_message
+                and message.reply_to_message.from_user
+                and message.reply_to_message.from_user.id == instance.bot_info.id):
+            reply_to_id = message.message_id
+    context.data[CTX_TG_REPLY_TO] = reply_to_id
 
     # Build user message text
     text = _extract_message_content(message)
@@ -485,22 +495,24 @@ async def send_telegram_reply(
     if typing_stop:
         typing_stop.set()
 
+    reply_to = context.data.pop(CTX_TG_REPLY_TO, None)
+
     try:
         async with _temp_bot(instance.bot.token, default=DefaultBotProperties(parse_mode=ParseMode.HTML)) as reply_bot:
             if attachments:
                 for path in attachments:
                     local_path = files.fix_dev_path(path)
                     if tc.is_image_file(local_path):
-                        await tc.send_photo(reply_bot, chat_id, local_path)
+                        await tc.send_photo(reply_bot, chat_id, local_path, reply_to_message_id=reply_to)
                     else:
-                        await tc.send_file(reply_bot, chat_id, local_path)
+                        await tc.send_file(reply_bot, chat_id, local_path, reply_to_message_id=reply_to)
 
             if response_text:
                 html_text = tc.md_to_telegram_html(response_text)
                 if keyboard:
-                    await tc.send_text_with_keyboard(reply_bot, chat_id, html_text, keyboard)
+                    await tc.send_text_with_keyboard(reply_bot, chat_id, html_text, keyboard, reply_to_message_id=reply_to)
                 else:
-                    await tc.send_text(reply_bot, chat_id, html_text)
+                    await tc.send_text(reply_bot, chat_id, html_text, reply_to_message_id=reply_to)
 
         return None
 
