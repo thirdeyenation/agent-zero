@@ -20,7 +20,7 @@ Follow these steps in order:
 
 1. Resolve the plugin root and list every file below it. Do not sample; inspect the full plugin.
 2. Read `plugin.yaml` and record the plugin's name, title, description, and version.
-3. Map the directory structure and identify every top-level file or folder that affects behavior. Record whether a `LICENSE` file exists at the plugin root (required for Plugin Index submission per project policy; optional for local-only plugins).
+3. Map the directory structure and identify every top-level file or folder that affects behavior. Record whether backend extensions use named points under `extensions/python/<point>/`, implicit `@extensible` hooks under `extensions/python/_functions/<module>/<qualname>/<start|end>/`, or any stale flattened `extensions/python/<module>_<qualname>_<start|end>/` folders. Record whether a `LICENSE` file exists at the plugin root (required for Plugin Index submission per project policy; optional for local-only plugins).
 4. Run ONLY the selected validation phases listed below.
 5. If a temporary clone or extracted directory was used, perform the cleanup exactly as instructed.
 

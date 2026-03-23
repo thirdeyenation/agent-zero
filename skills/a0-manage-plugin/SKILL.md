@@ -127,6 +127,7 @@ If the scan times out or errors (500), inform the user and ask whether to procee
 
 The Plugin Hub marks a plugin as **Installed** by cross-referencing Plugin Hub keys against `usr/plugins/` directory names at request time. To appear installed:
 - The plugin directory must exist at `usr/plugins/<name>/` with a valid `plugin.yaml`
+- If the plugin ships extensions, the framework will register both named extension points under `extensions/python/<point>/` and implicit `@extensible` hooks under `extensions/python/_functions/<module>/<qualname>/<start|end>/` after the plugin cache is refreshed
 - The framework plugin cache must be cleared (the API handles this automatically)
 - Re-fetching the Plugin Hub index will then show it as installed
 

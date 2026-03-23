@@ -46,7 +46,7 @@ Inspect the plugin directory layout:
 - [ ] Directory name matches `^[a-z0-9_]+$`
 - [ ] If `api/` exists: contains Python files only; each should subclass `ApiHandler`
 - [ ] If `tools/` exists: contains Python files only; each should subclass `Tool`
-- [ ] If `extensions/` exists: check subdirs follow `python/<point>/` or `webui/<point>/` pattern
+- [ ] If `extensions/` exists: check subdirs follow `python/<point>/`, `python/_functions/<module>/<qualname>/<start|end>/`, or `webui/<point>/` patterns; flag the retired flattened `python/<module>_<qualname>_<start|end>/` form
 - [ ] If `helpers/` exists: shared Python logic (standard directory)
 - [ ] If `prompts/` exists: prompt templates (standard directory)
 - [ ] If `agents/` exists: agent profiles with `<profile>/agent.yaml` (standard directory)

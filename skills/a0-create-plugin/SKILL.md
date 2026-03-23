@@ -196,13 +196,16 @@ save_plugin_config(
   conf/
     model_providers.yaml # Optional: add or override model providers
   extensions/
-    python/agent_init/  # Python lifecycle extensions
+    python/<extension_point>/  # Named Python lifecycle extensions
+    python/_functions/<module>/<qualname>/<start|end>/  # Implicit @extensible hooks
     webui/<point>/      # HTML/JS hook extensions
   webui/
     config.html         # Optional: plugin settings UI
     my-modal.html       # Full plugin pages
     my-store.js         # Alpine stores
 ```
+
+Do not create the retired flattened extensible path form `extensions/python/<module>_<qualname>_<start|end>/`. The current runtime only resolves the deep `_functions/<module>/<qualname>/<start|end>` layout for implicit `@extensible` hooks.
 
 ### Import rule for plugin-local Python code
 

@@ -124,6 +124,32 @@ class MyTool(Tool):
 
 ---
 
+## Python Extension Layout
+
+Use one of these backend extension layouts:
+
+```text
+extensions/python/<extension_point>/
+```
+
+For named lifecycle hooks such as `agent_init`, `system_prompt`, `monologue_start`, or `tool_execute_before`.
+
+```text
+extensions/python/_functions/<module>/<qualname>/<start|end>/
+```
+
+For implicit `@extensible` hook targets. The path must keep the full module path and every nested `__qualname__` segment.
+
+**FAIL pattern**:
+
+```text
+extensions/python/<module>_<qualname>_<start|end>/
+```
+
+That flattened form is stale and no longer matches the current extensible runtime lookup.
+
+---
+
 ## AgentContext Access
 
 ```python

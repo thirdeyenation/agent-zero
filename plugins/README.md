@@ -21,11 +21,17 @@ For detailed guides on how to create, extend, or configure plugins, refer to:
 
 Plugins are automatically discovered based on the presence of a `plugin.yaml` file. Each plugin can contribute:
 
-- **Backend**: API handlers, tools, helpers, and lifecycle extensions
+- **Backend**: API handlers, tools, helpers, named lifecycle extensions, and implicit `@extensible` hooks under `extensions/python/_functions/...`
 - **Frontend**: HTML/JS UI contributions via core extension breakpoints
 - **Settings**: Isolated configuration scoped per-project and per-agent profile
 - **Activation**: Global and scoped ON/OFF rules via `.toggle-1` and `.toggle-0` files, including advanced per-scope switching in the WebUI
 - **Agent profiles**: Plugin-distributed subagent definitions under `agents/<profile>/agent.yaml`
+
+Backend extension layouts:
+- `extensions/python/<point>/` for named lifecycle hooks
+- `extensions/python/_functions/<module>/<qualname>/<start|end>/` for implicit `@extensible` hooks
+
+Do not use the retired flattened `extensions/python/<module>_<qualname>_<start|end>/` form.
 
 ## Plugin Manifest
 

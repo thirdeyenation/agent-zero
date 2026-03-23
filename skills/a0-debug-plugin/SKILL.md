@@ -85,6 +85,11 @@ python3 -m py_compile /a0/usr/plugins/<name>/api/my_handler.py
 - Common breakpoints: `sidebar-quick-actions-main-start`, `plugins-list-header-buttons`, `chat-input-bottom-actions-end`
 - Confirm the HTML file has a root element with `x-data` and an `x-move-*` directive
 
+For backend extension hooks:
+- Named lifecycle hooks must live under `extensions/python/<point>/`
+- Implicit `@extensible` hooks must live under `extensions/python/_functions/<module>/<qualname>/<start|end>/`
+- The retired flattened form `extensions/python/<module>_<qualname>_<start|end>/` no longer loads
+
 ---
 
 ## 6. Settings not saving / loading wrong values
@@ -152,7 +157,7 @@ Plugin-related errors appear as Python tracebacks mentioning the plugin path.
 2. Any directory containing `plugin.yaml` is treated as a plugin
 3. `usr/plugins/<name>` takes priority over `plugins/<name>` when both exist (user overrides core)
 4. Toggle state is evaluated: `.toggle-0` disables, `.toggle-1` enables, no file = enabled by default
-5. Enabled plugins have their `extensions/`, `api/`, `tools/`, etc. registered into the runtime
+5. Enabled plugins have their `extensions/`, `api/`, `tools/`, etc. registered into the runtime, including both named extension points and implicit `_functions/...` extensible hooks
 
 Plugins are re-scanned when:
 - Agent Zero restarts

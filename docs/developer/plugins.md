@@ -6,7 +6,7 @@ This page documents the current Agent Zero plugin system, including manifest for
 
 Plugins extend Agent Zero through convention-based folders. A plugin can provide:
 
-- Backend: API handlers, tools, helpers, Python lifecycle extensions
+- Backend: API handlers, tools, helpers, Python lifecycle extensions, and implicit `@extensible` hooks
 - Frontend: WebUI components and extension-point injections
 - Agent profiles: plugin-scoped subagent definitions
 - Settings: scoped plugin configuration loaded through the plugin settings store
@@ -64,11 +64,21 @@ usr/plugins/<plugin_name>/
 │   └── <profile>/agent.yaml         # optional plugin-distributed agent profile
 ├── extensions/
 │   ├── python/<extension_point>/
+│   ├── python/_functions/<module>/<qualname>/<start|end>/
 │   └── webui/<extension_point>/
 └── webui/
     ├── config.html                  # optional settings UI
     └── ...
 ```
+
+## Python Extension Layouts
+
+Use one of these backend layouts:
+
+- `extensions/python/<extension_point>/` for named lifecycle hooks such as `agent_init`, `system_prompt`, or `tool_execute_before`
+- `extensions/python/_functions/<module>/<qualname>/<start|end>/` for implicit `@extensible` hook targets
+
+The `_functions` layout keeps the full module path and nested `__qualname__` path, which avoids collisions between similarly named functions. Do not create the retired flattened form `extensions/python/<module>_<qualname>_<start|end>/`; it is stale and will not be resolved by the current extensible system.
 
 ## Python Imports for User Plugins
 
