@@ -1122,9 +1122,9 @@ export function drawMessageUser({
 
 /**
  * @param {MessageHandlerArgs & Record<string, any>} param0
- * @returns {MessageHandlerResult}
+ * @returns {Promise<MessageHandlerResult>}
  */
-export function drawMessageTool({
+export async function drawMessageTool({
   id,
   type,
   heading,
@@ -1146,13 +1146,21 @@ export function drawMessageTool({
     return drawMessageToolSimple({ ...arguments[0], code: "EYE" });
   } else if (kvps._tool_name === "search_engine") {
     return drawMessageToolSimple({ ...arguments[0], code: "WEB" });
-  } else if (kvps._tool_name === "browser_agent") {
-    return drawMessageToolSimple({ ...arguments[0], code: "WWW" });
   } else if (kvps._tool_name.startsWith("memory_")) {
     return drawMessageToolSimple({ ...arguments[0], code: "MEM" });
-  } else {
-    return drawMessageToolSimple({ ...arguments[0] });
   }
+
+  /** @type {{ tool_name: string, kvps: any, handler: Function | undefined }} */
+  const extData = {
+    tool_name,
+    kvps,
+    handler: undefined,
+  };
+  await callJsExtensions("get_tool_message_handler", extData);
+  if (typeof extData.handler === "function") {
+    return extData.handler(arguments[0]);
+  }
+  return drawMessageToolSimple({ ...arguments[0] });
 }
 
 /**

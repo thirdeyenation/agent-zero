@@ -168,6 +168,8 @@ Place *.js files in extensions/webui/<extension_point>/ and export a default asy
 
 Core JS hooks can also expose runtime UI surfaces when static HTML breakpoints are not a fit. For example, `confirm_dialog_after_render` runs after the shared confirm dialog is built and receives the rendered dialog/body/footer nodes plus any caller-provided `extensionContext`.
 
+For tool chat rows (`type === "tool"`), after built-in badge rules, core calls `get_tool_message_handler` with a mutable object containing `tool_name`, `kvps`, and `handler`. Plugins can set `handler` to entirely take over rendering for their `_tool_name`. A plugin can import `drawMessageToolSimple` and call it internally (e.g., passing `{ ...args, code: "WWW" }`) if it just wants standard tool row styling with a custom badge.
+
 ### User Feedback: Notifications, Not Inline Errors
 Plugin UI must use the **A0 notification system** for errors, success, and warnings. Do not render dedicated error/success boxes (e.g. a red block bound to `store.error`). Use the notification store so toasts and notification history stay consistent across the app.
 
