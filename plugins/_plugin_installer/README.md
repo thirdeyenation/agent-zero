@@ -1,6 +1,6 @@
 # Plugin Installer
 
-Install and update Agent Zero plugins from ZIP uploads, Git repositories, or a community index.
+Install and update Agent Zero plugins from ZIP uploads, Git repositories, or the community Plugin Index surfaced through the Plugin Hub.
 
 ## What It Does
 
@@ -20,8 +20,8 @@ This plugin provides the built-in installation workflow for third-party plugins.
   - Rejects plugin name conflicts.
 - **Install hooks and refresh**
   - Runs the plugin install hook when present and calls `after_plugin_change(...)` so the app refreshes plugin state.
-- **Community browsing UI**
-  - The web UI store handles browsing index entries, showing readme content, prompting about third-party plugin risk, and launching install/update actions.
+- **Plugin Hub UI**
+  - The web UI store handles browsing Plugin Index entries, showing README content, prompting about third-party plugin risk, and launching install/update actions.
 
 ## Key Files
 
