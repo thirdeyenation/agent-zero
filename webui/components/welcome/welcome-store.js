@@ -200,11 +200,7 @@ const model = {
         window.openModal("modals/scheduler/scheduler-modal.html");
         break;
       case "settings":
-        // Open settings modal
-        const settingsButton = document.getElementById("settings");
-        if (settingsButton) {
-          settingsButton.click();
-        }
+        window.openModal("settings/settings.html");
         break;
       case "projects":
         projectsStore.openProjectsModal();
