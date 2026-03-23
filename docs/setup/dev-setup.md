@@ -67,9 +67,9 @@ Now when you select one of the python files in the project, you should see prope
 3. Install dependencies. Run these two commands in the terminal:
 ```bash
 pip install -r requirements.txt
-playwright install chromium
+PLAYWRIGHT_BROWSERS_PATH=tmp/playwright playwright install chromium --only-shell
 ```
-These will install all the python packages and browser binaries for playwright (browser agent).
+The first command installs Python dependencies. The second installs the Chromium headless shell into `tmp/playwright` ahead of time (same path in Docker: `/a0/tmp/playwright`). If you skip the second command, **local development** still downloads the shell on first Browser Agent use through `ensure_playwright_binary()` in `plugins/_browser_agent/helpers/playwright.py`. Pre-installing avoids that wait. **Docker** images ship the shell preinstalled; runtime install is for local dev when the binary is missing.
 Errors in the code editor caused by missing packages should now be gone. If not, try reloading the window.
 
 

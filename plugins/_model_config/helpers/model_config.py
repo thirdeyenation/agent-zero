@@ -187,12 +187,14 @@ def build_utility_model(agent=None):
 
 
 def build_browser_model(agent=None):
-    """Build and return a BrowserCompatibleChatWrapper using chat model config."""
+    """Build and return the browser-use adapter using chat model config."""
     cfg = get_chat_model_config(agent)
     mc = build_model_config(cfg, models.ModelType.CHAT)
-    return models.get_browser_model(
-        mc.provider, mc.name, model_config=mc, **mc.build_kwargs()
+    from plugins._browser_agent.helpers.browser_llm import (
+        build_browser_model_from_config,
     )
+
+    return build_browser_model_from_config(mc)
 
 
 def build_embedding_model(agent=None):

@@ -14,21 +14,6 @@
 
       <x-extension id="sidebar-quick-actions-main-start"></x-extension>
 
-      <!-- Dashboard -->
-      <button class="config-button" id="dashboard" @click="deselectChat()" title="Dashboard">
-        <span class="material-symbols-outlined">home</span>
-      </button>
-
-      <!-- Scheduler -->
-      <button class="config-button" id="plugins" @click="openModal('components/plugins/list/plugin-list.html')" title="Plugins">
-        <span class="material-symbols-outlined">extension</span>
-      </button>
-
-      <!-- Settings -->
-      <button class="config-button" id="settings" @click="openModal('settings/settings.html')" title="Settings">
-        <span class="material-symbols-outlined">settings</span>
-      </button>
-
       <x-extension id="sidebar-quick-actions-main-end"></x-extension>
 
       <!-- Dropdown Toggle -->
@@ -124,6 +109,11 @@
     width: 100%;
     padding: 0;
     gap: var(--spacing-xs);
+  }
+
+  .quick-actions-anchor {
+    display: none;
+    pointer-events: none;
   }
 
   #quick-actions > x-extension:not(:empty) {
