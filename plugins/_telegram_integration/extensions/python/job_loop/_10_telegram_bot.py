@@ -64,11 +64,11 @@ class TelegramBotManager(Extension):
 
             try:
                 # Create handler closures that capture bot_name and config
-                _on_start = partial(_wrap_start, bot_name=name, bot_cfg=bot_cfg)
-                _on_clear = partial(_wrap_clear, bot_name=name, bot_cfg=bot_cfg)
-                _on_message = partial(_wrap_message, bot_name=name, bot_cfg=bot_cfg)
-                _on_callback = partial(_wrap_callback, bot_name=name, bot_cfg=bot_cfg)
-                _on_new_members = partial(_wrap_new_members, bot_name=name, bot_cfg=bot_cfg)
+                _on_start = partial(_make_handler("handle_start"), bot_name=name, bot_cfg=bot_cfg)
+                _on_clear = partial(_make_handler("handle_clear"), bot_name=name, bot_cfg=bot_cfg)
+                _on_message = partial(_make_handler("handle_message"), bot_name=name, bot_cfg=bot_cfg)
+                _on_callback = partial(_make_handler("handle_callback_query"), bot_name=name, bot_cfg=bot_cfg)
+                _on_new_members = partial(_make_handler("handle_new_members"), bot_name=name, bot_cfg=bot_cfg)
 
                 instance = create_bot(
                     name=name,
@@ -115,26 +115,10 @@ def _get_current_bot_cfg(bot_name: str) -> dict:
     return {}
 
 
-async def _wrap_start(message, bot_name: str, bot_cfg: dict):
-    from plugins._telegram_integration.helpers.handler import handle_start
-    await handle_start(message, bot_name, _get_current_bot_cfg(bot_name) or bot_cfg)
-
-
-async def _wrap_clear(message, bot_name: str, bot_cfg: dict):
-    from plugins._telegram_integration.helpers.handler import handle_clear
-    await handle_clear(message, bot_name, _get_current_bot_cfg(bot_name) or bot_cfg)
-
-
-async def _wrap_message(message, bot_name: str, bot_cfg: dict):
-    from plugins._telegram_integration.helpers.handler import handle_message
-    await handle_message(message, bot_name, _get_current_bot_cfg(bot_name) or bot_cfg)
-
-
-async def _wrap_callback(query, bot_name: str, bot_cfg: dict):
-    from plugins._telegram_integration.helpers.handler import handle_callback_query
-    await handle_callback_query(query, bot_name, _get_current_bot_cfg(bot_name) or bot_cfg)
-
-
-async def _wrap_new_members(message, bot_name: str, bot_cfg: dict):
-    from plugins._telegram_integration.helpers.handler import handle_new_members
-    await handle_new_members(message, bot_name, _get_current_bot_cfg(bot_name) or bot_cfg)
+def _make_handler(handler_func):
+    """Create a wrapper that resolves fresh bot config on every call."""
+    async def _wrapped(event, bot_name: str, bot_cfg: dict):
+        from plugins._telegram_integration.helpers import handler
+        fn = getattr(handler, handler_func)
+        await fn(event, bot_name, _get_current_bot_cfg(bot_name) or bot_cfg)
+    return _wrapped
