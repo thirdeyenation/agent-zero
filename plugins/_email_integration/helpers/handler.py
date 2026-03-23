@@ -12,7 +12,6 @@ import os
 from agent import Agent, AgentContext, AgentContextType, UserMessage
 from helpers import guids, plugins, files, runtime
 from helpers import message_queue as mq
-from helpers.notification import NotificationManager, NotificationType, NotificationPriority
 from helpers.persist_chat import save_tmp_chat
 from helpers.print_style import PrintStyle
 from helpers.errors import format_error

@@ -343,7 +343,7 @@ async def _parse_body(
                         if cid:
                             cid_map[cid.strip("<>")] = path
                         
-                        if not cid and body_parts:
+                        if not cid:
                             body_parts.append(f"\n[attachment://{path}]\n")
 
             elif content_type == "text/plain":
