@@ -6,86 +6,212 @@
   </script>
 </head>
 <body>
-  <div class="icons-section" id="hide-button" x-data>
-    <!-- Sidebar Toggle Button -->
-    <button id="toggle-sidebar" class="toggle-sidebar-button" @click="$store.sidebar.toggle()" aria-label="Toggle Sidebar" aria-expanded="false">
-      <span class="material-symbols-outlined" aria-hidden="true">menu</span>
-    </button>
+  <div class="sidebar-header-stack">
+    <!--
+      Single chrome block for logo + toolbar (tokens aligned with .config-button in quick-actions).
+      Spacer reserves in-flow height so quick-actions clears the fixed overlay (see .left-panel-top margin-top).
+    -->
+    <div id="sidebar-header-panel" class="sidebar-header-panel">
+      <div id="logo-bar">
+        <a href="https://github.com/agent0ai/agent-zero" target="_blank" rel="noopener noreferrer" aria-label="Agent Zero on GitHub">
+          <span id="a0-logo" role="img" aria-label="Agent Zero"></span>
+        </a>
+      </div>
 
-    <div id="logo-container">
-      <a href="https://github.com/agent0ai/agent-zero" target="_blank" rel="noopener noreferrer" aria-label="Agent Zero on GitHub">
-        <span id="a0-logo" role="img" aria-label="Agent Zero"></span>
-      </a>
+      <div class="icons-section" id="hide-button" x-data>
+        <!-- Sidebar Toggle Button -->
+        <button id="toggle-sidebar" class="toggle-sidebar-button" @click="$store.sidebar.toggle()" aria-label="Toggle Sidebar" aria-expanded="false">
+          <span class="material-symbols-outlined" aria-hidden="true">menu</span>
+        </button>
+
+        <button class="config-button header-action-button" id="header-dashboard" @click="deselectChat()" title="Dashboard" aria-label="Dashboard">
+          <span class="material-symbols-outlined" aria-hidden="true">home</span>
+        </button>
+
+        <button class="config-button header-action-button" id="header-plugins" @click="openModal('components/plugins/list/plugin-list.html')" title="Plugins" aria-label="Plugins">
+          <span class="material-symbols-outlined" aria-hidden="true">extension</span>
+        </button>
+
+        <button class="config-button header-action-button" id="header-settings" @click="openModal('settings/settings.html')" title="Settings" aria-label="Settings">
+          <span class="material-symbols-outlined" aria-hidden="true">settings</span>
+        </button>
+      </div>
     </div>
+
   </div>
 
 
   <style>
-    /* Sidebar toggle button + logo container (migrated) */
-    .toggle-sidebar-button {
-      height: 2.6rem;
-      width: 2.6rem;
+    .sidebar-header-stack {
+      /*
+        Panel top (viewport) minus .left-panel-top margin-top: flow starts at 5rem; reserve overlap region.
+        Tuned for: padding + logo 1.47rem + gap + icon row ~2.2rem + padding.
+      */
+      --sidebar-header-flow-clearance: calc(1.9rem + (var(--spacing-xs) * 5) + 1.47rem + 2.2rem - 5rem);
+    }
+
+    /* Shell: same language as .config-button (quick-actions.html) */
+    .sidebar-header-panel {
+      position: fixed;
+      top: var(--spacing-md);
+      left: var(--spacing-md);
+      width: calc(250px - (var(--spacing-md) * 2));
+      box-sizing: border-box;
+      z-index: 1004;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      padding: var(--spacing-xs) var(--spacing-sm);
+      background-color: var(--color-panel);
+      border: 0.05rem solid var(--color-border);
+      border-radius: 8px;
+      transition: background-color var(--transition-speed),
+        border-color var(--transition-speed), box-shadow var(--transition-speed),
+        opacity var(--transition-speed) ease-in-out;
+    }
+
+    #logo-bar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      padding-top: var(--spacing-xxs);
+    }
+
+    #logo-bar a {
+      color: inherit;
+      text-decoration: none;
+      width: min(100%, 11.75rem);
+    }
+
+    #hide-button {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: var(--spacing-xs);
+      width: 100%;
+    }
+
+    /* Toolbar icons sit on the panel surface (no nested config-button boxes) */
+    .sidebar-header-panel #hide-button .config-button,
+    .sidebar-header-panel .toggle-sidebar-button {
       background-color: transparent;
       border: none;
+      border-radius: 4px;
+      box-shadow: none;
+    }
+
+    .sidebar-header-panel #hide-button .config-button {
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0.8;
+      padding: var(--spacing-xs);
+      min-width: 0;
+      min-height: 2.2rem;
+      transition: background-color var(--transition-speed),
+        border-color var(--transition-speed), box-shadow var(--transition-speed),
+        opacity var(--transition-speed);
+    }
+
+    .sidebar-header-panel #hide-button .config-button .material-symbols-outlined {
+      font-size: 22px;
+      transition: transform 0.2s ease;
+    }
+
+    .sidebar-header-panel #hide-button .config-button:hover {
+      background-color: var(--color-background-hover);
+      opacity: 1;
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-primary) 18%, transparent);
+      z-index: 1;
+      position: relative;
+    }
+
+    .sidebar-header-panel #hide-button .config-button:active {
+      opacity: 0.5;
+      box-shadow: inset 0 0 0 999px rgba(0, 0, 0, 0.06);
+    }
+
+    .toggle-sidebar-button {
       color: var(--color-text);
       opacity: 0.8;
       cursor: pointer;
-      left: var(--spacing-md);
-      padding: 0.47rem 0.56rem;
-      position: absolute;
-      top: 1.4rem;
-      z-index: 999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 0;
+      min-height: 2.2rem;
+      padding: var(--spacing-xs);
       -webkit-transition: all var(--transition-speed) ease-in-out;
       transition: all var(--transition-speed) ease-in-out;
     }
-    .toggle-sidebar-button:hover { background-color: transparent; opacity: 1; }
-    .toggle-sidebar-button:active { opacity: 0.5; }
-    .toggle-sidebar-button .material-symbols-outlined { 
+
+    .toggle-sidebar-button:hover {
+      background-color: var(--color-background-hover);
+      opacity: 1;
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-primary) 18%, transparent);
+    }
+
+    .toggle-sidebar-button:active {
+      opacity: 0.5;
+      box-shadow: inset 0 0 0 999px rgba(0, 0, 0, 0.06);
+    }
+
+    .toggle-sidebar-button .material-symbols-outlined {
       font-size: 22px;
-      -webkit-transition: all var(--transition-speed) ease; 
-      transition: all var(--transition-speed) ease; 
+      -webkit-transition: all var(--transition-speed) ease;
+      transition: all var(--transition-speed) ease;
     }
 
-    .toggle-sidebar-button:active .material-symbols-outlined { -webkit-transform: scaleY(0.8); transform: scaleY(0.8); }
-
-    #logo-container {
-      display: -webkit-flex;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      position: fixed;
-      left: 4rem;
-      top: var(--spacing-md);
-      z-index: 1004;
-      -webkit-transition: margin-left var(--transition-speed) ease-in-out;
-      transition: margin-left var(--transition-speed) ease-in-out;
+    .toggle-sidebar-button:active .material-symbols-outlined {
+      -webkit-transform: scaleY(0.8);
+      transform: scaleY(0.8);
     }
-    #logo-container a { color: inherit; text-decoration: none; }
+
     #a0-logo {
       display: block;
-      height: 2.6rem;
-      aspect-ratio: 120 / 50;
-      -webkit-mask-image: url('/public/a0-fullDark.svg');
-      mask-image: url('/public/a0-fullDark.svg');
+      width: 100%;
+      height: 1.64rem;
+      -webkit-mask-image: url(/public/a0-fullDark.svg);
+      mask-image: url(/public/a0-fullDark.svg);
       -webkit-mask-repeat: no-repeat;
       mask-repeat: no-repeat;
       -webkit-mask-size: contain;
       mask-size: contain;
-      -webkit-mask-position: center;
+      -webkit-mask-position: left;
       mask-position: center;
       background-color: var(--color-text);
       opacity: 0.8;
       -webkit-transition: opacity var(--transition-speed) ease, background-color var(--transition-speed) ease;
       transition: opacity var(--transition-speed) ease, background-color var(--transition-speed) ease;
     }
-    #logo-container a:hover #a0-logo { opacity: 1; }
+
+    #logo-bar a:hover #a0-logo {
+      opacity: 1;
+    }
+
+    .light-mode .sidebar-header-panel {
+      background-color: var(--color-background);
+      color: #333333;
+    }
+
+    .light-mode .sidebar-header-panel #hide-button .config-button:hover,
+    .light-mode .sidebar-header-panel .toggle-sidebar-button:hover {
+      background-color: var(--color-background-hover);
+    }
+
+    .light-mode .sidebar-header-panel #hide-button .config-button:active,
+    .light-mode .sidebar-header-panel .toggle-sidebar-button:active {
+      background-color: var(--color-background-hover);
+    }
 
     @media (max-width: 768px) {
-      .toggle-sidebar-button { position: fixed; left: var(--spacing-md); z-index: 1004; }
-      #logo-container { -webkit-transition: all 0.3s ease; transition: all 0.3s ease; z-index: 1004; }
+      .sidebar-header-panel {
+        -webkit-transition: all 0.3s ease;
+        transition: all 0.3s ease;
+      }
     }
   </style>
 </body>
 </html>
-
 
