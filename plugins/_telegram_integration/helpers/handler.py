@@ -61,8 +61,8 @@ def _save_state(state: dict):
     files.write_file(path, json.dumps(state))
 
 
-def _map_key(bot_name: str, user_id: int) -> str:
-    return f"{bot_name}:{user_id}"
+def _map_key(bot_name: str, user_id: int, chat_id: int) -> str:
+    return f"{bot_name}:{user_id}:{chat_id}"
 
 
 def cleanup_old_attachments():
@@ -160,7 +160,7 @@ async def handle_clear(message: TgMessage, bot_name: str, bot_cfg: dict):
     if not _is_allowed(bot_cfg, user.id, user.username):
         return
 
-    key = _map_key(bot_name, user.id)
+    key = _map_key(bot_name, user.id, message.chat.id)
 
     with _chat_map_lock:
         state = _load_state()
@@ -349,7 +349,7 @@ async def _get_or_create_context_from_user(
     username: str | None,
     chat_id: int,
 ) -> AgentContext | None:
-    key = _map_key(bot_name, user_id)
+    key = _map_key(bot_name, user_id, chat_id)
 
     with _chat_map_lock:
         state = _load_state()
@@ -360,7 +360,6 @@ async def _get_or_create_context_from_user(
         if ctx_id:
             ctx = AgentContext.get(ctx_id)
             if ctx:
-                ctx.data[CTX_TG_CHAT_ID] = chat_id  # always track latest chat
                 return ctx
             # Context was garbage collected, remove stale mapping
             chats.pop(key, None)
@@ -490,12 +489,7 @@ async def send_telegram_reply(
     if not chat_id:
         return "No chat_id on context"
 
-    # Cancel persistent typing indicator
-    typing_stop = context.data.pop(CTX_TG_TYPING_STOP, None)
-    if typing_stop:
-        typing_stop.set()
-
-    reply_to = context.data.pop(CTX_TG_REPLY_TO, None)
+    reply_to = context.data.get(CTX_TG_REPLY_TO)
 
     try:
         async with _temp_bot(instance.bot.token, default=DefaultBotProperties(parse_mode=ParseMode.HTML)) as reply_bot:

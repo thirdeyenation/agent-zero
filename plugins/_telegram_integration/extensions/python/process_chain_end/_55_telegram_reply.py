@@ -2,7 +2,10 @@ from helpers.extension import Extension
 from helpers.print_style import PrintStyle
 from helpers.errors import format_error
 from agent import AgentContext, LoopData, UserMessage
-from plugins._telegram_integration.helpers.handler import CTX_TG_BOT, CTX_TG_ATTACHMENTS, CTX_TG_KEYBOARD
+from plugins._telegram_integration.helpers.handler import (
+    CTX_TG_BOT, CTX_TG_ATTACHMENTS, CTX_TG_KEYBOARD,
+    CTX_TG_TYPING_STOP, CTX_TG_REPLY_TO,
+)
 
 MAX_SEND_RETRIES: int = 2
 CTX_SEND_FAILURES: str = "_telegram_send_failures"
@@ -29,6 +32,12 @@ class TelegramAutoReply(Extension):
             await self._send_reply(context, response_text, attachments, keyboard)
         except Exception as e:
             PrintStyle.error(f"Telegram auto-reply error: {format_error(e)}")
+        finally:
+            # Cancel typing and clean up reply_to after final send
+            typing_stop = context.data.pop(CTX_TG_TYPING_STOP, None)
+            if typing_stop:
+                typing_stop.set()
+            context.data.pop(CTX_TG_REPLY_TO, None)
 
     async def _send_reply(
         self,

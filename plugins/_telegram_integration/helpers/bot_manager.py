@@ -115,19 +115,21 @@ def _make_group_mention_filter(handler: Callable, bot: Bot):
                 await handler(message)
                 return
 
-        # Check for @mention in text
-        if message.text and f"@{bot_username}" in message.text:
+        # Check for @mention in text or caption (media messages use caption)
+        text = message.text or message.caption or ""
+        entities = message.entities or message.caption_entities or []
+
+        if text and f"@{bot_username}" in text:
             await handler(message)
             return
 
         # Check entities for mention
-        if message.entities:
-            for entity in message.entities:
-                if entity.type == "mention":
-                    mention_text = message.text[entity.offset:entity.offset + entity.length]
-                    if mention_text.lower() == f"@{bot_username.lower()}":
-                        await handler(message)
-                        return
+        for entity in entities:
+            if entity.type == "mention":
+                mention_text = text[entity.offset:entity.offset + entity.length]
+                if mention_text.lower() == f"@{bot_username.lower()}":
+                    await handler(message)
+                    return
 
     _group_handler.__name__ = f"_group_handler_{id(handler)}"
     return _group_handler
