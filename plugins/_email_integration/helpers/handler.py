@@ -184,8 +184,6 @@ async def _dispatch_message(agent: Agent, handler_cfg: dict, msg: InboundMessage
                 await _route_to_chat(
                     agent, handler_cfg, msg, chat["context_id"],
                 )
-                _send_notification(msg, "continue_chat", chat["context_id"],
-                                   reason="thread ID match")
                 return
 
     # Dispatcher AI decides
@@ -196,15 +194,12 @@ async def _dispatch_message(agent: Agent, handler_cfg: dict, msg: InboundMessage
         ctx = AgentContext.get(decision.context_id)
         if ctx:
             await _route_to_chat(agent, handler_cfg, msg, decision.context_id)
-            _send_notification(msg, "continue_chat", decision.context_id,
-                               reason=reason)
             return
         PrintStyle.warning(
             f"Dispatcher referenced unknown context {decision.context_id}, starting new chat"
         )
 
     await _start_new_chat(agent, handler_cfg, msg)
-    _send_notification(msg, "new_chat", reason=reason)
 
 
 async def _call_model(
@@ -494,32 +489,3 @@ def _get_handler_config(handler_name: str) -> dict | None:
         if h.get("name") == handler_name:
             return h
     return None
-
-
-# ------------------------------------------------------------------
-# Notifications
-# ------------------------------------------------------------------
-
-def _send_notification(
-    msg: InboundMessage,
-    action: str,
-    context_id: str = "",
-    reason: str = "",
-):
-    subject = msg.subject[:80] if msg.subject else "(no subject)"
-    if action == "new_chat":
-        title = "Email: new chat"
-        message = f"From {msg.sender}: {subject}"
-    else:
-        title = "Email: continuing chat"
-        message = f"From {msg.sender}: {subject} → {context_id}"
-    if reason:
-        message += f" ({reason})"
-    NotificationManager.send_notification(
-        type=NotificationType.INFO,
-        priority=NotificationPriority.HIGH,
-        title=title,
-        message=message,
-        display_time=10,
-        group="email",
-    )
