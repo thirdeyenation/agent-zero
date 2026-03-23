@@ -12,7 +12,7 @@ Agent Zero uses a convention-over-configuration plugin model where runtime capab
 
 1. Backend discovery (python/helpers/plugins.py): Resolves roots (usr/plugins/ first, then plugins/) and builds the effective set of plugins.
 2. Path resolution (python/helpers/subagents.py): Injects plugin paths into the agent's search space for prompts, tools, and configurations.
-3. Python extensions (python/helpers/extension.py): Executes lifecycle hooks from extensions/python/<point>/.
+3. Python extensions (python/helpers/extension.py): Executes named lifecycle hooks from `extensions/python/<point>/` and implicit `@extensible` hooks from `extensions/python/_functions/<module>/<qualname>/<start|end>/`.
 4. WebUI extensions (webui/js/extensions.js): Injects HTML/JS contributions into core UI breakpoints (x-extension).
 
 ---
@@ -37,12 +37,22 @@ usr/plugins/<plugin_name>/
 ├── prompts/                      # Prompt templates
 ├── agents/                       # Agent profiles (agents/<profile>/agent.yaml)
 ├── extensions/
-│   ├── python/<point>/           # Backend lifecycle hooks
+│   ├── python/<point>/           # Named backend lifecycle hooks
+│   ├── python/_functions/<module>/<qualname>/<start|end>/  # Implicit @extensible hooks
 │   └── webui/<point>/            # UI HTML/JS contributions
 └── webui/
     ├── config.html               # Optional: Plugin settings UI
     └── ...                       # Full plugin pages/components
 ```
+
+### Python extension layouts
+
+Use one of these backend extension layouts, depending on what you are extending:
+
+- `extensions/python/<extension_point>/` for named lifecycle hooks such as `system_prompt`, `monologue_start`, or `tool_execute_before`
+- `extensions/python/_functions/<module>/<qualname>/<start|end>/` for implicit `@extensible` call sites
+
+The `_functions` layout preserves every module segment and every nested `__qualname__` segment. Do not use the retired flattened form `extensions/python/<module>_<qualname>_<start|end>/`; those folder names no longer match the runtime lookup logic.
 
 ### Python import rule for user plugins
 

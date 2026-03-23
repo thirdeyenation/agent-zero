@@ -22,8 +22,8 @@ It does **not** retry exceptions that are already treated as controlled agent fl
 
 ## Key Files
 
-- `extensions/python/agent_Agent_monologue_start/_10_reset_critical_exception_counter.py`
-- `extensions/python/agent_Agent_handle_exception_end/_80_retry_critical_exception.py`
+- `extensions/python/_functions/agent/Agent/monologue/start/_10_reset_critical_exception_counter.py`
+- `extensions/python/_functions/agent/Agent/handle_exception/end/_80_retry_critical_exception.py`
 
 ## Configuration Scope
 

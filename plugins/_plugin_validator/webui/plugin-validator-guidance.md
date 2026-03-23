@@ -1,6 +1,7 @@
 - Store gate pattern: wrap store-backed UI in `<template x-if="$store.myStore">` and mount cleanup on the inner element.
 - Store definition: use `createStore` from `/js/AlpineStore.js`; do not register Alpine stores inline in HTML or via `alpine:init`.
 - Notifications: use `toastFrontendError`, `toastFrontendSuccess`, or backend notification helpers; do not render inline error boxes.
+- Python extensions: use `extensions/python/<point>/` for named lifecycle hooks and `extensions/python/_functions/<module>/<qualname>/<start|end>/` for implicit `@extensible` hooks. The flattened `extensions/python/<module>_<qualname>_<start|end>/` layout is stale and should be flagged.
 - API handlers: subclass `ApiHandler` and return a dict or `Response`.
 - Tools: subclass `Tool` from `helpers.tool`.
 - AgentContext imports: use `from agent import AgentContext, AgentContextType`, never `helpers.context`.

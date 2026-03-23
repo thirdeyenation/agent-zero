@@ -60,9 +60,11 @@ your-plugin-repo/           <- GitHub repository root
 ├── prompts/                <- prompt templates
 ├── agents/                 <- agent profiles
 ├── conf/                   <- config files (e.g. model_providers.yaml)
-├── extensions/             <- lifecycle and UI extensions
+├── extensions/             <- lifecycle, UI, and implicit @extensible hooks
 └── webui/                  <- frontend pages, stores, components
 ```
+
+Inside `extensions/`, use `python/<point>/` for named lifecycle hooks, `python/_functions/<module>/<qualname>/<start|end>/` for implicit `@extensible` hooks, and `webui/<point>/` for UI breakpoints. Do not publish the retired flattened `python/<module>_<qualname>_<start|end>/` form.
 
 ### Runtime `plugin.yaml` requirements
 

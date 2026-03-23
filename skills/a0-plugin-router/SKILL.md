@@ -72,7 +72,7 @@ always_enabled: false        # forces ON, disables toggle (framework use only)
 |---|---|
 | `api/` | API handlers (`ApiHandler` subclasses) |
 | `tools/` | Agent tools (`Tool` subclasses) |
-| `extensions/python/<point>/` | Backend lifecycle hooks |
+| `extensions/python/<point>/` and `extensions/python/_functions/<module>/<qualname>/<start_or_end>/` | Backend lifecycle hooks and implicit `@extensible` hooks |
 | `extensions/webui/<point>/` | HTML/JS injected into UI breakpoints |
 | `webui/config.html` | Plugin settings UI |
 | `webui/*.html`, `webui/*.js` | Full plugin pages and Alpine stores |
@@ -83,6 +83,8 @@ always_enabled: false        # forces ON, disables toggle (framework use only)
 | `agents/<profile>/agent.yaml` | Plugin-distributed agent profiles |
 | `conf/model_providers.yaml` | Add/override model providers |
 | `LICENSE` | Optional under `usr/plugins/`; required at the root of a plugin GitHub repo before submitting to the Plugin Index |
+
+For `@extensible` targets, the only valid implicit hook layout is `extensions/python/_functions/<module>/<qualname>/<start|end>/`. The older flattened `extensions/python/<module>_<qualname>_<start|end>/` folders are obsolete.
 
 ### Activation
 
