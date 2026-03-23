@@ -249,10 +249,10 @@
                                         <div class="field-description">Project to activate for email chats</div>
                                     </div>
                                     <div class="field-control">
-                                        <select x-model="handler.project">
+                                        <select :value="handler.project" @change="handler.project = $event.target.value">
                                             <option value="">No project</option>
                                             <template x-for="proj in projects" :key="proj.name">
-                                                <option :value="proj.name" x-text="proj.title || proj.name"></option>
+                                                <option :value="proj.name" x-text="proj.title || proj.name" :selected="handler.project === proj.name"></option>
                                             </template>
                                         </select>
                                     </div>

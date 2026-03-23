@@ -188,6 +188,19 @@
                     </label>
                   </div>
                 </div>
+                <template x-if="config.chat_model.vision">
+                  <div class="field">
+                    <div class="field-label">
+                      <div class="field-title">Max embeds</div>
+                      <div class="field-description">
+                        Maximum number of embedded images used by the chat model. Set to 0 for unlimited.
+                      </div>
+                    </div>
+                    <div class="field-control">
+                      <input type="number" min="0" x-model.number="config.chat_model.max_embeds" x-init="if (!config.chat_model.max_embeds) config.chat_model.max_embeds = 10" />
+                    </div>
+                  </div>
+                </template>
               </div>
             </template>
 
@@ -257,6 +270,8 @@
                           @change="config[section.key].kwargs = $store.modelConfig.textToKwargs(config[section.key]._kwargs_text)"></textarea>
               </div>
             </div>
+
+
           </div>
         </template>
 

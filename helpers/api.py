@@ -217,7 +217,7 @@ def csrf_protect(f):
 
 
 def register_api_route(app: Flask, lock: ThreadLockType) -> None:
-    from helpers.extract_tools import load_classes_from_file
+    from helpers.modules import load_classes_from_file
     from helpers import plugins
 
     async def _dispatch(path: str) -> BaseResponse:

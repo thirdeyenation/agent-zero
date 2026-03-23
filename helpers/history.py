@@ -8,6 +8,8 @@ from typing import Coroutine, Literal, TypedDict, cast, Union, Dict, List, Any
 from helpers import messages, tokens, settings, call_llm
 from enum import Enum
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage, AIMessage
+from plugins._model_config.helpers.model_config import get_chat_model_config
+
 
 BULK_MERGE_COUNT = 3
 TOPICS_MERGE_COUNT = 3
@@ -316,7 +318,7 @@ class History(Record):
         )
 
     def is_over_limit(self):
-        limit = _get_ctx_size_for_history()
+        limit = self._get_ctx_size_for_history()
         total = self.get_tokens()
         return total > limit
 
@@ -341,11 +343,69 @@ class History(Record):
             self.current = Topic(history=self)
 
     def output(self) -> list[OutputMessage]:
+        self.trim_embeds(self._get_max_embeds())
         result: list[OutputMessage] = []
         result += [m for b in self.bulks for m in b.output()]
         result += [m for t in self.topics for m in t.output()]
         result += self.current.output()
         return result
+
+    def trim_embeds(self, max_embeds: int) -> int:
+        if max_embeds == -1:
+            return 0
+
+        embeds_count = 0
+        removed = 0
+
+        for record in reversed(self.bulks + self.topics + [self.current]):
+            embeds_count, removed_now = self._trim_embeds_in_record(record, embeds_count, max_embeds)
+            removed += removed_now
+
+        return removed
+
+    def remove_all_embeds(self) -> int:
+        return self.trim_embeds(0)
+
+    def _trim_embeds_in_record(
+        self, record: Record, embeds_count: int, max_embeds: int
+    ) -> tuple[int, int]:
+        if isinstance(record, Message):
+            if record.summary:
+                return embeds_count, 0
+
+            if not _is_raw_message(record.content):
+                return embeds_count, 0
+
+            raw_message = cast(dict[str, Any], record.content)
+            raw_content = raw_message.get("raw_content", [])
+            if not isinstance(raw_content, list):
+                return embeds_count, 0
+
+            embeds_in_message = sum(1 for item in raw_content if _is_embedded_data(item))
+            if embeds_in_message <= 0:
+                return embeds_count, 0
+
+            if embeds_count + embeds_in_message > max_embeds:
+                record.set_summary("embedded data removed")
+                return embeds_count + embeds_in_message, embeds_in_message
+
+            return embeds_count + embeds_in_message, 0
+
+        if isinstance(record, Topic):
+            removed = 0
+            for message in reversed(record.messages):
+                embeds_count, removed_now = self._trim_embeds_in_record(message, embeds_count, max_embeds)
+                removed += removed_now
+            return embeds_count, removed
+
+        if isinstance(record, Bulk):
+            removed = 0
+            for nested in reversed(record.records):
+                embeds_count, removed_now = self._trim_embeds_in_record(nested, embeds_count, max_embeds)
+                removed += removed_now
+            return embeds_count, removed
+
+        return embeds_count, 0
 
     @staticmethod
     def from_dict(data: dict, history: "History"):
@@ -370,7 +430,7 @@ class History(Record):
 
     async def compress(self):
         compressed = False
-        total = _get_ctx_size_for_history()
+        total = self._get_ctx_size_for_history()
         curr, hist, bulk = (
             self.get_current_topic_tokens(),
             self.get_topics_tokens(),
@@ -472,6 +532,23 @@ class History(Record):
         await bulk.summarize()
         return bulk
 
+    def _get_ctx_size_for_history(self) -> int:
+        chat_cfg = get_chat_model_config(self.agent)
+        ctx_length = int(chat_cfg.get("ctx_length", 128000))
+        ctx_history = float(chat_cfg.get("ctx_history", 0.7))
+        return int(ctx_length * ctx_history)
+
+    def _get_max_embeds(self) -> int:
+        chat_cfg = get_chat_model_config(self.agent)
+        if not chat_cfg.get("vision", False):
+            return 0
+
+        max_embeds = int(chat_cfg.get("max_embeds", 10))
+        if max_embeds <= 0:
+            max_embeds = -1
+        return max_embeds
+
+
 
 def deserialize_history(json_data: str, agent) -> History:
     history = History(agent=agent)
@@ -479,14 +556,6 @@ def deserialize_history(json_data: str, agent) -> History:
         data = _json_loads(json_data)
         history = History.from_dict(data, history=history)
     return history
-
-
-def _get_ctx_size_for_history() -> int:
-    from plugins._model_config.helpers.model_config import get_chat_model_config
-    chat_cfg = get_chat_model_config()
-    ctx_length = int(chat_cfg.get("ctx_length", 128000))
-    ctx_history = float(chat_cfg.get("ctx_history", 0.7))
-    return int(ctx_length * ctx_history)
 
 
 def _stringify_output(output: OutputMessage, ai_label="ai", human_label="human"):
@@ -500,8 +569,9 @@ def _stringify_content(content: MessageContent) -> str:
     
     # raw messages return preview or trimmed json
     if _is_raw_message(content):
-        preview: str = content.get("preview", "") # type: ignore
-        if preview:
+        raw_message = cast(dict[str, Any], content)
+        preview = raw_message.get("preview")
+        if isinstance(preview, str) and preview:
             return preview
         text = _json_dumps(content)
         if len(text) > RAW_MESSAGE_OUTPUT_TEXT_TRIM:
@@ -516,7 +586,8 @@ def _output_content_langchain(content: MessageContent):
     if isinstance(content, str):
         return content
     if _is_raw_message(content):
-        return content["raw_content"]  # type: ignore
+        raw_content = cast(dict[str, Any], content).get("raw_content")
+        return raw_content if raw_content is not None else _json_dumps(content)
     try:
         return _json_dumps(content)
     except Exception as e:
@@ -599,6 +670,10 @@ def _merge_properties(
 
 def _is_raw_message(obj: object) -> bool:
     return isinstance(obj, Mapping) and "raw_content" in obj
+
+
+def _is_embedded_data(obj: object) -> bool:
+    return isinstance(obj, Mapping) and obj.get("type") == "image_url"
 
 
 def _json_dumps(obj):

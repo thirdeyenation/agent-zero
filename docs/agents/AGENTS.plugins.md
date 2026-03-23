@@ -126,12 +126,14 @@ Design guidance:
 Plugins can include an optional `hooks.py` file at the plugin root. Agent Zero loads this module on demand and calls exported functions by name through `helpers.plugins.call_plugin_hook(...)`.
 
 - `hooks.py` runs inside the **Agent Zero framework runtime and Python environment**, not the separate agent execution environment.
-- Use it for framework-internal operations such as install-time setup, plugin registration work, filesystem preparation, cache updates, or other tasks that need access to Agent Zero internals.
+- Use it for framework-internal operations such as install-time setup, pre-update cleanup or preparation, plugin registration work, filesystem preparation, cache updates, or other tasks that need access to Agent Zero internals.
 - Hook functions may be synchronous or async. Async hooks are awaited by the framework.
 - Hook modules are cached until plugin caches are cleared, so changes may require a plugin refresh/reload cycle.
 - Plugin hooks should be cleanup-safe. A plugin should not leave behind permanent system modifications, symlinks, files outside its owned paths, or background services that survive plugin removal unless that behavior is explicitly part of the user-facing contract.
 
-Current example: the plugin installer calls `install()` from `hooks.py` after a plugin is copied into place.
+Current built-in usage:
+- the plugin installer calls `install()` from `hooks.py` after a plugin is copied into place
+- the plugin updater calls `pre_update()` from `hooks.py` immediately before pulling new plugin code into place
 
 ### Runtime and dependency implications
 

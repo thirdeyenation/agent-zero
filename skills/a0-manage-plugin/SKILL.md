@@ -235,7 +235,7 @@ Or simply restart Agent Zero - on startup it re-scans `usr/plugins/` fresh.
 
 ## Update a Plugin
 
-> A dedicated update endpoint is being added to the framework. Until it lands, use the flow below.
+> The framework update flow now calls `pre_update()` from `hooks.py` immediately before pulling new plugin code into place, then re-runs `install()` after the update if that hook exists.
 
 ### Checking for updates
 
