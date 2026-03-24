@@ -120,7 +120,9 @@ def normalize_describe_to_version(describe: str) -> str:
 def get_repo_version_info(repo_dir: Path) -> dict[str, str]:
     describe = git_output(repo_dir, "describe", "--tags", "--always")
     commit = git_output(repo_dir, "rev-parse", "HEAD")
+    branch = git_optional_output(repo_dir, "branch", "--show-current")
     return {
+        "branch": branch,
         "describe": describe,
         "short_tag": normalize_describe_to_version(describe),
         "commit": commit,
@@ -128,50 +130,17 @@ def get_repo_version_info(repo_dir: Path) -> dict[str, str]:
     }
 
 
-def normalize_rel_path(value: str | Path) -> str:
-    normalized = str(value).replace("\\", "/").strip("/")
-    if normalized in {"", "."}:
+def git_optional_output(repo_dir: Path, *args: str) -> str:
+    completed = subprocess.run(
+        ["git", "-C", str(repo_dir), *args],
+        check=False,
+        text=True,
+        capture_output=True,
+        env={**os.environ, "GIT_TERMINAL_PROMPT": "0"},
+    )
+    if completed.returncode != 0:
         return ""
-    while normalized.startswith("./"):
-        normalized = normalized[2:]
-    while "//" in normalized:
-        normalized = normalized.replace("//", "/")
-    return normalized.rstrip("/")
-
-
-def is_protected_path(relative_path: str, protected_paths: set[str]) -> bool:
-    normalized = normalize_rel_path(relative_path)
-    if not normalized:
-        return False
-    return any(
-        normalized == protected or normalized.startswith(f"{protected}/")
-        for protected in protected_paths
-    )
-
-
-def list_protected_paths(repo_dir: Path) -> set[str]:
-    output = git_output(
-        repo_dir,
-        "ls-files",
-        "--others",
-        "-i",
-        "--exclude-standard",
-        "--directory",
-    )
-    protected: set[str] = set()
-    for raw_line in output.splitlines():
-        normalized = normalize_rel_path(raw_line)
-        if not normalized:
-            continue
-        current = Path(normalized)
-        while True:
-            candidate = normalize_rel_path(current.as_posix())
-            if candidate:
-                protected.add(candidate)
-            if str(current.parent) in {"", "."}:
-                break
-            current = current.parent
-    return protected
+    return completed.stdout.strip()
 
 
 def remove_path(path: Path) -> None:
@@ -182,53 +151,11 @@ def remove_path(path: Path) -> None:
         shutil.rmtree(path)
 
 
-def sync_tree(source_dir: Path, target_dir: Path, *, protected_paths: set[str]) -> None:
-    target_dir.mkdir(parents=True, exist_ok=True)
-    protected = {normalize_rel_path(path) for path in protected_paths if path}
-
-    def _sync(src: Path, dst: Path, relative_root: str) -> None:
-        source_entries = {item.name: item for item in src.iterdir()} if src.exists() else {}
-        target_entries = {item.name: item for item in dst.iterdir()} if dst.exists() else {}
-
-        for name, src_entry in source_entries.items():
-            relative_path = normalize_rel_path(Path(relative_root, name).as_posix())
-            if is_protected_path(relative_path, protected):
-                continue
-
-            dst_entry = dst / name
-            if src_entry.is_symlink():
-                link_target = os.readlink(src_entry)
-                if dst_entry.is_symlink() and os.readlink(dst_entry) == link_target:
-                    continue
-                remove_path(dst_entry)
-                os.symlink(link_target, dst_entry)
-                continue
-
-            if src_entry.is_dir():
-                if dst_entry.exists() and not dst_entry.is_dir():
-                    remove_path(dst_entry)
-                dst_entry.mkdir(parents=True, exist_ok=True)
-                _sync(src_entry, dst_entry, relative_path)
-                try:
-                    shutil.copystat(src_entry, dst_entry, follow_symlinks=False)
-                except OSError:
-                    pass
-                continue
-
-            if dst_entry.exists() and dst_entry.is_dir():
-                remove_path(dst_entry)
-            dst_entry.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(src_entry, dst_entry, follow_symlinks=False)
-
-        for name, dst_entry in target_entries.items():
-            relative_path = normalize_rel_path(Path(relative_root, name).as_posix())
-            if name in source_entries:
-                continue
-            if is_protected_path(relative_path, protected):
-                continue
-            remove_path(dst_entry)
-
-    _sync(source_dir, target_dir, "")
+def get_repo_relative_path(repo_dir: Path, path: Path) -> str | None:
+    try:
+        return path.resolve().relative_to(repo_dir.resolve()).as_posix()
+    except ValueError:
+        return None
 
 
 def sanitize_filename(name: str, default_name: str) -> str:
@@ -318,7 +245,13 @@ def create_usr_backup(
             temporary_backup.unlink(missing_ok=True)
 
 
-def run_command(command: list[str], *, cwd: Path | None, logger: AttemptLogger) -> None:
+def run_command(
+    command: list[str],
+    *,
+    cwd: Path | None,
+    logger: AttemptLogger,
+    error_message: str | None = None,
+) -> subprocess.CompletedProcess[str]:
     logger.log(f"$ {' '.join(command)}")
     completed = subprocess.run(
         command,
@@ -333,53 +266,202 @@ def run_command(command: list[str], *, cwd: Path | None, logger: AttemptLogger) 
         logger.log_block("stderr", completed.stderr)
     if completed.returncode != 0:
         raise RuntimeError(
-            f"Command failed with exit code {completed.returncode}: {' '.join(command)}"
+            error_message
+            or f"Command failed with exit code {completed.returncode}: {' '.join(command)}"
+        )
+    return completed
+
+
+def has_local_rollback_changes(repo_dir: Path) -> bool:
+    status = git_output(repo_dir, "status", "--porcelain=v1", "--untracked-files=all")
+    return bool(status.strip())
+
+
+def get_top_stash_ref(repo_dir: Path) -> str:
+    return git_optional_output(repo_dir, "stash", "list", "--format=%gd", "-n", "1")
+
+
+def create_rollback_stash(repo_dir: Path, logger: AttemptLogger) -> str | None:
+    if not has_local_rollback_changes(repo_dir):
+        logger.log("No tracked or non-ignored untracked changes need rollback protection.")
+        return None
+
+    previous_top = get_top_stash_ref(repo_dir)
+    message = f"a0-self-update rollback snapshot {now_iso()}"
+    run_command(
+        [
+            "git",
+            "-C",
+            str(repo_dir),
+            "stash",
+            "push",
+            "--include-untracked",
+            "--message",
+            message,
+        ],
+        cwd=None,
+        logger=logger,
+        error_message="Failed to save local tracked/untracked changes before updating.",
+    )
+    stash_ref = get_top_stash_ref(repo_dir)
+    if not stash_ref or stash_ref == previous_top:
+        raise RuntimeError("Failed to create the pre-update rollback stash.")
+    logger.log(
+        f"Saved local tracked/untracked changes into {stash_ref}. "
+        "Ignored files stay in place and are not stashed."
+    )
+    return stash_ref
+
+
+def drop_stash(repo_dir: Path, stash_ref: str, logger: AttemptLogger) -> None:
+    if not stash_ref:
+        return
+    run_command(
+        ["git", "-C", str(repo_dir), "stash", "drop", stash_ref],
+        cwd=None,
+        logger=logger,
+        error_message=f"Failed to drop temporary rollback stash {stash_ref}.",
+    )
+
+
+def apply_stash(repo_dir: Path, stash_ref: str, logger: AttemptLogger) -> None:
+    if not stash_ref:
+        return
+    run_command(
+        ["git", "-C", str(repo_dir), "stash", "apply", "--index", stash_ref],
+        cwd=None,
+        logger=logger,
+        error_message=(
+            f"Failed to restore local tracked/untracked changes from {stash_ref}. "
+            "The stash entry has been kept so it can be recovered manually."
+        ),
+    )
+    try:
+        drop_stash(repo_dir, stash_ref, logger)
+    except Exception as exc:
+        logger.log(
+            f"Rollback stash {stash_ref} was restored but could not be dropped automatically: {exc}"
         )
 
 
-def clone_release(branch: str, tag: str, destination: Path, logger: AttemptLogger) -> None:
+def clean_repo_worktree(
+    repo_dir: Path,
+    logger: AttemptLogger,
+    *,
+    exclude_paths: list[Path] | None = None,
+) -> None:
+    command = ["git", "-C", str(repo_dir), "clean", "-ffd"]
+    for path in exclude_paths or []:
+        relative_path = get_repo_relative_path(repo_dir, path)
+        if relative_path:
+            command.extend(["-e", relative_path])
+    run_command(
+        command,
+        cwd=None,
+        logger=logger,
+        error_message="Failed to remove leftover non-ignored files after checkout.",
+    )
+
+
+def fetch_release_refs(repo_dir: Path, branch: str, tag: str, logger: AttemptLogger) -> None:
+    remote_branch_ref = f"refs/remotes/a0-self-update/{branch}"
     logger.log(f"Fetching branch {branch} and tag {tag} from {OFFICIAL_REPO_URL}")
     run_command(
         [
             "git",
-            "clone",
-            "--depth",
-            "1",
-            "--branch",
-            branch,
-            "--single-branch",
-            OFFICIAL_REPO_URL,
-            str(destination),
-        ],
-        cwd=None,
-        logger=logger,
-    )
-    run_command(
-        [
-            "git",
             "-C",
-            str(destination),
+            str(repo_dir),
             "fetch",
-            "--depth",
-            "1",
-            "origin",
-            f"refs/tags/{tag}:refs/tags/{tag}",
+            "--force",
+            OFFICIAL_REPO_URL,
+            f"+refs/heads/{branch}:{remote_branch_ref}",
+            f"+refs/tags/{tag}:refs/tags/{tag}",
         ],
         cwd=None,
         logger=logger,
+        error_message=f"Failed to fetch branch {branch} and tag {tag} from the official repository.",
     )
     run_command(
         [
             "git",
             "-C",
-            str(destination),
+            str(repo_dir),
+            "merge-base",
+            "--is-ancestor",
+            f"refs/tags/{tag}",
+            remote_branch_ref,
+        ],
+        cwd=None,
+        logger=logger,
+        error_message=f"Requested tag {tag} is not reachable from official branch {branch}.",
+    )
+
+
+def checkout_target_release(
+    repo_dir: Path,
+    branch: str,
+    tag: str,
+    logger: AttemptLogger,
+    *,
+    exclude_paths: list[Path] | None = None,
+) -> None:
+    logger.log(f"Checking out branch {branch} at tag {tag}")
+    run_command(
+        [
+            "git",
+            "-C",
+            str(repo_dir),
             "checkout",
-            "--detach",
+            "-B",
+            branch,
             f"refs/tags/{tag}",
         ],
         cwd=None,
         logger=logger,
+        error_message=f"Failed to check out requested tag {tag} on branch {branch}.",
     )
+    clean_repo_worktree(repo_dir, logger, exclude_paths=exclude_paths)
+
+
+def restore_git_state(
+    repo_dir: Path,
+    *,
+    head: str,
+    branch: str,
+    logger: AttemptLogger,
+    exclude_paths: list[Path] | None = None,
+) -> None:
+    logger.log(f"Restoring repository state to commit {head}")
+    if branch:
+        run_command(
+            [
+                "git",
+                "-C",
+                str(repo_dir),
+                "checkout",
+                "-B",
+                branch,
+                head,
+            ],
+            cwd=None,
+            logger=logger,
+            error_message=f"Failed to restore branch {branch} to commit {head}.",
+        )
+    else:
+        run_command(
+            [
+                "git",
+                "-C",
+                str(repo_dir),
+                "checkout",
+                "--detach",
+                head,
+            ],
+            cwd=None,
+            logger=logger,
+            error_message=f"Failed to restore detached HEAD at commit {head}.",
+        )
+    clean_repo_worktree(repo_dir, logger, exclude_paths=exclude_paths)
 
 
 def launch_ui_process(repo_dir: Path, logger: AttemptLogger) -> subprocess.Popen[bytes]:
@@ -514,14 +596,12 @@ def execute_pending_update(
 ) -> subprocess.Popen[bytes]:
     source_info = get_repo_version_info(REPO_DIR)
     started_at = now_iso()
-    protected_paths = list_protected_paths(REPO_DIR)
-    temp_root = Path(tempfile.mkdtemp(prefix="a0-self-update-"))
-    staging_repo = temp_root / "release"
-    snapshot_dir = temp_root / "snapshot"
     backup_zip_path = ""
+    stash_ref: str | None = None
     repository_changed = False
     branch = str(request_data.get("branch", "")).strip()
     tag = str(request_data.get("tag", "")).strip()
+    backup_exclusions: list[Path] = []
 
     try:
         if not branch:
@@ -529,30 +609,38 @@ def execute_pending_update(
         if not tag:
             raise ValueError("Update file is missing the tag field.")
 
+        stash_ref = create_rollback_stash(REPO_DIR, logger)
+
         if bool(request_data.get("backup_usr", True)):
-            backup_zip_path = str(
-                create_usr_backup(
-                    repo_dir=REPO_DIR,
-                    backup_path=str(request_data.get("backup_path", "/a0/tmp/self-update-backups")),
-                    backup_name=str(request_data.get("backup_name", "agent-zero-usr-backup.zip")),
-                    conflict_policy=str(request_data.get("backup_conflict_policy", "rename")),
-                    logger=logger,
-                )
+            backup_destination = create_usr_backup(
+                repo_dir=REPO_DIR,
+                backup_path=str(request_data.get("backup_path", "/a0/tmp/self-update-backups")),
+                backup_name=str(request_data.get("backup_name", "agent-zero-usr-backup.zip")),
+                conflict_policy=str(request_data.get("backup_conflict_policy", "rename")),
+                logger=logger,
             )
+            backup_zip_path = str(backup_destination)
+            backup_exclusions.append(backup_destination)
 
-        logger.log("Creating rollback snapshot")
-        sync_tree(REPO_DIR, snapshot_dir, protected_paths=protected_paths)
+        fetch_release_refs(REPO_DIR, branch, tag, logger)
 
-        clone_release(branch, tag, staging_repo, logger)
-
-        logger.log("Applying release into /a0 while preserving ignored paths")
-        sync_tree(staging_repo, REPO_DIR, protected_paths=protected_paths)
         repository_changed = True
+        logger.log(
+            "Applying the requested release with native Git checkout. "
+            "Ignored files remain untouched; tracked files and non-ignored leftovers are replaced."
+        )
+        checkout_target_release(
+            REPO_DIR,
+            branch,
+            tag,
+            logger,
+            exclude_paths=backup_exclusions,
+        )
 
         current_info = get_repo_version_info(REPO_DIR)
         if current_info["short_tag"] != tag:
             raise RuntimeError(
-                "Release sync completed but the repository version does not match the requested tag. "
+                "Git checkout completed but the repository version does not match the requested tag. "
                 f"Expected {tag}, got {current_info['short_tag']}."
             )
 
@@ -576,11 +664,30 @@ def execute_pending_update(
                 backup_zip_path=backup_zip_path,
                 rollback_applied=False,
             )
+            if stash_ref:
+                logger.log(
+                    f"Update succeeded, dropping temporary rollback stash {stash_ref}. "
+                    "Tracked and non-ignored local changes were not reapplied."
+                )
+                try:
+                    drop_stash(REPO_DIR, stash_ref, logger)
+                except Exception as exc:
+                    logger.log(
+                        f"Temporary rollback stash {stash_ref} could not be dropped automatically: {exc}"
+                    )
             return updated_process
 
         logger.log(f"Updated UI failed health check, rolling back: {details}")
         terminate_process(updated_process)
-        sync_tree(snapshot_dir, REPO_DIR, protected_paths=protected_paths)
+        restore_git_state(
+            REPO_DIR,
+            head=source_info["commit"],
+            branch=source_info.get("branch", ""),
+            logger=logger,
+            exclude_paths=backup_exclusions,
+        )
+        apply_stash(REPO_DIR, stash_ref or "", logger)
+        stash_ref = None
 
         rollback_process = launch_ui_process(REPO_DIR, logger)
         rollback_healthy, rollback_details = wait_for_health(
@@ -625,25 +732,45 @@ def execute_pending_update(
         )
         raise RuntimeError(str(rollback_details))
     except Exception as exc:
-        if repository_changed and snapshot_dir.exists():
-            logger.log(f"Restoring rollback snapshot after error: {exc}")
-            sync_tree(snapshot_dir, REPO_DIR, protected_paths=protected_paths)
+        restore_error = ""
+        if repository_changed or stash_ref:
+            logger.log(f"Restoring pre-update repository state after error: {exc}")
+            try:
+                restore_git_state(
+                    REPO_DIR,
+                    head=source_info["commit"],
+                    branch=source_info.get("branch", ""),
+                    logger=logger,
+                    exclude_paths=backup_exclusions,
+                )
+                if stash_ref:
+                    apply_stash(REPO_DIR, stash_ref, logger)
+                    stash_ref = None
+            except Exception as restore_exc:
+                restore_error = str(restore_exc)
+                logger.log(f"Automatic restore failed: {restore_exc}")
+
+        failure_message = str(exc)
+        if restore_error:
+            failure_message = f"{failure_message} | Restore error: {restore_error}"
+
+        failure_status = "failed"
+        if repository_changed:
+            failure_status = "rollback_failed" if restore_error else "rolled_back"
 
         record_result(
-            status="failed" if not repository_changed else "rolled_back",
-            message=str(exc),
+            status=failure_status,
+            message=failure_message,
             request_data=request_data,
             source_info=source_info,
             current_version=source_info["short_tag"],
             started_at=started_at,
             backup_zip_path=backup_zip_path,
             rollback_applied=repository_changed,
-            error=str(exc),
+            error=failure_message,
         )
-        logger.log(f"Update flow failed: {exc}")
+        logger.log(f"Update flow failed: {failure_message}")
         return launch_ui_process(REPO_DIR, logger)
-    finally:
-        shutil.rmtree(temp_root, ignore_errors=True)
 
 
 def load_request_file() -> tuple[dict[str, Any] | None, str]:
@@ -669,8 +796,14 @@ def docker_run_ui() -> int:
 
         try:
             current = get_repo_version_info(REPO_DIR)
+            requested_branch = str(request_data.get("branch", "")).strip()
             requested_tag = str(request_data.get("tag", "")).strip()
-            if requested_tag and current["short_tag"] == requested_tag:
+            current_branch = current.get("branch", "").strip()
+            if (
+                requested_tag
+                and current["short_tag"] == requested_tag
+                and (not requested_branch or current_branch == requested_branch)
+            ):
                 logger.log(
                     "Requested tag already matches the installed version, skipping file replacement."
                 )

@@ -202,6 +202,9 @@ const model = {
       case "settings":
         window.openModal("settings/settings.html");
         break;
+      case "plugins":
+        window.openModal("components/plugins/list/plugin-list.html");
+        break;
       case "projects":
         projectsStore.openProjectsModal();
         break;
@@ -213,9 +216,6 @@ const model = {
         break;
       case "website":
         window.open("https://agent-zero.ai", "_blank");
-        break;
-      case "github":
-        window.open("https://github.com/agent0ai/agent-zero", "_blank");
         break;
     }
   },
