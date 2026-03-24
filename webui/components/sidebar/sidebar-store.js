@@ -93,10 +93,16 @@ const model = {
   updateDropdownPosition(triggerElement) {
     if (!triggerElement) return;
     const rect = triggerElement.getBoundingClientRect();
+    const menuWidth = Math.max(rect.width, 180);
+    const viewportPadding = 8;
+    const maxLeft = Math.max(
+      viewportPadding,
+      window.innerWidth - menuWidth - viewportPadding,
+    );
     this.dropdownStyle = {
       top: `${rect.bottom + 8}px`,
-      left: `${rect.left}px`,
-      width: `${rect.width}px`
+      left: `${Math.min(Math.max(rect.left, viewportPadding), maxLeft)}px`,
+      width: `${menuWidth}px`
     };
   },
 };

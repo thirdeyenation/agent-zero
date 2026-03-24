@@ -21,7 +21,8 @@ This plugin centralizes model selection and model-related settings for the appli
 - **Per-chat override**
   - Allows a chat context to store a temporary override or preset reference in context data.
 - **Model object construction**
-  - Builds `ModelConfig` objects and the runtime chat, browser, utility, and embedding wrappers used elsewhere in the app.
+  - Builds `ModelConfig` objects and the runtime chat, utility, and embedding wrappers used elsewhere in the app.
+  - Note: Browser model wiring now lives in the `_browser_agent` plugin.
 - **API key validation**
   - Reports configured providers that still require API keys.
 
