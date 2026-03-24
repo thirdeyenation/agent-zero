@@ -129,3 +129,15 @@ def build_browser_model_from_config(
         model_config,
         **kwargs,
     )
+
+def build_browser_model_for_agent(agent=None) -> BrowserCompatibleChatWrapper:
+    """Build and return the browser-use adapter using chat model config."""
+    from plugins._model_config.helpers.model_config import (
+        get_chat_model_config,
+        build_model_config,
+    )
+    import models
+    
+    cfg = get_chat_model_config(agent)
+    mc = build_model_config(cfg, models.ModelType.CHAT)
+    return build_browser_model_from_config(mc)
