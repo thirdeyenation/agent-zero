@@ -19,7 +19,7 @@ BRANCH_OPTIONS = [
 ]
 SUPPORTED_BRANCHES = {option["value"] for option in BRANCH_OPTIONS}
 BACKUP_CONFLICT_POLICIES = {"rename", "overwrite", "fail"}
-MIN_SELECTOR_VERSION = (0, 9, 9)
+MIN_SELECTOR_VERSION = (1, 0)
 
 UPDATE_FILE_PATH = Path("/exe/a0-self-update.yaml")
 STATUS_FILE_PATH = Path("/exe/a0-self-update-status.yaml")
@@ -207,14 +207,13 @@ def _get_branch_merged_tags(
     return set()
 
 
-def _parse_selector_version(tag: str) -> tuple[int, int, int] | None:
-    match = re.fullmatch(r"v(\d+)\.(\d+)\.(\d+)(?:\..+)?", tag.strip())
+def _parse_selector_version(tag: str) -> tuple[int, int] | None:
+    match = re.fullmatch(r"v(\d+)\.(\d+)", tag.strip())
     if not match:
         return None
     return (
         int(match.group(1)),
         int(match.group(2)),
-        int(match.group(3)),
     )
 
 
@@ -225,6 +224,10 @@ def _is_selector_supported_tag(tag: str) -> bool:
 
 def _filter_selector_supported_tags(tags: list[str]) -> list[str]:
     return [tag for tag in tags if _is_selector_supported_tag(tag)]
+
+
+def _sort_selector_supported_tags(tags: list[str]) -> list[str]:
+    return sorted(tags, key=lambda tag: _parse_selector_version(tag) or (-1, -1), reverse=True)
 
 
 def is_valid_selector_tag(tag: str) -> bool:
@@ -247,7 +250,7 @@ def get_available_tags(
         if merged_tags:
             tags = [tag for tag in tags if tag in merged_tags]
 
-    tags = _filter_selector_supported_tags(tags)
+    tags = _sort_selector_supported_tags(_filter_selector_supported_tags(tags))
 
     normalized_query = query.strip().lower()
     if normalized_query:
@@ -278,7 +281,7 @@ def get_update_info(repo_dir: str | Path | None = None) -> dict[str, Any]:
         },
         "defaults": {
             "branch": default_branch,
-            "tag": current_version,
+            "tag": current_version if _is_selector_supported_tag(current_version) else "",
             "backup_usr": True,
             "backup_path": str(get_default_backup_dir(repository)),
             "backup_name": build_default_backup_name(current_version, current_version),
@@ -308,9 +311,9 @@ def schedule_update(
     if not normalized_tag:
         raise ValueError("A release tag is required.")
     if not is_valid_selector_tag(normalized_tag):
-        raise ValueError(
-            "Release tag must use the format vX.Y.Z with optional extra segments such as .W or .W-suffix."
-        )
+        raise ValueError("Release tag must use the format vX.Y.")
+    if not _is_selector_supported_tag(normalized_tag):
+        raise ValueError("Release tag must be v1.0 or newer.")
 
     normalized_policy = backup_conflict_policy.strip().lower()
     if normalized_policy not in BACKUP_CONFLICT_POLICIES:

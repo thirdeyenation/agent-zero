@@ -6,7 +6,7 @@ const HEALTH_POLL_INTERVAL_MS = 2000;
 const HEALTH_WAIT_BUFFER_MS = 30000;
 const SELF_UPDATE_RETURN_URL_KEY = "a0:self-update:return-url";
 const SELF_UPDATE_OVERLAY_ID = "self-update-progress-overlay";
-const MIN_SELECTOR_VERSION = [0, 9, 9];
+const MIN_SELECTOR_VERSION = [1, 0];
 
 const model = {
   loading: false,
@@ -67,12 +67,12 @@ const model = {
   },
 
   get versionCompatibilityWarning() {
-    const current = this.parseVersionTag(this.currentVersion);
-    const target = this.parseVersionTag(this.form.tag);
+    const current = this.parseCompatibilityTag(this.currentVersion);
+    const target = this.parseCompatibilityTag(this.form.tag);
     if (!current || !target) return "";
-    if (current.epoch !== target.epoch || current.major !== target.major) {
+    if (current.major !== target.major) {
       return (
-        "Updating across major versions requires downloading a new Docker image, " +
+        "Changing the first version number requires downloading a new Docker image, " +
         "because those releases can include operating system level changes or other breaking changes."
       );
     }
@@ -80,7 +80,12 @@ const model = {
   },
 
   get canScheduleUpdate() {
-    return this.isSupported && !this.isBusy && !this.versionCompatibilityWarning;
+    return (
+      this.isSupported &&
+      !this.isBusy &&
+      this.isSupportedSelectorTag(this.form.tag) &&
+      !this.versionCompatibilityWarning
+    );
   },
 
   async init() {
@@ -274,7 +279,8 @@ const model = {
 
   applyFormState(source) {
     this.form.branch = source?.branch || "main";
-    this.form.tag = source?.tag || this.currentVersion;
+    this.form.tag =
+      typeof source?.tag === "string" ? source.tag : this.currentVersion;
     this.form.backup_usr =
       typeof source?.backup_usr === "boolean" ? source.backup_usr : true;
     this.form.backup_path = source?.backup_path || "";
@@ -342,16 +348,19 @@ const model = {
   },
 
   parseSelectorTag(value) {
-    const match = /^v(\d+)\.(\d+)\.(\d+)(?:\..+)?$/.exec((value || "").trim());
+    const match = /^v(\d+)\.(\d+)$/.exec((value || "").trim());
     if (!match) return null;
     return [
       Number.parseInt(match[1], 10),
       Number.parseInt(match[2], 10),
-      Number.parseInt(match[3], 10),
     ];
   },
 
   isSupportedSuggestionTag(value) {
+    return this.isSupportedSelectorTag(value);
+  },
+
+  isSupportedSelectorTag(value) {
     const parsed = this.parseSelectorTag(value);
     if (!parsed) return false;
     for (let i = 0; i < MIN_SELECTOR_VERSION.length; i += 1) {
@@ -361,14 +370,12 @@ const model = {
     return true;
   },
 
-  parseVersionTag(value) {
-    const match = /^v(\d+)\.(\d+)\.(\d+)(?:\.(.+))?$/.exec((value || "").trim());
+  parseCompatibilityTag(value) {
+    const match = /^v(\d+)\.(\d+)(?:\..+)?$/.exec((value || "").trim());
     if (!match) return null;
     return {
-      epoch: Number.parseInt(match[1], 10),
-      major: Number.parseInt(match[2], 10),
-      minor: Number.parseInt(match[3], 10),
-      rest: match[4] || "",
+      major: Number.parseInt(match[1], 10),
+      minor: Number.parseInt(match[2], 10),
     };
   },
 
@@ -384,8 +391,12 @@ const model = {
     }
 
     if (!this.parseSelectorTag(this.form.tag)) {
-      this.error =
-        "Release tag must use the format vX.Y.Z with optional extra segments such as .W or .W-suffix.";
+      this.error = "Release tag must use the format vX.Y.";
+      return;
+    }
+
+    if (!this.isSupportedSelectorTag(this.form.tag)) {
+      this.error = "Release tag must be v1.0 or newer.";
       return;
     }
 

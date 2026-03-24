@@ -127,7 +127,7 @@
                   <div class="field-description">
                     Enter a version tag from the
                     <a href="https://github.com/agent0ai/agent-zero" target="_blank" rel="noreferrer">Agent Zero repository</a>.
-                    Start typing to filter, or use the search button to fetch versions from the selected branch. Exact text entry is still allowed, including downgrades.
+                    Start typing to filter, or use the search button to fetch versions from the selected branch. Only <code>vX.Y</code> tags at <code>v1.0</code> or newer are supported. Exact text entry is still allowed, including downgrades.
                   </div>
                   <template x-if="$store.selfUpdateStore.tagsError">
                     <div class="field-description">
@@ -143,7 +143,7 @@
                     @input="$store.selfUpdateStore.onTagInput()"
                     @focus="$store.selfUpdateStore.openTagDropdown()"
                     @keydown.enter.prevent="$store.selfUpdateStore.searchTags()"
-                    placeholder="v0.9.0"
+                    placeholder="v1.0"
                     :disabled="$store.selfUpdateStore.isBusy"
                     style="padding-right: 32px;"
                   />

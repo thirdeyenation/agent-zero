@@ -37,18 +37,20 @@ The WebUI fetches repository version tags for the selected branch and lets you e
 
 Agent Zero version tags follow this format:
 
-`v{epoch}.{major}.{minor}.{rest}`
+`v{major}.{minor}`
 
 Examples:
 
-- `v0.9.9.2`
-- `v1.0.3.0`
+- `v1.0`
+- `v1.1`
+
+Tags below `v1.0` are ignored by the selector and rejected by the self-update request validator.
 
 ## Major version limitation
 
-Self-update is intentionally limited to changes within the same `epoch.major` line.
+Self-update is intentionally limited to changes within the same major line.
 
-If the requested version changes the `epoch` or `major` part of the version, the UI blocks the update and shows a warning. Those upgrades require downloading a new Docker image because they can include operating system level changes or other breaking changes outside the repository checkout.
+If the requested version changes the first version number, the UI blocks the update and shows a warning. Those upgrades require downloading a new Docker image because they can include operating system level changes or other breaking changes outside the repository checkout.
 
 ## Safety notes
 
