@@ -54,6 +54,10 @@ def test_self_update_frontend_filters_old_tag_suggestions():
     assert "this.info?.defaults?.branch ||" in content
     assert "Version ${tag} does not exist on branch" in content
     assert "this.selectedTagExistsOnBranch" in content
+    assert 'const response = await fetch("/api/health"' in content
+    assert "if (response.ok && observedBackendUnavailable)" in content
+    assert "Waiting for Agent Zero to disconnect before reloading the page." in content
+    assert "/api/csrf_token" not in content
 
 
 def test_self_update_modal_validates_exact_tag_on_blur():
@@ -70,6 +74,7 @@ def test_self_update_modal_validates_exact_tag_on_blur():
     assert '@blur="$store.selfUpdateStore.onTagBlur()"' in content
     assert '@mousedown.prevent="$store.selfUpdateStore.selectTag(tag)"' in content
     assert "$store.selfUpdateStore.tagExistenceWarning" in content
+    assert 'type="button"' in content
 
 
 def test_self_update_schedule_rejects_missing_tag_on_branch(monkeypatch, tmp_path):

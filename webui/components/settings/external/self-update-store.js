@@ -492,6 +492,7 @@ const model = {
   async restartAndReload() {
     this.restarting = true;
     this.clearReconnectTimer();
+    let observedBackendUnavailable = false;
     this.setRestartState(
       "Starting self-update",
       "The request was saved. Agent Zero is about to restart and apply the requested branch and tag."
@@ -500,7 +501,7 @@ const model = {
 
     try {
       const token = await API.getCsrfToken();
-      void fetch("/api/restart", {
+      const restartResponse = await fetch("/api/restart", {
         method: "POST",
         credentials: "same-origin",
         keepalive: true,
@@ -509,9 +510,10 @@ const model = {
           "X-CSRF-Token": token,
         },
         body: JSON.stringify({}),
-      }).catch(() => {
-        // The restart request usually terminates the backend mid-flight.
       });
+      if (restartResponse && !restartResponse.ok) {
+        throw new Error(`Restart request failed with HTTP ${restartResponse.status}.`);
+      }
     } catch (_error) {
       // The restart request often terminates the backend mid-flight.
     }
@@ -536,14 +538,32 @@ const model = {
           credentials: "same-origin",
           cache: "no-store",
         });
-        if (response.ok) {
+        if (response.ok && observedBackendUnavailable) {
           const returnUrl = this.getSavedReturnUrl() || window.location.href;
           this.saveReturnUrl("");
           window.location.replace(returnUrl);
           return;
         }
-        lastError = `Health check returned HTTP ${response.status}.`;
+        if (response.ok) {
+          this.setRestartState(
+            "Restarting backend",
+            "Waiting for Agent Zero to disconnect before reloading the page."
+          );
+          lastError = "Health check is still responding before the restart has completed.";
+        } else {
+          observedBackendUnavailable = true;
+          this.setRestartState(
+            "Update in progress",
+            "Agent Zero is restarting and the updater is running. This page will reload automatically when the health check becomes healthy again."
+          );
+          lastError = `Health check returned HTTP ${response.status}.`;
+        }
       } catch (error) {
+        observedBackendUnavailable = true;
+        this.setRestartState(
+          "Update in progress",
+          "Agent Zero is temporarily unavailable while it restarts. Waiting for the new runtime to become healthy."
+        );
         lastError = error?.message || String(error);
       }
 
