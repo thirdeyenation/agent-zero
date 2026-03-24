@@ -36,6 +36,36 @@ def test_self_update_selector_tags_are_sorted_numerically():
     ]
 
 
+def test_self_update_branch_filter_prefers_remote_branch_tags(monkeypatch):
+    monkeypatch.setattr(
+        self_update.git,
+        "get_remote_releases",
+        lambda author, repo: types.SimpleNamespace(
+            error="",
+            releases=[
+                types.SimpleNamespace(tag="v1.2"),
+                types.SimpleNamespace(tag="v1.1"),
+                types.SimpleNamespace(tag="v1.0"),
+            ],
+        ),
+    )
+    monkeypatch.setattr(
+        self_update,
+        "_get_remote_branch_merged_tags",
+        lambda branch: {"v1.1", "v1.0"},
+    )
+    monkeypatch.setattr(
+        self_update,
+        "_get_local_branch_merged_tags",
+        lambda branch, repo_dir=None: set(),
+    )
+
+    tags, error = self_update.get_available_tags("development")
+
+    assert error == ""
+    assert tags == ["v1.1", "v1.0"]
+
+
 def test_self_update_frontend_filters_old_tag_suggestions():
     store_path = (
         PROJECT_ROOT
