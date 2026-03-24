@@ -19,6 +19,7 @@ BRANCH_OPTIONS = [
 ]
 SUPPORTED_BRANCHES = {option["value"] for option in BRANCH_OPTIONS}
 BACKUP_CONFLICT_POLICIES = {"rename", "overwrite", "fail"}
+MIN_SELECTOR_VERSION = (0, 9, 9)
 
 UPDATE_FILE_PATH = Path("/exe/a0-self-update.yaml")
 STATUS_FILE_PATH = Path("/exe/a0-self-update-status.yaml")
@@ -206,6 +207,30 @@ def _get_branch_merged_tags(
     return set()
 
 
+def _parse_selector_version(tag: str) -> tuple[int, int, int] | None:
+    match = re.fullmatch(r"v(\d+)\.(\d+)\.(\d+)(?:\..+)?", tag.strip())
+    if not match:
+        return None
+    return (
+        int(match.group(1)),
+        int(match.group(2)),
+        int(match.group(3)),
+    )
+
+
+def _is_selector_supported_tag(tag: str) -> bool:
+    parsed = _parse_selector_version(tag)
+    return parsed is not None and parsed >= MIN_SELECTOR_VERSION
+
+
+def _filter_selector_supported_tags(tags: list[str]) -> list[str]:
+    return [tag for tag in tags if _is_selector_supported_tag(tag)]
+
+
+def is_valid_selector_tag(tag: str) -> bool:
+    return _parse_selector_version(tag) is not None
+
+
 def get_available_tags(
     branch: str | None = None,
     *,
@@ -221,6 +246,8 @@ def get_available_tags(
         merged_tags = _get_branch_merged_tags(branch, repo_dir=repo_dir)
         if merged_tags:
             tags = [tag for tag in tags if tag in merged_tags]
+
+    tags = _filter_selector_supported_tags(tags)
 
     normalized_query = query.strip().lower()
     if normalized_query:
@@ -280,6 +307,10 @@ def schedule_update(
     normalized_tag = tag.strip()
     if not normalized_tag:
         raise ValueError("A release tag is required.")
+    if not is_valid_selector_tag(normalized_tag):
+        raise ValueError(
+            "Release tag must use the format vX.Y.Z with optional extra segments such as .W or .W-suffix."
+        )
 
     normalized_policy = backup_conflict_policy.strip().lower()
     if normalized_policy not in BACKUP_CONFLICT_POLICIES:

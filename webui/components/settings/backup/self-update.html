@@ -4,8 +4,9 @@
   </head>
 
   <body>
-    <div x-data>
-      <div>
+    <div x-data="{ get settings() { return $store.settings.settings } }">
+      <template x-if="settings">
+        <div>
         <div class="section-title">Self Update</div>
 
         <div class="field">
@@ -40,12 +41,13 @@
           </div>
           <div class="field-control">
             <label class="toggle">
-              <input type="checkbox" x-model="$store.settings.settings.update_check_enabled" />
+              <input type="checkbox" x-model="settings.update_check_enabled" />
               <span class="toggler"></span>
             </label>
           </div>
         </div>
-      </div>
+        </div>
+      </template>
     </div>
   </body>
 </html>

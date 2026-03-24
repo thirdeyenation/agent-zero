@@ -14,23 +14,35 @@
           x-destroy="$store.selfUpdateStore.cleanup()"
           class="self-update-modal"
         >
-          <details class="self-update-howto">
-            <summary>How it works?</summary>
-            <div class="self-update-copy">
-              <p>
-                Agent Zero saves this request into
-                <code x-text="$store.selfUpdateStore.info?.paths?.update_file || '/exe/a0-self-update.yaml'"></code>,
-                restarts once, applies the requested branch and release tag before the UI
-                starts again, then reloads this page when <code>/api/health</code> is healthy.
-              </p>
-              <p>
-                If the updated UI does not become healthy within 2 minutes, the bootstrap
-                manager in <code>/exe</code> restores the previous checkout and starts that
-                version again, so even an older downgraded <code>/a0</code> can be upgraded back
-                by creating the YAML file manually.
-              </p>
+          <div class="self-update-howto">
+            <button
+              type="button"
+              class="self-update-howto-toggle"
+              data-bs-toggle="collapse"
+              data-bs-target="#self-update-howto-collapse"
+              aria-expanded="false"
+              aria-controls="self-update-howto-collapse"
+            >
+              <span>How it works?</span>
+              <span class="material-symbols-outlined self-update-howto-toggle-icon">expand_more</span>
+            </button>
+            <div class="collapse" id="self-update-howto-collapse">
+              <div class="self-update-howto-body self-update-copy">
+                <p>
+                  Agent Zero saves this request into
+                  <code x-text="$store.selfUpdateStore.info?.paths?.update_file || '/exe/a0-self-update.yaml'"></code>,
+                  restarts once, applies the requested branch and release tag before the UI
+                  starts again, then reloads this page when <code>/api/health</code> is healthy.
+                </p>
+                <p>
+                  If the updated UI does not become healthy within 2 minutes, the bootstrap
+                  manager in <code>/exe</code> restores the previous checkout and starts that
+                  version again, so even an older downgraded <code>/a0</code> can be upgraded back
+                  by creating the YAML file manually.
+                </p>
+              </div>
             </div>
-          </details>
+          </div>
 
           <div class="self-update-summary-grid">
             <div class="self-update-summary-card">
@@ -98,6 +110,7 @@
                 <div class="field-control">
                   <select
                     x-model="$store.selfUpdateStore.form.branch"
+                    x-effect="$nextTick(() => { $el.value = $store.selfUpdateStore.form.branch || 'main'; })"
                     @change="$store.selfUpdateStore.onBranchChanged()"
                     :disabled="$store.selfUpdateStore.isBusy"
                   >
@@ -110,9 +123,11 @@
 
               <div class="field">
                 <div class="field-label">
-                  <div class="field-title">Target release tag</div>
+                  <div class="field-title">Version</div>
                   <div class="field-description">
-                    Start typing to filter, or use the search button to fetch tags from the selected branch. Exact text entry is still allowed, including downgrades.
+                    Enter a version tag from the
+                    <a href="https://github.com/agent0ai/agent-zero" target="_blank" rel="noreferrer">Agent Zero repository</a>.
+                    Start typing to filter, or use the search button to fetch versions from the selected branch. Exact text entry is still allowed, including downgrades.
                   </div>
                   <template x-if="$store.selfUpdateStore.tagsError">
                     <div class="field-description">
@@ -150,7 +165,20 @@
                     <template x-if="!$store.selfUpdateStore.tagsLoading && $store.selfUpdateStore.tagSuggestions.length === 0">
                       <div class="self-update-tag-item disabled">No matching tags found</div>
                     </template>
-                    <template x-for="tag in $store.selfUpdateStore.tagSuggestions" :key="tag">
+                    <template x-for="tag in $store.selfUpdateStore.groupedTagSuggestions.matched" :key="`match-${tag}`">
+                      <div
+                        class="self-update-tag-item"
+                        @click="$store.selfUpdateStore.selectTag(tag)"
+                        x-text="tag"
+                      ></div>
+                    </template>
+                    <div
+                      class="self-update-tag-separator"
+                      x-show="$store.selfUpdateStore.groupedTagSuggestions.matched.length > 0 && $store.selfUpdateStore.groupedTagSuggestions.rest.length > 0"
+                    >
+                      Other versions
+                    </div>
+                    <template x-for="tag in $store.selfUpdateStore.groupedTagSuggestions.rest" :key="`rest-${tag}`">
                       <div
                         class="self-update-tag-item"
                         @click="$store.selfUpdateStore.selectTag(tag)"
@@ -159,6 +187,10 @@
                     </template>
                   </div>
                 </div>
+              </div>
+
+              <div class="self-update-warning-banner" x-show="$store.selfUpdateStore.versionCompatibilityWarning">
+                <span x-text="$store.selfUpdateStore.versionCompatibilityWarning"></span>
               </div>
 
               <div class="field">
@@ -261,7 +293,7 @@
             <button
               class="btn btn-ok"
               @click="$store.selfUpdateStore.scheduleUpdate()"
-              :disabled="!$store.selfUpdateStore.isSupported || $store.selfUpdateStore.isBusy"
+              :disabled="!$store.selfUpdateStore.canScheduleUpdate"
             >
               Schedule Update And Restart
             </button>
@@ -300,7 +332,7 @@
         right: 0.5rem;
         top: 0.55rem;
         cursor: pointer;
-        color: var(--color-text-secondary, #777);
+        color: var(--color-text-muted);
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -312,32 +344,42 @@
         max-height: 14rem;
         overflow-y: auto;
         z-index: 20;
-        border: 1px solid var(--color-border, #ddd);
+        border: 1px solid var(--color-border);
         border-radius: 0.75rem;
-        background: var(--color-surface, #fff);
+        background: var(--color-panel);
         box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
       }
 
       .self-update-tag-item {
         padding: 0.65rem 0.85rem;
         cursor: pointer;
+        color: var(--color-text);
       }
 
       .self-update-tag-item:hover {
-        background: var(--color-panel-bg, rgba(0, 0, 0, 0.04));
+        background: var(--color-background-hover);
       }
 
       .self-update-tag-item.disabled {
         cursor: default;
-        color: var(--color-text-secondary, #777);
+        color: var(--color-text-muted);
       }
 
       .self-update-tag-item.disabled:hover {
         background: transparent;
       }
 
+      .self-update-tag-separator {
+        padding: 0.45rem 0.85rem;
+        border-top: 1px solid var(--color-border);
+        color: var(--color-text-muted);
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+
       .self-update-copy {
-        color: var(--color-text-secondary);
+        color: var(--color-text-muted);
         line-height: 1.5;
       }
 
@@ -346,24 +388,36 @@
       }
 
       .self-update-howto {
-        border: 1px solid var(--color-border, #ddd);
+        border: 1px solid var(--color-border);
         border-radius: 0.9rem;
-        background: var(--color-surface, #fff);
-        padding: 0.9rem 1rem;
+        background: var(--color-panel);
       }
 
-      .self-update-howto summary {
+      .self-update-howto-toggle {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: 0.9rem 1rem;
+        border: 0;
+        background: transparent;
         cursor: pointer;
         font-weight: 700;
-        list-style: none;
+        color: var(--color-text);
+        text-align: left;
       }
 
-      .self-update-howto summary::-webkit-details-marker {
-        display: none;
+      .self-update-howto-toggle-icon {
+        transition: transform 0.2s ease;
       }
 
-      .self-update-howto[open] summary {
-        margin-bottom: 0.75rem;
+      .self-update-howto-toggle[aria-expanded="true"] .self-update-howto-toggle-icon {
+        transform: rotate(180deg);
+      }
+
+      .self-update-howto-body {
+        padding: 0 1rem 1rem;
       }
 
       .self-update-progress-state {
@@ -373,7 +427,7 @@
         padding: 1rem 1.1rem;
         border-radius: 0.9rem;
         background: rgba(37, 99, 235, 0.08);
-        color: var(--color-text, #111827);
+        color: var(--color-text);
       }
 
       .self-update-progress-spinner {
@@ -392,8 +446,17 @@
       }
 
       .self-update-progress-copy {
-        color: var(--color-text-secondary, #475569);
+        color: var(--color-text-muted);
         line-height: 1.45;
+      }
+
+      .self-update-warning-banner {
+        padding: 0.85rem 0.95rem;
+        border: 1px solid var(--color-warning-text);
+        border-radius: 0.8rem;
+        background: color-mix(in srgb, var(--color-warning-text) 12%, transparent);
+        color: var(--color-warning-text);
+        line-height: 1.5;
       }
 
       .self-update-summary-grid {
@@ -407,14 +470,14 @@
         border: 1px solid var(--color-border);
         border-radius: 10px;
         padding: 0.9rem 1rem;
-        background: var(--color-bg-secondary);
+        background: var(--color-panel);
       }
 
       .summary-label {
         font-size: 0.8rem;
         text-transform: uppercase;
         letter-spacing: 0.04em;
-        color: var(--color-text-secondary);
+        color: var(--color-text-muted);
       }
 
       .summary-value {
@@ -426,7 +489,7 @@
       .summary-meta,
       .status-path {
         margin-top: 0.35rem;
-        color: var(--color-text-secondary);
+        color: var(--color-text-muted);
         font-size: 0.9rem;
         word-break: break-word;
       }
@@ -449,12 +512,12 @@
       }
 
       .self-update-loading {
-        background: var(--color-bg-secondary);
-        color: var(--color-text-secondary);
+        background: var(--color-panel);
+        color: var(--color-text-muted);
       }
 
       .self-update-file-hint {
-        color: var(--color-text-secondary);
+        color: var(--color-text-muted);
         line-height: 1.5;
         font-size: 0.95rem;
       }

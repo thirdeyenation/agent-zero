@@ -10,6 +10,7 @@
   <div x-data
        x-init="
          await $store.modelConfig.ensureLoaded();
+         $store.modelConfig.resetApiKeyDrafts();
          await $store.modelConfig.refreshApiKeyStatus();
          $store.modelConfig.initConfigFields(config);
          $store.modelConfig.installPluginSettingsSaveHook(context, config);
@@ -119,6 +120,7 @@
                        x-model="$store.modelConfig.apiKeyValues[config[section.key].provider]"
                        :placeholder="$store.modelConfig.apiKeyStatus[config[section.key].provider] ? '&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;' : ''"
                        autocomplete="off"
+                       @input="$store.modelConfig.touchApiKey(config[section.key].provider)"
                        style="padding-right:32px;" />
                 <span class="material-symbols-outlined eye-toggle"
                       @click="

@@ -4,9 +4,9 @@ import { store as notificationStore } from "/components/notifications/notificati
 
 const HEALTH_POLL_INTERVAL_MS = 2000;
 const HEALTH_WAIT_BUFFER_MS = 30000;
-const TAG_SEARCH_DEBOUNCE_MS = 250;
 const SELF_UPDATE_RETURN_URL_KEY = "a0:self-update:return-url";
 const SELF_UPDATE_OVERLAY_ID = "self-update-progress-overlay";
+const MIN_SELECTOR_VERSION = [0, 9, 9];
 
 const model = {
   loading: false,
@@ -29,7 +29,6 @@ const model = {
     backup_conflict_policy: "rename",
   },
   _reconnectTimer: null,
-  _tagSearchTimer: null,
   _tagRequestId: 0,
 
   get isBusy() {
@@ -48,13 +47,48 @@ const model = {
     return this.info?.current?.branch || "";
   },
 
+  get groupedTagSuggestions() {
+    const tags = Array.isArray(this.tagSuggestions) ? this.tagSuggestions : [];
+    const query = (this.form.tag || "").trim().toLowerCase();
+    if (!query) {
+      return { matched: [], rest: tags };
+    }
+
+    const matched = [];
+    const rest = [];
+    for (const tag of tags) {
+      if ((tag || "").toLowerCase().includes(query)) {
+        matched.push(tag);
+      } else {
+        rest.push(tag);
+      }
+    }
+    return { matched, rest };
+  },
+
+  get versionCompatibilityWarning() {
+    const current = this.parseVersionTag(this.currentVersion);
+    const target = this.parseVersionTag(this.form.tag);
+    if (!current || !target) return "";
+    if (current.epoch !== target.epoch || current.major !== target.major) {
+      return (
+        "Updating across major versions requires downloading a new Docker image, " +
+        "because those releases can include operating system level changes or other breaking changes."
+      );
+    }
+    return "";
+  },
+
+  get canScheduleUpdate() {
+    return this.isSupported && !this.isBusy && !this.versionCompatibilityWarning;
+  },
+
   async init() {
     await this.refresh();
   },
 
   cleanup() {
     this.clearReconnectTimer();
-    this.clearTagSearchTimer();
     this.error = "";
     this.tagsError = "";
     this.loading = false;
@@ -71,13 +105,6 @@ const model = {
     if (this._reconnectTimer) {
       clearTimeout(this._reconnectTimer);
       this._reconnectTimer = null;
-    }
-  },
-
-  clearTagSearchTimer() {
-    if (this._tagSearchTimer) {
-      clearTimeout(this._tagSearchTimer);
-      this._tagSearchTimer = null;
     }
   },
 
@@ -138,7 +165,8 @@ const model = {
         alignItems: "center",
         justifyContent: "center",
         padding: "1.5rem",
-        background: "rgba(15, 23, 42, 0.42)",
+        background:
+          "color-mix(in srgb, var(--color-background) 74%, transparent)",
         backdropFilter: "blur(6px)",
       });
       document.body.appendChild(overlay);
@@ -149,19 +177,33 @@ const model = {
         #${SELF_UPDATE_OVERLAY_ID} .self-update-progress-card {
           width: min(28rem, calc(100vw - 2rem));
           border-radius: 1rem;
-          background: var(--color-surface, #ffffff);
-          color: var(--color-text, #111827);
-          box-shadow: 0 24px 64px rgba(15, 23, 42, 0.22);
+          border: 1px solid var(--color-border);
+          background: color-mix(
+            in srgb,
+            var(--color-panel) 92%,
+            var(--color-background)
+          );
+          color: var(--color-text);
+          box-shadow: 0 24px 64px color-mix(
+            in srgb,
+            var(--color-background) 65%,
+            transparent
+          );
           padding: 1.5rem;
           text-align: center;
+          font-family: var(--font-family-main);
         }
         #${SELF_UPDATE_OVERLAY_ID} .self-update-progress-spinner {
           width: 2.5rem;
           height: 2.5rem;
           margin: 0 auto 1rem;
           border-radius: 999px;
-          border: 3px solid rgba(15, 23, 42, 0.12);
-          border-top-color: var(--color-primary, #2563eb);
+          border: 3px solid color-mix(
+            in srgb,
+            var(--color-border) 55%,
+            transparent
+          );
+          border-top-color: var(--color-primary);
           animation: self-update-spin 1s linear infinite;
         }
         #${SELF_UPDATE_OVERLAY_ID} .self-update-progress-title {
@@ -170,7 +212,7 @@ const model = {
           margin-bottom: 0.5rem;
         }
         #${SELF_UPDATE_OVERLAY_ID} .self-update-progress-detail {
-          color: var(--color-text-secondary, #475569);
+          color: var(--color-text-muted);
           line-height: 1.5;
         }
         @keyframes self-update-spin {
@@ -256,15 +298,6 @@ const model = {
 
   onTagInput() {
     this.openTagDropdown();
-    this.scheduleTagSearch();
-  },
-
-  scheduleTagSearch() {
-    this.clearTagSearchTimer();
-    this._tagSearchTimer = setTimeout(() => {
-      this._tagSearchTimer = null;
-      void this.searchTags();
-    }, TAG_SEARCH_DEBOUNCE_MS);
   },
 
   async searchTags({ openResults = true } = {}) {
@@ -275,7 +308,7 @@ const model = {
     try {
       const response = await API.callJsonApi("self_update_tags", {
         branch: this.form.branch,
-        query: this.form.tag,
+        query: "",
       });
       if (!response?.success) {
         throw new Error(response?.error || "Failed to fetch release tags.");
@@ -283,7 +316,9 @@ const model = {
       if (requestId !== this._tagRequestId) {
         return;
       }
-      this.tagSuggestions = Array.isArray(response?.tags) ? response.tags : [];
+      this.tagSuggestions = Array.isArray(response?.tags)
+        ? response.tags.filter((tag) => this.isSupportedSuggestionTag(tag))
+        : [];
       this.tagsError = response?.error || "";
       this.tagDropdownOpen = openResults;
     } catch (error) {
@@ -306,6 +341,37 @@ const model = {
     this.tagDropdownOpen = false;
   },
 
+  parseSelectorTag(value) {
+    const match = /^v(\d+)\.(\d+)\.(\d+)(?:\..+)?$/.exec((value || "").trim());
+    if (!match) return null;
+    return [
+      Number.parseInt(match[1], 10),
+      Number.parseInt(match[2], 10),
+      Number.parseInt(match[3], 10),
+    ];
+  },
+
+  isSupportedSuggestionTag(value) {
+    const parsed = this.parseSelectorTag(value);
+    if (!parsed) return false;
+    for (let i = 0; i < MIN_SELECTOR_VERSION.length; i += 1) {
+      if (parsed[i] > MIN_SELECTOR_VERSION[i]) return true;
+      if (parsed[i] < MIN_SELECTOR_VERSION[i]) return false;
+    }
+    return true;
+  },
+
+  parseVersionTag(value) {
+    const match = /^v(\d+)\.(\d+)\.(\d+)(?:\.(.+))?$/.exec((value || "").trim());
+    if (!match) return null;
+    return {
+      epoch: Number.parseInt(match[1], 10),
+      major: Number.parseInt(match[2], 10),
+      minor: Number.parseInt(match[3], 10),
+      rest: match[4] || "",
+    };
+  },
+
   async scheduleUpdate() {
     if (!this.form.branch?.trim()) {
       this.error = "Choose a branch.";
@@ -314,6 +380,12 @@ const model = {
 
     if (!this.form.tag?.trim()) {
       this.error = "Enter a release tag to schedule.";
+      return;
+    }
+
+    if (!this.parseSelectorTag(this.form.tag)) {
+      this.error =
+        "Release tag must use the format vX.Y.Z with optional extra segments such as .W or .W-suffix.";
       return;
     }
 

@@ -52,6 +52,7 @@ export const store = createStore("modelConfig", {
   embeddingProviders: [],
   apiKeyStatus: {},
   apiKeyValues: {},
+  apiKeyDirty: {},
   allProviders: [],
   _loaded: false,
 
@@ -81,6 +82,19 @@ export const store = createStore("modelConfig", {
     if (!(provider in this.apiKeyValues)) {
       this.apiKeyValues = { ...this.apiKeyValues, [provider]: '' };
     }
+    if (!(provider in this.apiKeyDirty)) {
+      this.apiKeyDirty = { ...this.apiKeyDirty, [provider]: false };
+    }
+  },
+
+  _setApiKeyDirty(provider, isDirty) {
+    if (!provider) return;
+    this._ensureApiKeySlot(provider);
+    this.apiKeyDirty = { ...this.apiKeyDirty, [provider]: !!isDirty };
+  },
+
+  touchApiKey(provider) {
+    this._setApiKeyDirty(provider, true);
   },
 
   _normalizePresets(rawPresets) {
@@ -98,13 +112,16 @@ export const store = createStore("modelConfig", {
     this.embeddingProviders = data.embedding_providers || [];
     this.apiKeyStatus = data.api_key_status || {};
     const keys = {};
+    const dirty = {};
     const seen = new Set();
     for (const p of [...this.chatProviders, ...this.embeddingProviders]) {
       if (!p.value || seen.has(p.value)) continue;
       seen.add(p.value);
       if (!(p.value in keys)) keys[p.value] = '';
+      if (!(p.value in dirty)) dirty[p.value] = false;
     }
     this.apiKeyValues = keys;
+    this.apiKeyDirty = dirty;
 
     const allProviders = [];
     const provSeen = new Set();
@@ -131,21 +148,38 @@ export const store = createStore("modelConfig", {
 
     const nextStatus = { ...this.apiKeyStatus };
     const nextValues = { ...this.apiKeyValues };
+    const nextDirty = { ...this.apiKeyDirty };
 
     for (const provider of this.allProviders) {
       const entry = keys[provider.value] || {};
       const hasKey = !!entry.has_key;
       nextStatus[provider.value] = hasKey;
       provider.has_key = hasKey;
-      if (!hasKey && !nextValues[provider.value]) {
+      if (!(provider.value in nextDirty)) {
+        nextDirty[provider.value] = false;
+      }
+      if (!hasKey && !nextDirty[provider.value]) {
         nextValues[provider.value] = '';
       }
     }
 
     this.apiKeyStatus = nextStatus;
     this.apiKeyValues = nextValues;
+    this.apiKeyDirty = nextDirty;
     this.allProviders = [...this.allProviders];
     return keys;
+  },
+
+  resetApiKeyDrafts() {
+    const nextValues = {};
+    const nextDirty = {};
+    for (const provider of this.allProviders || []) {
+      if (!provider?.value) continue;
+      nextValues[provider.value] = '';
+      nextDirty[provider.value] = false;
+    }
+    this.apiKeyValues = nextValues;
+    this.apiKeyDirty = nextDirty;
   },
 
   async _fetchConfigData() {
@@ -229,8 +263,7 @@ export const store = createStore("modelConfig", {
     const normalized = {};
     for (const [provider, value] of Object.entries(updates || {})) {
       if (!provider || typeof value !== 'string') continue;
-      if (!value.trim()) continue;
-      normalized[provider] = value;
+      normalized[provider] = value.trim() ? value : '';
     }
 
     if (Object.keys(normalized).length === 0) {
@@ -248,11 +281,14 @@ export const store = createStore("modelConfig", {
     }
 
     const nextValues = { ...this.apiKeyValues };
+    const nextDirty = { ...this.apiKeyDirty };
     for (const [provider, value] of Object.entries(normalized)) {
       nextValues[provider] = value;
-      this._setProviderHasKey(provider, true);
+      nextDirty[provider] = false;
+      this._setProviderHasKey(provider, !!value.trim());
     }
     this.apiKeyValues = nextValues;
+    this.apiKeyDirty = nextDirty;
     return data;
   },
 
@@ -261,8 +297,9 @@ export const store = createStore("modelConfig", {
   },
 
   saveApiKeyIfSet(provider) {
-    const val = this.apiKeyValues[provider];
-    if (val) return this.saveApiKey(provider, val);
+    if (provider in this.apiKeyValues) {
+      return this.saveApiKey(provider, this.apiKeyValues[provider] || '');
+    }
   },
 
   async revealApiKey(provider) {
@@ -276,23 +313,24 @@ export const store = createStore("modelConfig", {
       throw new Error(data?.error || 'Failed to load API key.');
     }
     const value = data.value || '';
-    if (provider && value) {
+    if (provider) {
       this._ensureApiKeySlot(provider);
       this.apiKeyValues = { ...this.apiKeyValues, [provider]: value };
-      this._setProviderHasKey(provider, true);
+      this._setApiKeyDirty(provider, false);
+      this._setProviderHasKey(provider, !!value.trim());
     }
     return value;
   },
 
   async persistApiKeysForConfig(config) {
     const updates = {};
+    const seen = new Set();
     for (const section of this.MODEL_SECTIONS) {
       const provider = config?.[section.key]?.provider;
-      if (!provider) continue;
+      if (!provider || seen.has(provider) || !this.apiKeyDirty[provider]) continue;
+      seen.add(provider);
       const value = this.apiKeyValues[provider];
-      if (typeof value === 'string' && value.trim()) {
-        updates[provider] = value;
-      }
+      updates[provider] = typeof value === 'string' ? value : '';
     }
     return this.saveApiKeys(updates);
   },
