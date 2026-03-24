@@ -9,13 +9,17 @@
 <body>
   <div
     class="sidebar-header-stack"
-    x-data="{ dropdownOpen: false }"
-    @click.outside="dropdownOpen = false"
-    @keydown.escape.window="dropdownOpen = false"
-    x-init="$watch('dropdownOpen', open => open && $nextTick(() => $store.sidebar.updateDropdownPosition($refs.quickActionsToggle)))"
+    x-data
+    @click.window="$store.sidebar.menuClick($event, $refs.headerPanel)"
+    @keydown.escape.window="$store.sidebar.menuClose()"
   >
     <!-- Fixed panel that expands on hover -->
-    <div id="sidebar-header-panel" class="sidebar-header-panel" :class="{ 'sidebar-header-panel-open': $store.sidebar.isOpen }">
+    <div
+      id="sidebar-header-panel"
+      class="sidebar-header-panel"
+      x-ref="headerPanel"
+      :class="{ 'sidebar-header-panel-open': $store.sidebar.headOpen() }"
+    >
       <div id="logo-bar">
         <a href="https://github.com/agent0ai/agent-zero" target="_blank" rel="noopener noreferrer" aria-label="Agent Zero on GitHub">
           <div class="logo-container">
@@ -47,37 +51,37 @@
         <button
           class="config-button header-action-button dropdown-toggle"
           id="header-more"
-          x-ref="quickActionsToggle"
-          @click="dropdownOpen = !dropdownOpen"
+          x-ref="menuButton"
+          @click="$store.sidebar.menuToggle($refs.menuButton)"
           title="More options"
           aria-label="More options"
           tabindex="-1"
         >
-          <span class="material-symbols-outlined" aria-hidden="true" :class="dropdownOpen ? 'rotated' : ''">expand_more</span>
+          <span class="material-symbols-outlined" aria-hidden="true" :class="$store.sidebar.menuOpen ? 'rotated' : ''">expand_more</span>
         </button>
       </div>
 
-      <div class="dropdown-menu quick-actions-dropdown" x-show="dropdownOpen" :style="$store.sidebar.dropdownStyle">
+      <div class="dropdown-menu quick-actions-dropdown" x-show="$store.sidebar.menuOpen" :style="$store.sidebar.dropdownStyle">
         <div id="sidebar-quick-actions-dropdown-slot-start"></div>
 
         <div class="dropdown-header">Navigation</div>
 
-        <button class="dropdown-item" @click="deselectChat(); dropdownOpen = false">
+        <button class="dropdown-item" @click="deselectChat(); $store.sidebar.menuClose()">
           <span class="material-symbols-outlined">home</span>
           <span>Dashboard</span>
         </button>
 
-        <button class="dropdown-item" @click="$store.projects.openProjectsModal(); dropdownOpen = false">
+        <button class="dropdown-item" @click="$store.projects.openProjectsModal(); $store.sidebar.menuClose()">
           <span class="material-symbols-outlined">snippet_folder</span>
           <span>Projects</span>
         </button>
 
-        <button class="dropdown-item" @click="openModal('components/modals/scheduler/scheduler-modal.html'); dropdownOpen = false">
+        <button class="dropdown-item" @click="openModal('components/modals/scheduler/scheduler-modal.html'); $store.sidebar.menuClose()">
           <span class="material-symbols-outlined">schedule</span>
           <span>Scheduler</span>
         </button>
 
-        <button class="dropdown-item" @click="openModal('settings/settings.html'); dropdownOpen = false">
+        <button class="dropdown-item" @click="openModal('settings/settings.html'); $store.sidebar.menuClose()">
           <span class="material-symbols-outlined">settings</span>
           <span>Settings</span>
         </button>
@@ -85,34 +89,34 @@
         <div class="dropdown-separator"></div>
         <div class="dropdown-header">Chat Actions</div>
 
-        <button class="dropdown-item" @click="$store.chats.newChat(); dropdownOpen = false">
+        <button class="dropdown-item" @click="$store.chats.newChat(); $store.sidebar.menuClose()">
           <span class="material-symbols-outlined">chat_add_on</span>
           <span>New Chat</span>
         </button>
 
-        <button class="dropdown-item" @click="$store.chats.loadChats(); dropdownOpen = false">
+        <button class="dropdown-item" @click="$store.chats.loadChats(); $store.sidebar.menuClose()">
           <span class="material-symbols-outlined">folder_open</span>
           <span>Load Chat</span>
         </button>
 
-        <button class="dropdown-item" @click="$store.chats.saveChat(); dropdownOpen = false" :disabled="!$store.chats.selected">
+        <button class="dropdown-item" @click="$store.chats.saveChat(); $store.sidebar.menuClose()" :disabled="!$store.chats.selected">
           <span class="material-symbols-outlined">save</span>
           <span>Save Chat</span>
         </button>
 
-        <button class="dropdown-item" @click="$confirmClick($event, () => { $store.chats.resetChat(); dropdownOpen = false })" :disabled="!$store.chats.selected">
+        <button class="dropdown-item" @click="$confirmClick($event, () => { $store.chats.resetChat(); $store.sidebar.menuClose() })" :disabled="!$store.chats.selected">
           <span class="material-symbols-outlined">delete_sweep</span>
           <span>Clear Chat</span>
         </button>
 
         <div class="dropdown-separator"></div>
 
-        <button class="dropdown-item" @click="$confirmClick($event, () => { $store.chats.logout(); dropdownOpen = false })" :disabled="!$store.chats.loggedIn">
+        <button class="dropdown-item" @click="$confirmClick($event, () => { $store.chats.logout(); $store.sidebar.menuClose() })" :disabled="!$store.chats.loggedIn">
           <span class="material-symbols-outlined">logout</span>
           <span>Logout</span>
         </button>
 
-        <button class="dropdown-item" @click="$confirmClick($event, () => { $store.chats.restart(); dropdownOpen = false })">
+        <button class="dropdown-item" @click="$confirmClick($event, () => { $store.chats.restart(); $store.sidebar.menuClose() })">
           <span class="material-symbols-outlined">restart_alt</span>
           <span>Restart A0</span>
         </button>
@@ -333,26 +337,29 @@
       }
     }
 
-    /* --- Mobile Always Expanded --- */
+    /* --- Mobile: open only when header state says so --- */
     @media (max-width: 768px) {
       .sidebar-header-panel {
-        width: var(--header-panel-expanded-width);
         transition: all 0.3s ease;
       }
-      
-      #a0-logo {
+
+      .sidebar-header-panel.sidebar-header-panel-open {
+        width: var(--header-panel-expanded-width);
+      }
+
+      .sidebar-header-panel.sidebar-header-panel-open #a0-logo {
         opacity: 0.8;
       }
 
-      #logo-bar a:hover #a0-logo {
+      .sidebar-header-panel.sidebar-header-panel-open #logo-bar a:hover #a0-logo {
         opacity: 1;
       }
 
-      #a0-logo-collapsed {
+      .sidebar-header-panel.sidebar-header-panel-open #a0-logo-collapsed {
         opacity: 0;
       }
 
-      .sidebar-header-panel #hide-button .config-button {
+      .sidebar-header-panel.sidebar-header-panel-open #hide-button .config-button {
         opacity: 0.8 !important;
         transform: translateX(0) !important;
         pointer-events: auto !important;
