@@ -24,6 +24,32 @@
               </label>
             </div>
           </div>
+
+          <div class="field">
+            <div class="field-label">
+              <div class="field-title">Manual Self Update</div>
+              <div class="field-description">
+                Schedule a branch plus release tag, optionally zip <code>/a0/usr</code>,
+                restart Agent Zero, and let the durable bootstrap manager in
+                <code>/exe</code> either finish the update or automatically roll back if
+                the UI never becomes healthy.
+              </div>
+              <template x-if="!$store.settings.additional?.is_dockerized">
+                <div class="field-description">
+                  This action is currently available only in dockerized installs.
+                </div>
+              </template>
+            </div>
+            <div class="field-control">
+              <button
+                class="btn btn-field"
+                @click="openModal('settings/external/self-update-modal.html')"
+                :disabled="!$store.settings.additional?.is_dockerized"
+              >
+                Open Self Update
+              </button>
+            </div>
+          </div>
         </div>
       </template>
     </div>
