@@ -4,26 +4,28 @@ Create a new chat from any existing point in a conversation.
 
 ## What It Does
 
-This plugin adds an API endpoint that clones an existing chat context, trims its log history up to a selected message, gives the new chat a `(branch)` suffix, persists it immediately, and refreshes connected tabs so the new branch appears in the UI.
+Adds a **Branch** button to every chat message. Clicking it clones the current chat up to that message, creating a new conversation you can continue independently.
 
-## Main Behavior
+## How It Works
 
-- **Clone context**
-  - Serializes the current chat context and deserializes it into a brand-new context with a new ID.
-- **Trim history**
-  - Keeps log entries only up to and including the selected `log_no`.
-  - Includes a fallback for cases where reloaded logs use sequential array indexes.
-- **Persist immediately**
-  - Saves the newly created branched chat to temporary chat storage.
-- **Refresh UI state**
-  - Marks state dirty for all tabs after the branch is created.
+1. **ID-based log ↔ history linking**
+   Every `LogItem` and `history.Message` share a UUID generated at creation time. The branch button is only shown on messages that carry this ID.
+
+2. **Clone & trim**
+   - Serializes the source context → deserializes into a new context with a fresh ID.
+   - Walks log entries: keeps everything up to the selected `log_no`, discards the rest.
+   - Collects the IDs of kept entries and uses them to trim `history.messages` so log and history stay consistent.
+
+3. **Persist & refresh**
+   - Saves the branched chat immediately.
+   - Marks UI state dirty so all connected tabs see the new branch.
 
 ## Entry Points
 
-- **API**
-  - `api/branch_chat.py` implements the branching operation.
-- **Extensions**
-  - `extensions/` contains integration glue for making the feature available in the app.
+| Path | Purpose |
+|---|---|
+| `api/branch_chat.py` | API endpoint — clone, trim, persist |
+| `extensions/webui/set_messages_after_loop/inject-branch-buttons.js` | Injects the Branch button into each message DOM element |
 
 ## Plugin Metadata
 

@@ -8,6 +8,7 @@ import asyncio
 import base64
 import json
 import os
+import uuid
 
 from agent import Agent, AgentContext, AgentContextType, UserMessage
 from helpers import guids, plugins, files, runtime
@@ -285,11 +286,13 @@ async def _start_new_chat(agent: Agent, handler_cfg: dict, msg: InboundMessage):
     user_msg = _build_user_message(agent, msg, handler_cfg)
     system_ctx = agent.read_prompt("fw.email.system_context.md")
 
-    mq.log_user_message(context, user_msg, msg.attachments or [], source=" (email)")
+    msg_id = str(uuid.uuid4())
+    mq.log_user_message(context, user_msg, msg.attachments or [], message_id=msg_id, source=" (email)")
     context.communicate(UserMessage(
         message=user_msg,
         system_message=[system_ctx],
         attachments=msg.attachments,
+        id=msg_id,
     ))
 
     PrintStyle.success(f"Email: new chat {context.id} for '{msg.subject}' from {msg.sender}")
@@ -322,10 +325,12 @@ async def _route_to_chat(
     context.data[disp.CTX_EMAIL_REFERENCES] = " ".join(refs_list)
 
     user_msg = _build_user_message(agent, msg, handler_cfg)
-    mq.log_user_message(context, user_msg, msg.attachments or [], source=" (email)")
+    msg_id = str(uuid.uuid4())
+    mq.log_user_message(context, user_msg, msg.attachments or [], message_id=msg_id, source=" (email)")
     context.communicate(UserMessage(
         message=user_msg,
         attachments=msg.attachments,
+        id=msg_id,
     ))
 
     save_tmp_chat(context)

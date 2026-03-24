@@ -75,7 +75,7 @@ class VisionLoad(Tool):
             f"Skipped images (max {self._get_max_embeds()} loaded at a time according to model configuration):\n{skipped_summary}"
         )
         if self.images_dict:
-            self.agent.hist_add_tool_result(self.name, summary)
+            self.agent.hist_add_tool_result(self.name, summary, id=self.log.id if self.log else "")
             for path, image in self.images_dict.items():
                 if image:
                     content.append(
@@ -97,7 +97,7 @@ class VisionLoad(Tool):
                 False, content=msg, tokens=TOKENS_ESTIMATE * len(content)
             )
         else:
-            self.agent.hist_add_tool_result(self.name, summary if self.skipped_paths else "No images processed")
+            self.agent.hist_add_tool_result(self.name, summary if self.skipped_paths else "No images processed", id=self.log.id if self.log else "")
 
         # print and log short version
         message = (

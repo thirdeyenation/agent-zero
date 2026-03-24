@@ -35,10 +35,13 @@ class RetryCriticalException(Extension):
         self.agent.set_data(DATA_NAME_COUNTER, counter + 1)
 
         error_message = errors.format_error(exception)
+        import uuid as _uuid
+        msg_id = str(_uuid.uuid4())
         self.agent.context.log.log(
             type="warning",
             heading="Critical error occurred, retrying...",
             content=error_message,
+            id=msg_id,
         )
         PrintStyle(font_color="orange", padding=True).print(
             "Critical error occurred, retrying..."
@@ -48,7 +51,7 @@ class RetryCriticalException(Extension):
         agent_facing_error = self.agent.read_prompt(
             "fw.msg_critical_error.md", error_message=error_message
         )
-        self.agent.hist_add_warning(message=agent_facing_error)
+        self.agent.hist_add_warning(message=agent_facing_error, id=msg_id)
         PrintStyle(font_color="orange", padding=True).print(agent_facing_error)
 
         data["exception"] = None
