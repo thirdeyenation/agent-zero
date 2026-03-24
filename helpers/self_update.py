@@ -17,6 +17,7 @@ BRANCH_OPTIONS = [
     {"value": "testing", "label": "testing"},
     {"value": "development", "label": "development"},
 ]
+SUPPORTED_BRANCHES = {option["value"] for option in BRANCH_OPTIONS}
 BACKUP_CONFLICT_POLICIES = {"rename", "overwrite", "fail"}
 
 UPDATE_FILE_PATH = Path("/exe/a0-self-update.yaml")
@@ -133,7 +134,12 @@ def get_repo_version_info(repo_dir: str | Path | None = None) -> dict[str, str]:
     repository = get_repo_dir(repo_dir)
     describe = _run_git(repository, "describe", "--tags", "--always")
     commit = _run_git(repository, "rev-parse", "HEAD")
+    try:
+        branch = _run_git(repository, "branch", "--show-current")
+    except Exception:
+        branch = ""
     return {
+        "branch": branch,
         "describe": describe,
         "short_tag": _normalize_describe_to_version(describe),
         "commit": commit,
@@ -162,9 +168,7 @@ def build_default_backup_name(
     target_tag: str | None = None,
 ) -> str:
     timestamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
-    current_slug = _slugify_version(current_version)
-    target_slug = _slugify_version(target_tag or current_version)
-    return f"agent-zero-usr-{current_slug}-to-{target_slug}-{timestamp}.zip"
+    return f"usr-{timestamp}.zip"
 
 
 def _resolve_backup_path(
@@ -180,18 +184,58 @@ def _resolve_backup_path(
     return path.resolve()
 
 
-def get_available_tags() -> tuple[list[str], str]:
+def _get_branch_reference_names(branch: str) -> list[str]:
+    normalized_branch = branch.strip().lower()
+    if normalized_branch not in SUPPORTED_BRANCHES:
+        return []
+    return [f"origin/{normalized_branch}", normalized_branch]
+
+
+def _get_branch_merged_tags(
+    branch: str,
+    repo_dir: str | Path | None = None,
+) -> set[str]:
+    repository = get_repo_dir(repo_dir)
+    for ref in _get_branch_reference_names(branch):
+        try:
+            _run_git(repository, "rev-parse", "--verify", ref)
+            output = _run_git(repository, "tag", "--merged", ref)
+            return {line.strip() for line in output.splitlines() if line.strip()}
+        except Exception:
+            continue
+    return set()
+
+
+def get_available_tags(
+    branch: str | None = None,
+    *,
+    repo_dir: str | Path | None = None,
+    query: str = "",
+) -> tuple[list[str], str]:
     result = git.get_remote_releases(OFFICIAL_REPO_AUTHOR, OFFICIAL_REPO_NAME)
     if result.error:
         return [], result.error
-    return [release.tag for release in result.releases], ""
+    tags = [release.tag for release in result.releases]
+
+    if branch:
+        merged_tags = _get_branch_merged_tags(branch, repo_dir=repo_dir)
+        if merged_tags:
+            tags = [tag for tag in tags if tag in merged_tags]
+
+    normalized_query = query.strip().lower()
+    if normalized_query:
+        tags = [tag for tag in tags if normalized_query in tag.lower()]
+
+    return tags, ""
 
 
 def get_update_info(repo_dir: str | Path | None = None) -> dict[str, Any]:
     repository = get_repo_dir(repo_dir)
     version_info = get_repo_version_info(repository)
     current_version = version_info["short_tag"]
-    tags, tags_error = get_available_tags()
+    current_branch = version_info.get("branch", "").strip().lower()
+    default_branch = current_branch if current_branch in SUPPORTED_BRANCHES else "main"
+    tags, tags_error = get_available_tags(default_branch, repo_dir=repository)
     return {
         "repo_dir": str(repository),
         "current": version_info,
@@ -206,7 +250,7 @@ def get_update_info(repo_dir: str | Path | None = None) -> dict[str, Any]:
             "log_file": str(get_log_file_path()),
         },
         "defaults": {
-            "branch": "main",
+            "branch": default_branch,
             "tag": current_version,
             "backup_usr": True,
             "backup_path": str(get_default_backup_dir(repository)),
@@ -230,7 +274,7 @@ def schedule_update(
     version_info = get_repo_version_info(repository)
 
     normalized_branch = branch.strip().lower()
-    if normalized_branch not in {option["value"] for option in BRANCH_OPTIONS}:
+    if normalized_branch not in SUPPORTED_BRANCHES:
         raise ValueError("Branch must be one of: main, testing, development.")
 
     normalized_tag = tag.strip()

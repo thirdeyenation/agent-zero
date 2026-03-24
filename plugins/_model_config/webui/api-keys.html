@@ -10,18 +10,72 @@
 
 <div x-data>
 <template x-if="$store.modelConfig">
-<div x-data="{ keys: {}, loading: true }"
-     x-init="
-       await $store.modelConfig.ensureLoaded();
-       $store.modelConfig.allProviders.forEach(p => keys[p.value] = '');
-       loading = false;
-     ">
+<div x-data="{
+       keys: {},
+       originalKeys: {},
+       touched: {},
+       loading: true,
+       saving: false,
+       error: '',
+       get hasChanges() {
+         return Object.keys(this.touched).some((provider) => this.touched[provider]);
+       },
+       async init() {
+         await $store.modelConfig.ensureLoaded();
+         await $store.modelConfig.refreshApiKeyStatus();
+         $store.modelConfig.allProviders.forEach((provider) => {
+           this.keys[provider.value] = '';
+           this.originalKeys[provider.value] = '';
+           this.touched[provider.value] = false;
+         });
+         this.loading = false;
+       },
+       markChanged(provider) {
+         this.touched[provider] = this.keys[provider] !== this.originalKeys[provider];
+       },
+       async reveal(provider) {
+         try {
+           const value = await $store.modelConfig.revealApiKey(provider);
+           this.keys[provider] = value || '';
+           this.originalKeys[provider] = value || '';
+           this.touched[provider] = false;
+         } catch (e) {
+           this.error = e?.message || 'Failed to reveal API key.';
+         }
+       },
+       async saveAndClose() {
+         this.saving = true;
+         this.error = '';
+         try {
+           const updates = {};
+           for (const provider of Object.keys(this.touched)) {
+             if (!this.touched[provider]) continue;
+             const value = (this.keys[provider] || '').trim();
+             if (!value) continue;
+             updates[provider] = value;
+           }
+           await $store.modelConfig.saveApiKeys(updates);
+           await $store.modelConfig.refreshApiKeyStatus();
+           window.closeModal?.();
+         } catch (e) {
+           this.error = e?.message || 'Failed to save API keys.';
+         } finally {
+           this.saving = false;
+         }
+       }
+     }"
+     x-init="init()">
 
   <div class="api-keys-section">
     <div class="section-title">API Keys</div>
     <div class="section-description">
       API keys for model providers and services used by Agent Zero. You can set multiple API keys separated by a comma (,). They will be used in round-robin fashion.<br>
       For more information about Agent Zero Venice provider, see <a href="http://agent-zero.ai/?community/api-dashboard/about" target="_blank">Agent Zero Venice</a>.
+    </div>
+
+    <div x-show="error" class="plugin-settings-error" style="margin-top: 1rem;">
+      <span class="material-symbols-outlined">error</span>
+      <span x-text="error"></span>
     </div>
 
     <div x-show="loading" style="text-align:center; padding: 20px;">
@@ -39,13 +93,13 @@
                    x-model="keys[provider.value]"
                    :placeholder="provider.has_key ? '••••••••••••' : ''"
                    autocomplete="off"
-                   @input.debounce.800ms="keys[provider.value] && $store.modelConfig.saveApiKey(provider.value, keys[provider.value])"
+                   @input="markChanged(provider.value)"
                    style="padding-right:32px;" />
             <span class="material-symbols-outlined eye-toggle"
                   @click="
                     showKey = !showKey;
                     if (showKey && !keys[provider.value] && provider.has_key) {
-                      $store.modelConfig.revealApiKey(provider.value).then(v => { if (v) keys[provider.value] = v; });
+                      reveal(provider.value);
                     }
                   "
                   x-text="showKey ? 'visibility' : 'visibility_off'"></span>
@@ -56,7 +110,16 @@
   </div>
 
   <div class="modal-footer" data-modal-footer>
-    <button class="btn btn-cancel" @click="closeModal()">Close</button>
+    <button class="btn btn-ok"
+            @click="saveAndClose()"
+            :disabled="loading || saving || !hasChanges">
+      Save
+    </button>
+    <button class="btn btn-cancel"
+            @click="window.closeModal?.()"
+            :disabled="saving">
+      Close
+    </button>
   </div>
 </div>
 </template>

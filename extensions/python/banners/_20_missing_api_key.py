@@ -1,6 +1,6 @@
 from helpers.extension import Extension
 from helpers import plugins
-import models
+from plugins._model_config.helpers import model_config
 
 
 class MissingApiKeyCheck(Extension):
@@ -8,6 +8,13 @@ class MissingApiKeyCheck(Extension):
 
     LOCAL_PROVIDERS = {"ollama", "lm_studio"}
     LOCAL_EMBEDDING = {"huggingface"}
+    CONFIGURE_MODEL_SETTINGS_LINK = (
+        """<a href="#" onclick="(async()=>{"""
+        """const { store: s } = await import('/components/plugins/plugin-settings-store.js');"""
+        """if(s&&s.openConfig){await s.openConfig('_model_config');}"""
+        """})();return false;">"""
+        """Configure model settings</a>"""
+    )
 
     async def execute(self, banners: list = [], frontend_context: dict = {}, **kwargs):
         cfg = plugins.get_plugin_config("_model_config") or {}
@@ -28,8 +35,10 @@ class MissingApiKeyCheck(Extension):
             if label == "Embedding Model" and provider_lower in self.LOCAL_EMBEDDING:
                 continue
 
-            api_key = models.get_api_key(provider_lower)
-            if not (api_key and api_key.strip() and api_key != "None"):
+            if not model_config.has_provider_api_key(
+                provider_lower,
+                model_cfg.get("api_key", ""),
+            ):
                 missing_providers.append({
                     "model_type": label,
                     "provider": provider,
@@ -47,8 +56,7 @@ class MissingApiKeyCheck(Extension):
                 "title": "Missing LLM API Key for current settings",
                 "html": f"""No API key configured for: {model_list}.<br>
                          Agent Zero will not be able to function properly unless you provide an API key or change your settings.<br>
-                         <a href="#" onclick="(async()=>{{await import('/components/plugins/plugin-settings-store.js');const s=Alpine.store('pluginSettingsPrototype');if(s&amp;&amp;s.open){{await s.open('_model_config',{{perProjectConfig:true,perAgentConfig:true}});}}openModal('components/plugins/plugin-settings.html');}})();return false;">
-                         Configure model settings</a>""",
+                         {self.CONFIGURE_MODEL_SETTINGS_LINK}""",
                 "dismissible": False,
                 "source": "backend"
             })
@@ -73,8 +81,7 @@ class MissingApiKeyCheck(Extension):
                     # Skip if preset has its own api_key
                     if slot.get("api_key", "").strip():
                         continue
-                    api_key = models.get_api_key(provider_lower)
-                    if not (api_key and api_key.strip() and api_key != "None"):
+                    if not model_config.has_provider_api_key(provider_lower):
                         seen.add(provider_lower)
                         preset_missing.append(f"{preset_name}/{slot_label} ({provider})")
 
@@ -87,8 +94,7 @@ class MissingApiKeyCheck(Extension):
                     "title": "Missing API Key for model presets",
                     "html": f"""No API key configured for preset models: {preset_list}.<br>
                              These presets will not work until you provide the required API keys.<br>
-                             <a href="#" onclick="(async()=>{{await import('/components/plugins/plugin-settings-store.js');const s=Alpine.store('pluginSettingsPrototype');if(s&amp;&amp;s.open){{await s.open('_model_config',{{perProjectConfig:true,perAgentConfig:true}});}}openModal('components/plugins/plugin-settings.html');}})();return false;">
-                             Configure model settings</a>""",
+                             {self.CONFIGURE_MODEL_SETTINGS_LINK}""",
                     "dismissible": True,
                     "source": "backend"
                 })

@@ -6,6 +6,8 @@ from helpers.providers import get_providers
 
 PRESETS_FILE = "presets.yaml"
 DEFAULT_PRESETS_FILE = "default_presets.yaml"
+LOCAL_PROVIDERS = {"ollama", "lm_studio"}
+LOCAL_EMBEDDING = {"huggingface"}
 
 
 def _get_presets_path() -> str:
@@ -158,6 +160,7 @@ def build_model_config(cfg: dict, model_type: models.ModelType) -> models.ModelC
         type=model_type,
         provider=cfg.get("provider", ""),
         name=cfg.get("name", ""),
+        api_key=cfg.get("api_key", ""),
         api_base=cfg.get("api_base", ""),
         ctx_length=int(cfg.get("ctx_length", 0)),
         vision=bool(cfg.get("vision", False)),
@@ -222,13 +225,19 @@ def get_embedding_providers():
     return get_providers("embedding")
 
 
+def has_provider_api_key(provider: str, configured_api_key: str = "") -> bool:
+    configured_value = (configured_api_key or "").strip()
+    if configured_value and configured_value != "None":
+        return True
+
+    api_key = models.get_api_key(provider.lower())
+    return bool(api_key and api_key.strip() and api_key != "None")
+
+
 def get_missing_api_key_providers(agent=None) -> list[dict]:
     """Check which configured providers are missing API keys."""
     cfg = get_config(agent)
     missing = []
-
-    LOCAL_PROVIDERS = {"ollama", "lm_studio"}
-    LOCAL_EMBEDDING = {"huggingface"}
 
     checks = [
         ("Chat Model", cfg.get("chat_model", {})),
@@ -246,8 +255,7 @@ def get_missing_api_key_providers(agent=None) -> list[dict]:
         if label == "Embedding Model" and provider_lower in LOCAL_EMBEDDING:
             continue
 
-        api_key = models.get_api_key(provider_lower)
-        if not (api_key and api_key.strip() and api_key != "None"):
+        if not has_provider_api_key(provider_lower, model_cfg.get("api_key", "")):
             missing.append({"model_type": label, "provider": provider})
 
     return missing

@@ -10,7 +10,9 @@
   <div x-data
        x-init="
          await $store.modelConfig.ensureLoaded();
+         await $store.modelConfig.refreshApiKeyStatus();
          $store.modelConfig.initConfigFields(config);
+         $store.modelConfig.installPluginSettingsSaveHook(context, config);
          const _origReset = context.resetToDefault.bind(context);
          context.resetToDefault = async () => {
            const before = context.settings;
@@ -117,7 +119,6 @@
                        x-model="$store.modelConfig.apiKeyValues[config[section.key].provider]"
                        :placeholder="$store.modelConfig.apiKeyStatus[config[section.key].provider] ? '&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;' : ''"
                        autocomplete="off"
-                       @input.debounce.800ms="$store.modelConfig.saveApiKeyIfSet(config[section.key].provider)"
                        style="padding-right:32px;" />
                 <span class="material-symbols-outlined eye-toggle"
                       @click="

@@ -14,26 +14,30 @@
           x-destroy="$store.selfUpdateStore.cleanup()"
           class="self-update-modal"
         >
-          <div class="self-update-copy">
-            <p>
-              Agent Zero saves this request into
-              <code x-text="$store.selfUpdateStore.info?.paths?.update_file || '/exe/a0-self-update.yaml'"></code>,
-              restarts once, applies the requested branch and release tag before the UI
-              starts again, then reloads this page when <code>/api/health</code> is healthy.
-            </p>
-            <p>
-              If the updated UI does not become healthy within 2 minutes, the bootstrap
-              manager in <code>/exe</code> restores the previous checkout and starts that
-              version again, so even an older downgraded <code>/a0</code> can be upgraded back
-              by creating the YAML file manually.
-            </p>
-          </div>
+          <details class="self-update-howto">
+            <summary>How it works?</summary>
+            <div class="self-update-copy">
+              <p>
+                Agent Zero saves this request into
+                <code x-text="$store.selfUpdateStore.info?.paths?.update_file || '/exe/a0-self-update.yaml'"></code>,
+                restarts once, applies the requested branch and release tag before the UI
+                starts again, then reloads this page when <code>/api/health</code> is healthy.
+              </p>
+              <p>
+                If the updated UI does not become healthy within 2 minutes, the bootstrap
+                manager in <code>/exe</code> restores the previous checkout and starts that
+                version again, so even an older downgraded <code>/a0</code> can be upgraded back
+                by creating the YAML file manually.
+              </p>
+            </div>
+          </details>
 
           <div class="self-update-summary-grid">
             <div class="self-update-summary-card">
               <div class="summary-label">Current version</div>
               <div class="summary-value" x-text="$store.selfUpdateStore.currentVersion"></div>
               <div class="summary-meta" x-text="$store.selfUpdateStore.info?.current?.short_commit || ''"></div>
+              <div class="summary-meta" x-text="$store.selfUpdateStore.currentBranch || ''"></div>
             </div>
 
             <div class="self-update-summary-card" x-show="$store.selfUpdateStore.info?.pending">
@@ -94,6 +98,7 @@
                 <div class="field-control">
                   <select
                     x-model="$store.selfUpdateStore.form.branch"
+                    @change="$store.selfUpdateStore.onBranchChanged()"
                     :disabled="$store.selfUpdateStore.isBusy"
                   >
                     <template x-for="branch in ($store.selfUpdateStore.info?.branches || [])" :key="branch.value">
@@ -107,28 +112,52 @@
                 <div class="field-label">
                   <div class="field-title">Target release tag</div>
                   <div class="field-description">
-                    Start typing or pick one of the tags fetched from the official repo. Downgrades are allowed.
+                    Start typing to filter, or use the search button to fetch tags from the selected branch. Exact text entry is still allowed, including downgrades.
                   </div>
-                  <template x-if="$store.selfUpdateStore.info?.available_tags_error">
+                  <template x-if="$store.selfUpdateStore.tagsError">
                     <div class="field-description">
                       Tag lookup failed:
-                      <span x-text="$store.selfUpdateStore.info?.available_tags_error"></span>
+                      <span x-text="$store.selfUpdateStore.tagsError"></span>
                     </div>
                   </template>
                 </div>
-                <div class="field-control">
+                <div class="field-control self-update-tag-search" @click.outside="$store.selfUpdateStore.closeTagDropdown()">
                   <input
                     type="text"
-                    list="self-update-tag-list"
                     x-model="$store.selfUpdateStore.form.tag"
+                    @input="$store.selfUpdateStore.onTagInput()"
+                    @focus="$store.selfUpdateStore.openTagDropdown()"
+                    @keydown.enter.prevent="$store.selfUpdateStore.searchTags()"
                     placeholder="v0.9.0"
                     :disabled="$store.selfUpdateStore.isBusy"
+                    style="padding-right: 32px;"
                   />
-                  <datalist id="self-update-tag-list">
-                    <template x-for="tag in $store.selfUpdateStore.availableTags" :key="tag">
-                      <option :value="tag"></option>
+                  <span
+                    class="material-symbols-outlined self-update-tag-search-btn"
+                    :class="{ 'spinning': $store.selfUpdateStore.tagsLoading }"
+                    @click="if (!$store.selfUpdateStore.isBusy) $store.selfUpdateStore.searchTags()"
+                    title="Search tags from selected branch"
+                    x-text="$store.selfUpdateStore.tagsLoading ? 'progress_activity' : 'search'"
+                  ></span>
+                  <div
+                    class="self-update-tag-results"
+                    x-show="$store.selfUpdateStore.tagDropdownOpen"
+                    x-transition.opacity
+                  >
+                    <template x-if="$store.selfUpdateStore.tagsLoading">
+                      <div class="self-update-tag-item disabled">Loading tags...</div>
                     </template>
-                  </datalist>
+                    <template x-if="!$store.selfUpdateStore.tagsLoading && $store.selfUpdateStore.tagSuggestions.length === 0">
+                      <div class="self-update-tag-item disabled">No matching tags found</div>
+                    </template>
+                    <template x-for="tag in $store.selfUpdateStore.tagSuggestions" :key="tag">
+                      <div
+                        class="self-update-tag-item"
+                        @click="$store.selfUpdateStore.selectTag(tag)"
+                        x-text="tag"
+                      ></div>
+                    </template>
+                  </div>
                 </div>
               </div>
 
@@ -172,7 +201,7 @@
                   <div class="field-label">
                     <div class="field-title">Backup filename</div>
                     <div class="field-description">
-                      The manager normalizes this into a safe <code>.zip</code> filename.
+                      The manager normalizes this into a safe <code>.zip</code> filename. Leave it as-is for the default <code>usr-timestamp.zip</code> format.
                     </div>
                   </div>
                   <div class="field-control">
@@ -220,8 +249,12 @@
           <div class="self-update-loading" x-show="$store.selfUpdateStore.loading">
             Loading update status...
           </div>
-          <div class="self-update-loading" x-show="$store.selfUpdateStore.restarting">
-            Restarting Agent Zero and waiting for the health check...
+          <div class="self-update-progress-state" x-show="$store.selfUpdateStore.restarting">
+            <div class="self-update-progress-spinner"></div>
+            <div>
+              <div class="self-update-progress-title" x-text="$store.selfUpdateStore.restartStatusText || 'Update in progress'"></div>
+              <div class="self-update-progress-copy" x-text="$store.selfUpdateStore.restartDetailText || 'Waiting for Agent Zero to restart and become healthy again.'"></div>
+            </div>
           </div>
 
           <div class="modal-footer" data-modal-footer>
@@ -258,6 +291,51 @@
         gap: 1rem;
       }
 
+      .self-update-tag-search {
+        position: relative;
+      }
+
+      .self-update-tag-search-btn {
+        position: absolute;
+        right: 0.5rem;
+        top: 0.55rem;
+        cursor: pointer;
+        color: var(--color-text-secondary, #777);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .self-update-tag-results {
+        position: absolute;
+        inset: calc(100% + 0.35rem) 0 auto 0;
+        max-height: 14rem;
+        overflow-y: auto;
+        z-index: 20;
+        border: 1px solid var(--color-border, #ddd);
+        border-radius: 0.75rem;
+        background: var(--color-surface, #fff);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+      }
+
+      .self-update-tag-item {
+        padding: 0.65rem 0.85rem;
+        cursor: pointer;
+      }
+
+      .self-update-tag-item:hover {
+        background: var(--color-panel-bg, rgba(0, 0, 0, 0.04));
+      }
+
+      .self-update-tag-item.disabled {
+        cursor: default;
+        color: var(--color-text-secondary, #777);
+      }
+
+      .self-update-tag-item.disabled:hover {
+        background: transparent;
+      }
+
       .self-update-copy {
         color: var(--color-text-secondary);
         line-height: 1.5;
@@ -265,6 +343,57 @@
 
       .self-update-copy p {
         margin: 0 0 0.75rem;
+      }
+
+      .self-update-howto {
+        border: 1px solid var(--color-border, #ddd);
+        border-radius: 0.9rem;
+        background: var(--color-surface, #fff);
+        padding: 0.9rem 1rem;
+      }
+
+      .self-update-howto summary {
+        cursor: pointer;
+        font-weight: 700;
+        list-style: none;
+      }
+
+      .self-update-howto summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .self-update-howto[open] summary {
+        margin-bottom: 0.75rem;
+      }
+
+      .self-update-progress-state {
+        display: flex;
+        align-items: center;
+        gap: 0.9rem;
+        padding: 1rem 1.1rem;
+        border-radius: 0.9rem;
+        background: rgba(37, 99, 235, 0.08);
+        color: var(--color-text, #111827);
+      }
+
+      .self-update-progress-spinner {
+        width: 1.5rem;
+        height: 1.5rem;
+        flex: 0 0 auto;
+        border-radius: 999px;
+        border: 3px solid rgba(37, 99, 235, 0.18);
+        border-top-color: var(--color-primary, #2563eb);
+        animation: spin 1s linear infinite;
+      }
+
+      .self-update-progress-title {
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+      }
+
+      .self-update-progress-copy {
+        color: var(--color-text-secondary, #475569);
+        line-height: 1.45;
       }
 
       .self-update-summary-grid {

@@ -4,13 +4,22 @@ import { store as notificationStore } from "/components/notifications/notificati
 
 const HEALTH_POLL_INTERVAL_MS = 2000;
 const HEALTH_WAIT_BUFFER_MS = 30000;
+const TAG_SEARCH_DEBOUNCE_MS = 250;
+const SELF_UPDATE_RETURN_URL_KEY = "a0:self-update:return-url";
+const SELF_UPDATE_OVERLAY_ID = "self-update-progress-overlay";
 
 const model = {
   loading: false,
   saving: false,
   restarting: false,
+  tagsLoading: false,
   error: "",
+  tagsError: "",
   info: null,
+  tagSuggestions: [],
+  tagDropdownOpen: false,
+  restartStatusText: "",
+  restartDetailText: "",
   form: {
     branch: "main",
     tag: "",
@@ -20,6 +29,8 @@ const model = {
     backup_conflict_policy: "rename",
   },
   _reconnectTimer: null,
+  _tagSearchTimer: null,
+  _tagRequestId: 0,
 
   get isBusy() {
     return this.loading || this.saving || this.restarting;
@@ -33,8 +44,8 @@ const model = {
     return this.info?.current?.short_tag || "unknown";
   },
 
-  get availableTags() {
-    return Array.isArray(this.info?.available_tags) ? this.info.available_tags : [];
+  get currentBranch() {
+    return this.info?.current?.branch || "";
   },
 
   async init() {
@@ -43,16 +54,30 @@ const model = {
 
   cleanup() {
     this.clearReconnectTimer();
+    this.clearTagSearchTimer();
     this.error = "";
+    this.tagsError = "";
     this.loading = false;
     this.saving = false;
     this.restarting = false;
+    this.tagsLoading = false;
+    this.tagDropdownOpen = false;
+    this.restartStatusText = "";
+    this.restartDetailText = "";
+    this.removeProgressOverlay();
   },
 
   clearReconnectTimer() {
     if (this._reconnectTimer) {
       clearTimeout(this._reconnectTimer);
       this._reconnectTimer = null;
+    }
+  },
+
+  clearTagSearchTimer() {
+    if (this._tagSearchTimer) {
+      clearTimeout(this._tagSearchTimer);
+      this._tagSearchTimer = null;
     }
   },
 
@@ -69,6 +94,123 @@ const model = {
     return `${branch || "main"} / ${tag || "None"}`;
   },
 
+  getSavedReturnUrl() {
+    try {
+      return sessionStorage.getItem(SELF_UPDATE_RETURN_URL_KEY) || "";
+    } catch {
+      return "";
+    }
+  },
+
+  saveReturnUrl(url = "") {
+    try {
+      if (url) {
+        sessionStorage.setItem(SELF_UPDATE_RETURN_URL_KEY, url);
+      } else {
+        sessionStorage.removeItem(SELF_UPDATE_RETURN_URL_KEY);
+      }
+    } catch {
+      // ignore storage errors
+    }
+  },
+
+  getProgressOverlay() {
+    return document.getElementById(SELF_UPDATE_OVERLAY_ID);
+  },
+
+  ensureProgressOverlay() {
+    let overlay = this.getProgressOverlay();
+    if (!overlay) {
+      overlay = document.createElement("div");
+      overlay.id = SELF_UPDATE_OVERLAY_ID;
+      overlay.innerHTML = `
+        <div class="self-update-progress-card">
+          <div class="self-update-progress-spinner"></div>
+          <div class="self-update-progress-title"></div>
+          <div class="self-update-progress-detail"></div>
+        </div>
+      `;
+      Object.assign(overlay.style, {
+        position: "fixed",
+        inset: "0",
+        zIndex: "10000",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "1.5rem",
+        background: "rgba(15, 23, 42, 0.42)",
+        backdropFilter: "blur(6px)",
+      });
+      document.body.appendChild(overlay);
+
+      const style = document.createElement("style");
+      style.id = `${SELF_UPDATE_OVERLAY_ID}-styles`;
+      style.textContent = `
+        #${SELF_UPDATE_OVERLAY_ID} .self-update-progress-card {
+          width: min(28rem, calc(100vw - 2rem));
+          border-radius: 1rem;
+          background: var(--color-surface, #ffffff);
+          color: var(--color-text, #111827);
+          box-shadow: 0 24px 64px rgba(15, 23, 42, 0.22);
+          padding: 1.5rem;
+          text-align: center;
+        }
+        #${SELF_UPDATE_OVERLAY_ID} .self-update-progress-spinner {
+          width: 2.5rem;
+          height: 2.5rem;
+          margin: 0 auto 1rem;
+          border-radius: 999px;
+          border: 3px solid rgba(15, 23, 42, 0.12);
+          border-top-color: var(--color-primary, #2563eb);
+          animation: self-update-spin 1s linear infinite;
+        }
+        #${SELF_UPDATE_OVERLAY_ID} .self-update-progress-title {
+          font-size: 1.05rem;
+          font-weight: 700;
+          margin-bottom: 0.5rem;
+        }
+        #${SELF_UPDATE_OVERLAY_ID} .self-update-progress-detail {
+          color: var(--color-text-secondary, #475569);
+          line-height: 1.5;
+        }
+        @keyframes self-update-spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+    this.updateProgressOverlay();
+  },
+
+  updateProgressOverlay() {
+    const overlay = this.getProgressOverlay();
+    if (!overlay) return;
+    const title = overlay.querySelector(".self-update-progress-title");
+    const detail = overlay.querySelector(".self-update-progress-detail");
+    if (title) {
+      title.textContent = this.restartStatusText || "Applying self-update";
+    }
+    if (detail) {
+      detail.textContent =
+        this.restartDetailText ||
+        "Agent Zero is restarting, applying the requested release, and will reload this page when the health check responds again.";
+    }
+  },
+
+  removeProgressOverlay() {
+    this.getProgressOverlay()?.remove();
+    document.getElementById(`${SELF_UPDATE_OVERLAY_ID}-styles`)?.remove();
+  },
+
+  setRestartState(statusText, detailText = "") {
+    this.restartStatusText = statusText;
+    this.restartDetailText = detailText;
+    if (this.restarting) {
+      this.ensureProgressOverlay();
+    }
+  },
+
   async refresh() {
     this.loading = true;
     this.error = "";
@@ -79,6 +221,7 @@ const model = {
       }
       this.info = response;
       this.applyFormState(response.pending || response.defaults || {});
+      await this.searchTags({ openResults: false });
     } catch (error) {
       console.error("Failed to load self-update info:", error);
       this.error = error.message || "Failed to load self-update info.";
@@ -96,6 +239,71 @@ const model = {
     this.form.backup_name = source?.backup_name || "";
     this.form.backup_conflict_policy =
       source?.backup_conflict_policy || "rename";
+  },
+
+  closeTagDropdown() {
+    this.tagDropdownOpen = false;
+  },
+
+  openTagDropdown() {
+    this.tagDropdownOpen = true;
+  },
+
+  async onBranchChanged() {
+    this.openTagDropdown();
+    await this.searchTags();
+  },
+
+  onTagInput() {
+    this.openTagDropdown();
+    this.scheduleTagSearch();
+  },
+
+  scheduleTagSearch() {
+    this.clearTagSearchTimer();
+    this._tagSearchTimer = setTimeout(() => {
+      this._tagSearchTimer = null;
+      void this.searchTags();
+    }, TAG_SEARCH_DEBOUNCE_MS);
+  },
+
+  async searchTags({ openResults = true } = {}) {
+    const requestId = ++this._tagRequestId;
+    this.tagsLoading = true;
+    this.tagsError = "";
+
+    try {
+      const response = await API.callJsonApi("self_update_tags", {
+        branch: this.form.branch,
+        query: this.form.tag,
+      });
+      if (!response?.success) {
+        throw new Error(response?.error || "Failed to fetch release tags.");
+      }
+      if (requestId !== this._tagRequestId) {
+        return;
+      }
+      this.tagSuggestions = Array.isArray(response?.tags) ? response.tags : [];
+      this.tagsError = response?.error || "";
+      this.tagDropdownOpen = openResults;
+    } catch (error) {
+      console.error("Failed to fetch self-update tags:", error);
+      if (requestId !== this._tagRequestId) {
+        return;
+      }
+      this.tagSuggestions = [];
+      this.tagsError = error.message || "Failed to fetch release tags.";
+      this.tagDropdownOpen = openResults;
+    } finally {
+      if (requestId === this._tagRequestId) {
+        this.tagsLoading = false;
+      }
+    }
+  },
+
+  selectTag(tag) {
+    this.form.tag = tag;
+    this.tagDropdownOpen = false;
   },
 
   async scheduleUpdate() {
@@ -135,6 +343,7 @@ const model = {
         undefined,
         true,
       );
+      this.saveReturnUrl(window.location.href);
       await this.restartAndReload();
     } catch (error) {
       console.error("Failed to schedule self-update:", error);
@@ -147,14 +356,25 @@ const model = {
   async restartAndReload() {
     this.restarting = true;
     this.clearReconnectTimer();
+    this.setRestartState(
+      "Starting self-update",
+      "The request was saved. Agent Zero is about to restart and apply the requested branch and tag."
+    );
+    this.ensureProgressOverlay();
 
     try {
-      await API.fetchApi("/restart", {
+      const token = await API.getCsrfToken();
+      void fetch("/api/restart", {
         method: "POST",
+        credentials: "same-origin",
+        keepalive: true,
         headers: {
           "Content-Type": "application/json",
+          "X-CSRF-Token": token,
         },
         body: JSON.stringify({}),
+      }).catch(() => {
+        // The restart request usually terminates the backend mid-flight.
       });
     } catch (_error) {
       // The restart request often terminates the backend mid-flight.
@@ -168,6 +388,10 @@ const model = {
       HEALTH_WAIT_BUFFER_MS;
     const deadline = Date.now() + maxWaitMs;
     let lastError = "";
+    this.setRestartState(
+      "Update in progress",
+      "Agent Zero is restarting and the updater is running. This page will reload automatically when /api/health starts responding again."
+    );
 
     while (Date.now() < deadline) {
       try {
@@ -177,7 +401,9 @@ const model = {
           cache: "no-store",
         });
         if (response.ok) {
-          window.location.reload();
+          const returnUrl = this.getSavedReturnUrl() || window.location.href;
+          this.saveReturnUrl("");
+          window.location.replace(returnUrl);
           return;
         }
         lastError = `Health check returned HTTP ${response.status}.`;
@@ -194,6 +420,8 @@ const model = {
     }
 
     this.restarting = false;
+    this.removeProgressOverlay();
+    this.saveReturnUrl("");
     this.error =
       "Agent Zero did not come back within the expected window. It may still be rolling back. " +
       (lastError ? `Last health check error: ${lastError}` : "");

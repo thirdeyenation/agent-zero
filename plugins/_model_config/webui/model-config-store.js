@@ -67,6 +67,22 @@ export const store = createStore("modelConfig", {
 
   init() {},
 
+  _setProviderHasKey(provider, hasKey) {
+    if (!provider) return;
+    this.apiKeyStatus = { ...this.apiKeyStatus, [provider]: !!hasKey };
+    const normalized = provider.toLowerCase();
+    this.allProviders = (this.allProviders || []).map((item) =>
+      item.value?.toLowerCase() === normalized ? { ...item, has_key: !!hasKey } : item
+    );
+  },
+
+  _ensureApiKeySlot(provider) {
+    if (!provider) return;
+    if (!(provider in this.apiKeyValues)) {
+      this.apiKeyValues = { ...this.apiKeyValues, [provider]: '' };
+    }
+  },
+
   _normalizePresets(rawPresets) {
     return (rawPresets || []).map(p => ({
       name: p.name || '',
@@ -101,6 +117,35 @@ export const store = createStore("modelConfig", {
     this.allProviders = allProviders;
 
     this._loaded = true;
+  },
+
+  async refreshApiKeyStatus() {
+    await this.ensureLoaded();
+    const res = await fetchApi(`${API_BASE}/api_keys`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'get' })
+    });
+    const data = await res.json();
+    const keys = data.keys || {};
+
+    const nextStatus = { ...this.apiKeyStatus };
+    const nextValues = { ...this.apiKeyValues };
+
+    for (const provider of this.allProviders) {
+      const entry = keys[provider.value] || {};
+      const hasKey = !!entry.has_key;
+      nextStatus[provider.value] = hasKey;
+      provider.has_key = hasKey;
+      if (!hasKey && !nextValues[provider.value]) {
+        nextValues[provider.value] = '';
+      }
+    }
+
+    this.apiKeyStatus = nextStatus;
+    this.apiKeyValues = nextValues;
+    this.allProviders = [...this.allProviders];
+    return keys;
   },
 
   async _fetchConfigData() {
@@ -180,15 +225,39 @@ export const store = createStore("modelConfig", {
   },
 
   // API Key operations
-  async saveApiKey(provider, value) {
-    await fetchApi(`${API_BASE}/api_keys`, {
+  async saveApiKeys(updates) {
+    const normalized = {};
+    for (const [provider, value] of Object.entries(updates || {})) {
+      if (!provider || typeof value !== 'string') continue;
+      if (!value.trim()) continue;
+      normalized[provider] = value;
+    }
+
+    if (Object.keys(normalized).length === 0) {
+      return { ok: true };
+    }
+
+    const res = await fetchApi(`${API_BASE}/api_keys`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'set', keys: { [provider]: value } })
+      body: JSON.stringify({ action: 'set', keys: normalized })
     });
-    this.apiKeyStatus = { ...this.apiKeyStatus, [provider]: true };
-    const ap = this.allProviders.find(x => x.value === provider);
-    if (ap) ap.has_key = true;
+    const data = await res.json();
+    if (!data?.ok) {
+      throw new Error(data?.error || 'Failed to save API keys.');
+    }
+
+    const nextValues = { ...this.apiKeyValues };
+    for (const [provider, value] of Object.entries(normalized)) {
+      nextValues[provider] = value;
+      this._setProviderHasKey(provider, true);
+    }
+    this.apiKeyValues = nextValues;
+    return data;
+  },
+
+  async saveApiKey(provider, value) {
+    return this.saveApiKeys({ [provider]: value });
   },
 
   saveApiKeyIfSet(provider) {
@@ -203,7 +272,45 @@ export const store = createStore("modelConfig", {
       body: JSON.stringify({ action: 'reveal', provider })
     });
     const data = await res.json();
-    return data.value || '';
+    if (!data?.ok) {
+      throw new Error(data?.error || 'Failed to load API key.');
+    }
+    const value = data.value || '';
+    if (provider && value) {
+      this._ensureApiKeySlot(provider);
+      this.apiKeyValues = { ...this.apiKeyValues, [provider]: value };
+      this._setProviderHasKey(provider, true);
+    }
+    return value;
+  },
+
+  async persistApiKeysForConfig(config) {
+    const updates = {};
+    for (const section of this.MODEL_SECTIONS) {
+      const provider = config?.[section.key]?.provider;
+      if (!provider) continue;
+      const value = this.apiKeyValues[provider];
+      if (typeof value === 'string' && value.trim()) {
+        updates[provider] = value;
+      }
+    }
+    return this.saveApiKeys(updates);
+  },
+
+  installPluginSettingsSaveHook(context, config) {
+    if (!context || context.__modelConfigSaveHookInstalled) return;
+    const originalSave = context.save.bind(context);
+    context.save = async () => {
+      context.error = null;
+      try {
+        await this.persistApiKeysForConfig(config);
+      } catch (e) {
+        context.error = e?.message || 'Failed to save API keys.';
+        return;
+      }
+      await originalSave();
+    };
+    context.__modelConfigSaveHookInstalled = true;
   },
 
   // Model search
