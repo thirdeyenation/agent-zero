@@ -142,6 +142,7 @@
                     x-model="$store.selfUpdateStore.form.tag"
                     @input="$store.selfUpdateStore.onTagInput()"
                     @focus="$store.selfUpdateStore.openTagDropdown()"
+                    @blur="$store.selfUpdateStore.onTagBlur()"
                     @keydown.enter.prevent="$store.selfUpdateStore.searchTags()"
                     placeholder="v1.0"
                     :disabled="$store.selfUpdateStore.isBusy"
@@ -168,7 +169,7 @@
                     <template x-for="tag in $store.selfUpdateStore.groupedTagSuggestions.matched" :key="`match-${tag}`">
                       <div
                         class="self-update-tag-item"
-                        @click="$store.selfUpdateStore.selectTag(tag)"
+                        @mousedown.prevent="$store.selfUpdateStore.selectTag(tag)"
                         x-text="tag"
                       ></div>
                     </template>
@@ -181,7 +182,7 @@
                     <template x-for="tag in $store.selfUpdateStore.groupedTagSuggestions.rest" :key="`rest-${tag}`">
                       <div
                         class="self-update-tag-item"
-                        @click="$store.selfUpdateStore.selectTag(tag)"
+                        @mousedown.prevent="$store.selfUpdateStore.selectTag(tag)"
                         x-text="tag"
                       ></div>
                     </template>
@@ -191,6 +192,10 @@
 
               <div class="self-update-warning-banner" x-show="$store.selfUpdateStore.versionCompatibilityWarning">
                 <span x-text="$store.selfUpdateStore.versionCompatibilityWarning"></span>
+              </div>
+
+              <div class="self-update-warning-banner" x-show="$store.selfUpdateStore.tagExistenceWarning">
+                <span x-text="$store.selfUpdateStore.tagExistenceWarning"></span>
               </div>
 
               <div class="field">

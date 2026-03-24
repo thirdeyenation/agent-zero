@@ -315,6 +315,20 @@ def schedule_update(
     if not _is_selector_supported_tag(normalized_tag):
         raise ValueError("Release tag must be v1.0 or newer.")
 
+    available_tags, tag_lookup_error = get_available_tags(
+        normalized_branch,
+        repo_dir=repository,
+        query=normalized_tag,
+    )
+    if tag_lookup_error:
+        raise RuntimeError(
+            f"Failed to verify release tag {normalized_tag} on branch {normalized_branch}: {tag_lookup_error}"
+        )
+    if normalized_tag not in available_tags:
+        raise ValueError(
+            f"Version {normalized_tag} does not exist on branch {normalized_branch}."
+        )
+
     normalized_policy = backup_conflict_policy.strip().lower()
     if normalized_policy not in BACKUP_CONFLICT_POLICIES:
         raise ValueError(

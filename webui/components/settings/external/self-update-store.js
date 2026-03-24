@@ -18,6 +18,7 @@ const model = {
   info: null,
   tagSuggestions: [],
   tagDropdownOpen: false,
+  tagExistenceChecked: false,
   restartStatusText: "",
   restartDetailText: "",
   form: {
@@ -66,6 +67,15 @@ const model = {
     return { matched, rest };
   },
 
+  get trimmedTag() {
+    return (this.form.tag || "").trim();
+  },
+
+  get selectedTagExistsOnBranch() {
+    const tag = this.trimmedTag;
+    return Boolean(tag) && this.tagSuggestions.includes(tag);
+  },
+
   get versionCompatibilityWarning() {
     const current = this.parseCompatibilityTag(this.currentVersion);
     const target = this.parseCompatibilityTag(this.form.tag);
@@ -79,11 +89,31 @@ const model = {
     return "";
   },
 
+  get tagExistenceWarning() {
+    const tag = this.trimmedTag;
+    if (
+      !this.tagExistenceChecked ||
+      this.tagsLoading ||
+      this.tagsError ||
+      !tag ||
+      !this.parseSelectorTag(tag) ||
+      !this.isSupportedSelectorTag(tag)
+    ) {
+      return "";
+    }
+    if (!this.selectedTagExistsOnBranch) {
+      return `Version ${tag} does not exist on branch ${this.form.branch || "main"}.`;
+    }
+    return "";
+  },
+
   get canScheduleUpdate() {
     return (
       this.isSupported &&
       !this.isBusy &&
+      !this.tagsLoading &&
       this.isSupportedSelectorTag(this.form.tag) &&
+      this.selectedTagExistsOnBranch &&
       !this.versionCompatibilityWarning
     );
   },
@@ -101,6 +131,7 @@ const model = {
     this.restarting = false;
     this.tagsLoading = false;
     this.tagDropdownOpen = false;
+    this.tagExistenceChecked = false;
     this.restartStatusText = "";
     this.restartDetailText = "";
     this.removeProgressOverlay();
@@ -268,6 +299,7 @@ const model = {
       }
       this.info = response;
       this.applyFormState(response.pending || response.defaults || {});
+      this.tagExistenceChecked = Boolean((this.form.tag || "").trim());
       await this.searchTags({ openResults: false });
     } catch (error) {
       console.error("Failed to load self-update info:", error);
@@ -278,7 +310,11 @@ const model = {
   },
 
   applyFormState(source) {
-    this.form.branch = source?.branch || "main";
+    this.form.branch =
+      this.info?.defaults?.branch ||
+      this.currentBranch ||
+      source?.branch ||
+      "main";
     this.form.tag =
       typeof source?.tag === "string" ? source.tag : this.currentVersion;
     this.form.backup_usr =
@@ -299,11 +335,18 @@ const model = {
 
   async onBranchChanged() {
     this.openTagDropdown();
+    this.tagExistenceChecked = Boolean(this.trimmedTag);
     await this.searchTags();
   },
 
   onTagInput() {
+    this.tagExistenceChecked = false;
     this.openTagDropdown();
+  },
+
+  async onTagBlur() {
+    this.tagExistenceChecked = Boolean(this.trimmedTag);
+    await this.searchTags({ openResults: false });
   },
 
   async searchTags({ openResults = true } = {}) {
@@ -344,6 +387,7 @@ const model = {
 
   selectTag(tag) {
     this.form.tag = tag;
+    this.tagExistenceChecked = true;
     this.tagDropdownOpen = false;
   },
 
@@ -398,6 +442,15 @@ const model = {
     if (!this.isSupportedSelectorTag(this.form.tag)) {
       this.error = "Release tag must be v1.0 or newer.";
       return;
+    }
+
+    if (!this.selectedTagExistsOnBranch) {
+      this.tagExistenceChecked = true;
+      await this.searchTags({ openResults: false });
+      if (!this.selectedTagExistsOnBranch) {
+        this.error = `Version ${this.trimmedTag} does not exist on branch ${this.form.branch || "main"}.`;
+        return;
+      }
     }
 
     this.saving = true;
