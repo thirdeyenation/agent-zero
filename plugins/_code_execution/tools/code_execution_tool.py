@@ -71,11 +71,13 @@ class CodeExecution(Tool):
         return Response(message=response, break_loop=False)
 
     def get_log_object(self):
+        import uuid
         return self.agent.context.log.log(
             type="code_exe",
             heading=self.get_heading(),
             content="",
             kvps=self.args,
+            id=str(uuid.uuid4()),
         )
 
     def get_heading(self, text: str = ""):
@@ -86,7 +88,7 @@ class CodeExecution(Tool):
         return f"icon://terminal {session_text}{truncate_text_string(text, 200)}"
 
     async def after_execution(self, response, **kwargs):
-        self.agent.hist_add_tool_result(self.name, response.message, **(response.additional or {}))
+        self.agent.hist_add_tool_result(self.name, response.message, id=self.log.id if self.log else "", **(response.additional or {}))
 
     async def prepare_state(self, cfg: dict, reset=False, session: int | None = None):
         self.state: State | None = self.agent.get_data("_cet_state")

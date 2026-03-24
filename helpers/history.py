@@ -4,6 +4,7 @@ from collections import OrderedDict
 from collections.abc import Mapping
 import json
 import math
+import uuid
 from typing import Coroutine, Literal, TypedDict, cast, Union, Dict, List, Any
 from helpers import messages, tokens, settings, call_llm
 from enum import Enum
@@ -81,7 +82,8 @@ class Record:
 
 
 class Message(Record):
-    def __init__(self, ai: bool, content: MessageContent, tokens: int = 0):
+    def __init__(self, ai: bool, content: MessageContent, tokens: int = 0, id: str = ""):
+        self.id = id or str(uuid.uuid4())
         self.ai = ai
         self.content = content
         self.summary: str = ""
@@ -115,6 +117,7 @@ class Message(Record):
     def to_dict(self):
         return {
             "_cls": "Message",
+            "id": self.id,
             "ai": self.ai,
             "content": self.content,
             "summary": self.summary,
@@ -124,7 +127,7 @@ class Message(Record):
     @staticmethod
     def from_dict(data: dict, history: "History"):
         content = data.get("content", "Content lost")
-        msg = Message(ai=data["ai"], content=content)
+        msg = Message(ai=data["ai"], content=content, id=data.get("id", ""))
         msg.summary = data.get("summary", "")
         msg.tokens = data.get("tokens", 0)
         return msg
@@ -143,9 +146,9 @@ class Topic(Record):
             return sum(msg.get_tokens() for msg in self.messages)
 
     def add_message(
-        self, ai: bool, content: MessageContent, tokens: int = 0
+        self, ai: bool, content: MessageContent, tokens: int = 0, id: str = ""
     ) -> Message:
-        msg = Message(ai=ai, content=content, tokens=tokens)
+        msg = Message(ai=ai, content=content, tokens=tokens, id=id)
         self.messages.append(msg)
         return msg
 
@@ -332,10 +335,10 @@ class History(Record):
         return self.current.get_tokens()
 
     def add_message(
-        self, ai: bool, content: MessageContent, tokens: int = 0
+        self, ai: bool, content: MessageContent, tokens: int = 0, id: str = ""
     ) -> Message:
         self.counter += 1
-        return self.current.add_message(ai, content=content, tokens=tokens)
+        return self.current.add_message(ai, content=content, tokens=tokens, id=id)
 
     def new_topic(self):
         if self.current.messages:

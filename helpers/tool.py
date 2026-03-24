@@ -53,17 +53,19 @@ class Tool:
 
     async def after_execution(self, response: Response, **kwargs):
         text = sanitize_string(response.message.strip())
-        self.agent.hist_add_tool_result(self.name, text, **(response.additional or {}))
+        self.agent.hist_add_tool_result(self.name, text, id=self.log.id, **(response.additional or {}))
         PrintStyle(font_color="#1B4F72", background_color="white", padding=True, bold=True).print(f"{self.agent.agent_name}: Response from tool '{self.name}'")
         PrintStyle(font_color="#85C1E9").print(text)
         self.log.update(content=text)
 
     def get_log_object(self):
+        import uuid
+        pre_id = str(uuid.uuid4())
         if self.method:
             heading = f"icon://construction {self.agent.agent_name}: Using tool '{self.name}:{self.method}'"
         else:
             heading = f"icon://construction {self.agent.agent_name}: Using tool '{self.name}'"
-        return self.agent.context.log.log(type="tool", heading=heading, content="", kvps=self.args, _tool_name=self.name)
+        return self.agent.context.log.log(type="tool", heading=heading, content="", kvps=self.args, _tool_name=self.name, id=pre_id)
 
     def nice_key(self, key:str):
         words = key.split('_')

@@ -320,6 +320,7 @@ class UserMessage:
     message: str
     attachments: list[str] = field(default_factory=list[str])
     system_message: list[str] = field(default_factory=list[str])
+    id: str = ""
 
 
 class LoopData:
@@ -466,18 +467,20 @@ class Agent:
                             self.loop_data.last_response == agent_response
                         ):  # if assistant_response is the same as last message in history, let him know
                             # Append the assistant's response to the history
-                            self.hist_add_ai_response(agent_response)
+                            log_item = self.loop_data.params_temporary.get("log_item_generating")
+                            self.hist_add_ai_response(agent_response, id=log_item.id if log_item else "")
                             # Append warning message to the history
                             warning_msg = self.read_prompt("fw.msg_repeat.md")
-                            self.hist_add_warning(message=warning_msg)
+                            wmsg = self.hist_add_warning(message=warning_msg)
                             PrintStyle(font_color="orange", padding=True).print(
                                 warning_msg
                             )
-                            self.context.log.log(type="warning", content=warning_msg)
+                            self.context.log.log(type="warning", content=warning_msg, id=wmsg.id)
 
                         else:  # otherwise proceed with tool
                             # Append the assistant's response to the history
-                            self.hist_add_ai_response(agent_response)
+                            log_item = self.loop_data.params_temporary.get("log_item_generating")
+                            self.hist_add_ai_response(agent_response, id=log_item.id if log_item else "")
                             # process tools requested in agent message
                             tools_result = await self.process_tools(agent_response)
                             if tools_result:  # final response of message loop available
@@ -637,7 +640,7 @@ class Agent:
 
     @extension.extensible
     def hist_add_message(
-        self, ai: bool, content: history.MessageContent, tokens: int = 0
+        self, ai: bool, content: history.MessageContent, tokens: int = 0, id: str = ""
     ):
         self.last_message = datetime.now(timezone.utc)
         # Allow extensions to process content before adding to history
@@ -646,7 +649,7 @@ class Agent:
             "hist_add_before", self, content_data=content_data, ai=ai
         )
         return self.history.add_message(
-            ai=ai, content=content_data["content"], tokens=tokens
+            ai=ai, content=content_data["content"], tokens=tokens, id=id
         )
 
     @extension.extensible
@@ -674,30 +677,31 @@ class Agent:
             content = {k: v for k, v in content.items() if v}
 
         # add to history
-        msg = self.hist_add_message(False, content=content)  # type: ignore
+        msg = self.hist_add_message(False, content=content, id=message.id)  # type: ignore
         self.last_user_message = msg
         return msg
 
     @extension.extensible
-    def hist_add_ai_response(self, message: str):
+    def hist_add_ai_response(self, message: str, id: str = ""):
         self.loop_data.last_response = message
         content = self.parse_prompt("fw.ai_response.md", message=message)
-        return self.hist_add_message(True, content=content)
+        return self.hist_add_message(True, content=content, id=id)
 
     @extension.extensible
-    def hist_add_warning(self, message: history.MessageContent):
+    def hist_add_warning(self, message: history.MessageContent, id: str = ""):
         content = self.parse_prompt("fw.warning.md", message=message)
-        return self.hist_add_message(False, content=content)
+        return self.hist_add_message(False, content=content, id=id)
 
     @extension.extensible
     def hist_add_tool_result(self, tool_name: str, tool_result: str, **kwargs):
+        msg_id = kwargs.pop("id", "")
         data = {
             "tool_name": tool_name,
             "tool_result": tool_result,
             **kwargs,
         }
         extension.call_extensions_sync("hist_add_tool_result", self, data=data)
-        return self.hist_add_message(False, content=data)
+        return self.hist_add_message(False, content=data, id=msg_id)
 
     def concat_messages(
         self, messages
@@ -927,18 +931,19 @@ class Agent:
                 error_detail = (
                     f"Tool '{raw_tool_name}' not found or could not be initialized."
                 )
-                self.hist_add_warning(error_detail)
+                wmsg = self.hist_add_warning(error_detail)
                 PrintStyle(font_color="red", padding=True).print(error_detail)
                 self.context.log.log(
-                    type="warning", content=f"{self.agent_name}: {error_detail}"
+                    type="warning", content=f"{self.agent_name}: {error_detail}", id=wmsg.id
                 )
         else:
             warning_msg_misformat = self.read_prompt("fw.msg_misformat.md")
-            self.hist_add_warning(warning_msg_misformat)
+            wmsg = self.hist_add_warning(warning_msg_misformat)
             PrintStyle(font_color="red", padding=True).print(warning_msg_misformat)
             self.context.log.log(
                 type="warning",
                 content=f"{self.agent_name}: Message misformat, no valid tool request found.",
+                id=wmsg.id,
             )
 
     @extension.extensible

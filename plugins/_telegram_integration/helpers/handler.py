@@ -246,10 +246,12 @@ async def handle_message(message: TgMessage, bot_name: str, bot_cfg: dict):
         body=text,
     )
 
-    mq.log_user_message(context, user_msg, attachments, source=" (telegram)")
+    msg_id = str(uuid.uuid4())
+    mq.log_user_message(context, user_msg, attachments, message_id=msg_id, source=" (telegram)")
     context.communicate(UserMessage(
         message=user_msg,
         attachments=attachments,
+        id=msg_id,
     ))
 
     save_tmp_chat(context)
@@ -298,8 +300,9 @@ async def handle_callback_query(query: CallbackQuery, bot_name: str, bot_cfg: di
         body=f"[Button pressed: {text}]",
     )
 
-    mq.log_user_message(context, user_msg, [], source=" (telegram)")
-    context.communicate(UserMessage(message=user_msg))
+    msg_id = str(uuid.uuid4())
+    mq.log_user_message(context, user_msg, [], message_id=msg_id, source=" (telegram)")
+    context.communicate(UserMessage(message=user_msg, id=msg_id))
     save_tmp_chat(context)
 
 

@@ -328,11 +328,14 @@ class InfectionChecker:
         return "terminate", "Max clarifications exceeded.", "\n\n".join(cot_parts)
 
     def _do_terminate(self, agent: "Agent", detail: str, cot: str):
+        import uuid as _uuid
         content = cot or detail or "Malicious behavior detected."
+        msg_id = str(_uuid.uuid4())
         agent.context.log.log(
             type="warning",
             heading="Infection check: TERMINATED",
             content=content,
+            id=msg_id,
         )
 
         # Replace last AI message with a blocked marker
@@ -341,7 +344,8 @@ class InfectionChecker:
             if msgs and msgs[-1].ai:
                 msgs.pop()
             agent.history.add_message(
-                ai=True, content="[BLOCKED] Response terminated by security policy."
+                ai=True, content="[BLOCKED] Response terminated by security policy.",
+                id=msg_id,
             )
         except Exception:
             pass
