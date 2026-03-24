@@ -18,9 +18,11 @@ const model = {
   },
 
   init() {
-    // Reload banners when settings change
-    document.addEventListener("settings-updated", () => {
-      this.refreshBanners(true);
+    // Reload banners when a modal closes while the welcome screen is visible.
+    document.addEventListener("modal-closed", () => {
+      if (this.isVisible) {
+        this.refreshBanners(true);
+      }
     });
   },
 

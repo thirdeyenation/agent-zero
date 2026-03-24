@@ -306,6 +306,15 @@ export async function closeModal(modalPath = null) {
       restoreModalScrollSnapshot(modalStack[modalStack.length - 1]);
     }
 
+    document.dispatchEvent(
+      new CustomEvent("modal-closed", {
+        detail: {
+          modalPath: modal.path ?? null,
+          remainingModalCount: modalStack.length,
+        },
+      }),
+    );
+
     return true;
   });
 }
