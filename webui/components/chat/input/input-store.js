@@ -101,7 +101,7 @@ const model = {
 
   async loadKnowledge() {
     try {
-      const resp = await shortcuts.callJsonApi("/knowledge_path_get", {
+      const resp = await shortcuts.callJsonApi("/plugins/_memory/knowledge_path_get", {
         ctxid: shortcuts.getCurrentContextId(),
       });
       if (!resp.ok) throw new Error("Error getting knowledge path");
