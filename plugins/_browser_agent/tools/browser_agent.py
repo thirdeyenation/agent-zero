@@ -79,7 +79,7 @@ class State:
                 screen={"width": 1024, "height": 2048},
                 viewport={"width": 1024, "height": 2048},
                 no_viewport=False,
-                args=["--headless=new"],
+                args=["--headless=new", "--no-sandbox"],
                 # Use a unique user data directory to avoid conflicts
                 user_data_dir=self.get_user_data_dir(),
                 extra_http_headers=self._get_browser_http_headers(),

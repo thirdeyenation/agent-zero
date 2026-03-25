@@ -1,11 +1,13 @@
 import { createStore } from "/js/AlpineStore.js";
 import * as API from "/js/api.js";
 import { store as notificationStore } from "/components/notifications/notification-store.js";
+import { openModal, closeModal } from "/js/modals.js";
 
 const HEALTH_POLL_INTERVAL_MS = 2000;
 const HEALTH_WAIT_BUFFER_MS = 30000;
 const SELF_UPDATE_RETURN_URL_KEY = "a0:self-update:return-url";
 const SELF_UPDATE_OVERLAY_ID = "self-update-progress-overlay";
+const SELF_UPDATE_MODAL_PATH = "settings/external/self-update-modal.html";
 const MIN_SELECTOR_VERSION = [1, 0];
 
 const model = {
@@ -329,6 +331,10 @@ const model = {
     this.tagDropdownOpen = false;
   },
 
+  async openModal() {
+    await openModal(SELF_UPDATE_MODAL_PATH);
+  },
+
   openTagDropdown() {
     this.tagDropdownOpen = true;
   },
@@ -585,7 +591,7 @@ const model = {
   },
 
   close() {
-    window.closeModal("settings/external/self-update-modal.html");
+    closeModal(SELF_UPDATE_MODAL_PATH);
   },
 };
 

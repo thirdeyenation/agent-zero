@@ -6,9 +6,10 @@ from langchain_core.messages import BaseMessage
 
 import models
 from browser_use.llm import ChatGoogle, ChatOpenRouter
-from helpers import dirty_json
 
 from plugins._browser_agent.helpers import browser_use_monkeypatch
+from plugins._browser_agent.helpers import browser_use_openrouter_compat
+from plugins._browser_agent.helpers import browser_use_output_sanitize
 
 
 _BROWSER_USE_PATCHED = False
@@ -76,15 +77,29 @@ class BrowserCompatibleChatWrapper(ChatOpenRouter):
 
         try:
             model = kwargs.pop("model", None)
+            effective_model = model or self._wrapper.model_name
             kwrgs = {**self._wrapper.kwargs, **kwargs}
+            request_messages = messages
 
             # hack from browser-use to fix json schema for gemini (additionalProperties, $defs, $ref)
-            if "response_format" in kwrgs and "json_schema" in kwrgs["response_format"] and model and model.startswith("gemini/"):
+            if "response_format" in kwrgs and "json_schema" in kwrgs["response_format"] and effective_model and effective_model.startswith("gemini/"):
                 kwrgs["response_format"]["json_schema"] = ChatGoogle("")._fix_gemini_schema(kwrgs["response_format"]["json_schema"])
+
+            if browser_use_openrouter_compat.should_use_openrouter_prompt_schema_fallback(
+                    provider=self.provider,
+                    model_name=effective_model,
+                    kwargs=kwrgs,
+                ):
+                fallback_request = browser_use_openrouter_compat.build_json_object_fallback_request(
+                    messages=messages,
+                    kwargs=kwrgs,
+                )
+                if fallback_request is not None:
+                    request_messages, kwrgs = fallback_request
 
             resp = await acompletion(
                 model=self._wrapper.model_name,
-                messages=messages,
+                messages=request_messages,
                 stop=stop,
                 **kwrgs,
             )
@@ -102,13 +117,16 @@ class BrowserCompatibleChatWrapper(ChatOpenRouter):
         except Exception as e:
             raise e
 
-        # another hack for browser-use post process invalid jsons
+        # Structured output: normalize keys/models reject (e.g. "" on action dicts) and repair partial JSON
         try:
-            if "response_format" in kwrgs and "json_schema" in kwrgs["response_format"] or "json_object" in kwrgs["response_format"]:
-                if resp.choices[0].message.content is not None and not resp.choices[0].message.content.startswith("{"): # type: ignore
-                    js = dirty_json.parse(resp.choices[0].message.content) # type: ignore
-                    resp.choices[0].message.content = dirty_json.stringify(js) # type: ignore
-        except Exception as e:
+            rf = kwrgs.get("response_format") or {}
+            if "json_schema" in rf or "json_object" in rf:
+                msg_obj = resp.choices[0].message
+                raw_content = getattr(msg_obj, "content", None)
+                fixed = browser_use_output_sanitize.sanitize_llm_message_content_for_browser_use(raw_content)  # type: ignore[arg-type]
+                if fixed is not None:
+                    msg_obj.content = fixed
+        except Exception:
             pass
 
         return resp

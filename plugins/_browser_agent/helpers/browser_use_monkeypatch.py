@@ -2,6 +2,8 @@ from typing import Any
 from browser_use.llm import ChatGoogle
 from helpers import dirty_json
 
+from plugins._browser_agent.helpers import browser_use_output_sanitize
+
 
 # ------------------------------------------------------------------------------
 # Gemini Helper for Output Conformance
@@ -21,6 +23,8 @@ def gemini_clean_and_conform(text: str):
 
     if not isinstance(obj, dict):
         return None
+
+    obj = browser_use_output_sanitize.normalize_parsed_browser_use_output(obj)
 
     # Conform actions to browser-use expectations
     if isinstance(obj.get("action"), list):
