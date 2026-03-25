@@ -4,6 +4,7 @@
     import { store as sidebarStore } from "/components/sidebar/sidebar-store.js";
     import { store as chatsStore } from "/components/sidebar/chats/chats-store.js";
     import { store as projectsStore } from "/components/projects/projects-store.js";
+    import { store as chatInputStore } from "/components/chat/input/input-store.js";
   </script>
 </head>
 <body>
@@ -74,6 +75,11 @@
         <button class="dropdown-item" @click="$store.projects.openProjectsModal(); $store.sidebar.menuClose()">
           <span class="material-symbols-outlined">snippet_folder</span>
           <span>Projects</span>
+        </button>
+
+        <button class="dropdown-item" @click="$store.chatInput.browseFiles(); $store.sidebar.menuClose()">
+          <span class="material-symbols-outlined">folder</span>
+          <span>Files</span>
         </button>
 
         <button class="dropdown-item" @click="openModal('components/modals/scheduler/scheduler-modal.html'); $store.sidebar.menuClose()">
