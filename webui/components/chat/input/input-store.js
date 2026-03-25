@@ -101,9 +101,10 @@ const model = {
 
   async loadKnowledge() {
     try {
-      const resp = await shortcuts.callJsonApi("/plugins/_memory/knowledge_path_get", {
-        ctxid: shortcuts.getCurrentContextId(),
-      });
+      const resp = await shortcuts.callJsonApi(
+        "/plugins/_memory/knowledge_path_get",
+        { ctxid: shortcuts.getCurrentContextId() }
+      );
       if (!resp.ok) throw new Error("Error getting knowledge path");
       const path = resp.path;
 
@@ -121,7 +122,7 @@ const model = {
       });
 
       // then reindex knowledge
-      await globalThis.sendJsonData("/knowledge_reindex", {
+      await globalThis.sendJsonData("/plugins/_memory/knowledge_reindex", {
         ctxid: shortcuts.getCurrentContextId(),
       });
 
