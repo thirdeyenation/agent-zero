@@ -100,9 +100,9 @@ When running in Docker, Agent Zero uses two distinct Python runtimes to isolate 
 
 Key Files:
 - agent.py: Defines AgentContext and the main Agent class.
-- python/helpers/plugins.py: Plugin discovery and configuration logic.
+- helpers/plugins.py: Plugin discovery and configuration logic.
 - webui/js/AlpineStore.js: Store factory for reactive frontend state.
-- python/helpers/api.py: Base class for all API endpoints.
+- helpers/api.py: Base class for all API endpoints.
 - docs/release_notes/: Markdown files used by the release workflow to populate GitHub releases for the latest `main` tag.
 - knowledge/main/about/: Agent self-knowledge files, indexed into the vector DB for runtime recall. Not user-facing docs - written for the agent's internal reference.
 - docs/agents/AGENTS.components.md: Deep dive into the frontend component architecture.
@@ -117,8 +117,8 @@ Key Files:
 - Context Access: Use from agent import AgentContext, AgentContextType (not helpers.context).
 - Communication: Use mq from helpers.messages to log proactive UI messages:
   mq.log_user_message(context.id, "Message", source="Plugin")
-- API Handlers: Derive from ApiHandler in python/helpers/api.py.
-- Extensions: Use the extension framework in python/helpers/extension.py for lifecycle hooks.
+- API Handlers: Derive from ApiHandler in helpers/api.py.
+- Extensions: Use the extension framework in helpers/extension.py for lifecycle hooks.
 - Error Handling: Use RepairableException for errors the LLM might be able to fix.
 
 ### Frontend (Alpine.js)
@@ -209,12 +209,12 @@ export const store = createStore("myStore", {
 
 ### Tool Definition (Good)
 ```python
-from helpers.tool import Tool, ToolResult
+from helpers.tool import Tool, Response
 
 class MyTool(Tool):
-    async def execute(self, arg1: str):
+    async def execute(self, **kwargs):
         # Tool logic
-        return ToolResult("Success")
+        return Response(message="Success", break_loop=False)
 ```
 
 ---
