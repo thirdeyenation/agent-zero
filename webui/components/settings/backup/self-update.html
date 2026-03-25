@@ -1,6 +1,9 @@
 <html>
   <head>
     <title>Self Update</title>
+    <script type="module">
+      import { store } from "/components/settings/external/self-update-store.js";
+    </script>
   </head>
 
   <body>
@@ -24,7 +27,7 @@
           <div class="field-control">
             <button
               class="btn btn-field"
-              @click="openModal('settings/external/self-update-modal.html')"
+              @click="$store.selfUpdateStore.openModal()"
               :disabled="!$store.settings.additional?.is_dockerized"
             >
               Open Self Update
