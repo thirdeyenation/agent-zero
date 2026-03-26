@@ -6,18 +6,12 @@
 <body>
   <div x-data="{ 
     get disabled() { 
-      const ctx = globalThis.getContext?.(); 
-      const store = Alpine?.store?.('compactStore');
-      const chatInput = Alpine?.store?.('chatInput');
-      return !ctx || store?.compacting || chatInput?.running;
+      return !$store.chats?.selected || $store.compactStore?.compacting || $store.chatInput?.running;
     },
     get disabledReason() {
-      const ctx = globalThis.getContext?.(); 
-      const store = Alpine?.store?.('compactStore');
-      const chatInput = Alpine?.store?.('chatInput');
-      if (!ctx) return 'No active chat selected';
-      if (store?.compacting) return 'Compaction in progress';
-      if (chatInput?.running) return 'Cannot compact while agent is running';
+      if (!$store.chats?.selected) return 'No active chat selected';
+      if ($store.compactStore?.compacting) return 'Compaction in progress';
+      if ($store.chatInput?.running) return 'Cannot compact while agent is running';
       return 'Compact chat history into a single summary';
     }
   }">
