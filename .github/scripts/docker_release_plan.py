@@ -692,14 +692,23 @@ def resolve_release_command() -> None:
         )
         return
 
-    previous_release_tag = previous_published_release_tag(config, source_tag)
-    commits = collect_release_commits(previous_release_tag, source_tag)
-    body = generate_release_body_with_openrouter(commits)
+    previous_release_tag = ""
+    commits: list[CommitEntry] = []
+    body = "Failed to generate release notes."
+    try:
+        previous_release_tag = previous_published_release_tag(config, source_tag) or ""
+        commits = collect_release_commits(previous_release_tag or None, source_tag)
+        body = generate_release_body_with_openrouter(commits)
+    except SystemExit:
+        print(
+            f"Release note generation failed for `{source_tag}`. Falling back to a static release body.",
+            file=sys.stderr,
+        )
 
     write_output("should_release", "true")
     write_output("release_tag", source_tag)
     write_output("release_name", source_tag)
-    write_output("previous_release_tag", previous_release_tag or "")
+    write_output("previous_release_tag", previous_release_tag)
     write_output("release_commit_count", str(len(commits)))
     write_output("release_body", body)
     print(source_tag)
