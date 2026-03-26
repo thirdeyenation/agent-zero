@@ -113,7 +113,11 @@ def test_self_update_frontend_uses_preloaded_select():
     assert "this.selectedTagExistsOnBranch" in content
     assert 'const response = await fetch("/api/health"' in content
     assert "if (response.ok && observedBackendUnavailable)" in content
+    assert "window.location.reload();" in content
     assert "Waiting for Agent Zero to disconnect before reloading the page." in content
+    assert "SELF_UPDATE_RETURN_URL_KEY" not in content
+    assert "saveReturnUrl(" not in content
+    assert "getSavedReturnUrl(" not in content
     assert "/api/csrf_token" not in content
     assert "tagSuggestions" not in content
     assert "tagDropdownOpen" not in content

@@ -5,7 +5,6 @@ import { openModal, closeModal } from "/js/modals.js";
 
 const HEALTH_POLL_INTERVAL_MS = 2000;
 const HEALTH_WAIT_BUFFER_MS = 30000;
-const SELF_UPDATE_RETURN_URL_KEY = "a0:self-update:return-url";
 const SELF_UPDATE_OVERLAY_ID = "self-update-progress-overlay";
 const SELF_UPDATE_MODAL_PATH = "settings/external/self-update-modal.html";
 const SELF_UPDATE_MANUAL_BACKUP_MODAL_PATH = "settings/backup/backup_restore.html";
@@ -127,26 +126,6 @@ const model = {
 
   formatBranchTag(branch, tag) {
     return `${branch || "main"} / ${tag || "None"}`;
-  },
-
-  getSavedReturnUrl() {
-    try {
-      return sessionStorage.getItem(SELF_UPDATE_RETURN_URL_KEY) || "";
-    } catch {
-      return "";
-    }
-  },
-
-  saveReturnUrl(url = "") {
-    try {
-      if (url) {
-        sessionStorage.setItem(SELF_UPDATE_RETURN_URL_KEY, url);
-      } else {
-        sessionStorage.removeItem(SELF_UPDATE_RETURN_URL_KEY);
-      }
-    } catch {
-      // ignore storage errors
-    }
   },
 
   getProgressOverlay() {
@@ -446,7 +425,6 @@ const model = {
         undefined,
         true,
       );
-      this.saveReturnUrl(window.location.href);
       await this.restartAndReload();
     } catch (error) {
       console.error("Failed to schedule self-update:", error);
@@ -506,9 +484,7 @@ const model = {
           cache: "no-store",
         });
         if (response.ok && observedBackendUnavailable) {
-          const returnUrl = this.getSavedReturnUrl() || window.location.href;
-          this.saveReturnUrl("");
-          window.location.replace(returnUrl);
+          window.location.reload();
           return;
         }
         if (response.ok) {
@@ -544,7 +520,6 @@ const model = {
 
     this.restarting = false;
     this.removeProgressOverlay();
-    this.saveReturnUrl("");
     this.error =
       "Agent Zero did not come back within the expected window. It may still be rolling back. " +
       (lastError ? `Last health check error: ${lastError}` : "");
