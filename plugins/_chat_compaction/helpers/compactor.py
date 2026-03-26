@@ -1,15 +1,43 @@
 """Core compaction logic for the compaction plugin."""
 import asyncio
+import os
+from datetime import datetime
 from typing import Callable
 
 from agent import Agent
-from helpers import history, tokens
+from helpers import files, history, tokens
 from helpers.history import History, output_text
 from helpers.log import Log
-from helpers.persist_chat import save_tmp_chat, remove_msg_files
+from helpers.persist_chat import (
+    export_json_chat,
+    get_chat_folder_path,
+    save_tmp_chat,
+    remove_msg_files,
+)
 from helpers.state_monitor_integration import mark_dirty_all
 from plugins._model_config.helpers.model_config import get_chat_model_config
 
+
+def _save_pre_compaction_backup(context, full_text: str) -> dict[str, str]:
+    """Save the original chat as JSON and plain text before compaction.
+
+    Returns dict with 'json' and 'txt' absolute file paths.
+    """
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    backup_dir = os.path.join(get_chat_folder_path(context.id), "backups")
+    os.makedirs(backup_dir, exist_ok=True)
+
+    json_path = os.path.join(backup_dir, f"pre-compact-{timestamp}.json")
+    txt_path = os.path.join(backup_dir, f"pre-compact-{timestamp}.txt")
+
+    json_content = export_json_chat(context)
+    with open(json_path, "w", encoding="utf-8") as f:
+        f.write(json_content)
+
+    with open(txt_path, "w", encoding="utf-8") as f:
+        f.write(full_text)
+
+    return {"json": json_path, "txt": txt_path}
 
 
 async def run_compaction(context, use_chat_model: bool = True) -> None:
@@ -74,31 +102,38 @@ async def run_compaction(context, use_chat_model: bool = True) -> None:
         if not summary or not summary.strip():
             raise ValueError("Compaction produced empty summary")
         
-        # Step 5: Replace history with compacted version
-        agent.history = History(agent=agent)
-        agent.history.add_message(
-            ai=True,
-            content=f"## Context compacted\n\n{summary}"
+        # Step 5: Save pre-compaction backup before destroying history
+        backup_paths = _save_pre_compaction_backup(context, full_text)
+        
+        # Step 6: Replace history with compacted version
+        backup_note = (
+            f"\n\n---\n"
+            f"*Pre-compaction backup of the full original conversation:*\n"
+            f"- `{backup_paths['txt']}`"
         )
+        compacted_content = f"## Context compacted\n\n{summary}{backup_note}"
+
+        agent.history = History(agent=agent)
+        agent.history.add_message(ai=True, content=compacted_content)
         
         # Clear subordinate chain
         agent.data.pop(Agent.DATA_NAME_SUBORDINATE, None)
         context.streaming_agent = None
         
-        # Step 6: Reset log and create response
+        # Step 7: Reset log and create response
         context.log.reset()
         context.log.log(
             type="response",
             heading="Context compacted",
-            content=f"## Context compacted\n\n{summary}",
+            content=compacted_content,
             update_progress="none",
         )
         
-        # Step 7: Persist and notify
+        # Step 8: Persist and notify
         save_tmp_chat(context)
         remove_msg_files(context.id)
         
-        # Step 8: Force progress bar to inactive state LAST
+        # Step 9: Force progress bar to inactive state LAST
         # This must happen after all log operations and persist
         context.log.set_progress("Waiting for input", 0, False)
         mark_dirty_all(reason="plugins.compaction.compact_chat")
