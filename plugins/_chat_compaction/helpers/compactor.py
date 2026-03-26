@@ -1,13 +1,11 @@
 """Core compaction logic for the compaction plugin."""
-import asyncio
 import os
 from datetime import datetime
-from typing import Callable
 
+import models as models_module
 from agent import Agent
-from helpers import files, history, tokens
+from helpers import tokens
 from helpers.history import History, output_text
-from helpers.log import Log
 from helpers.persist_chat import (
     export_json_chat,
     get_chat_folder_path,
@@ -15,7 +13,14 @@ from helpers.persist_chat import (
     remove_msg_files,
 )
 from helpers.state_monitor_integration import mark_dirty_all
-from plugins._model_config.helpers.model_config import get_chat_model_config
+from plugins._model_config.helpers.model_config import (
+    get_chat_model_config,
+    get_utility_model_config,
+    get_preset_by_name,
+    build_model_config,
+    build_chat_model,
+    build_utility_model,
+)
 
 
 def _save_pre_compaction_backup(context, full_text: str) -> dict[str, str]:
@@ -40,7 +45,36 @@ def _save_pre_compaction_backup(context, full_text: str) -> dict[str, str]:
     return {"json": json_path, "txt": txt_path}
 
 
-async def run_compaction(context, use_chat_model: bool = True) -> None:
+def _build_model(use_chat_model: bool, preset_name: str | None, agent):
+    """Build the LLM model for compaction based on user selection.
+
+    If preset_name is given, builds from that preset's config.
+    Otherwise falls back to the agent's currently configured model.
+    """
+    if preset_name:
+        preset = get_preset_by_name(preset_name)
+        if preset:
+            model_key = "chat" if use_chat_model else "utility"
+            cfg = preset.get(model_key, {})
+            if cfg.get("provider") or cfg.get("name"):
+                mc = build_model_config(cfg, models_module.ModelType.CHAT)
+                return cfg, models_module.get_chat_model(
+                    mc.provider, mc.name, model_config=mc, **mc.build_kwargs()
+                )
+
+    if use_chat_model:
+        cfg = get_chat_model_config(agent)
+        return cfg, build_chat_model(agent)
+    else:
+        cfg = get_utility_model_config(agent)
+        return cfg, build_utility_model(agent)
+
+
+async def run_compaction(
+    context,
+    use_chat_model: bool = True,
+    preset_name: str | None = None,
+) -> None:
     """
     Compact the chat history into a single summarized message.
     
@@ -66,17 +100,11 @@ async def run_compaction(context, use_chat_model: bool = True) -> None:
         if not full_text.strip():
             raise ValueError("No conversation content to compact")
         
-        # Step 2: Estimate tokens and get model config
+        # Step 2: Estimate tokens, resolve model, and compute context budget
         token_count = tokens.approximate_tokens(full_text)
-        
-        model_config = get_chat_model_config() if use_chat_model else None
-        if model_config is None:
-            # Fallback: use default context length
-            ctx_length = 128000
-        else:
-            ctx_length = int(model_config.get("ctx_length", 128000))
-        
-        # Leave some buffer for the prompt and response
+
+        resolved_cfg, model = _build_model(use_chat_model, preset_name, agent)
+        ctx_length = int(resolved_cfg.get("ctx_length", 128000)) if resolved_cfg else 128000
         max_input_tokens = int(ctx_length * 0.7)
         
         # Step 3: Create progress log item (count user-visible messages only)
@@ -91,12 +119,11 @@ async def run_compaction(context, use_chat_model: bool = True) -> None:
         # Step 4: Handle large histories by chunking if necessary
         if token_count > max_input_tokens:
             summary = await _compact_large_history(
-                agent, full_text, token_count, max_input_tokens, log_item, use_chat_model
+                agent, full_text, token_count, max_input_tokens, log_item, model
             )
         else:
-            # Single-pass compaction
             summary = await _compact_single_pass(
-                agent, full_text, log_item, use_chat_model
+                agent, full_text, log_item, model
             )
         
         if not summary or not summary.strip():
@@ -149,130 +176,69 @@ async def run_compaction(context, use_chat_model: bool = True) -> None:
         raise
 
 
-async def _compact_single_pass(
-    agent, 
-    full_text: str, 
-    log_item,
-    use_chat_model: bool
-) -> str:
-    """Compact history in a single LLM call."""
-    
+async def _compact_single_pass(agent, full_text: str, log_item, model) -> str:
+    """Compact history in a single LLM call using the provided model."""
     system_prompt = agent.read_prompt("compact.sys.md")
     user_prompt = agent.read_prompt("compact.msg.md", conversation=full_text)
-    
-    if use_chat_model:
-        from langchain_core.messages import HumanMessage, SystemMessage
-        messages = [
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=user_prompt)
-        ]
-        
-        async def chat_stream_cb(chunk: str, total: str):
-            if chunk:
-                log_item.stream(content=chunk)
-        
-        summary, _ = await agent.call_chat_model(
-            messages=messages,
-            response_callback=chat_stream_cb,
-        )
-    else:
-        async def util_stream_cb(chunk: str):
-            if chunk:
-                log_item.stream(content=chunk)
-        
-        summary = await agent.call_utility_model(
-            system=system_prompt,
-            message=user_prompt,
-            callback=util_stream_cb,
-        )
-    
+
+    async def stream_cb(chunk: str, total: str):
+        if chunk:
+            log_item.stream(content=chunk)
+
+    summary, _ = await model.unified_call(
+        system_message=system_prompt,
+        user_message=user_prompt,
+        response_callback=stream_cb,
+    )
     return summary
 
 
 async def _compact_large_history(
-    agent,
-    full_text: str,
-    token_count: int,
-    max_input_tokens: int,
-    log_item,
-    use_chat_model: bool
+    agent, full_text: str, token_count: int, max_input_tokens: int, log_item, model
 ) -> str:
-    """
-    Handle large histories by splitting into chunks and summarizing iteratively.
-    """
+    """Handle large histories by splitting into chunks and summarizing iteratively."""
     log_item.update(
         content=f"History is large (~{token_count} tokens). Splitting into chunks...",
     )
-    
-    # Split conversation into roughly equal halves
+
     lines = full_text.split('\n')
     mid = len(lines) // 2
-    
-    chunks = [
-        '\n'.join(lines[:mid]),
-        '\n'.join(lines[mid:])
-    ]
-    
+    chunks = ['\n'.join(lines[:mid]), '\n'.join(lines[mid:])]
+
     summaries = []
     for i, chunk in enumerate(chunks, 1):
-        log_item.update(
-            content=f"Summarizing part {i}/{len(chunks)}...",
-        )
-        
+        log_item.update(content=f"Summarizing part {i}/{len(chunks)}...")
+
         system_prompt = agent.read_prompt("compact.sys.md")
         user_prompt = agent.read_prompt("compact.msg.md", conversation=chunk)
-        
-        if use_chat_model:
-            from langchain_core.messages import HumanMessage, SystemMessage
-            messages = [
-                SystemMessage(content=system_prompt),
-                HumanMessage(content=user_prompt)
-            ]
-            chunk_summary, _ = await agent.call_chat_model(
-                messages=messages,
-                response_callback=None,  # No streaming for chunks
-            )
-        else:
-            chunk_summary = await agent.call_utility_model(
-                system=system_prompt,
-                message=user_prompt,
-                callback=None,
-            )
-        
+
+        chunk_summary, _ = await model.unified_call(
+            system_message=system_prompt,
+            user_message=user_prompt,
+        )
         summaries.append(chunk_summary)
-    
-    # Combine summaries
+
     combined = "\n\n---\n\n".join(summaries)
-    
-    log_item.update(
-        content="Creating final summary from parts...",
-    )
-    
-    # Final compaction of combined summaries
+    log_item.update(content="Creating final summary from parts...")
+
     final_prompt = agent.read_prompt("compact.sys.md")
     final_user = agent.read_prompt(
-        "compact.msg.md", 
-        conversation=f"This is a multi-part conversation. Here are summaries of each part:\n\n{combined}"
+        "compact.msg.md",
+        conversation=f"This is a multi-part conversation. Here are summaries of each part:\n\n{combined}",
     )
-    
-    if use_chat_model:
-        from langchain_core.messages import HumanMessage, SystemMessage
-        messages = [
-            SystemMessage(content=final_prompt),
-            HumanMessage(content=final_user)
-        ]
-        final_summary, _ = await agent.call_chat_model(
-            messages=messages,
-            response_callback=lambda chunk, total: log_item.stream(content=chunk),
-        )
-    else:
-        final_summary = await agent.call_utility_model(
-            system=final_prompt,
-            message=final_user,
-            callback=lambda chunk: log_item.stream(content=chunk),
-        )
-    
+
+    async def stream_cb(chunk: str, total: str):
+        if chunk:
+            log_item.stream(content=chunk)
+
+    final_summary, _ = await model.unified_call(
+        system_message=final_prompt,
+        user_message=final_user,
+        response_callback=stream_cb,
+    )
     return final_summary
+
+
 async def get_compaction_stats(context) -> dict:
     """
     Get statistics about the current chat for the confirmation modal.
@@ -296,12 +262,16 @@ async def get_compaction_stats(context) -> dict:
     full_text = output_text(history_output, ai_label="assistant", human_label="user")
     token_count = tokens.approximate_tokens(full_text) if full_text else 0
     
-    # Get model name
-    model_config = get_chat_model_config()
-    model_name = model_config.get("name", "Default Model") if model_config else "Utility Model"
+    # Get model names for both chat and utility
+    chat_cfg = get_chat_model_config(agent)
+    utility_cfg = get_utility_model_config(agent)
+    chat_model_name = chat_cfg.get("name", "Default") if chat_cfg else "Default"
+    utility_model_name = utility_cfg.get("name", "Default") if utility_cfg else "Default"
     
     return {
         "message_count": message_count,
         "token_count": token_count,
-        "model_name": model_name,
+        "model_name": chat_model_name,
+        "chat_model_name": chat_model_name,
+        "utility_model_name": utility_model_name,
     }

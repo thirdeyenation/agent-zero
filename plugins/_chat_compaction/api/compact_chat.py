@@ -33,12 +33,12 @@ class CompactChat(ApiHandler):
             return {"ok": True, "stats": stats}
 
         elif action == "compact":
-            from helpers.plugins import get_plugin_config
-            agent = context.agent0
-            plugin_config = get_plugin_config("_chat_compaction", agent=agent) or {}
-            use_chat_model = plugin_config.get("use_chat_model", True)
+            use_chat_model = input.get("use_chat_model", True)
+            preset_name = input.get("preset_name") or None
 
-            context.run_task(_run_compaction_task, context, use_chat_model)
+            context.run_task(
+                _run_compaction_task, context, use_chat_model, preset_name
+            )
 
             return {"ok": True, "message": "Compaction started"}
 
@@ -46,10 +46,10 @@ class CompactChat(ApiHandler):
             return Response(f"Unknown action: {action}", 400)
 
 
-async def _run_compaction_task(context, use_chat_model: bool):
+async def _run_compaction_task(context, use_chat_model: bool, preset_name: str | None):
     """Wrapper to run compaction and handle errors."""
     try:
-        await run_compaction(context, use_chat_model)
+        await run_compaction(context, use_chat_model, preset_name)
     except Exception as e:
         context.log.log(
             type="error",
