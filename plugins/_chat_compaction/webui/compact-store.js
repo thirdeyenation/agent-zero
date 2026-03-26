@@ -18,7 +18,7 @@ export const store = createStore("compactStore", {
         return;
       }
 
-      const res = await callJsonApi("/plugins/compaction/compact_chat", {
+      const res = await callJsonApi("/plugins/_chat_compaction/compact_chat", {
         context: ctxid,
         action: "stats",
       });
@@ -42,7 +42,7 @@ export const store = createStore("compactStore", {
         throw new Error("No active chat");
       }
 
-      const res = await callJsonApi("/plugins/compaction/compact_chat", {
+      const res = await callJsonApi("/plugins/_chat_compaction/compact_chat", {
         context: ctxid,
         action: "compact",
       });
