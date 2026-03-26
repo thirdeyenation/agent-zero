@@ -296,6 +296,7 @@ def test_self_update_update_info_uses_current_branch_for_latest_version(monkeypa
             "branch": "main",
             "describe": "v1.2",
             "short_tag": "v1.2",
+            "display_version": "v1.2",
             "commit": "abc1234def",
             "short_commit": "abc1234",
         },
@@ -388,6 +389,7 @@ def test_self_update_frontend_uses_preloaded_select():
     assert "isLatestSelectorTag(value)" in content
     assert "this.isSelectableTag(this.form.tag)" in content
     assert "getLastStatusBadgeClass(status)" in content
+    assert "this.info?.current?.display_version" in content
     assert "status-pill-error" in content
     assert "status-pill-success" in content
     assert "this.info?.defaults?.branch ||" in content
@@ -422,6 +424,7 @@ def test_self_update_modal_uses_standard_select_and_manual_backup():
     assert "$store.selfUpdateStore.versionSelectPlaceholder" in content
     assert "$store.selfUpdateStore.higherMajorVersionMessage" in content
     assert "$store.selfUpdateStore.availableTagOptions" in content
+    assert "$store.selfUpdateStore.info?.current?.describe" in content
     assert "current_branch_latest?.display_version" in content
     assert "tagOption.label" in content
     assert 'data-bs-target="#self-update-last-attempt-collapse"' in content
@@ -434,6 +437,24 @@ def test_self_update_modal_uses_standard_select_and_manual_backup():
     assert 'type="button"' in content
     assert "@blur" not in content
     assert "selectTag(tag)" not in content
+
+
+def test_self_update_repo_version_info_includes_display_version_for_non_main(monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        self_update,
+        "_run_git",
+        lambda repo_dir, *args: {
+            ("describe", "--tags", "--always"): "v1.11-9-gf69147a",
+            ("rev-parse", "HEAD"): "f69147a123456789",
+            ("branch", "--show-current"): "development",
+        }[args],
+    )
+
+    info = self_update.get_repo_version_info(tmp_path)
+
+    assert info["short_tag"] == "v1.11"
+    assert info["display_version"] == "v1.11+9"
+    assert info["short_commit"] == "f69147a"
 
 
 def test_self_update_recovery_script_and_docs_are_present():

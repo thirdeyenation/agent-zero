@@ -42,7 +42,7 @@ const model = {
   },
 
   get currentVersion() {
-    return this.info?.current?.short_tag || "unknown";
+    return this.info?.current?.display_version || this.info?.current?.short_tag || "unknown";
   },
 
   get currentBranch() {

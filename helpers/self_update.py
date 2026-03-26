@@ -198,6 +198,7 @@ def get_repo_version_info(repo_dir: str | Path | None = None) -> dict[str, str]:
         "branch": branch,
         "describe": describe,
         "short_tag": _normalize_describe_to_version(describe),
+        "display_version": _format_branch_head_version(branch, describe),
         "commit": commit,
         "short_commit": commit[:7],
     }

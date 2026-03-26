@@ -23,6 +23,12 @@
                 <code x-text="$store.selfUpdateStore.info?.current?.short_commit || 'unknown'"></code>
               </div>
               <div class="summary-meta" x-text="`Branch ${$store.selfUpdateStore.currentBranch || 'unknown'}`"></div>
+              <template x-if="$store.selfUpdateStore.info?.current?.describe && $store.selfUpdateStore.info?.current?.describe !== $store.selfUpdateStore.info?.current?.short_tag">
+                <div
+                  class="summary-meta"
+                  x-text="$store.selfUpdateStore.info?.current?.describe"
+                ></div>
+              </template>
             </div>
 
             <div class="self-update-summary-card">
