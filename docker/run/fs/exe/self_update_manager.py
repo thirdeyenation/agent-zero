@@ -614,7 +614,7 @@ def execute_pending_update(
         if bool(request_data.get("backup_usr", True)):
             backup_destination = create_usr_backup(
                 repo_dir=REPO_DIR,
-                backup_path=str(request_data.get("backup_path", "/a0/tmp/self-update-backups")),
+                backup_path=str(request_data.get("backup_path", "/root/update-backups")),
                 backup_name=str(request_data.get("backup_name", "agent-zero-usr-backup.zip")),
                 conflict_policy=str(request_data.get("backup_conflict_policy", "rename")),
                 logger=logger,

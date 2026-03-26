@@ -108,8 +108,7 @@ def get_log_text() -> str:
 
 
 def get_default_backup_dir(repo_dir: str | Path | None = None) -> Path:
-    repository = get_repo_dir(repo_dir)
-    return repository / "tmp" / "self-update-backups"
+    return Path("/root/update-backups")
 
 
 def get_repo_dir(repo_dir: str | Path | None = None) -> Path:

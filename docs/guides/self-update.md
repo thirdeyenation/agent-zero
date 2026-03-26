@@ -27,7 +27,7 @@ Because these files live in `/exe`, you can recover from an older downgraded `/a
 
 The updater can create a zip backup of `/a0/usr` before replacing repository files.
 
-- The default backup directory is `/a0/tmp/self-update-backups`
+- The default backup directory is `/root/update-backups`
 - The default file name format is `usr-YYYYMMDD-HHMMSS.zip`
 - Conflict handling supports rename, overwrite, or fail-before-restart
 
