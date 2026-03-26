@@ -261,6 +261,11 @@ const model = {
     document.getElementById(`${SELF_UPDATE_OVERLAY_ID}-styles`)?.remove();
   },
 
+  resetRestartState() {
+    this.restartStatusText = "";
+    this.restartDetailText = "";
+  },
+
   setRestartState(statusText, detailText = "") {
     this.restartStatusText = statusText;
     this.restartDetailText = detailText;
@@ -439,6 +444,11 @@ const model = {
 
     this.saving = true;
     this.error = "";
+    this.setRestartState(
+      "Preparing update",
+      "Saving the request and asking Agent Zero to restart."
+    );
+    this.ensureProgressOverlay();
     try {
       const response = await API.callJsonApi("self_update_schedule", {
         branch: this.form.branch,
@@ -455,17 +465,22 @@ const model = {
       if (this.info) {
         this.info.pending = response.pending;
       }
-      await notificationStore.frontendWarning(
+      notificationStore.frontendWarning(
         "Agent Zero is restarting to apply the requested branch and version target.",
         "Self Update",
         10,
         "self-update-restart",
         undefined,
         true,
-      );
+      ).catch((warningError) => {
+        console.error("Failed to show self-update warning toast:", warningError);
+      });
       await this.restartAndReload();
     } catch (error) {
       console.error("Failed to schedule self-update:", error);
+      this.restarting = false;
+      this.resetRestartState();
+      this.removeProgressOverlay();
       this.error = error.message || "Failed to schedule the self-update.";
     } finally {
       this.saving = false;
@@ -482,6 +497,7 @@ const model = {
     );
     this.ensureProgressOverlay();
 
+    let restartRequestError = null;
     try {
       const token = await API.getCsrfToken();
       const restartResponse = await fetch("/api/restart", {
@@ -495,9 +511,18 @@ const model = {
         body: JSON.stringify({}),
       });
       if (restartResponse && !restartResponse.ok) {
-        throw new Error(`Restart request failed with HTTP ${restartResponse.status}.`);
+        restartRequestError = new Error(
+          `Restart request failed with HTTP ${restartResponse.status}.`
+        );
+        throw restartRequestError;
       }
-    } catch (_error) {
+    } catch (error) {
+      if (restartRequestError && error === restartRequestError) {
+        this.restarting = false;
+        this.resetRestartState();
+        this.removeProgressOverlay();
+        throw error;
+      }
       // The restart request often terminates the backend mid-flight.
     }
 
@@ -557,6 +582,7 @@ const model = {
     }
 
     this.restarting = false;
+    this.resetRestartState();
     this.removeProgressOverlay();
     this.error =
       "Agent Zero did not come back within the expected window. It may still be rolling back. " +

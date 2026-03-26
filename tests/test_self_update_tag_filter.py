@@ -384,12 +384,17 @@ def test_self_update_frontend_uses_preloaded_select():
     assert "response.pending || {" in content
     assert "tag: \"\"," in content
     assert "await this.fetchTags();" in content
+    assert '"Preparing update"' in content
+    assert '"Saving the request and asking Agent Zero to restart."' in content
     assert "Release tag must use the format vX.Y." in content
     assert "Release tag must be v1.0 or newer." in content
     assert "isLatestSelectorTag(value)" in content
     assert "this.isSelectableTag(this.form.tag)" in content
     assert "getLastStatusBadgeClass(status)" in content
     assert "this.info?.current?.display_version" in content
+    assert "resetRestartState()" in content
+    assert "restartRequestError" in content
+    assert "await notificationStore.frontendWarning(" not in content
     assert "status-pill-error" in content
     assert "status-pill-success" in content
     assert "this.info?.defaults?.branch ||" in content
