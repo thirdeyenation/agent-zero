@@ -13,6 +13,12 @@ export const store = createStore("compactStore", {
   selectedPresetName: "",
   useChatModel: true,
 
+  minTokens: 1000,
+
+  get canCompact() {
+    return this.stats && this.stats.token_count >= this.minTokens;
+  },
+
   get selectedModelDisplay() {
     if (this.selectedPresetName) {
       const preset = this.presets.find(
