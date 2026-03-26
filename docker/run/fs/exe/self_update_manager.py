@@ -1055,6 +1055,23 @@ def queue_update_request(
     return payload
 
 
+def installed_target_matches_request(
+    current_info: dict[str, str],
+    *,
+    requested_branch: str,
+    requested_tag: str,
+) -> bool:
+    normalized_tag = requested_tag.strip()
+    if not normalized_tag or is_latest_selector_tag(normalized_tag):
+        return False
+
+    current_branch = current_info.get("branch", "").strip()
+    if requested_branch.strip() and current_branch != requested_branch.strip():
+        return False
+
+    return current_info.get("describe", "").strip() == normalized_tag
+
+
 def trigger_update_command(args: list[str]) -> int:
     parser = argparse.ArgumentParser(
         prog="trigger_self_update.sh",
@@ -1137,11 +1154,10 @@ def docker_run_ui() -> int:
             current = get_repo_version_info(REPO_DIR)
             requested_branch = str(request_data.get("branch", "")).strip()
             requested_tag = str(request_data.get("tag", "")).strip()
-            current_branch = current.get("branch", "").strip()
-            if (
-                requested_tag
-                and current["short_tag"] == requested_tag
-                and (not requested_branch or current_branch == requested_branch)
+            if installed_target_matches_request(
+                current,
+                requested_branch=requested_branch,
+                requested_tag=requested_tag,
             ):
                 logger.log(
                     "Requested tag already matches the installed version, skipping file replacement."

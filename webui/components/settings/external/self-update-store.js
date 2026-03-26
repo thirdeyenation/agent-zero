@@ -497,9 +497,10 @@ const model = {
     );
     this.ensureProgressOverlay();
 
-    let restartRequestError = null;
+    let restartRequestStarted = false;
     try {
       const token = await API.getCsrfToken();
+      restartRequestStarted = true;
       const restartResponse = await fetch("/api/restart", {
         method: "POST",
         credentials: "same-origin",
@@ -511,19 +512,36 @@ const model = {
         body: JSON.stringify({}),
       });
       if (restartResponse && !restartResponse.ok) {
-        restartRequestError = new Error(
-          `Restart request failed with HTTP ${restartResponse.status}.`
+        if (restartResponse.status >= 500) {
+          console.warn(
+            `Restart request returned HTTP ${restartResponse.status} while Agent Zero was shutting down. Continuing to wait for the new runtime.`
+          );
+          this.setRestartState(
+            "Restarting backend",
+            "Agent Zero is shutting down and applying the update. Waiting for the new runtime to come back healthy."
+          );
+        } else {
+          throw new Error(
+            `Restart request failed with HTTP ${restartResponse.status}.`
+          );
+        }
+      } else {
+        this.setRestartState(
+          "Restarting backend",
+          "Agent Zero accepted the restart request. Waiting for the updater to take over."
         );
-        throw restartRequestError;
       }
     } catch (error) {
-      if (restartRequestError && error === restartRequestError) {
+      if (!restartRequestStarted) {
         this.restarting = false;
         this.resetRestartState();
         this.removeProgressOverlay();
         throw error;
       }
-      // The restart request often terminates the backend mid-flight.
+      console.warn(
+        "Restart request connection closed while Agent Zero was restarting:",
+        error
+      );
     }
 
     const maxWaitMs =

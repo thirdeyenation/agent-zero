@@ -393,7 +393,9 @@ def test_self_update_frontend_uses_preloaded_select():
     assert "getLastStatusBadgeClass(status)" in content
     assert "this.info?.current?.display_version" in content
     assert "resetRestartState()" in content
-    assert "restartRequestError" in content
+    assert "restartRequestStarted" in content
+    assert "restartResponse.status >= 500" in content
+    assert "while Agent Zero was shutting down" in content
     assert "await notificationStore.frontendWarning(" not in content
     assert "status-pill-error" in content
     assert "status-pill-success" in content
@@ -656,6 +658,47 @@ def test_self_update_manager_explicit_tag_uses_peeled_commit(monkeypatch):
 
     assert resolved["effective_tag"] == "v1.10"
     assert resolved["expected_commit"] == "192d6e2cae1a85c0a2e7a6ecf41c153b39f1b4c6"
+
+
+def test_self_update_manager_skip_check_requires_exact_describe_match():
+    manager = load_self_update_manager()
+
+    assert (
+        manager.installed_target_matches_request(
+            {
+                "branch": "development",
+                "describe": "v1.11",
+                "short_tag": "v1.11",
+            },
+            requested_branch="development",
+            requested_tag="v1.11",
+        )
+        is True
+    )
+    assert (
+        manager.installed_target_matches_request(
+            {
+                "branch": "development",
+                "describe": "v1.11-12-ge9d9c93d",
+                "short_tag": "v1.11",
+            },
+            requested_branch="development",
+            requested_tag="v1.11",
+        )
+        is False
+    )
+    assert (
+        manager.installed_target_matches_request(
+            {
+                "branch": "development",
+                "describe": "v1.11",
+                "short_tag": "v1.11",
+            },
+            requested_branch="development",
+            requested_tag="latest",
+        )
+        is False
+    )
 
 
 def test_self_update_manager_fetch_release_refs_checks_peeled_tag_commit(monkeypatch):
