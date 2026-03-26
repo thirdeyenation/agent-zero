@@ -8,6 +8,16 @@ import { store as chatsStore } from "/components/sidebar/chats/chats-store.js";
 const model = {
   paused: false,
   message: "",
+  /** Composer + menu (bottom actions moved into dropdown) */
+  chatMoreMenuOpen: false,
+
+  toggleChatMoreMenu() {
+    this.chatMoreMenuOpen = !this.chatMoreMenuOpen;
+  },
+
+  closeChatMoreMenu() {
+    this.chatMoreMenuOpen = false;
+  },
 
   _getSendState() {
     const hasInput = this.message.trim() || attachmentsStore?.attachments?.length > 0;
@@ -212,6 +222,7 @@ const model = {
   reset() {
     this.message = "";
     attachmentsStore.clearAttachments();
+    this.chatMoreMenuOpen = false;
     this.adjustTextareaHeight();
   }
 };
