@@ -77,6 +77,17 @@ def require_env(name: str) -> str:
     return value
 
 
+def require_any_env(*names: str) -> str:
+    for name in names:
+        value = os.environ.get(name, "").strip()
+        if value:
+            return value
+    fail(
+        "Required environment variable is missing. Expected one of: "
+        + ", ".join(f"`{name}`" for name in names)
+    )
+
+
 @dataclass(frozen=True)
 class Config:
     allowed_branches: list[str]
@@ -607,7 +618,7 @@ def extract_openrouter_message_content(payload: object) -> str:
 
 def generate_release_body_with_openrouter(commits: list[CommitEntry]) -> str:
     api_key = require_env("OPENROUTER_API_KEY")
-    model = require_env("OPENROUTER_MODEL_NAME")
+    model = require_any_env("OPENROUTER_MODEL_NAME", "OPENROUTER_MODEL")
     system_prompt = load_text(OPENROUTER_SYSTEM_PROMPT_PATH)
     repository = require_env("GITHUB_REPOSITORY")
     user_message = build_release_notes_user_message(commits)
@@ -702,6 +713,11 @@ def resolve_release_command() -> None:
     except SystemExit:
         print(
             f"Release note generation failed for `{source_tag}`. Falling back to a static release body.",
+            file=sys.stderr,
+        )
+    except Exception as exc:
+        print(
+            f"Unexpected release note generation error for `{source_tag}`: {exc}. Falling back to a static release body.",
             file=sys.stderr,
         )
 
