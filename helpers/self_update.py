@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import re
+import shutil
 import subprocess
 import tempfile
 import time
@@ -16,6 +17,7 @@ OFFICIAL_REPO_AUTHOR = "agent0ai"
 OFFICIAL_REPO_NAME = "agent-zero"
 BRANCH_OPTIONS = [
     {"value": "main", "label": "main"},
+    {"value": "ready", "label": "ready"},
     {"value": "testing", "label": "testing"},
     {"value": "development", "label": "development"},
 ]
@@ -23,17 +25,20 @@ SUPPORTED_BRANCHES = {option["value"] for option in BRANCH_OPTIONS}
 BACKUP_CONFLICT_POLICIES = {"rename", "overwrite", "fail"}
 MIN_SELECTOR_VERSION = (1, 0)
 REMOTE_BRANCH_TAG_CACHE_TTL_SECONDS = 60.0
+REMOTE_BRANCH_LIST_CACHE_TTL_SECONDS = 60.0
 
 UPDATE_FILE_PATH = Path("/exe/a0-self-update.yaml")
 STATUS_FILE_PATH = Path("/exe/a0-self-update-status.yaml")
 LOG_FILE_PATH = Path("/exe/a0-self-update.log")
+DURABLE_EXE_DIR = UPDATE_FILE_PATH.parent
 
 _remote_branch_tag_cache: dict[str, tuple[float, set[str]]] = {}
 _remote_branch_head_cache: dict[str, tuple[float, dict[str, str]]] = {}
+_remote_branch_list_cache: tuple[float, list[str]] | None = None
 
 
 class PendingUpdateConfig(TypedDict):
-    branch: Literal["main", "testing", "development"]
+    branch: str
     tag: str
     source_version: str
     source_describe: str
@@ -84,6 +89,10 @@ def get_log_file_path() -> Path:
     return LOG_FILE_PATH
 
 
+def get_durable_exe_dir() -> Path:
+    return DURABLE_EXE_DIR
+
+
 def _load_yaml(path: Path) -> dict[str, Any] | None:
     if not path.exists():
         return None
@@ -123,8 +132,25 @@ def get_repo_dir(repo_dir: str | Path | None = None) -> Path:
     return Path(__file__).resolve().parents[1]
 
 
+def get_self_update_runtime_source_dir(
+    repo_dir: str | Path | None = None,
+) -> Path:
+    return get_repo_dir(repo_dir) / "docker" / "run" / "fs" / "exe"
+
+
 def _get_official_remote_url() -> str:
     return f"https://github.com/{OFFICIAL_REPO_AUTHOR}/{OFFICIAL_REPO_NAME}.git"
+
+
+def _run_git_raw(*args: str) -> str:
+    completed = subprocess.run(
+        ["git", *args],
+        check=True,
+        text=True,
+        capture_output=True,
+        env={**os.environ, "GIT_TERMINAL_PROMPT": "0"},
+    )
+    return completed.stdout.strip()
 
 
 def _run_git(repo_dir: str | Path, *args: str) -> str:
@@ -211,16 +237,139 @@ def _resolve_backup_path(
     return path.resolve()
 
 
+def _is_excluded_self_update_branch(branch: str) -> bool:
+    normalized = branch.strip().lower()
+    return (
+        not normalized
+        or normalized == "head"
+        or normalized.startswith("pr/")
+        or normalized.startswith("pr-")
+        or normalized.startswith("pull/")
+    )
+
+
+def _sort_branch_names(branches: list[str]) -> list[str]:
+    unique_branches: list[str] = []
+    seen: set[str] = set()
+    for branch in branches:
+        normalized = branch.strip().lower()
+        if _is_excluded_self_update_branch(normalized) or normalized in seen:
+            continue
+        seen.add(normalized)
+        unique_branches.append(normalized)
+    return sorted(unique_branches, key=lambda branch: (branch != "main", branch))
+
+
+def _get_remote_branch_names() -> list[str]:
+    global _remote_branch_list_cache
+
+    now = time.monotonic()
+    if (
+        _remote_branch_list_cache
+        and now - _remote_branch_list_cache[0] <= REMOTE_BRANCH_LIST_CACHE_TTL_SECONDS
+    ):
+        return list(_remote_branch_list_cache[1])
+
+    output = _run_git_raw("ls-remote", "--heads", _get_official_remote_url())
+    branches: list[str] = []
+    prefix = "refs/heads/"
+    for line in output.splitlines():
+        parts = line.strip().split()
+        if len(parts) != 2:
+            continue
+        ref_name = parts[1]
+        if not ref_name.startswith(prefix):
+            continue
+        branches.append(ref_name[len(prefix):])
+
+    sorted_branches = _sort_branch_names(branches)
+    _remote_branch_list_cache = (now, sorted_branches)
+    return list(sorted_branches)
+
+
+def _get_local_origin_branch_names(
+    repo_dir: str | Path | None = None,
+) -> list[str]:
+    repository = get_repo_dir(repo_dir)
+    try:
+        output = _run_git(
+            repository,
+            "for-each-ref",
+            "--format=%(refname:short)",
+            "refs/remotes/origin",
+        )
+    except Exception:
+        return []
+
+    branches: list[str] = []
+    prefix = "origin/"
+    for line in output.splitlines():
+        ref_name = line.strip()
+        if not ref_name.startswith(prefix):
+            continue
+        branches.append(ref_name[len(prefix):])
+    return _sort_branch_names(branches)
+
+
+def get_available_branch_values(
+    repo_dir: str | Path | None = None,
+) -> list[str]:
+    try:
+        remote_branches = _get_remote_branch_names()
+        if remote_branches:
+            return remote_branches
+    except Exception:
+        pass
+
+    local_origin_branches = _get_local_origin_branch_names(repo_dir=repo_dir)
+    if local_origin_branches:
+        return local_origin_branches
+
+    return _sort_branch_names([option["value"] for option in BRANCH_OPTIONS])
+
+
+def get_available_branches(
+    repo_dir: str | Path | None = None,
+) -> list[dict[str, str]]:
+    return [
+        {"value": branch, "label": branch}
+        for branch in get_available_branch_values(repo_dir=repo_dir)
+    ]
+
+
+def sync_self_update_runtime_files(
+    repo_dir: str | Path | None = None,
+) -> list[str]:
+    source_dir = get_self_update_runtime_source_dir(repo_dir)
+    durable_dir = get_durable_exe_dir()
+    synced_files: list[str] = []
+    runtime_files = ["self_update_manager.py", "run_A0.sh"]
+
+    for filename in runtime_files:
+        source_path = source_dir / filename
+        if not source_path.exists():
+            raise FileNotFoundError(
+                f"Required self-update runtime file is missing: {source_path}"
+            )
+        destination_path = durable_dir / filename
+        destination_path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source_path, destination_path)
+        shutil.copymode(source_path, destination_path)
+        synced_files.append(str(destination_path))
+
+    return synced_files
+
+
 def _get_branch_reference_names(branch: str) -> list[str]:
     normalized_branch = branch.strip().lower()
-    if normalized_branch not in SUPPORTED_BRANCHES:
+    if _is_excluded_self_update_branch(normalized_branch):
         return []
     return [f"origin/{normalized_branch}", normalized_branch]
 
 
 def _get_remote_branch_merged_tags(branch: str) -> set[str]:
     normalized_branch = branch.strip().lower()
-    if normalized_branch not in SUPPORTED_BRANCHES:
+    if _is_excluded_self_update_branch(normalized_branch):
         return set()
 
     cached = _remote_branch_tag_cache.get(normalized_branch)
@@ -250,7 +399,7 @@ def _get_remote_branch_merged_tags(branch: str) -> set[str]:
 
 def _get_remote_branch_head_info(branch: str) -> dict[str, str]:
     normalized_branch = branch.strip().lower()
-    if normalized_branch not in SUPPORTED_BRANCHES:
+    if _is_excluded_self_update_branch(normalized_branch):
         return {"describe": "", "short_tag": "", "commit": ""}
 
     cached = _remote_branch_head_cache.get(normalized_branch)
@@ -404,7 +553,8 @@ def get_current_branch_latest_info(
 ) -> dict[str, Any]:
     repository = get_repo_dir(repo_dir)
     normalized_branch = current_branch.strip().lower()
-    if normalized_branch not in SUPPORTED_BRANCHES:
+    available_branches = set(get_available_branch_values(repo_dir=repository))
+    if normalized_branch not in available_branches:
         return {
             "branch": current_branch.strip(),
             "supported": False,
@@ -511,7 +661,16 @@ def get_update_info(repo_dir: str | Path | None = None) -> dict[str, Any]:
     version_info = get_repo_version_info(repository)
     current_version = version_info["short_tag"]
     current_branch = version_info.get("branch", "").strip().lower()
-    default_branch = current_branch if current_branch in SUPPORTED_BRANCHES else "main"
+    available_branches = get_available_branches(repo_dir=repository)
+    available_branch_values = [branch["value"] for branch in available_branches]
+    if current_branch in available_branch_values:
+        default_branch = current_branch
+    elif "main" in available_branch_values:
+        default_branch = "main"
+    elif available_branch_values:
+        default_branch = available_branch_values[0]
+    else:
+        default_branch = "main"
     tag_options, higher_major_versions, tags_error = get_selector_tag_options(
         default_branch,
         repo_dir=repository,
@@ -526,7 +685,7 @@ def get_update_info(repo_dir: str | Path | None = None) -> dict[str, Any]:
         ),
         "pending": load_pending_update(),
         "last_status": load_last_status(),
-        "branches": BRANCH_OPTIONS,
+        "branches": available_branches,
         "available_tags": [option["value"] for option in tag_options],
         "available_tag_options": tag_options,
         "available_tags_error": tags_error,
@@ -561,8 +720,9 @@ def schedule_update(
     version_info = get_repo_version_info(repository)
 
     normalized_branch = branch.strip().lower()
-    if normalized_branch not in SUPPORTED_BRANCHES:
-        raise ValueError("Branch must be one of: main, testing, development.")
+    available_branch_values = set(get_available_branch_values(repo_dir=repository))
+    if normalized_branch not in available_branch_values:
+        raise ValueError("Branch must be one of the available remote branches.")
 
     normalized_tag = tag.strip()
     if not normalized_tag:
@@ -613,5 +773,6 @@ def schedule_update(
         "backup_conflict_policy": normalized_policy,  # type: ignore[assignment]
     }
 
+    sync_self_update_runtime_files(repository)
     _write_yaml(get_update_file_path(), payload)
     return payload

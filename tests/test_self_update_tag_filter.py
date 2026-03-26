@@ -66,6 +66,85 @@ def test_self_update_branch_filter_prefers_remote_branch_tags(monkeypatch):
     assert tags == ["v1.1", "v1.0"]
 
 
+def test_self_update_available_branch_values_filter_prs_and_pin_main_first(monkeypatch):
+    monkeypatch.setattr(self_update, "_remote_branch_list_cache", None)
+    monkeypatch.setattr(
+        self_update,
+        "_run_git_raw",
+        lambda *args: "\n".join(
+            [
+                "111 refs/heads/testing",
+                "222 refs/heads/ready",
+                "333 refs/heads/pr/123",
+                "444 refs/heads/development",
+                "555 refs/heads/main",
+                "666 refs/heads/pr-999",
+            ]
+        ),
+    )
+
+    branches = self_update.get_available_branch_values()
+
+    assert branches == ["main", "development", "ready", "testing"]
+
+
+def test_self_update_available_branch_values_fallback_to_local_origin(monkeypatch):
+    monkeypatch.setattr(self_update, "_remote_branch_list_cache", None)
+    monkeypatch.setattr(
+        self_update,
+        "_run_git_raw",
+        lambda *args: (_ for _ in ()).throw(RuntimeError("offline")),
+    )
+    monkeypatch.setattr(
+        self_update,
+        "_run_git",
+        lambda repo_dir, *args: "\n".join(
+            [
+                "origin/HEAD",
+                "origin/ready",
+                "origin/testing",
+                "origin/pr/999",
+                "origin/main",
+            ]
+        ),
+    )
+
+    branches = self_update.get_available_branch_values()
+
+    assert branches == ["main", "ready", "testing"]
+
+
+def test_self_update_runtime_files_are_synced_to_durable_exe(monkeypatch, tmp_path):
+    source_dir = tmp_path / "source-exe"
+    durable_dir = tmp_path / "durable-exe"
+    source_dir.mkdir()
+    durable_dir.mkdir()
+    manager_source = source_dir / "self_update_manager.py"
+    launcher_source = source_dir / "run_A0.sh"
+    manager_source.write_text("# manager\n", encoding="utf-8")
+    launcher_source.write_text("#!/bin/bash\necho hi\n", encoding="utf-8")
+
+    monkeypatch.setattr(
+        self_update,
+        "get_self_update_runtime_source_dir",
+        lambda repo_dir=None: source_dir,
+    )
+    monkeypatch.setattr(
+        self_update,
+        "get_durable_exe_dir",
+        lambda: durable_dir,
+    )
+
+    synced_files = self_update.sync_self_update_runtime_files()
+
+    assert synced_files == [
+        str(durable_dir / "self_update_manager.py"),
+        str(durable_dir / "run_A0.sh"),
+    ]
+    assert (durable_dir / "self_update_manager.py").read_text(encoding="utf-8") == "# manager\n"
+    assert (durable_dir / "run_A0.sh").read_text(encoding="utf-8") == "#!/bin/bash\necho hi\n"
+
+
 def test_self_update_selector_tag_options_filter_to_current_major(monkeypatch):
     monkeypatch.setattr(
         self_update,
@@ -110,6 +189,20 @@ def test_self_update_update_info_uses_current_branch_for_latest_version(monkeypa
             "commit": "abc1234def",
             "short_commit": "abc1234",
         },
+    )
+    monkeypatch.setattr(
+        self_update,
+        "get_available_branches",
+        lambda repo_dir=None: [
+            {"value": "main", "label": "main"},
+            {"value": "ready", "label": "ready"},
+            {"value": "testing", "label": "testing"},
+        ],
+    )
+    monkeypatch.setattr(
+        self_update,
+        "get_available_branch_values",
+        lambda repo_dir=None: ["main", "ready", "testing"],
     )
     monkeypatch.setattr(
         self_update,
@@ -172,14 +265,21 @@ def test_self_update_frontend_uses_preloaded_select():
     assert "response.available_higher_major_versions" in content
     assert "response.tag_options" in content
     assert "response.higher_major_versions" in content
+    assert "response.pending || {" in content
+    assert "tag: \"\"," in content
     assert "await this.fetchTags();" in content
     assert "Release tag must use the format vX.Y." in content
     assert "Release tag must be v1.0 or newer." in content
     assert "isLatestSelectorTag(value)" in content
     assert "this.isSelectableTag(this.form.tag)" in content
+    assert "getLastStatusBadgeClass(status)" in content
+    assert "status-pill-error" in content
+    assert "status-pill-success" in content
     assert "this.info?.defaults?.branch ||" in content
     assert "Version ${this.trimmedTag} does not exist on branch" in content
     assert "this.selectedTagExistsOnBranch" in content
+    assert "this.form.tag = \"\";" in content
+    assert "this.availableTags[0]" not in content
     assert 'const response = await fetch("/api/health"' in content
     assert "if (response.ok && observedBackendUnavailable)" in content
     assert "window.location.reload();" in content
@@ -210,6 +310,8 @@ def test_self_update_modal_uses_standard_select_and_manual_backup():
     assert "current_branch_latest?.display_version" in content
     assert "tagOption.label" in content
     assert 'data-bs-target="#self-update-last-attempt-collapse"' in content
+    assert "self-update-header-status" in content
+    assert "getLastStatusLabel($store.selfUpdateStore.info?.last_status?.status)" in content
     assert "Latest version" in content
     assert "Docker update guide" in content
     assert "https://www.agent-zero.ai/p/docs/get-started/" in content
@@ -239,6 +341,16 @@ def test_self_update_schedule_rejects_missing_tag_on_branch(monkeypatch, tmp_pat
             [],
             "",
         ),
+    )
+    monkeypatch.setattr(
+        self_update,
+        "get_available_branch_values",
+        lambda repo_dir=None: ["development", "ready", "testing", "main"],
+    )
+    monkeypatch.setattr(
+        self_update,
+        "sync_self_update_runtime_files",
+        lambda repo_dir=None: [],
     )
     monkeypatch.setattr(self_update, "_write_yaml", lambda path, payload: None)
 
@@ -275,6 +387,16 @@ def test_self_update_schedule_accepts_latest_when_selector_exposes_it(monkeypatc
             [],
             "",
         ),
+    )
+    monkeypatch.setattr(
+        self_update,
+        "get_available_branch_values",
+        lambda repo_dir=None: ["development", "ready", "testing", "main"],
+    )
+    monkeypatch.setattr(
+        self_update,
+        "sync_self_update_runtime_files",
+        lambda repo_dir=None: [],
     )
     monkeypatch.setattr(
         self_update,

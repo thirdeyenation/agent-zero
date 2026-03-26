@@ -134,6 +134,29 @@ const model = {
     return `${branch || "main"} / ${tag || "None"}`;
   },
 
+  normalizeLastStatus(status) {
+    return (status || "unknown").trim().toLowerCase();
+  },
+
+  getLastStatusLabel(status) {
+    const normalizedStatus = this.normalizeLastStatus(status);
+    return normalizedStatus ? normalizedStatus.replace(/_/g, " ") : "unknown";
+  },
+
+  getLastStatusBadgeClass(status) {
+    const normalizedStatus = this.normalizeLastStatus(status);
+    if (normalizedStatus === "success") {
+      return "status-pill-success";
+    }
+    if (normalizedStatus === "failed" || normalizedStatus === "rollback_failed") {
+      return "status-pill-error";
+    }
+    if (normalizedStatus === "rolled_back") {
+      return "status-pill-warning";
+    }
+    return "status-pill-neutral";
+  },
+
   getProgressOverlay() {
     return document.getElementById(SELF_UPDATE_OVERLAY_ID);
   },
@@ -255,7 +278,12 @@ const model = {
         throw new Error(response?.error || "Failed to load self-update info.");
       }
       this.info = response;
-      this.applyFormState(response.pending || response.defaults || {});
+      this.applyFormState(
+        response.pending || {
+          ...(response.defaults || {}),
+          tag: "",
+        },
+      );
       this.applyAvailableTags({
         options: response.available_tag_options,
         higherMajorVersions: response.available_higher_major_versions,
@@ -304,11 +332,7 @@ const model = {
       return;
     }
 
-    const defaultTag = (this.info?.defaults?.tag || "").trim();
-    this.form.tag =
-      defaultTag && this.availableTags.includes(defaultTag)
-        ? defaultTag
-        : this.availableTags[0];
+    this.form.tag = "";
   },
 
   async openModal() {

@@ -14,36 +14,6 @@
           x-destroy="$store.selfUpdateStore.cleanup()"
           class="self-update-modal"
         >
-          <div class="self-update-panel">
-            <button
-              type="button"
-              class="self-update-panel-toggle"
-              data-bs-toggle="collapse"
-              data-bs-target="#self-update-howto-collapse"
-              aria-expanded="false"
-              aria-controls="self-update-howto-collapse"
-            >
-              <span>How it works?</span>
-              <span class="material-symbols-outlined self-update-panel-toggle-icon">expand_more</span>
-            </button>
-            <div class="collapse" id="self-update-howto-collapse">
-              <div class="self-update-panel-body self-update-copy">
-                <p>
-                  Agent Zero saves this request into
-                  <code x-text="$store.selfUpdateStore.info?.paths?.update_file || '/exe/a0-self-update.yaml'"></code>,
-                  restarts once, applies the requested branch and version target before the UI
-                  starts again, then reloads this page when <code>/api/health</code> is healthy.
-                </p>
-                <p>
-                  If the updated UI does not become healthy within 2 minutes, the bootstrap
-                  manager in <code>/exe</code> restores the previous checkout and starts that
-                  version again, so even an older downgraded <code>/a0</code> can be upgraded back
-                  by creating the YAML file manually.
-                </p>
-              </div>
-            </div>
-          </div>
-
           <div class="self-update-version-grid">
             <div class="self-update-summary-card">
               <div class="summary-label">Current version</div>
@@ -107,6 +77,36 @@
             </div>
           </template>
 
+          <div class="self-update-panel">
+            <button
+              type="button"
+              class="self-update-panel-toggle"
+              data-bs-toggle="collapse"
+              data-bs-target="#self-update-howto-collapse"
+              aria-expanded="false"
+              aria-controls="self-update-howto-collapse"
+            >
+              <span>How it works?</span>
+              <span class="material-symbols-outlined self-update-panel-toggle-icon">expand_more</span>
+            </button>
+            <div class="collapse" id="self-update-howto-collapse">
+              <div class="self-update-panel-body self-update-copy">
+                <p>
+                  Agent Zero saves this request into
+                  <code x-text="$store.selfUpdateStore.info?.paths?.update_file || '/exe/a0-self-update.yaml'"></code>,
+                  restarts once, applies the requested branch and version target before the UI
+                  starts again, then reloads this page when <code>/api/health</code> is healthy.
+                </p>
+                <p>
+                  If the updated UI does not become healthy within 2 minutes, the bootstrap
+                  manager in <code>/exe</code> restores the previous checkout and starts that
+                  version again, so even an older downgraded <code>/a0</code> can be upgraded back
+                  by creating the YAML file manually.
+                </p>
+              </div>
+            </div>
+          </div>
+
           <template x-if="$store.selfUpdateStore.info?.last_status">
             <div class="self-update-panel">
               <button
@@ -118,11 +118,17 @@
                 aria-controls="self-update-last-attempt-collapse"
               >
                 <span>Last Attempt</span>
-                <span class="material-symbols-outlined self-update-panel-toggle-icon">expand_more</span>
+                <span class="self-update-panel-toggle-trailing">
+                  <span
+                    class="status-pill self-update-header-status"
+                    :class="$store.selfUpdateStore.getLastStatusBadgeClass($store.selfUpdateStore.info?.last_status?.status)"
+                    x-text="$store.selfUpdateStore.getLastStatusLabel($store.selfUpdateStore.info?.last_status?.status)"
+                  ></span>
+                  <span class="material-symbols-outlined self-update-panel-toggle-icon">expand_more</span>
+                </span>
               </button>
               <div class="collapse" id="self-update-last-attempt-collapse">
                 <div class="self-update-panel-body">
-                  <div class="status-pill" x-text="$store.selfUpdateStore.info?.last_status?.status || 'unknown'"></div>
                   <div class="status-message" x-text="$store.selfUpdateStore.info?.last_status?.message || ''"></div>
                   <div class="summary-meta">
                     Trigger:
@@ -399,6 +405,13 @@
         transition: transform 0.2s ease;
       }
 
+      .self-update-panel-toggle-trailing {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.75rem;
+        flex: 0 0 auto;
+      }
+
       .self-update-panel-toggle[aria-expanded="true"] .self-update-panel-toggle-icon {
         transform: rotate(180deg);
       }
@@ -535,6 +548,34 @@
         font-size: 0.82rem;
         text-transform: uppercase;
         letter-spacing: 0.04em;
+      }
+
+      .self-update-header-status {
+        margin-top: 0;
+      }
+
+      .status-pill-success {
+        border-color: color-mix(in srgb, var(--color-success, #16a34a) 55%, var(--color-border));
+        background: color-mix(in srgb, var(--color-success, #16a34a) 18%, transparent);
+        color: var(--color-success, #16a34a);
+      }
+
+      .status-pill-error {
+        border-color: color-mix(in srgb, var(--color-error, #dc2626) 55%, var(--color-border));
+        background: color-mix(in srgb, var(--color-error, #dc2626) 18%, transparent);
+        color: var(--color-error, #dc2626);
+      }
+
+      .status-pill-warning {
+        border-color: color-mix(in srgb, var(--color-warning, #d97706) 55%, var(--color-border));
+        background: color-mix(in srgb, var(--color-warning, #d97706) 18%, transparent);
+        color: var(--color-warning, #d97706);
+      }
+
+      .status-pill-neutral {
+        border-color: var(--color-border);
+        background: transparent;
+        color: var(--color-text);
       }
 
       .status-message {
