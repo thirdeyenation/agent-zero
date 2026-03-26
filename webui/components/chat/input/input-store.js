@@ -193,13 +193,17 @@ const model = {
 
   async browseFiles(path) {
     if (!path) {
-      try {
-        const resp = await shortcuts.callJsonApi("/chat_files_path_get", {
-          ctxid: shortcuts.getCurrentContextId(),
-        });
-        if (resp.ok) path = resp.path;
-      } catch (_e) {
-        console.error("Error getting chat files path", _e);
+      const ctxid = shortcuts.getCurrentContextId();
+
+      if (ctxid) {
+        try {
+          const resp = await shortcuts.callJsonApi("/chat_files_path_get", {
+            ctxid,
+          });
+          if (resp.ok) path = resp.path;
+        } catch (_e) {
+          console.error("Error getting chat files path", _e);
+        }
       }
     }
     await fileBrowserStore.open(path);
