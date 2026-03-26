@@ -22,7 +22,6 @@ env:
   RELEASE_TAG_REGEX: "^v([0-9]+)\\.([0-9]+)$"
   MIN_RELEASE_MAJOR: "1"
   MIN_RELEASE_MINOR: "0"
-  RELEASE_NOTES_DIR: "docs/release_notes"
   DOCKERFILE_DIR: "docker/run"
   DOCKERFILE_PATH: "docker/run/Dockerfile"
   DOCKER_IMAGE_NAME: "agent-zero"
@@ -174,7 +173,8 @@ jobs:
           DOCKER_IMAGE_REPO: ${{ format('{0}/{1}', secrets.DOCKERHUB_ORG, env.DOCKER_IMAGE_NAME) }}
           TARGET_BRANCH: ${{ matrix.branch }}
           TARGET_TAG: ${{ matrix.source_tag }}
-          RELEASE_NOTES_DIR: ${{ env.RELEASE_NOTES_DIR }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENROUTER_MODEL_NAME: ${{ vars.OPENROUTER_MODEL_NAME }}
         run: python3 .github/scripts/docker_release_plan.py resolve-release
 
       - name: Skip GitHub release
