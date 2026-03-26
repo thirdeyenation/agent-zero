@@ -538,6 +538,13 @@ def _format_latest_selector_label(branch: str, describe: str) -> str:
     return f"latest ({short_tag}+{commits_since_tag})"
 
 
+def _format_latest_release_label(tag: str) -> str:
+    normalized = tag.strip()
+    if not normalized:
+        return "latest"
+    return f"latest ({normalized})"
+
+
 def _format_branch_head_version(branch: str, describe: str) -> str:
     short_tag, commits_since_tag = _split_describe_version(describe)
     if not short_tag:
@@ -643,7 +650,17 @@ def get_selector_tag_options(
     if branch_head_major is not None and branch_head_major > current_major:
         higher_major_versions.add(branch_head_major)
 
-    if (
+    normalized_branch = (branch or "").strip().lower()
+
+    if supports_latest and normalized_branch == "main" and same_major_tags:
+        same_major_tags.insert(
+            0,
+            {
+                "value": "latest",
+                "label": _format_latest_release_label(same_major_tags[0]["value"]),
+            },
+        )
+    elif (
         supports_latest
         and branch_head_major == current_major
         and _is_selector_supported_tag(branch_head_tag)

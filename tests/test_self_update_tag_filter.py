@@ -1,3 +1,4 @@
+import importlib.util
 import sys
 import types
 from pathlib import Path
@@ -12,6 +13,17 @@ if str(PROJECT_ROOT) not in sys.path:
 sys.modules["giturlparse"] = types.SimpleNamespace(parse=lambda *args, **kwargs: None)
 
 from helpers import self_update
+
+
+def load_self_update_manager():
+    manager_path = (
+        PROJECT_ROOT / "docker" / "run" / "fs" / "exe" / "self_update_manager.py"
+    )
+    spec = importlib.util.spec_from_file_location("test_self_update_manager", manager_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def test_self_update_selector_tags_use_two_segments_and_v1_floor():
@@ -201,6 +213,44 @@ def test_self_update_selector_tag_options_filter_to_current_major(monkeypatch):
     assert higher_major_versions == [2, 3]
 
 
+def test_self_update_selector_tag_options_keep_main_latest_within_current_major(monkeypatch):
+    monkeypatch.setattr(
+        self_update,
+        "get_available_tags",
+        lambda branch, *, repo_dir=None, query="": (
+            ["v2.0", "v1.4", "v1.2"],
+            "",
+        ),
+    )
+    monkeypatch.setattr(
+        self_update,
+        "_get_branch_head_info",
+        lambda branch, repo_dir=None: {
+            "describe": "v2.0",
+            "short_tag": "v2.0",
+            "commit": "def5678",
+        },
+    )
+    monkeypatch.setattr(
+        self_update,
+        "durable_self_update_supports_latest",
+        lambda repo_dir=None: True,
+    )
+
+    tag_options, higher_major_versions, error = self_update.get_selector_tag_options(
+        "main",
+        current_version="v1.2",
+    )
+
+    assert error == ""
+    assert tag_options == [
+        {"value": "latest", "label": "latest (v1.4)"},
+        {"value": "v1.4", "label": "v1.4"},
+        {"value": "v1.2", "label": "v1.2"},
+    ]
+    assert higher_major_versions == [2]
+
+
 def test_self_update_selector_tag_options_hide_latest_when_durable_updater_lacks_support(monkeypatch):
     monkeypatch.setattr(
         self_update,
@@ -386,6 +436,23 @@ def test_self_update_modal_uses_standard_select_and_manual_backup():
     assert "selectTag(tag)" not in content
 
 
+def test_self_update_recovery_script_and_docs_are_present():
+    script_path = PROJECT_ROOT / "docker" / "run" / "fs" / "exe" / "trigger_self_update.sh"
+    script_content = script_path.read_text(encoding="utf-8")
+    docs_path = PROJECT_ROOT / "docs" / "guides" / "troubleshooting.md"
+    docs_content = docs_path.read_text(encoding="utf-8")
+    dockerfile_path = PROJECT_ROOT / "docker" / "run" / "Dockerfile"
+    dockerfile_content = dockerfile_path.read_text(encoding="utf-8")
+
+    assert 'trigger-update "$@"' in script_content
+    assert "/exe/trigger_self_update.sh" in docs_content
+    assert "docker exec -it <container>" in docs_content
+    assert "/exe/a0-self-update.log" in docs_content
+    assert "reload the current browser window" in docs_content
+    assert "main` and `latest`" in docs_content
+    assert "/exe/trigger_self_update.sh" in dockerfile_content
+
+
 def test_self_update_schedule_rejects_missing_tag_on_branch(monkeypatch, tmp_path):
     monkeypatch.setattr(
         self_update,
@@ -481,6 +548,90 @@ def test_self_update_schedule_accepts_latest_when_selector_exposes_it(monkeypatc
 
     assert payload["tag"] == "latest"
     assert captured_payload["tag"] == "latest"
+
+
+def test_self_update_manager_queues_update_with_main_latest_defaults(monkeypatch):
+    manager = load_self_update_manager()
+    captured = {}
+    monkeypatch.setattr(
+        manager,
+        "get_repo_version_info",
+        lambda _repo: {
+            "branch": "main",
+            "describe": "v1.2",
+            "short_tag": "v1.2",
+            "commit": "abc1234",
+        },
+    )
+    monkeypatch.setattr(
+        manager,
+        "write_yaml",
+        lambda path, payload: captured.update({"path": path, "payload": payload}),
+    )
+
+    payload = manager.queue_update_request(branch="", tag="")
+
+    assert payload["branch"] == "main"
+    assert payload["tag"] == "latest"
+    assert payload["backup_usr"] is True
+    assert payload["backup_path"] == "/root/update-backups"
+    assert payload["backup_conflict_policy"] == "rename"
+    assert captured["path"] == manager.TRIGGER_FILE
+    assert captured["payload"]["tag"] == "latest"
+
+
+def test_self_update_manager_latest_on_main_uses_current_major_release(monkeypatch):
+    manager = load_self_update_manager()
+    monkeypatch.setattr(
+        manager,
+        "fetch_branch_refs",
+        lambda repo_dir, branch, logger: "refs/remotes/a0-self-update/main",
+    )
+    monkeypatch.setattr(
+        manager,
+        "git_output",
+        lambda repo_dir, *args: {
+            ("tag", "--merged", "refs/remotes/a0-self-update/main"): "v2.0\nv1.4\nv1.2\n",
+            ("rev-parse", "refs/tags/v1.4"): "deadbeef1234",
+        }[args],
+    )
+
+    resolved = manager.resolve_requested_target(
+        Path("/tmp/repo"),
+        "main",
+        "latest",
+        "v1.2",
+        manager.NullLogger(),
+    )
+
+    assert resolved["effective_tag"] == "v1.4"
+    assert resolved["expected_short_tag"] == "v1.4"
+
+
+def test_self_update_manager_latest_on_non_main_rejects_cross_major(monkeypatch):
+    manager = load_self_update_manager()
+    monkeypatch.setattr(
+        manager,
+        "fetch_branch_refs",
+        lambda repo_dir, branch, logger: "refs/remotes/a0-self-update/development",
+    )
+    monkeypatch.setattr(
+        manager,
+        "git_output",
+        lambda repo_dir, *args: {
+            ("describe", "--tags", "--always", "refs/remotes/a0-self-update/development"): "v2.0-3-gabc1234",
+            ("rev-parse", "refs/remotes/a0-self-update/development"): "abc123456789",
+        }[args],
+    )
+
+    with pytest.raises(RuntimeError, match=r"Use an explicit tag to change major versions"):
+        manager.resolve_requested_target(
+            Path("/tmp/repo"),
+            "development",
+            "latest",
+            "v1.2",
+            manager.NullLogger(),
+        )
 
 
 def test_self_update_schedule_rejects_latest_when_durable_updater_lacks_support(monkeypatch, tmp_path):
