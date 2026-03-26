@@ -8,6 +8,16 @@ import { store as chatsStore } from "/components/sidebar/chats/chats-store.js";
 const model = {
   paused: false,
   message: "",
+  /** Composer + menu (bottom actions moved into dropdown) */
+  chatMoreMenuOpen: false,
+
+  toggleChatMoreMenu() {
+    this.chatMoreMenuOpen = !this.chatMoreMenuOpen;
+  },
+
+  closeChatMoreMenu() {
+    this.chatMoreMenuOpen = false;
+  },
 
   _getSendState() {
     const hasInput = this.message.trim() || attachmentsStore?.attachments?.length > 0;
@@ -64,8 +74,11 @@ const model = {
   adjustTextareaHeight() {
     const chatInput = document.getElementById("chat-input");
     if (chatInput) {
+      if (!this.message) chatInput.value = "";
       chatInput.style.height = "auto";
       chatInput.style.height = chatInput.scrollHeight + "px";
+      // pick up any layout shift triggered by the height assignment
+      chatInput.style.height = Math.max(chatInput.scrollHeight, parseInt(chatInput.style.height)) + "px";
     }
   },
 
@@ -98,9 +111,10 @@ const model = {
 
   async loadKnowledge() {
     try {
-      const resp = await shortcuts.callJsonApi("/knowledge_path_get", {
-        ctxid: shortcuts.getCurrentContextId(),
-      });
+      const resp = await shortcuts.callJsonApi(
+        "/plugins/_memory/knowledge_path_get",
+        { ctxid: shortcuts.getCurrentContextId() }
+      );
       if (!resp.ok) throw new Error("Error getting knowledge path");
       const path = resp.path;
 
@@ -118,7 +132,7 @@ const model = {
       });
 
       // then reindex knowledge
-      await globalThis.sendJsonData("/knowledge_reindex", {
+      await globalThis.sendJsonData("/plugins/_memory/knowledge_reindex", {
         ctxid: shortcuts.getCurrentContextId(),
       });
 
@@ -189,13 +203,17 @@ const model = {
 
   async browseFiles(path) {
     if (!path) {
-      try {
-        const resp = await shortcuts.callJsonApi("/chat_files_path_get", {
-          ctxid: shortcuts.getCurrentContextId(),
-        });
-        if (resp.ok) path = resp.path;
-      } catch (_e) {
-        console.error("Error getting chat files path", _e);
+      const ctxid = shortcuts.getCurrentContextId();
+
+      if (ctxid) {
+        try {
+          const resp = await shortcuts.callJsonApi("/chat_files_path_get", {
+            ctxid,
+          });
+          if (resp.ok) path = resp.path;
+        } catch (_e) {
+          console.error("Error getting chat files path", _e);
+        }
       }
     }
     await fileBrowserStore.open(path);
@@ -204,6 +222,7 @@ const model = {
   reset() {
     this.message = "";
     attachmentsStore.clearAttachments();
+    this.chatMoreMenuOpen = false;
     this.adjustTextareaHeight();
   }
 };

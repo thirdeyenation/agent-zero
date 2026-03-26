@@ -2,35 +2,31 @@ from datetime import timedelta
 import os
 import secrets
 import time
-import socket
-import struct
-from functools import wraps
 import threading
 import asyncio
 
 import urllib.request
-import urllib.error
 import uvicorn
 from flask import Flask, request, Response, session, redirect, url_for, render_template_string
-from werkzeug.wrappers.response import Response as BaseResponse
 from werkzeug.wrappers.request import Request as WerkzeugRequest
 
 import initialize
-from python.helpers import files, git, mcp_server, fasta2a_server, settings as settings_helper
-from python.helpers.files import get_abs_path
-from python.helpers import runtime, dotenv, process
-from python.helpers.websocket import WebSocketHandler, validate_ws_origin
-from python.helpers.extract_tools import load_classes_from_folder
-from python.helpers.api import ApiHandler
-from python.helpers.print_style import PrintStyle
-from python.helpers import login
+from helpers import files, git, mcp_server, fasta2a_server, settings as settings_helper, extension
+from helpers.files import get_abs_path
+from helpers import runtime, dotenv, process
+from helpers.websocket import WebSocketHandler, validate_ws_origin
+from helpers.api import register_api_route, requires_auth, csrf_protect
+from helpers.ws import register_ws_namespace
+from helpers.print_style import PrintStyle
+from helpers import login
 import socketio  # type: ignore[import-untyped]
 from socketio import ASGIApp, packet
 from starlette.applications import Starlette
 from starlette.routing import Mount
 from uvicorn.middleware.wsgi import WSGIMiddleware
-from python.helpers.websocket_manager import WebSocketManager
-from python.helpers.websocket_namespace_discovery import discover_websocket_namespaces
+from helpers.websocket_manager import WebSocketManager, set_shared_websocket_manager
+from helpers.websocket_namespace_discovery import discover_websocket_namespaces
+from flask import send_file
 
 # disable logging
 import logging
@@ -57,7 +53,7 @@ WerkzeugRequest.max_form_memory_size = UPLOAD_LIMIT_BYTES
 webapp.config.update(
     JSON_SORT_KEYS=False,
     SESSION_COOKIE_NAME="session_" + runtime.get_runtime_id(),  # bind the session cookie name to runtime id to prevent session collision on same host
-    SESSION_COOKIE_SAMESITE="Strict",
+    SESSION_COOKIE_SAMESITE="Lax",
     SESSION_PERMANENT=True,
     PERMANENT_SESSION_LIFETIME=timedelta(days=1),
     MAX_CONTENT_LENGTH=int(os.getenv("FLASK_MAX_CONTENT_LENGTH", str(UPLOAD_LIMIT_BYTES))),
@@ -78,6 +74,7 @@ socketio_server = socketio.AsyncServer(
 )
 
 websocket_manager = WebSocketManager(socketio_server, lock)
+set_shared_websocket_manager(websocket_manager)
 _settings = settings_helper.get_settings()
 settings_helper.set_runtime_settings_snapshot(_settings)
 websocket_manager.set_server_restart_broadcast(
@@ -88,108 +85,8 @@ websocket_manager.set_server_restart_broadcast(
 # basic_auth = BasicAuth(webapp)
 
 
-def is_loopback_address(address):
-    loopback_checker = {
-        socket.AF_INET: lambda x: (
-            struct.unpack("!I", socket.inet_aton(x))[0] >> (32 - 8)
-        ) == 127,
-        socket.AF_INET6: lambda x: x == "::1",
-    }
-    address_type = "hostname"
-    try:
-        socket.inet_pton(socket.AF_INET6, address)
-        address_type = "ipv6"
-    except socket.error:
-        try:
-            socket.inet_pton(socket.AF_INET, address)
-            address_type = "ipv4"
-        except socket.error:
-            address_type = "hostname"
-
-    if address_type == "ipv4":
-        return loopback_checker[socket.AF_INET](address)
-    elif address_type == "ipv6":
-        return loopback_checker[socket.AF_INET6](address)
-    else:
-        for family in (socket.AF_INET, socket.AF_INET6):
-            try:
-                r = socket.getaddrinfo(address, None, family, socket.SOCK_STREAM)
-            except socket.gaierror:
-                return False
-            for family, _, _, _, sockaddr in r:
-                if not loopback_checker[family](sockaddr[0]):
-                    return False
-        return True
-
-
-def requires_api_key(f):
-    @wraps(f)
-    async def decorated(*args, **kwargs):
-        # Use the auth token from settings (same as MCP server)
-        from python.helpers.settings import get_settings
-        valid_api_key = get_settings()["mcp_server_token"]
-
-        if api_key := request.headers.get("X-API-KEY"):
-            if api_key != valid_api_key:
-                return Response("Invalid API key", 401)
-        elif request.json and request.json.get("api_key"):
-            api_key = request.json.get("api_key")
-            if api_key != valid_api_key:
-                return Response("Invalid API key", 401)
-        else:
-            return Response("API key required", 401)
-        return await f(*args, **kwargs)
-
-    return decorated
-
-
-# allow only loopback addresses
-def requires_loopback(f):
-    @wraps(f)
-    async def decorated(*args, **kwargs):
-        if not is_loopback_address(request.remote_addr):
-            return Response(
-                "Access denied.",
-                403,
-                {},
-            )
-        return await f(*args, **kwargs)
-
-    return decorated
-
-
-# require authentication for handlers
-def requires_auth(f):
-    @wraps(f)
-    async def decorated(*args, **kwargs):
-        user_pass_hash = login.get_credentials_hash()
-        # If no auth is configured, just proceed
-        if not user_pass_hash:
-            return await f(*args, **kwargs)
-
-        if session.get('authentication') != user_pass_hash:
-            return redirect(url_for('login_handler'))
-
-        return await f(*args, **kwargs)
-
-    return decorated
-
-
-def csrf_protect(f):
-    @wraps(f)
-    async def decorated(*args, **kwargs):
-        token = session.get("csrf_token")
-        header = request.headers.get("X-CSRF-Token")
-        cookie = request.cookies.get("csrf_token_" + runtime.get_runtime_id())
-        sent = header or cookie
-        if not token or not sent or token != sent:
-            return Response("CSRF token missing or invalid", 403)
-        return await f(*args, **kwargs)
-
-    return decorated
-
-
 @webapp.route("/login", methods=["GET", "POST"])
+@extension.extensible
 async def login_handler():
     error = None
     if request.method == 'POST':
@@ -208,6 +105,7 @@ async def login_handler():
 
 
 @webapp.route("/logout")
+@extension.extensible
 async def logout_handler():
     session.pop('authentication', None)
     return redirect(url_for('login_handler'))
@@ -216,6 +114,7 @@ async def logout_handler():
 # handle default address, load index
 @webapp.route("/", methods=["GET"])
 @requires_auth
+@extension.extensible
 async def serve_index():
     gitinfo = None
     try:
@@ -235,6 +134,61 @@ async def serve_index():
         logged_in=("true" if login.get_credentials_hash() else "false"),
     )
     return index
+
+
+# Serve plugin assets
+@webapp.route("/plugins/<plugin_name>/<path:asset_path>", methods=["GET"])
+@requires_auth
+async def serve_builtin_plugin_asset(plugin_name, asset_path):
+    return await _serve_plugin_asset(plugin_name, asset_path)
+
+@webapp.route("/usr/plugins/<plugin_name>/<path:asset_path>", methods=["GET"])
+@requires_auth
+async def serve_plugin_asset(plugin_name, asset_path):
+    return await _serve_plugin_asset(plugin_name, asset_path)
+
+@webapp.route("/extensions/webui/<path:asset_path>", methods=["GET"])
+@requires_auth
+async def serve_extension_asset(asset_path):
+    exts = files.get_abs_path("extensions/webui")
+    path = files.get_abs_path(exts, asset_path)
+    if not files.is_in_dir(path, exts):
+        return Response(f"Access denied", 403)
+    return send_file(path)
+
+
+@extension.extensible
+async def _serve_plugin_asset(plugin_name, asset_path):
+    """
+    Serve static assets from plugin directories.
+    Resolves using the plugin system (with overrides).
+    """
+    from helpers import plugins
+    
+    
+    # Use the new find_plugin helper
+    plugin_dir = plugins.find_plugin_dir(plugin_name)
+    if not plugin_dir:
+        return Response("Plugin not found", 404)
+    
+    # Resolve the plugin asset path with security checks
+    try:
+        # Construct path using plugin root
+        asset_file = files.get_abs_path(plugin_dir, asset_path)
+        webui_dir = files.get_abs_path(plugin_dir, "webui")
+        webui_extensions_dir = files.get_abs_path(plugin_dir, "extensions/webui")
+        
+        # Security: ensure the resolved path is within the plugin webui directory
+        if not files.is_in_dir(str(asset_file), str(webui_dir)) and not files.is_in_dir(str(asset_file), str(webui_extensions_dir)):
+            return Response("Access denied", 403)
+            
+        if not files.is_file(asset_file):
+            return Response("Asset not found", 404)
+            
+        return send_file(str(asset_file))
+    except Exception as e:
+        PrintStyle.error(f"Error serving plugin asset: {e}")
+        return Response("Error serving asset", 500)
 
 
 def _build_websocket_handlers_by_namespace(
@@ -382,22 +336,6 @@ def configure_websocket_namespaces(
         async def _disconnect(sid, _namespace: str = namespace):  # type: ignore[override]
             await websocket_manager.handle_disconnect(_namespace, sid)
 
-        def _register_socketio_event(event_type: str) -> None:
-            @socketio_server.on(event_type, namespace=namespace)
-            async def _event_handler(
-                sid,
-                data,
-                _event_type: str = event_type,
-                _namespace: str = namespace,
-            ):
-                payload = data or {}
-                return await websocket_manager.route_event(
-                    _namespace, _event_type, payload, sid
-                )
-
-        for _event_type in websocket_manager.iter_event_types(namespace):
-            _register_socketio_event(_event_type)
-
         @socketio_server.on("*", namespace=namespace)
         async def _catch_all(event, sid, data, _namespace: str = namespace):
             payload = data or {}
@@ -433,40 +371,18 @@ def run():
         runtime.get_arg("host") or dotenv.get_dotenv_value("WEB_UI_HOST") or "localhost"
     )
 
-    def register_api_handler(app, handler: type[ApiHandler]):
-        name = handler.__module__.split(".")[-1]
-        instance = handler(app, lock)
-
-        async def handler_wrap() -> BaseResponse:
-            return await instance.handle_request(request=request)
-
-        if handler.requires_loopback():
-            handler_wrap = requires_loopback(handler_wrap)
-        if handler.requires_auth():
-            handler_wrap = requires_auth(handler_wrap)
-        if handler.requires_api_key():
-            handler_wrap = requires_api_key(handler_wrap)
-        if handler.requires_csrf():
-            handler_wrap = csrf_protect(handler_wrap)
-
-        app.add_url_rule(
-            f"/{name}",
-            f"/{name}",
-            handler_wrap,
-            methods=handler.get_methods(),
-        )
-
-    handlers = load_classes_from_folder("python/api", "*.py", ApiHandler)
-    for handler in handlers:
-        register_api_handler(webapp, handler)
+    register_api_route(webapp, lock)
 
     handlers_by_namespace = _build_websocket_handlers_by_namespace(socketio_server, lock)
-    configure_websocket_namespaces(
+    allowed_namespaces = configure_websocket_namespaces(
         webapp=webapp,
         socketio_server=socketio_server,
         websocket_manager=websocket_manager,
         handlers_by_namespace=handlers_by_namespace,
     )
+
+    register_ws_namespace(socketio_server, webapp, lock)
+    allowed_namespaces.add("/ws")
 
     init_a0()
 
@@ -539,6 +455,7 @@ def wait_for_health(host: str, port: int):
         time.sleep(1)
 
 
+@extension.extensible
 def init_a0():
     # initialize contexts and MCP
     init_chats = initialize.initialize_chats()

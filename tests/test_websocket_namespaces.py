@@ -13,8 +13,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from python.helpers.state_monitor import StateMonitor
-from python.helpers.websocket_manager import WebSocketManager
+from helpers.state_monitor import StateMonitor
+from helpers.websocket_manager import WebSocketManager
 
 
 class FakeSocketIOServer:
@@ -102,14 +102,14 @@ async def test_namespace_isolation_state_sync_vs_dev_websocket_test() -> None:
     """
     CONTRACT.INVARIANT.NS.ISOLATION: no cross-namespace delivery for application events.
 
-    Acceptance proof for `/state_sync` vs `/dev_websocket_test` namespaces.
+    Acceptance proof for `/webui` vs `/dev_websocket_test` namespaces.
     """
 
     from flask import Flask
     import socketio
 
-    from python.helpers.websocket import WebSocketHandler
-    from python.helpers.websocket_manager import WebSocketManager
+    from helpers.websocket import WebSocketHandler
+    from helpers.websocket_manager import WebSocketManager
     from run_ui import configure_websocket_namespaces
 
     class StateHandler(WebSocketHandler):
@@ -161,7 +161,7 @@ async def test_namespace_isolation_state_sync_vs_dev_websocket_test() -> None:
         socketio_server=sio,
         websocket_manager=manager,
         handlers_by_namespace={
-            "/state_sync": [StateHandler.get_instance(sio, lock)],
+            "/webui": [StateHandler.get_instance(sio, lock)],
             "/dev_websocket_test": [DevHandler.get_instance(sio, lock)],
         },
     )
@@ -188,19 +188,19 @@ async def test_namespace_isolation_state_sync_vs_dev_websocket_test() -> None:
         async def _on_tester_broadcast_state(_payload: Any) -> None:
             tester_broadcast_state.set()
 
-        client.on("state_push", _on_state_push_state, namespace="/state_sync")
+        client.on("state_push", _on_state_push_state, namespace="/webui")
         client.on("state_push", _on_state_push_dev, namespace="/dev_websocket_test")
         client.on("ws_tester_broadcast", _on_tester_broadcast_dev, namespace="/dev_websocket_test")
-        client.on("ws_tester_broadcast", _on_tester_broadcast_state, namespace="/state_sync")
+        client.on("ws_tester_broadcast", _on_tester_broadcast_state, namespace="/webui")
 
         await client.connect(
             base_url,
-            namespaces=["/state_sync", "/dev_websocket_test"],
+            namespaces=["/webui", "/dev_websocket_test"],
             headers={"Origin": base_url},
             wait_timeout=2,
         )
         try:
-            await client.call("state_request", {"context": None}, namespace="/state_sync", timeout=2)
+            await client.call("state_request", {"context": None}, namespace="/webui", timeout=2)
             await asyncio.wait_for(state_push_state.wait(), timeout=2)
             await asyncio.sleep(0.05)
             assert state_push_dev.is_set() is False
@@ -220,8 +220,8 @@ async def test_diagnostics_include_source_namespace_and_deliver_on_dev_namespace
     but must include `sourceNamespace` identifying the origin namespace.
     """
 
-    from python.helpers.websocket import WebSocketHandler
-    from python.helpers.websocket_manager import DIAGNOSTIC_EVENT, WebSocketManager
+    from helpers.websocket import WebSocketHandler
+    from helpers.websocket_manager import DIAGNOSTIC_EVENT, WebSocketManager
 
     class DummyHandler(WebSocketHandler):
         @classmethod
@@ -237,7 +237,7 @@ async def test_diagnostics_include_source_namespace_and_deliver_on_dev_namespace
     manager = WebSocketManager(socketio, threading.RLock())
     manager._schedule_lifecycle_broadcast = lambda *_args, **_kwargs: None  # type: ignore[assignment]
 
-    ns_state = "/state_sync"
+    ns_state = "/webui"
     ns_dev = "/dev_websocket_test"
 
     handler = DummyHandler.get_instance(socketio, threading.RLock())
@@ -267,7 +267,7 @@ def test_namespace_discovery_maps_core_handlers_to_expected_namespaces() -> None
     (no cross-registration).
     """
 
-    from python.helpers.websocket_namespace_discovery import discover_websocket_namespaces
+    from helpers.websocket_namespace_discovery import discover_websocket_namespaces
 
     discoveries = discover_websocket_namespaces(
         handlers_folder="python/websocket_handlers",
@@ -275,13 +275,13 @@ def test_namespace_discovery_maps_core_handlers_to_expected_namespaces() -> None
     )
     by_namespace = {entry.namespace: entry for entry in discoveries}
 
-    assert "/state_sync" in by_namespace
+    assert "/webui" in by_namespace
     assert "/dev_websocket_test" in by_namespace
 
-    state_cls_names = [cls.__name__ for cls in by_namespace["/state_sync"].handler_classes]
+    state_cls_names = [cls.__name__ for cls in by_namespace["/webui"].handler_classes]
     dev_cls_names = [cls.__name__ for cls in by_namespace["/dev_websocket_test"].handler_classes]
 
-    assert state_cls_names == ["StateSyncHandler"]
+    assert state_cls_names == ["WebuiHandler"]
     assert dev_cls_names == ["DevWebsocketTestHandler"]
 
 
@@ -290,15 +290,15 @@ def test_run_ui_builds_namespace_handler_map_without_cross_registration() -> Non
 
     handlers_by_namespace = _build_websocket_handlers_by_namespace(object(), threading.RLock())
 
-    assert "/state_sync" in handlers_by_namespace
+    assert "/webui" in handlers_by_namespace
     assert "/dev_websocket_test" in handlers_by_namespace
 
     assert all(
         handler.__class__.__name__ != "DevWebsocketTestHandler"
-        for handler in handlers_by_namespace["/state_sync"]
+        for handler in handlers_by_namespace["/webui"]
     )
     assert all(
-        handler.__class__.__name__ != "StateSyncHandler"
+        handler.__class__.__name__ != "WebuiHandler"
         for handler in handlers_by_namespace["/dev_websocket_test"]
     )
 
@@ -309,13 +309,13 @@ async def test_route_event_dispatches_only_within_connected_namespace_and_result
     CONTRACT.NS.ROUTING: inbound routing is restricted to handlers in the connected namespace.
     """
 
-    from python.helpers.websocket import WebSocketHandler
+    from helpers.websocket import WebSocketHandler
 
     socketio = FakeSocketIOServer()
     manager = WebSocketManager(socketio, threading.RLock())
     manager._schedule_lifecycle_broadcast = lambda *_args, **_kwargs: None  # type: ignore[assignment]
 
-    ns_state = "/state_sync"
+    ns_state = "/webui"
     ns_dev = "/dev_websocket_test"
 
     calls: list[str] = []
@@ -365,7 +365,7 @@ async def test_lifecycle_broadcasts_deliver_only_within_the_namespace() -> None:
     CONTRACT.NS.DELIVERY: lifecycle broadcasts are namespace-scoped.
     """
 
-    from python.helpers.websocket_manager import (
+    from helpers.websocket_manager import (
         LIFECYCLE_CONNECT_EVENT,
         LIFECYCLE_DISCONNECT_EVENT,
     )
@@ -373,7 +373,7 @@ async def test_lifecycle_broadcasts_deliver_only_within_the_namespace() -> None:
     socketio = FakeSocketIOServer()
     manager = WebSocketManager(socketio, threading.RLock())
 
-    ns_state = "/state_sync"
+    ns_state = "/webui"
     ns_dev = "/dev_websocket_test"
 
     # Connect events should broadcast only within their namespace.
@@ -422,13 +422,13 @@ async def test_request_semantics_no_handlers_and_timeouts_are_namespace_scoped_a
     CONTRACT.REQUEST.RESULTS + CONTRACT.REQUEST.RESULTS.ORDERING + CONTRACT.NS.ROUTING.
     """
 
-    from python.helpers.websocket import WebSocketHandler
+    from helpers.websocket import WebSocketHandler
 
     socketio = FakeSocketIOServer()
     manager = WebSocketManager(socketio, threading.RLock())
     manager._schedule_lifecycle_broadcast = lambda *_args, **_kwargs: None  # type: ignore[assignment]
 
-    ns_state = "/state_sync"
+    ns_state = "/webui"
     ns_dev = "/dev_websocket_test"
 
     class Alpha(WebSocketHandler):
