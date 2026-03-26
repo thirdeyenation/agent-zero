@@ -202,7 +202,7 @@ def clear_plugin_cache(plugin_names: list[str] | None = None):
     for area in areas:
         cache.clear(area)
 
-    from helpers.websocket_manager import send_data
+    from helpers.ws_manager import send_data
 
     DeferredTask().start_task(
         send_data,

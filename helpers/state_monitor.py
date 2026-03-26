@@ -14,10 +14,10 @@ from helpers.state_snapshot import (
     advance_state_request_after_snapshot,
     build_snapshot_from_request,
 )
-from helpers.websocket import ConnectionNotFoundError
+from helpers.ws import ConnectionNotFoundError
 
 if TYPE_CHECKING:  # pragma: no cover - hints only
-    from helpers.websocket_manager import WebSocketManager
+    from helpers.ws_manager import WsManager
 
 
 ConnectionIdentity = tuple[str, str]  # (namespace, sid)
@@ -60,12 +60,12 @@ class StateMonitor:
         self._projections: dict[ConnectionIdentity, ConnectionProjection] = {}
         self._debounce_handles: dict[ConnectionIdentity, asyncio.TimerHandle] = {}
         self._push_tasks: dict[ConnectionIdentity, asyncio.Task[None]] = {}
-        self._manager: WebSocketManager | None = None
+        self._manager: WsManager | None = None
         self._emit_handler_id: str | None = None
         self._dispatcher_loop: asyncio.AbstractEventLoop | None = None
         self._dirty_wave_seq: int = 0
 
-    def bind_manager(self, manager: "WebSocketManager", *, handler_id: str | None = None) -> None:
+    def bind_manager(self, manager: "WsManager", *, handler_id: str | None = None) -> None:
         with self._lock:
             self._manager = manager
             if handler_id:
