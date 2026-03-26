@@ -51,11 +51,13 @@ async def run_compaction(context, use_chat_model: bool = True) -> None:
         # Leave some buffer for the prompt and response
         max_input_tokens = int(ctx_length * 0.7)
         
-        # Step 3: Create progress log item
+        # Step 3: Create progress log item (count user-visible messages only)
+        visible_types = {"user", "response"}
+        visible_count = sum(1 for item in context.log.logs if item.type in visible_types)
         log_item = context.log.log(
             type="info",
             heading="Compacting chat history...",
-            content=f"Analyzing {len(agent.history.current.messages)} messages (~{token_count} tokens)...",
+            content=f"Analyzing {visible_count} messages (~{token_count} tokens)...",
         )
         
         # Step 4: Handle large histories by chunking if necessary
@@ -76,7 +78,7 @@ async def run_compaction(context, use_chat_model: bool = True) -> None:
         agent.history = History(agent=agent)
         agent.history.add_message(
             ai=True,
-            content=f"# Chat Compacted\n\n{summary}"
+            content=f"## Context compacted\n\n{summary}"
         )
         
         # Clear subordinate chain
@@ -87,8 +89,8 @@ async def run_compaction(context, use_chat_model: bool = True) -> None:
         context.log.reset()
         context.log.log(
             type="response",
-            heading="Chat Compacted",
-            content=summary,
+            heading="Context compacted",
+            content=f"## Context compacted\n\n{summary}",
             update_progress="none",
         )
         
