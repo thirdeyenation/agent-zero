@@ -2,6 +2,9 @@ name: Build And Publish Docker Images
 
 on:
   push:
+    branches:
+      - "testing"
+      - "main"
     tags:
       - "v*"
   workflow_dispatch:
@@ -66,7 +69,10 @@ jobs:
         id: plan
         env:
           EVENT_NAME: ${{ github.event_name }}
-          SOURCE_TAG: ${{ github.ref_name }}
+          SOURCE_REF_NAME: ${{ github.ref_name }}
+          SOURCE_REF_TYPE: ${{ github.ref_type }}
+          BEFORE_SHA: ${{ github.event_name == 'push' && github.event.before || '' }}
+          AFTER_SHA: ${{ github.event_name == 'push' && github.sha || '' }}
           MANUAL_TAG: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || '' }}
           DOCKER_IMAGE_REPO: ${{ format('{0}/{1}', secrets.DOCKERHUB_ORG, env.DOCKER_IMAGE_NAME) }}
         run: python3 .github/scripts/docker_release_plan.py plan
@@ -88,6 +94,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ matrix.source_tag }}
 
       - name: Fetch remote branches and tags
         run: git fetch --force --tags origin '+refs/heads/*:refs/remotes/origin/*'
@@ -118,7 +125,10 @@ jobs:
         id: resolve
         env:
           EVENT_NAME: ${{ github.event_name }}
-          SOURCE_TAG: ${{ github.ref_name }}
+          SOURCE_REF_NAME: ${{ github.ref_name }}
+          SOURCE_REF_TYPE: ${{ github.ref_type }}
+          BEFORE_SHA: ${{ github.event_name == 'push' && github.event.before || '' }}
+          AFTER_SHA: ${{ github.event_name == 'push' && github.sha || '' }}
           MANUAL_TAG: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || '' }}
           DOCKER_IMAGE_REPO: ${{ format('{0}/{1}', secrets.DOCKERHUB_ORG, env.DOCKER_IMAGE_NAME) }}
           TARGET_BRANCH: ${{ matrix.branch }}
@@ -155,7 +165,10 @@ jobs:
         id: release_plan
         env:
           EVENT_NAME: ${{ github.event_name }}
-          SOURCE_TAG: ${{ github.ref_name }}
+          SOURCE_REF_NAME: ${{ github.ref_name }}
+          SOURCE_REF_TYPE: ${{ github.ref_type }}
+          BEFORE_SHA: ${{ github.event_name == 'push' && github.event.before || '' }}
+          AFTER_SHA: ${{ github.event_name == 'push' && github.sha || '' }}
           MANUAL_TAG: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || '' }}
           DOCKER_IMAGE_REPO: ${{ format('{0}/{1}', secrets.DOCKERHUB_ORG, env.DOCKER_IMAGE_NAME) }}
           TARGET_BRANCH: ${{ matrix.branch }}

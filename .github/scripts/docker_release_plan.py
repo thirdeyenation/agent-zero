@@ -69,8 +69,11 @@ class Config:
     tag_pattern: re.Pattern[str]
     min_version: tuple[int, int]
     event_name: str
-    source_tag: str
+    source_ref_name: str
+    source_ref_type: str
     manual_tag: str
+    before_sha: str
+    after_sha: str
 
 
 @dataclass(frozen=True)
@@ -109,8 +112,11 @@ def load_config() -> Config:
             int(os.environ["MIN_RELEASE_MINOR"]),
         ),
         event_name=os.environ["EVENT_NAME"].strip(),
-        source_tag=os.environ.get("SOURCE_TAG", "").strip(),
+        source_ref_name=os.environ.get("SOURCE_REF_NAME", "").strip(),
+        source_ref_type=os.environ.get("SOURCE_REF_TYPE", "").strip(),
         manual_tag=os.environ.get("MANUAL_TAG", "").strip(),
+        before_sha=os.environ.get("BEFORE_SHA", "").strip(),
+        after_sha=os.environ.get("AFTER_SHA", "").strip(),
     )
 
 
@@ -146,22 +152,40 @@ def branch_contains_commit(branch: str, commit: str) -> bool:
     )
 
 
+def ref_exists(ref: str) -> bool:
+    if not ref or re.fullmatch(r"0{40}", ref):
+        return False
+    return run_command("git", "rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}", check=False).returncode == 0
+
+
+def releasable_tags_for_ref(config: Config, ref: str) -> list[str]:
+    if not ref_exists(ref):
+        return []
+
+    tagged_versions: list[tuple[tuple[int, int], str]] = []
+    merged_tags = git("tag", "--merged", ref)
+    for tag in merged_tags.splitlines():
+        version = parse_release_tag(config, tag.strip())
+        if version is None:
+            continue
+        tagged_versions.append((version, tag.strip()))
+
+    tagged_versions.sort(key=lambda item: item[0])
+    return [tag for _, tag in tagged_versions]
+
+
+def latest_releasable_tag_for_ref(config: Config, ref: str) -> str | None:
+    valid_tags = releasable_tags_for_ref(config, ref)
+    return valid_tags[-1] if valid_tags else None
+
+
 def collect_branch_states(config: Config, branches: list[str] | None = None) -> dict[str, BranchState]:
     states: dict[str, BranchState] = {}
     for branch in branches or config.allowed_branches:
         if run_command("git", "show-ref", "--verify", "--quiet", f"refs/remotes/origin/{branch}", check=False).returncode != 0:
             fail(f"Allowed branch origin/{branch} was not fetched.")
 
-        tagged_versions: list[tuple[tuple[int, int], str]] = []
-        merged_tags = git("tag", "--merged", f"origin/{branch}")
-        for tag in merged_tags.splitlines():
-            version = parse_release_tag(config, tag.strip())
-            if version is None:
-                continue
-            tagged_versions.append((version, tag.strip()))
-
-        tagged_versions.sort(key=lambda item: item[0])
-        valid_tags = [tag for _, tag in tagged_versions]
+        valid_tags = releasable_tags_for_ref(config, f"origin/{branch}")
         states[branch] = BranchState(
             branch=branch,
             valid_tags=valid_tags,
@@ -182,8 +206,8 @@ def add_or_merge_candidate(candidates: dict[tuple[str, str, str], Candidate], ca
         existing.reason = f"{existing.reason}; {candidate.reason}"
 
 
-def plan_push(config: Config, branch_states: dict[str, BranchState]) -> tuple[list[Candidate], list[str]]:
-    source_tag = config.source_tag
+def plan_tag_push(config: Config, branch_states: dict[str, BranchState]) -> tuple[list[Candidate], list[str]]:
+    source_tag = config.source_ref_name
     notes: list[str] = []
     version = parse_release_tag(config, source_tag)
     if version is None:
@@ -217,6 +241,30 @@ def plan_push(config: Config, branch_states: dict[str, BranchState]) -> tuple[li
     if not found_branch:
         notes.append(f"Skipped `{source_tag}` because it is not reachable from any allowed branch.")
     return candidates, notes
+
+
+def plan_branch_push(config: Config, branch_states: dict[str, BranchState]) -> tuple[list[Candidate], list[str]]:
+    branch = config.source_ref_name
+    if branch not in branch_states:
+        return [], [f"Skipped `{branch}` because it is not an allowed release branch."]
+
+    before_tag = latest_releasable_tag_for_ref(config, config.before_sha)
+    after_tag = branch_states[branch].latest_tag
+    if after_tag is None:
+        return [], [f"Skipped `{branch}` because it has no releasable tags."]
+    if before_tag == after_tag:
+        return [], [f"Skipped `{branch}` because its highest release tag is still `{after_tag}`."]
+
+    return [
+        Candidate(
+            branch=branch,
+            source_tag=after_tag,
+            mode="push_promoted_tag",
+            publish_version=branch == config.main_branch,
+            publish_branch_tag=True,
+            reason=f"Automatic build for `{after_tag}` after it reached `{branch}`.",
+        )
+    ], []
 
 
 def plan_manual_exact(config: Config, branch_states: dict[str, BranchState]) -> tuple[list[Candidate], list[str]]:
@@ -335,7 +383,12 @@ def plan_command() -> None:
         else:
             candidates, notes = plan_manual_backfill(config, branch_states)
     elif config.event_name == "push":
-        candidates, notes = plan_push(config, branch_states)
+        if config.source_ref_type == "tag":
+            candidates, notes = plan_tag_push(config, branch_states)
+        elif config.source_ref_type == "branch":
+            candidates, notes = plan_branch_push(config, branch_states)
+        else:
+            fail(f"Unsupported push ref type: {config.source_ref_type}")
     else:
         fail(f"Unsupported event: {config.event_name}")
 
@@ -453,6 +506,19 @@ def resolve_build_command() -> None:
             )
             return
         if publish_version:
+            tags_to_push.append(f"{config.image_repo}:{source_tag}")
+        if publish_branch_tag:
+            tags_to_push.append(f"{config.image_repo}:{mutable_tag}")
+
+    elif mode == "push_promoted_tag":
+        if branch_state.latest_tag != source_tag:
+            write_output("should_build", "false")
+            write_output(
+                "skip_reason",
+                f"Tag `{source_tag}` is no longer the highest release tag on `{branch}`.",
+            )
+            return
+        if publish_version and not docker_tag_exists(config.image_repo, source_tag):
             tags_to_push.append(f"{config.image_repo}:{source_tag}")
         if publish_branch_tag:
             tags_to_push.append(f"{config.image_repo}:{mutable_tag}")
