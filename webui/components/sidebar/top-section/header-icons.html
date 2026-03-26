@@ -62,7 +62,13 @@
         </button>
       </div>
 
-      <div class="dropdown-menu quick-actions-dropdown" x-show="$store.sidebar.menuOpen" :style="$store.sidebar.dropdownStyle">
+      <!-- Stop propagation so @click.window menuClick does not treat in-menu clicks as outside the header panel (fixed menu + confirm flow). -->
+      <div
+        class="dropdown-menu quick-actions-dropdown"
+        x-show="$store.sidebar.menuOpen"
+        :style="$store.sidebar.dropdownStyle"
+        @click.stop
+      >
         <div id="sidebar-quick-actions-dropdown-slot-start"></div>
 
         <div class="dropdown-header">Navigation</div>
