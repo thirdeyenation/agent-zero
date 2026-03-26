@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 import re
-import shutil
 import subprocess
 import tempfile
 import time
@@ -93,6 +92,10 @@ def get_durable_exe_dir() -> Path:
     return DURABLE_EXE_DIR
 
 
+def get_durable_self_update_manager_path() -> Path:
+    return get_durable_exe_dir() / "self_update_manager.py"
+
+
 def _load_yaml(path: Path) -> dict[str, Any] | None:
     if not path.exists():
         return None
@@ -132,10 +135,10 @@ def get_repo_dir(repo_dir: str | Path | None = None) -> Path:
     return Path(__file__).resolve().parents[1]
 
 
-def get_self_update_runtime_source_dir(
+def get_repo_self_update_manager_path(
     repo_dir: str | Path | None = None,
 ) -> Path:
-    return get_repo_dir(repo_dir) / "docker" / "run" / "fs" / "exe"
+    return get_repo_dir(repo_dir) / "docker" / "run" / "fs" / "exe" / "self_update_manager.py"
 
 
 def _get_official_remote_url() -> str:
@@ -337,27 +340,25 @@ def get_available_branches(
     ]
 
 
-def sync_self_update_runtime_files(
+def durable_self_update_supports_latest(
     repo_dir: str | Path | None = None,
-) -> list[str]:
-    source_dir = get_self_update_runtime_source_dir(repo_dir)
-    durable_dir = get_durable_exe_dir()
-    synced_files: list[str] = []
-    runtime_files = ["self_update_manager.py", "run_A0.sh"]
-
-    for filename in runtime_files:
-        source_path = source_dir / filename
-        if not source_path.exists():
-            raise FileNotFoundError(
-                f"Required self-update runtime file is missing: {source_path}"
-            )
-        destination_path = durable_dir / filename
-        destination_path.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(source_path, destination_path)
-        shutil.copymode(source_path, destination_path)
-        synced_files.append(str(destination_path))
-
-    return synced_files
+) -> bool:
+    candidate_paths = [
+        get_durable_self_update_manager_path(),
+        get_repo_self_update_manager_path(repo_dir=repo_dir),
+    ]
+    for path in candidate_paths:
+        if not path.exists():
+            continue
+        try:
+            content = path.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        return (
+            'LATEST_SELECTOR_TAG = "latest"' in content
+            and "def resolve_requested_target(" in content
+        )
+    return False
 
 
 def _get_branch_reference_names(branch: str) -> list[str]:
@@ -616,6 +617,7 @@ def get_selector_tag_options(
     tags, error = get_available_tags(branch, repo_dir=repository)
     if error:
         return [], [], error
+    supports_latest = durable_self_update_supports_latest(repo_dir=repository)
 
     current_major = _parse_major_version(
         current_version or get_repo_version_info(repository)["short_tag"]
@@ -641,7 +643,11 @@ def get_selector_tag_options(
     if branch_head_major is not None and branch_head_major > current_major:
         higher_major_versions.add(branch_head_major)
 
-    if branch_head_major == current_major and _is_selector_supported_tag(branch_head_tag):
+    if (
+        supports_latest
+        and branch_head_major == current_major
+        and _is_selector_supported_tag(branch_head_tag)
+    ):
         same_major_tags.insert(
             0,
             {
@@ -728,6 +734,11 @@ def schedule_update(
     if not normalized_tag:
         raise ValueError("A release tag is required.")
     if _is_latest_selector_tag(normalized_tag):
+        if not durable_self_update_supports_latest(repo_dir=repository):
+            raise ValueError(
+                "This Docker image's durable updater does not support the latest selector. "
+                "Choose a concrete version or update the Docker image."
+            )
         normalized_tag = "latest"
     elif not is_valid_selector_tag(normalized_tag):
         raise ValueError("Release tag must use the format vX.Y.")
@@ -773,6 +784,5 @@ def schedule_update(
         "backup_conflict_policy": normalized_policy,  # type: ignore[assignment]
     }
 
-    sync_self_update_runtime_files(repository)
     _write_yaml(get_update_file_path(), payload)
     return payload

@@ -114,35 +114,53 @@ def test_self_update_available_branch_values_fallback_to_local_origin(monkeypatc
     assert branches == ["main", "ready", "testing"]
 
 
-def test_self_update_runtime_files_are_synced_to_durable_exe(monkeypatch, tmp_path):
-    source_dir = tmp_path / "source-exe"
-    durable_dir = tmp_path / "durable-exe"
-    source_dir.mkdir()
-    durable_dir.mkdir()
-    manager_source = source_dir / "self_update_manager.py"
-    launcher_source = source_dir / "run_A0.sh"
-    manager_source.write_text("# manager\n", encoding="utf-8")
-    launcher_source.write_text("#!/bin/bash\necho hi\n", encoding="utf-8")
+def test_self_update_uses_durable_manager_capability_when_present(monkeypatch, tmp_path):
+    durable_manager = tmp_path / "self_update_manager.py"
+    repo_manager = tmp_path / "repo-self_update_manager.py"
+    durable_manager.write_text("# old manager without latest\n", encoding="utf-8")
+    repo_manager.write_text(
+        'LATEST_SELECTOR_TAG = "latest"\n'
+        "def resolve_requested_target():\n"
+        "    pass\n",
+        encoding="utf-8",
+    )
 
     monkeypatch.setattr(
         self_update,
-        "get_self_update_runtime_source_dir",
-        lambda repo_dir=None: source_dir,
+        "get_durable_self_update_manager_path",
+        lambda: durable_manager,
     )
     monkeypatch.setattr(
         self_update,
-        "get_durable_exe_dir",
-        lambda: durable_dir,
+        "get_repo_self_update_manager_path",
+        lambda repo_dir=None: repo_manager,
     )
 
-    synced_files = self_update.sync_self_update_runtime_files()
+    assert self_update.durable_self_update_supports_latest() is False
 
-    assert synced_files == [
-        str(durable_dir / "self_update_manager.py"),
-        str(durable_dir / "run_A0.sh"),
-    ]
-    assert (durable_dir / "self_update_manager.py").read_text(encoding="utf-8") == "# manager\n"
-    assert (durable_dir / "run_A0.sh").read_text(encoding="utf-8") == "#!/bin/bash\necho hi\n"
+
+def test_self_update_falls_back_to_repo_manager_capability_when_durable_missing(monkeypatch, tmp_path):
+    missing_durable = tmp_path / "missing-self_update_manager.py"
+    repo_manager = tmp_path / "repo-self_update_manager.py"
+    repo_manager.write_text(
+        'LATEST_SELECTOR_TAG = "latest"\n'
+        "def resolve_requested_target():\n"
+        "    pass\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        self_update,
+        "get_durable_self_update_manager_path",
+        lambda: missing_durable,
+    )
+    monkeypatch.setattr(
+        self_update,
+        "get_repo_self_update_manager_path",
+        lambda repo_dir=None: repo_manager,
+    )
+
+    assert self_update.durable_self_update_supports_latest() is True
 
 
 def test_self_update_selector_tag_options_filter_to_current_major(monkeypatch):
@@ -163,6 +181,11 @@ def test_self_update_selector_tag_options_filter_to_current_major(monkeypatch):
             "commit": "abc1234",
         },
     )
+    monkeypatch.setattr(
+        self_update,
+        "durable_self_update_supports_latest",
+        lambda repo_dir=None: True,
+    )
 
     tag_options, higher_major_versions, error = self_update.get_selector_tag_options(
         "main",
@@ -176,6 +199,43 @@ def test_self_update_selector_tag_options_filter_to_current_major(monkeypatch):
         {"value": "v1.2", "label": "v1.2"},
     ]
     assert higher_major_versions == [2, 3]
+
+
+def test_self_update_selector_tag_options_hide_latest_when_durable_updater_lacks_support(monkeypatch):
+    monkeypatch.setattr(
+        self_update,
+        "get_available_tags",
+        lambda branch, *, repo_dir=None, query="": (
+            ["v1.4", "v1.2"],
+            "",
+        ),
+    )
+    monkeypatch.setattr(
+        self_update,
+        "_get_branch_head_info",
+        lambda branch, repo_dir=None: {
+            "describe": "v1.4-4-gabc1234",
+            "short_tag": "v1.4",
+            "commit": "abc1234",
+        },
+    )
+    monkeypatch.setattr(
+        self_update,
+        "durable_self_update_supports_latest",
+        lambda repo_dir=None: False,
+    )
+
+    tag_options, higher_major_versions, error = self_update.get_selector_tag_options(
+        "development",
+        current_version="v1.2",
+    )
+
+    assert error == ""
+    assert tag_options == [
+        {"value": "v1.4", "label": "v1.4"},
+        {"value": "v1.2", "label": "v1.2"},
+    ]
+    assert higher_major_versions == []
 
 
 def test_self_update_update_info_uses_current_branch_for_latest_version(monkeypatch):
@@ -212,6 +272,11 @@ def test_self_update_update_info_uses_current_branch_for_latest_version(monkeypa
             [],
             "",
         ),
+    )
+    monkeypatch.setattr(
+        self_update,
+        "durable_self_update_supports_latest",
+        lambda repo_dir=None: True,
     )
     monkeypatch.setattr(self_update, "load_pending_update", lambda: None)
     monkeypatch.setattr(self_update, "load_last_status", lambda: None)
@@ -349,8 +414,8 @@ def test_self_update_schedule_rejects_missing_tag_on_branch(monkeypatch, tmp_pat
     )
     monkeypatch.setattr(
         self_update,
-        "sync_self_update_runtime_files",
-        lambda repo_dir=None: [],
+        "durable_self_update_supports_latest",
+        lambda repo_dir=None: True,
     )
     monkeypatch.setattr(self_update, "_write_yaml", lambda path, payload: None)
 
@@ -395,8 +460,8 @@ def test_self_update_schedule_accepts_latest_when_selector_exposes_it(monkeypatc
     )
     monkeypatch.setattr(
         self_update,
-        "sync_self_update_runtime_files",
-        lambda repo_dir=None: [],
+        "durable_self_update_supports_latest",
+        lambda repo_dir=None: True,
     )
     monkeypatch.setattr(
         self_update,
@@ -416,3 +481,41 @@ def test_self_update_schedule_accepts_latest_when_selector_exposes_it(monkeypatc
 
     assert payload["tag"] == "latest"
     assert captured_payload["tag"] == "latest"
+
+
+def test_self_update_schedule_rejects_latest_when_durable_updater_lacks_support(monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        self_update,
+        "get_repo_version_info",
+        lambda _repo: {
+            "branch": "development",
+            "describe": "v1.4-2-gabc1234",
+            "short_tag": "v1.4",
+            "commit": "abc1234",
+            "short_commit": "abc1234",
+        },
+    )
+    monkeypatch.setattr(
+        self_update,
+        "get_available_branch_values",
+        lambda repo_dir=None: ["development", "ready", "testing", "main"],
+    )
+    monkeypatch.setattr(
+        self_update,
+        "durable_self_update_supports_latest",
+        lambda repo_dir=None: False,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match=r"durable updater does not support the latest selector",
+    ):
+        self_update.schedule_update(
+            branch="development",
+            tag="latest",
+            backup_usr=True,
+            backup_path="",
+            backup_name="",
+            backup_conflict_policy="rename",
+            repo_dir=tmp_path,
+        )
