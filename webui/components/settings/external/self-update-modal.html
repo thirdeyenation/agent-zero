@@ -14,20 +14,20 @@
           x-destroy="$store.selfUpdateStore.cleanup()"
           class="self-update-modal"
         >
-          <div class="self-update-howto">
+          <div class="self-update-panel">
             <button
               type="button"
-              class="self-update-howto-toggle"
+              class="self-update-panel-toggle"
               data-bs-toggle="collapse"
               data-bs-target="#self-update-howto-collapse"
               aria-expanded="false"
               aria-controls="self-update-howto-collapse"
             >
               <span>How it works?</span>
-              <span class="material-symbols-outlined self-update-howto-toggle-icon">expand_more</span>
+              <span class="material-symbols-outlined self-update-panel-toggle-icon">expand_more</span>
             </button>
             <div class="collapse" id="self-update-howto-collapse">
-              <div class="self-update-howto-body self-update-copy">
+              <div class="self-update-panel-body self-update-copy">
                 <p>
                   Agent Zero saves this request into
                   <code x-text="$store.selfUpdateStore.info?.paths?.update_file || '/exe/a0-self-update.yaml'"></code>,
@@ -44,15 +44,50 @@
             </div>
           </div>
 
-          <div class="self-update-summary-grid">
+          <div class="self-update-version-grid">
             <div class="self-update-summary-card">
               <div class="summary-label">Current version</div>
               <div class="summary-value" x-text="$store.selfUpdateStore.currentVersion"></div>
-              <div class="summary-meta" x-text="$store.selfUpdateStore.info?.current?.short_commit || ''"></div>
-              <div class="summary-meta" x-text="$store.selfUpdateStore.currentBranch || ''"></div>
+              <div class="summary-meta">
+                Commit
+                <code x-text="$store.selfUpdateStore.info?.current?.short_commit || 'unknown'"></code>
+              </div>
+              <div class="summary-meta" x-text="`Branch ${$store.selfUpdateStore.currentBranch || 'unknown'}`"></div>
             </div>
 
-            <div class="self-update-summary-card" x-show="$store.selfUpdateStore.info?.pending">
+            <div class="self-update-summary-card">
+              <div class="summary-label">Latest version</div>
+              <div
+                class="summary-value"
+                x-text="$store.selfUpdateStore.info?.current_branch_latest?.display_version || 'Unavailable'"
+              ></div>
+              <template x-if="$store.selfUpdateStore.info?.current_branch_latest?.short_commit && $store.selfUpdateStore.info?.current_branch_latest?.branch !== 'main'">
+                <div class="summary-meta">
+                  Commit
+                  <code x-text="$store.selfUpdateStore.info?.current_branch_latest?.short_commit"></code>
+                </div>
+              </template>
+              <div
+                class="summary-meta"
+                x-text="`Branch ${$store.selfUpdateStore.info?.current_branch_latest?.branch || $store.selfUpdateStore.currentBranch || 'unknown'}`"
+              ></div>
+              <template x-if="$store.selfUpdateStore.info?.current_branch_latest?.describe && $store.selfUpdateStore.info?.current_branch_latest?.describe !== $store.selfUpdateStore.info?.current_branch_latest?.short_tag">
+                <div
+                  class="summary-meta"
+                  x-text="$store.selfUpdateStore.info?.current_branch_latest?.describe"
+                ></div>
+              </template>
+              <template x-if="$store.selfUpdateStore.info?.current_branch_latest?.supported === false">
+                <div class="summary-meta">
+                  Latest official version is only tracked for <code>main</code>, <code>testing</code>,
+                  and <code>development</code>.
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <div class="self-update-summary-grid" x-show="$store.selfUpdateStore.info?.pending">
+            <div class="self-update-summary-card">
               <div class="summary-label">Pending request</div>
               <div
                 class="summary-value"
@@ -73,28 +108,42 @@
           </template>
 
           <template x-if="$store.selfUpdateStore.info?.last_status">
-            <div class="self-update-status-card">
-              <div class="section-title">Last Attempt</div>
-              <div class="status-pill" x-text="$store.selfUpdateStore.info?.last_status?.status || 'unknown'"></div>
-              <div class="status-message" x-text="$store.selfUpdateStore.info?.last_status?.message || ''"></div>
-              <div class="summary-meta">
-                Trigger:
-                <code x-text="$store.selfUpdateStore.info?.paths?.update_file || '/exe/a0-self-update.yaml'"></code>
-              </div>
-              <div class="summary-meta">
-                Log:
-                <code x-text="$store.selfUpdateStore.info?.paths?.log_file || '/exe/a0-self-update.log'"></code>
-              </div>
-              <div
-                class="summary-meta"
-                x-text="$store.selfUpdateStore.formatTimestamp($store.selfUpdateStore.info?.last_status?.finished_at)"
-              ></div>
-              <template x-if="$store.selfUpdateStore.info?.last_status?.backup_zip_path">
-                <div class="status-path">
-                  Backup:
-                  <code x-text="$store.selfUpdateStore.info?.last_status?.backup_zip_path"></code>
+            <div class="self-update-panel">
+              <button
+                type="button"
+                class="self-update-panel-toggle"
+                data-bs-toggle="collapse"
+                data-bs-target="#self-update-last-attempt-collapse"
+                aria-expanded="false"
+                aria-controls="self-update-last-attempt-collapse"
+              >
+                <span>Last Attempt</span>
+                <span class="material-symbols-outlined self-update-panel-toggle-icon">expand_more</span>
+              </button>
+              <div class="collapse" id="self-update-last-attempt-collapse">
+                <div class="self-update-panel-body">
+                  <div class="status-pill" x-text="$store.selfUpdateStore.info?.last_status?.status || 'unknown'"></div>
+                  <div class="status-message" x-text="$store.selfUpdateStore.info?.last_status?.message || ''"></div>
+                  <div class="summary-meta">
+                    Trigger:
+                    <code x-text="$store.selfUpdateStore.info?.paths?.update_file || '/exe/a0-self-update.yaml'"></code>
+                  </div>
+                  <div class="summary-meta">
+                    Log:
+                    <code x-text="$store.selfUpdateStore.info?.paths?.log_file || '/exe/a0-self-update.log'"></code>
+                  </div>
+                  <div
+                    class="summary-meta"
+                    x-text="$store.selfUpdateStore.formatTimestamp($store.selfUpdateStore.info?.last_status?.finished_at)"
+                  ></div>
+                  <template x-if="$store.selfUpdateStore.info?.last_status?.backup_zip_path">
+                    <div class="status-path">
+                      Backup:
+                      <code x-text="$store.selfUpdateStore.info?.last_status?.backup_zip_path"></code>
+                    </div>
+                  </template>
                 </div>
-              </template>
+              </div>
             </div>
           </template>
 
@@ -325,13 +374,13 @@
         margin: 0 0 0.75rem;
       }
 
-      .self-update-howto {
+      .self-update-panel {
         border: 1px solid var(--color-border);
         border-radius: 0.9rem;
         background: var(--color-panel);
       }
 
-      .self-update-howto-toggle {
+      .self-update-panel-toggle {
         width: 100%;
         display: flex;
         align-items: center;
@@ -346,15 +395,15 @@
         text-align: left;
       }
 
-      .self-update-howto-toggle-icon {
+      .self-update-panel-toggle-icon {
         transition: transform 0.2s ease;
       }
 
-      .self-update-howto-toggle[aria-expanded="true"] .self-update-howto-toggle-icon {
+      .self-update-panel-toggle[aria-expanded="true"] .self-update-panel-toggle-icon {
         transform: rotate(180deg);
       }
 
-      .self-update-howto-body {
+      .self-update-panel-body {
         padding: 0 1rem 1rem;
       }
 
@@ -408,16 +457,21 @@
         text-decoration: underline;
       }
 
+      .self-update-version-grid {
+        display: grid;
+        gap: 0.75rem;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
       .self-update-summary-grid {
         display: grid;
         gap: 0.75rem;
         grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
       }
 
-      .self-update-summary-card,
-      .self-update-status-card {
+      .self-update-summary-card {
         border: 1px solid var(--color-border);
-        border-radius: 10px;
+        border-radius: 0.9rem;
         padding: 0.9rem 1rem;
         background: var(--color-panel);
       }
@@ -486,6 +540,12 @@
       .status-message {
         margin-top: 0.7rem;
         line-height: 1.5;
+      }
+
+      @media (max-width: 720px) {
+        .self-update-version-grid {
+          grid-template-columns: minmax(0, 1fr);
+        }
       }
     </style>
   </body>

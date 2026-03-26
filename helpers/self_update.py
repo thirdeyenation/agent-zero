@@ -388,6 +388,49 @@ def _format_latest_selector_label(branch: str, describe: str) -> str:
     return f"latest ({short_tag}+{commits_since_tag})"
 
 
+def _format_branch_head_version(branch: str, describe: str) -> str:
+    short_tag, commits_since_tag = _split_describe_version(describe)
+    if not short_tag:
+        return ""
+    if branch.strip().lower() == "main" or commits_since_tag <= 0:
+        return short_tag
+    return f"{short_tag}+{commits_since_tag}"
+
+
+def get_current_branch_latest_info(
+    current_branch: str,
+    *,
+    repo_dir: str | Path | None = None,
+) -> dict[str, Any]:
+    repository = get_repo_dir(repo_dir)
+    normalized_branch = current_branch.strip().lower()
+    if normalized_branch not in SUPPORTED_BRANCHES:
+        return {
+            "branch": current_branch.strip(),
+            "supported": False,
+            "describe": "",
+            "short_tag": "",
+            "display_version": "",
+            "commit": "",
+            "short_commit": "",
+        }
+
+    branch_head_info = _get_branch_head_info(normalized_branch, repo_dir=repository)
+    commit = branch_head_info.get("commit", "")
+    return {
+        "branch": normalized_branch,
+        "supported": True,
+        "describe": branch_head_info.get("describe", ""),
+        "short_tag": branch_head_info.get("short_tag", ""),
+        "display_version": _format_branch_head_version(
+            normalized_branch,
+            branch_head_info.get("describe", ""),
+        ),
+        "commit": commit,
+        "short_commit": commit[:7] if commit else "",
+    }
+
+
 def get_available_tags(
     branch: str | None = None,
     *,
@@ -477,6 +520,10 @@ def get_update_info(repo_dir: str | Path | None = None) -> dict[str, Any]:
     return {
         "repo_dir": str(repository),
         "current": version_info,
+        "current_branch_latest": get_current_branch_latest_info(
+            current_branch,
+            repo_dir=repository,
+        ),
         "pending": load_pending_update(),
         "last_status": load_last_status(),
         "branches": BRANCH_OPTIONS,

@@ -99,6 +99,59 @@ def test_self_update_selector_tag_options_filter_to_current_major(monkeypatch):
     assert higher_major_versions == [2, 3]
 
 
+def test_self_update_update_info_uses_current_branch_for_latest_version(monkeypatch):
+    monkeypatch.setattr(
+        self_update,
+        "get_repo_version_info",
+        lambda _repo=None: {
+            "branch": "main",
+            "describe": "v1.2",
+            "short_tag": "v1.2",
+            "commit": "abc1234def",
+            "short_commit": "abc1234",
+        },
+    )
+    monkeypatch.setattr(
+        self_update,
+        "get_selector_tag_options",
+        lambda branch, *, repo_dir=None, current_version=None: (
+            [{"value": "latest", "label": "latest (v1.4)"}],
+            [],
+            "",
+        ),
+    )
+    monkeypatch.setattr(self_update, "load_pending_update", lambda: None)
+    monkeypatch.setattr(self_update, "load_last_status", lambda: None)
+    monkeypatch.setattr(
+        self_update,
+        "_get_branch_head_info",
+        lambda branch, repo_dir=None: {
+            "main": {
+                "describe": "v1.4",
+                "short_tag": "v1.4",
+                "commit": "def5678abcd",
+            },
+            "development": {
+                "describe": "v9.9-3-gfeedbee",
+                "short_tag": "v9.9",
+                "commit": "feedbee1234",
+            },
+        }[branch],
+    )
+
+    info = self_update.get_update_info()
+
+    assert info["current_branch_latest"] == {
+        "branch": "main",
+        "supported": True,
+        "describe": "v1.4",
+        "short_tag": "v1.4",
+        "display_version": "v1.4",
+        "commit": "def5678abcd",
+        "short_commit": "def5678",
+    }
+
+
 def test_self_update_frontend_uses_preloaded_select():
     store_path = (
         PROJECT_ROOT
@@ -154,7 +207,10 @@ def test_self_update_modal_uses_standard_select_and_manual_backup():
     assert "$store.selfUpdateStore.versionSelectPlaceholder" in content
     assert "$store.selfUpdateStore.higherMajorVersionMessage" in content
     assert "$store.selfUpdateStore.availableTagOptions" in content
+    assert "current_branch_latest?.display_version" in content
     assert "tagOption.label" in content
+    assert 'data-bs-target="#self-update-last-attempt-collapse"' in content
+    assert "Latest version" in content
     assert "Docker update guide" in content
     assert "https://www.agent-zero.ai/p/docs/get-started/" in content
     assert "Manual backup" in content
