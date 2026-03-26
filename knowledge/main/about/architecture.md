@@ -35,7 +35,7 @@ Subordinates can be given specific prompt profiles (`developer`, `researcher`, o
 ## Memory and Knowledge Pipeline
 
 ### Knowledge (vector DB, read-only)
-Knowledge files (in `knowledge/` and `usr/knowledge/`) are loaded at startup, embedded, and stored in a FAISS vector index per memory subdir. Files are tracked by checksum; only changed files are re-indexed. Supported formats: `.md`, `.txt`, `.pdf`, `.csv`, `.html`, `.json`.
+Knowledge files (in `knowledge/` and `usr/knowledge/`) are loaded when a memory DB is initialized (normally at the start of the first monologue in a chat), embedded, and stored in a FAISS vector index per memory subdir. Files are tracked by checksum; only changed files are re-indexed. Supported formats: `.md`, `.txt`, `.pdf`, `.csv`, `.html`, `.json`.
 
 The memory areas are:
 - `main` - general knowledge and facts (files in knowledge root or `main/` subdir)
