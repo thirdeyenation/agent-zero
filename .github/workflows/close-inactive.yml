@@ -20,7 +20,7 @@ permissions:
 
 env:
   DEFAULT_INACTIVE_DAYS: "90"
-  DEFAULT_DRY_RUN: "true"
+  DEFAULT_DRY_RUN: "false"
 
 jobs:
   close_inactive:
