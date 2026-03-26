@@ -29,6 +29,7 @@ STATUS_FILE_PATH = Path("/exe/a0-self-update-status.yaml")
 LOG_FILE_PATH = Path("/exe/a0-self-update.log")
 
 _remote_branch_tag_cache: dict[str, tuple[float, set[str]]] = {}
+_remote_branch_head_cache: dict[str, tuple[float, dict[str, str]]] = {}
 
 
 class PendingUpdateConfig(TypedDict):
@@ -60,6 +61,11 @@ class UpdateStatus(TypedDict, total=False):
     update_file_path: str
     rollback_applied: bool
     error: str
+
+
+class SelectorTagOption(TypedDict):
+    value: str
+    label: str
 
 
 def _now_iso() -> str:
@@ -137,6 +143,18 @@ def _normalize_describe_to_version(describe: str) -> str:
     if match:
         return match.group(1)
     return describe
+
+
+def _split_describe_version(describe: str) -> tuple[str, int]:
+    normalized = describe.strip()
+    match = re.fullmatch(r"(.+)-(\d+)-g[0-9a-f]+", normalized)
+    if not match:
+        return normalized, 0
+    return match.group(1), int(match.group(2))
+
+
+def _is_latest_selector_tag(tag: str) -> bool:
+    return tag.strip().lower() == "latest"
 
 
 def get_repo_version_info(repo_dir: str | Path | None = None) -> dict[str, str]:
@@ -230,6 +248,42 @@ def _get_remote_branch_merged_tags(branch: str) -> set[str]:
     return set(merged_tags)
 
 
+def _get_remote_branch_head_info(branch: str) -> dict[str, str]:
+    normalized_branch = branch.strip().lower()
+    if normalized_branch not in SUPPORTED_BRANCHES:
+        return {"describe": "", "short_tag": "", "commit": ""}
+
+    cached = _remote_branch_head_cache.get(normalized_branch)
+    now = time.monotonic()
+    if cached and now - cached[0] <= REMOTE_BRANCH_TAG_CACHE_TTL_SECONDS:
+        return dict(cached[1])
+
+    with tempfile.TemporaryDirectory(prefix="a0-self-update-head-") as temp_dir:
+        repository = Path(temp_dir)
+        _run_git(repository, "init", "--bare")
+        _run_git(
+            repository,
+            "fetch",
+            "--quiet",
+            "--prune",
+            "--filter=blob:none",
+            "--tags",
+            _get_official_remote_url(),
+            f"refs/heads/{normalized_branch}:refs/remotes/origin/{normalized_branch}",
+        )
+        remote_ref = f"refs/remotes/origin/{normalized_branch}"
+        describe = _run_git(repository, "describe", "--tags", "--always", remote_ref)
+        commit = _run_git(repository, "rev-parse", remote_ref)
+
+    payload = {
+        "describe": describe,
+        "short_tag": _normalize_describe_to_version(describe),
+        "commit": commit,
+    }
+    _remote_branch_head_cache[normalized_branch] = (now, payload)
+    return dict(payload)
+
+
 def _get_local_branch_merged_tags(
     branch: str,
     repo_dir: str | Path | None = None,
@@ -245,6 +299,26 @@ def _get_local_branch_merged_tags(
     return set()
 
 
+def _get_local_branch_head_info(
+    branch: str,
+    repo_dir: str | Path | None = None,
+) -> dict[str, str]:
+    repository = get_repo_dir(repo_dir)
+    for ref in _get_branch_reference_names(branch):
+        try:
+            _run_git(repository, "rev-parse", "--verify", ref)
+            describe = _run_git(repository, "describe", "--tags", "--always", ref)
+            commit = _run_git(repository, "rev-parse", ref)
+            return {
+                "describe": describe,
+                "short_tag": _normalize_describe_to_version(describe),
+                "commit": commit,
+            }
+        except Exception:
+            continue
+    return {"describe": "", "short_tag": "", "commit": ""}
+
+
 def _get_branch_merged_tags(
     branch: str,
     repo_dir: str | Path | None = None,
@@ -256,6 +330,19 @@ def _get_branch_merged_tags(
     except Exception:
         pass
     return _get_local_branch_merged_tags(branch, repo_dir=repo_dir)
+
+
+def _get_branch_head_info(
+    branch: str,
+    repo_dir: str | Path | None = None,
+) -> dict[str, str]:
+    try:
+        remote_info = _get_remote_branch_head_info(branch)
+        if remote_info.get("commit"):
+            return remote_info
+    except Exception:
+        pass
+    return _get_local_branch_head_info(branch, repo_dir=repo_dir)
 
 
 def _parse_selector_version(tag: str) -> tuple[int, int] | None:
@@ -292,6 +379,15 @@ def _parse_major_version(tag: str) -> int | None:
     return int(match.group(1))
 
 
+def _format_latest_selector_label(branch: str, describe: str) -> str:
+    short_tag, commits_since_tag = _split_describe_version(describe)
+    if not short_tag:
+        return "latest"
+    if branch.strip().lower() == "main" or commits_since_tag <= 0:
+        return f"latest ({short_tag})"
+    return f"latest ({short_tag}+{commits_since_tag})"
+
+
 def get_available_tags(
     branch: str | None = None,
     *,
@@ -322,7 +418,7 @@ def get_selector_tag_options(
     *,
     repo_dir: str | Path | None = None,
     current_version: str | None = None,
-) -> tuple[list[str], list[int], str]:
+) -> tuple[list[SelectorTagOption], list[int], str]:
     repository = get_repo_dir(repo_dir)
     tags, error = get_available_tags(branch, repo_dir=repository)
     if error:
@@ -332,18 +428,37 @@ def get_selector_tag_options(
         current_version or get_repo_version_info(repository)["short_tag"]
     )
     if current_major is None:
-        return tags, [], ""
+        return [{"value": tag, "label": tag} for tag in tags], [], ""
 
-    same_major_tags: list[str] = []
+    branch_head_info = _get_branch_head_info(branch or "", repo_dir=repository)
+    branch_head_tag = branch_head_info.get("short_tag", "")
+    branch_head_major = _parse_major_version(branch_head_tag)
+
+    same_major_tags: list[SelectorTagOption] = []
     higher_major_versions: set[int] = set()
     for tag in tags:
         tag_major = _parse_major_version(tag)
         if tag_major is None:
             continue
         if tag_major == current_major:
-            same_major_tags.append(tag)
+            same_major_tags.append({"value": tag, "label": tag})
         elif tag_major > current_major:
             higher_major_versions.add(tag_major)
+
+    if branch_head_major is not None and branch_head_major > current_major:
+        higher_major_versions.add(branch_head_major)
+
+    if branch_head_major == current_major and _is_selector_supported_tag(branch_head_tag):
+        same_major_tags.insert(
+            0,
+            {
+                "value": "latest",
+                "label": _format_latest_selector_label(
+                    branch or "",
+                    branch_head_info.get("describe", ""),
+                ),
+            },
+        )
 
     return same_major_tags, sorted(higher_major_versions), ""
 
@@ -354,7 +469,7 @@ def get_update_info(repo_dir: str | Path | None = None) -> dict[str, Any]:
     current_version = version_info["short_tag"]
     current_branch = version_info.get("branch", "").strip().lower()
     default_branch = current_branch if current_branch in SUPPORTED_BRANCHES else "main"
-    tags, higher_major_versions, tags_error = get_selector_tag_options(
+    tag_options, higher_major_versions, tags_error = get_selector_tag_options(
         default_branch,
         repo_dir=repository,
         current_version=current_version,
@@ -365,7 +480,8 @@ def get_update_info(repo_dir: str | Path | None = None) -> dict[str, Any]:
         "pending": load_pending_update(),
         "last_status": load_last_status(),
         "branches": BRANCH_OPTIONS,
-        "available_tags": tags,
+        "available_tags": [option["value"] for option in tag_options],
+        "available_tag_options": tag_options,
         "available_tags_error": tags_error,
         "available_higher_major_versions": higher_major_versions,
         "paths": {
@@ -404,21 +520,23 @@ def schedule_update(
     normalized_tag = tag.strip()
     if not normalized_tag:
         raise ValueError("A release tag is required.")
-    if not is_valid_selector_tag(normalized_tag):
+    if _is_latest_selector_tag(normalized_tag):
+        normalized_tag = "latest"
+    elif not is_valid_selector_tag(normalized_tag):
         raise ValueError("Release tag must use the format vX.Y.")
-    if not _is_selector_supported_tag(normalized_tag):
+    elif not _is_selector_supported_tag(normalized_tag):
         raise ValueError("Release tag must be v1.0 or newer.")
 
-    available_tags, tag_lookup_error = get_available_tags(
+    selector_tag_options, _, tag_lookup_error = get_selector_tag_options(
         normalized_branch,
         repo_dir=repository,
-        query=normalized_tag,
+        current_version=version_info["short_tag"],
     )
     if tag_lookup_error:
         raise RuntimeError(
             f"Failed to verify release tag {normalized_tag} on branch {normalized_branch}: {tag_lookup_error}"
         )
-    if normalized_tag not in available_tags:
+    if normalized_tag not in {option["value"] for option in selector_tag_options}:
         raise ValueError(
             f"Version {normalized_tag} does not exist on branch {normalized_branch}."
         )

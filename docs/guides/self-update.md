@@ -8,7 +8,7 @@ Agent Zero includes a Docker-oriented self-update flow for switching to a specif
 2. Agent Zero restarts.
 3. The durable updater in `/exe` reads the YAML request before starting the UI.
 4. If requested, it creates a zip backup of `/a0/usr`.
-5. It fetches the requested branch and version tag from the official Agent Zero repository.
+5. It fetches the requested branch and update target from the official Agent Zero repository.
 6. It updates `/a0` while preserving gitignored paths such as `/a0/usr`.
 7. It starts Agent Zero again and waits for `/api/health` to become healthy.
 8. If the UI does not become healthy within the allowed time, it restores the previous checkout and starts that version again.
@@ -33,9 +33,14 @@ The updater can create a zip backup of `/a0/usr` before replacing repository fil
 
 ## Version selection
 
-The WebUI preloads repository version tags for the selected branch into a standard selector.
+The WebUI preloads repository version choices for the selected branch into a standard selector.
 
-Only tags from the current major release line are listed in the selector. If newer major lines are available on the selected branch, the UI shows an attention banner that links to the Docker update guide.
+Only versions from the current major release line are listed in the selector. If newer major lines are available on the selected branch, the UI shows an attention banner that links to the Docker update guide.
+
+The selector also includes `latest` when the selected branch is still on the current major line:
+
+- On `main`, `latest` resolves to the newest reachable release tag on `main`. It is displayed as `latest (vX.Y)`.
+- On `testing` and `development`, `latest` resolves to the current branch head. It is displayed as `latest (vX.Y+N)` when the branch head is `N` commits past the newest reachable tag, or `latest (vX.Y)` when it is exactly on a tag.
 
 Agent Zero version tags follow this format:
 

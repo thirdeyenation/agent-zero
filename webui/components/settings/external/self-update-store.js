@@ -18,7 +18,7 @@ const model = {
   error: "",
   tagsError: "",
   info: null,
-  availableTags: [],
+  availableTagOptions: [],
   higherMajorVersions: [],
   restartStatusText: "",
   restartDetailText: "",
@@ -54,7 +54,13 @@ const model = {
   },
 
   get hasAvailableTags() {
-    return this.availableTags.length > 0;
+    return this.availableTagOptions.length > 0;
+  },
+
+  get availableTags() {
+    return this.availableTagOptions
+      .map((option) => option?.value || "")
+      .filter(Boolean);
   },
 
   get selectedTagExistsOnBranch() {
@@ -84,7 +90,7 @@ const model = {
       !this.isBusy &&
       !this.tagsLoading &&
       this.hasAvailableTags &&
-      this.isSupportedSelectorTag(this.form.tag) &&
+      this.isSelectableTag(this.form.tag) &&
       this.selectedTagExistsOnBranch
     );
   },
@@ -101,7 +107,7 @@ const model = {
     this.saving = false;
     this.restarting = false;
     this.tagsLoading = false;
-    this.availableTags = [];
+    this.availableTagOptions = [];
     this.higherMajorVersions = [];
     this.restartStatusText = "";
     this.restartDetailText = "";
@@ -251,7 +257,7 @@ const model = {
       this.info = response;
       this.applyFormState(response.pending || response.defaults || {});
       this.applyAvailableTags({
-        tags: response.available_tags,
+        options: response.available_tag_options,
         higherMajorVersions: response.available_higher_major_versions,
         error: response.available_tags_error,
       });
@@ -281,8 +287,8 @@ const model = {
       source?.backup_conflict_policy || "rename";
   },
 
-  applyAvailableTags({ tags = [], higherMajorVersions = [], error = "" } = {}) {
-    this.availableTags = Array.isArray(tags) ? tags : [];
+  applyAvailableTags({ options = [], higherMajorVersions = [], error = "" } = {}) {
+    this.availableTagOptions = Array.isArray(options) ? options : [];
     this.higherMajorVersions = Array.isArray(higherMajorVersions)
       ? higherMajorVersions
       : [];
@@ -333,7 +339,7 @@ const model = {
         return;
       }
       this.applyAvailableTags({
-        tags: response.tags,
+        options: response.tag_options,
         higherMajorVersions: response.higher_major_versions,
         error: response.error,
       });
@@ -370,6 +376,14 @@ const model = {
     return true;
   },
 
+  isLatestSelectorTag(value) {
+    return (value || "").trim().toLowerCase() === "latest";
+  },
+
+  isSelectableTag(value) {
+    return this.isLatestSelectorTag(value) || this.isSupportedSelectorTag(value);
+  },
+
   async scheduleUpdate() {
     if (!this.form.branch?.trim()) {
       this.error = "Choose a branch.";
@@ -381,12 +395,12 @@ const model = {
       return;
     }
 
-    if (!this.parseSelectorTag(this.form.tag)) {
+    if (!this.isLatestSelectorTag(this.form.tag) && !this.parseSelectorTag(this.form.tag)) {
       this.error = "Release tag must use the format vX.Y.";
       return;
     }
 
-    if (!this.isSupportedSelectorTag(this.form.tag)) {
+    if (!this.isLatestSelectorTag(this.form.tag) && !this.isSupportedSelectorTag(this.form.tag)) {
       this.error = "Release tag must be v1.0 or newer.";
       return;
     }
@@ -418,7 +432,7 @@ const model = {
         this.info.pending = response.pending;
       }
       await notificationStore.frontendWarning(
-        "Agent Zero is restarting to apply the requested branch and release tag.",
+        "Agent Zero is restarting to apply the requested branch and version target.",
         "Self Update",
         10,
         "self-update-restart",
@@ -440,7 +454,7 @@ const model = {
     let observedBackendUnavailable = false;
     this.setRestartState(
       "Starting self-update",
-      "The request was saved. Agent Zero is about to restart and apply the requested branch and tag."
+      "The request was saved. Agent Zero is about to restart and apply the requested branch and version target."
     );
     this.ensureProgressOverlay();
 

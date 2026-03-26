@@ -38,6 +38,7 @@ DEFAULT_HEALTH_TIMEOUT_SECONDS = int(
 DEFAULT_HEALTH_POLL_INTERVAL_SECONDS = float(
     os.environ.get("A0_SELF_UPDATE_HEALTH_POLL_INTERVAL_SECONDS", "2")
 )
+LATEST_SELECTOR_TAG = "latest"
 
 
 def now_iso() -> str:
@@ -115,6 +116,18 @@ def normalize_describe_to_version(describe: str) -> str:
     if match:
         return match.group(1)
     return describe
+
+
+def split_describe_version(describe: str) -> tuple[str, int]:
+    normalized = describe.strip()
+    match = re.fullmatch(r"(.+)-(\d+)-g[0-9a-f]+", normalized)
+    if not match:
+        return normalized, 0
+    return match.group(1), int(match.group(2))
+
+
+def is_latest_selector_tag(tag: str) -> bool:
+    return tag.strip().lower() == LATEST_SELECTOR_TAG
 
 
 def get_repo_version_info(repo_dir: Path) -> dict[str, str]:
@@ -397,15 +410,90 @@ def fetch_release_refs(repo_dir: Path, branch: str, tag: str, logger: AttemptLog
     )
 
 
-def checkout_target_release(
+def fetch_branch_refs(repo_dir: Path, branch: str, logger: AttemptLogger) -> str:
+    remote_branch_ref = f"refs/remotes/a0-self-update/{branch}"
+    logger.log(f"Fetching branch {branch} and tags from {OFFICIAL_REPO_URL}")
+    run_command(
+        [
+            "git",
+            "-C",
+            str(repo_dir),
+            "fetch",
+            "--force",
+            "--tags",
+            OFFICIAL_REPO_URL,
+            f"+refs/heads/{branch}:{remote_branch_ref}",
+        ],
+        cwd=None,
+        logger=logger,
+        error_message=f"Failed to fetch branch {branch} from the official repository.",
+    )
+    return remote_branch_ref
+
+
+def resolve_requested_target(
     repo_dir: Path,
     branch: str,
     tag: str,
     logger: AttemptLogger,
+) -> dict[str, str]:
+    normalized_tag = tag.strip()
+
+    if not is_latest_selector_tag(normalized_tag):
+        fetch_release_refs(repo_dir, branch, normalized_tag, logger)
+        return {
+            "requested_tag": normalized_tag,
+            "effective_tag": normalized_tag,
+            "target_ref": f"refs/tags/{normalized_tag}",
+            "expected_short_tag": normalized_tag,
+            "expected_commit": git_output(repo_dir, "rev-parse", f"refs/tags/{normalized_tag}"),
+            "target_description": f"tag {normalized_tag}",
+        }
+
+    remote_branch_ref = fetch_branch_refs(repo_dir, branch, logger)
+    head_describe = git_output(repo_dir, "describe", "--tags", "--always", remote_branch_ref)
+    head_short_tag = normalize_describe_to_version(head_describe)
+    head_commit = git_output(repo_dir, "rev-parse", remote_branch_ref)
+
+    if branch == "main":
+        effective_tag, _ = split_describe_version(head_describe)
+        if not effective_tag or effective_tag == head_commit[:7]:
+            raise RuntimeError(
+                "Could not resolve the latest tagged release on branch main."
+            )
+        logger.log(f"Resolved latest on main to tag {effective_tag}")
+        return {
+            "requested_tag": LATEST_SELECTOR_TAG,
+            "effective_tag": effective_tag,
+            "target_ref": f"refs/tags/{effective_tag}",
+            "expected_short_tag": effective_tag,
+            "expected_commit": git_output(repo_dir, "rev-parse", f"refs/tags/{effective_tag}"),
+            "target_description": f"latest tag {effective_tag}",
+        }
+
+    logger.log(
+        f"Resolved latest on branch {branch} to commit {head_commit[:7]} ({head_describe})"
+    )
+    return {
+        "requested_tag": LATEST_SELECTOR_TAG,
+        "effective_tag": head_short_tag,
+        "target_ref": remote_branch_ref,
+        "expected_short_tag": head_short_tag,
+        "expected_commit": head_commit,
+        "target_description": f"latest branch state {head_describe}",
+    }
+
+
+def checkout_target_release(
+    repo_dir: Path,
+    branch: str,
+    target_ref: str,
+    target_description: str,
+    logger: AttemptLogger,
     *,
     exclude_paths: list[Path] | None = None,
 ) -> None:
-    logger.log(f"Checking out branch {branch} at tag {tag}")
+    logger.log(f"Checking out branch {branch} at {target_description}")
     run_command(
         [
             "git",
@@ -414,11 +502,11 @@ def checkout_target_release(
             "checkout",
             "-B",
             branch,
-            f"refs/tags/{tag}",
+            target_ref,
         ],
         cwd=None,
         logger=logger,
-        error_message=f"Failed to check out requested tag {tag} on branch {branch}.",
+        error_message=f"Failed to check out requested {target_description} on branch {branch}.",
     )
     clean_repo_worktree(repo_dir, logger, exclude_paths=exclude_paths)
 
@@ -492,6 +580,7 @@ def wait_for_health(
     timeout_seconds: int,
     poll_interval_seconds: float,
     expected_version: str | None = None,
+    expected_commit: str | None = None,
     logger: AttemptLogger,
 ) -> tuple[bool, dict[str, Any] | str]:
     deadline = time.monotonic() + timeout_seconds
@@ -514,7 +603,13 @@ def wait_for_health(
                 payload = json.loads(body) if body else {}
                 git_info = payload.get("gitinfo") or {}
                 current_version = (git_info.get("short_tag") or "").strip()
-                if expected_version and current_version and current_version != expected_version:
+                current_commit = (git_info.get("commit_hash") or "").strip()
+                if expected_commit and current_commit and current_commit != expected_commit:
+                    last_error = (
+                        f"Health check responded, but commit {current_commit} does not match "
+                        f"expected {expected_commit}."
+                    )
+                elif expected_version and current_version and current_version != expected_version:
                     last_error = (
                         f"Health check responded, but version {current_version} does not match "
                         f"expected {expected_version}."
@@ -602,6 +697,7 @@ def execute_pending_update(
     branch = str(request_data.get("branch", "")).strip()
     tag = str(request_data.get("tag", "")).strip()
     backup_exclusions: list[Path] = []
+    resolved_target: dict[str, str] | None = None
 
     try:
         if not branch:
@@ -622,7 +718,7 @@ def execute_pending_update(
             backup_zip_path = str(backup_destination)
             backup_exclusions.append(backup_destination)
 
-        fetch_release_refs(REPO_DIR, branch, tag, logger)
+        resolved_target = resolve_requested_target(REPO_DIR, branch, tag, logger)
 
         repository_changed = True
         logger.log(
@@ -632,16 +728,22 @@ def execute_pending_update(
         checkout_target_release(
             REPO_DIR,
             branch,
-            tag,
+            resolved_target["target_ref"],
+            resolved_target["target_description"],
             logger,
             exclude_paths=backup_exclusions,
         )
 
         current_info = get_repo_version_info(REPO_DIR)
-        if current_info["short_tag"] != tag:
+        if resolved_target.get("expected_commit") and current_info["commit"] != resolved_target["expected_commit"]:
+            raise RuntimeError(
+                "Git checkout completed but the repository commit does not match the requested target. "
+                f"Expected {resolved_target['expected_commit']}, got {current_info['commit']}."
+            )
+        if resolved_target.get("expected_short_tag") and current_info["short_tag"] != resolved_target["expected_short_tag"]:
             raise RuntimeError(
                 "Git checkout completed but the repository version does not match the requested tag. "
-                f"Expected {tag}, got {current_info['short_tag']}."
+                f"Expected {resolved_target['expected_short_tag']}, got {current_info['short_tag']}."
             )
 
         updated_process = launch_ui_process(REPO_DIR, logger)
@@ -650,13 +752,14 @@ def execute_pending_update(
             health_url=DEFAULT_HEALTH_URL,
             timeout_seconds=DEFAULT_HEALTH_TIMEOUT_SECONDS,
             poll_interval_seconds=DEFAULT_HEALTH_POLL_INTERVAL_SECONDS,
-            expected_version=tag,
+            expected_version=resolved_target.get("expected_short_tag"),
+            expected_commit=resolved_target.get("expected_commit"),
             logger=logger,
         )
         if healthy:
             record_result(
                 status="success",
-                message=f"Updated Agent Zero to branch {branch}, tag {tag}.",
+                message=f"Updated Agent Zero to branch {branch}, {resolved_target['target_description']}.",
                 request_data=request_data,
                 source_info=source_info,
                 current_version=current_info["short_tag"],

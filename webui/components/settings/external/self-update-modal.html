@@ -31,7 +31,7 @@
                 <p>
                   Agent Zero saves this request into
                   <code x-text="$store.selfUpdateStore.info?.paths?.update_file || '/exe/a0-self-update.yaml'"></code>,
-                  restarts once, applies the requested branch and release tag before the UI
+                  restarts once, applies the requested branch and version target before the UI
                   starts again, then reloads this page when <code>/api/health</code> is healthy.
                 </p>
                 <p>
@@ -125,9 +125,12 @@
                 <div class="field-label">
                   <div class="field-title">Version</div>
                   <div class="field-description">
-                    Choose a preloaded version tag from the
+                    Choose a preloaded version target from the
                     <a href="https://github.com/agent0ai/agent-zero" target="_blank" rel="noreferrer">Agent Zero repository</a>.
-                    Only tags from the current major release line are listed here. Newer major lines require a Docker image update first.
+                    Only versions from the current major release line are listed here. Newer major lines require a Docker image update first.
+                  </div>
+                  <div class="field-description">
+                    <code>latest</code> resolves to the newest tag on <code>main</code>, and to the current branch head on <code>testing</code> and <code>development</code>.
                   </div>
                   <template x-if="$store.selfUpdateStore.tagsError">
                     <div class="field-description">
@@ -154,8 +157,8 @@
                     :disabled="$store.selfUpdateStore.isBusy || $store.selfUpdateStore.tagsLoading || !$store.selfUpdateStore.hasAvailableTags"
                   >
                     <option value="" x-text="$store.selfUpdateStore.versionSelectPlaceholder"></option>
-                    <template x-for="tag in $store.selfUpdateStore.availableTags" :key="tag">
-                      <option :value="tag" x-text="tag"></option>
+                    <template x-for="tagOption in $store.selfUpdateStore.availableTagOptions" :key="tagOption.value">
+                      <option :value="tagOption.value" x-text="tagOption.label"></option>
                     </template>
                   </select>
                 </div>

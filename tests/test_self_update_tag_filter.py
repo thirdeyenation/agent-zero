@@ -75,14 +75,27 @@ def test_self_update_selector_tag_options_filter_to_current_major(monkeypatch):
             "",
         ),
     )
+    monkeypatch.setattr(
+        self_update,
+        "_get_branch_head_info",
+        lambda branch, repo_dir=None: {
+            "describe": "v1.4-4-gabc1234",
+            "short_tag": "v1.4",
+            "commit": "abc1234",
+        },
+    )
 
-    tags, higher_major_versions, error = self_update.get_selector_tag_options(
+    tag_options, higher_major_versions, error = self_update.get_selector_tag_options(
         "main",
         current_version="v1.2",
     )
 
     assert error == ""
-    assert tags == ["v1.4", "v1.2"]
+    assert tag_options == [
+        {"value": "latest", "label": "latest (v1.4)"},
+        {"value": "v1.4", "label": "v1.4"},
+        {"value": "v1.2", "label": "v1.2"},
+    ]
     assert higher_major_versions == [2, 3]
 
 
@@ -99,15 +112,18 @@ def test_self_update_frontend_uses_preloaded_select():
 
     assert 'const SELF_UPDATE_MANUAL_BACKUP_MODAL_PATH = "settings/backup/backup_restore.html";' in content
     assert "const MIN_SELECTOR_VERSION = [1, 0];" in content
-    assert "availableTags: []" in content
+    assert "availableTagOptions: []" in content
     assert "higherMajorVersions: []" in content
     assert "this.applyAvailableTags({" in content
-    assert "response.available_tags" in content
+    assert "response.available_tag_options" in content
     assert "response.available_higher_major_versions" in content
+    assert "response.tag_options" in content
     assert "response.higher_major_versions" in content
     assert "await this.fetchTags();" in content
     assert "Release tag must use the format vX.Y." in content
     assert "Release tag must be v1.0 or newer." in content
+    assert "isLatestSelectorTag(value)" in content
+    assert "this.isSelectableTag(this.form.tag)" in content
     assert "this.info?.defaults?.branch ||" in content
     assert "Version ${this.trimmedTag} does not exist on branch" in content
     assert "this.selectedTagExistsOnBranch" in content
@@ -137,6 +153,8 @@ def test_self_update_modal_uses_standard_select_and_manual_backup():
     assert 'x-model="$store.selfUpdateStore.form.tag"' in content
     assert "$store.selfUpdateStore.versionSelectPlaceholder" in content
     assert "$store.selfUpdateStore.higherMajorVersionMessage" in content
+    assert "$store.selfUpdateStore.availableTagOptions" in content
+    assert "tagOption.label" in content
     assert "Docker update guide" in content
     assert "https://www.agent-zero.ai/p/docs/get-started/" in content
     assert "Manual backup" in content
@@ -159,8 +177,12 @@ def test_self_update_schedule_rejects_missing_tag_on_branch(monkeypatch, tmp_pat
     )
     monkeypatch.setattr(
         self_update,
-        "get_available_tags",
-        lambda branch, *, repo_dir=None, query="": (["v1.0"], ""),
+        "get_selector_tag_options",
+        lambda branch, *, repo_dir=None, current_version=None: (
+            [{"value": "v1.0", "label": "v1.0"}],
+            [],
+            "",
+        ),
     )
     monkeypatch.setattr(self_update, "_write_yaml", lambda path, payload: None)
 
@@ -174,3 +196,45 @@ def test_self_update_schedule_rejects_missing_tag_on_branch(monkeypatch, tmp_pat
             backup_conflict_policy="rename",
             repo_dir=tmp_path,
         )
+
+
+def test_self_update_schedule_accepts_latest_when_selector_exposes_it(monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        self_update,
+        "get_repo_version_info",
+        lambda _repo: {
+            "branch": "development",
+            "describe": "v1.4-2-gabc1234",
+            "short_tag": "v1.4",
+            "commit": "abc1234",
+            "short_commit": "abc1234",
+        },
+    )
+    captured_payload = {}
+    monkeypatch.setattr(
+        self_update,
+        "get_selector_tag_options",
+        lambda branch, *, repo_dir=None, current_version=None: (
+            [{"value": "latest", "label": "latest (v1.4+2)"}],
+            [],
+            "",
+        ),
+    )
+    monkeypatch.setattr(
+        self_update,
+        "_write_yaml",
+        lambda path, payload: captured_payload.update(payload),
+    )
+
+    payload = self_update.schedule_update(
+        branch="development",
+        tag="latest",
+        backup_usr=True,
+        backup_path="",
+        backup_name="",
+        backup_conflict_policy="rename",
+        repo_dir=tmp_path,
+    )
+
+    assert payload["tag"] == "latest"
+    assert captured_payload["tag"] == "latest"

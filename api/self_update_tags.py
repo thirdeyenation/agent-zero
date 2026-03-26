@@ -12,14 +12,15 @@ class SelfUpdateTags(ApiHandler):
         resolved_branch = branch or default_branch
 
         try:
-            tags, higher_major_versions, error = self_update.get_selector_tag_options(
+            tag_options, higher_major_versions, error = self_update.get_selector_tag_options(
                 resolved_branch,
             )
             return {
                 "success": True,
                 "supported": runtime.is_dockerized(),
                 "branch": resolved_branch,
-                "tags": tags,
+                "tags": [option["value"] for option in tag_options],
+                "tag_options": tag_options,
                 "higher_major_versions": higher_major_versions,
                 "error": error,
             }
@@ -29,6 +30,7 @@ class SelfUpdateTags(ApiHandler):
                 "supported": runtime.is_dockerized(),
                 "branch": resolved_branch,
                 "tags": [],
+                "tag_options": [],
                 "higher_major_versions": [],
                 "error": str(e),
             }
