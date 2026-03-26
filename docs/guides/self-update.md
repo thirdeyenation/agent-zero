@@ -33,7 +33,9 @@ The updater can create a zip backup of `/a0/usr` before replacing repository fil
 
 ## Version selection
 
-The WebUI fetches repository version tags for the selected branch and lets you enter any exact version manually, including downgrades.
+The WebUI preloads repository version tags for the selected branch into a standard selector.
+
+Only tags from the current major release line are listed in the selector. If newer major lines are available on the selected branch, the UI shows an attention banner that links to the Docker update guide.
 
 Agent Zero version tags follow this format:
 
@@ -50,7 +52,7 @@ Tags below `v1.0` are ignored by the selector and rejected by the self-update re
 
 Self-update is intentionally limited to changes within the same major line.
 
-If the requested version changes the first version number, the UI blocks the update and shows a warning. Those upgrades require downloading a new Docker image because they can include operating system level changes or other breaking changes outside the repository checkout.
+If a newer major line exists, the UI points you to the Docker setup guide because those upgrades require downloading a new Docker image. They can include operating system level changes or other breaking changes outside the repository checkout.
 
 ## Safety notes
 

@@ -286,6 +286,13 @@ def is_valid_selector_tag(tag: str) -> bool:
     return _parse_selector_version(tag) is not None
 
 
+def _parse_major_version(tag: str) -> int | None:
+    match = re.fullmatch(r"v(\d+)(?:[.-].*)?", tag.strip())
+    if not match:
+        return None
+    return int(match.group(1))
+
+
 def get_available_tags(
     branch: str | None = None,
     *,
@@ -311,13 +318,48 @@ def get_available_tags(
     return tags, ""
 
 
+def get_selector_tag_options(
+    branch: str | None = None,
+    *,
+    repo_dir: str | Path | None = None,
+    current_version: str | None = None,
+) -> tuple[list[str], list[int], str]:
+    repository = get_repo_dir(repo_dir)
+    tags, error = get_available_tags(branch, repo_dir=repository)
+    if error:
+        return [], [], error
+
+    current_major = _parse_major_version(
+        current_version or get_repo_version_info(repository)["short_tag"]
+    )
+    if current_major is None:
+        return tags, [], ""
+
+    same_major_tags: list[str] = []
+    higher_major_versions: set[int] = set()
+    for tag in tags:
+        tag_major = _parse_major_version(tag)
+        if tag_major is None:
+            continue
+        if tag_major == current_major:
+            same_major_tags.append(tag)
+        elif tag_major > current_major:
+            higher_major_versions.add(tag_major)
+
+    return same_major_tags, sorted(higher_major_versions), ""
+
+
 def get_update_info(repo_dir: str | Path | None = None) -> dict[str, Any]:
     repository = get_repo_dir(repo_dir)
     version_info = get_repo_version_info(repository)
     current_version = version_info["short_tag"]
     current_branch = version_info.get("branch", "").strip().lower()
     default_branch = current_branch if current_branch in SUPPORTED_BRANCHES else "main"
-    tags, tags_error = get_available_tags(default_branch, repo_dir=repository)
+    tags, higher_major_versions, tags_error = get_selector_tag_options(
+        default_branch,
+        repo_dir=repository,
+        current_version=current_version,
+    )
     return {
         "repo_dir": str(repository),
         "current": version_info,
@@ -326,6 +368,7 @@ def get_update_info(repo_dir: str | Path | None = None) -> dict[str, Any]:
         "branches": BRANCH_OPTIONS,
         "available_tags": tags,
         "available_tags_error": tags_error,
+        "available_higher_major_versions": higher_major_versions,
         "paths": {
             "update_file": str(get_update_file_path()),
             "status_file": str(get_status_file_path()),

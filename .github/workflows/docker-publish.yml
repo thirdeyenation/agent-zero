@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - "testing"
+      - "ready"
       - "main"
     tags:
       - "v*"
@@ -16,7 +17,7 @@ on:
 
 env:
   # Non-main branches publish a Docker tag with the same name as the branch.
-  ALLOWED_BRANCHES: "testing main"
+  ALLOWED_BRANCHES: "testing ready main"
   MAIN_BRANCH: "main"
   RELEASE_TAG_REGEX: "^v([0-9]+)\\.([0-9]+)$"
   MIN_RELEASE_MAJOR: "1"

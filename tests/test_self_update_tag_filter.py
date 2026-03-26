@@ -66,7 +66,27 @@ def test_self_update_branch_filter_prefers_remote_branch_tags(monkeypatch):
     assert tags == ["v1.1", "v1.0"]
 
 
-def test_self_update_frontend_filters_old_tag_suggestions():
+def test_self_update_selector_tag_options_filter_to_current_major(monkeypatch):
+    monkeypatch.setattr(
+        self_update,
+        "get_available_tags",
+        lambda branch, *, repo_dir=None, query="": (
+            ["v3.0", "v2.1", "v1.4", "v1.2"],
+            "",
+        ),
+    )
+
+    tags, higher_major_versions, error = self_update.get_selector_tag_options(
+        "main",
+        current_version="v1.2",
+    )
+
+    assert error == ""
+    assert tags == ["v1.4", "v1.2"]
+    assert higher_major_versions == [2, 3]
+
+
+def test_self_update_frontend_uses_preloaded_select():
     store_path = (
         PROJECT_ROOT
         / "webui"
@@ -77,20 +97,29 @@ def test_self_update_frontend_filters_old_tag_suggestions():
     )
     content = store_path.read_text(encoding="utf-8")
 
+    assert 'const SELF_UPDATE_MANUAL_BACKUP_MODAL_PATH = "settings/backup/backup_restore.html";' in content
     assert "const MIN_SELECTOR_VERSION = [1, 0];" in content
-    assert "response.tags.filter((tag) => this.isSupportedSuggestionTag(tag))" in content
+    assert "availableTags: []" in content
+    assert "higherMajorVersions: []" in content
+    assert "this.applyAvailableTags({" in content
+    assert "response.available_tags" in content
+    assert "response.available_higher_major_versions" in content
+    assert "response.higher_major_versions" in content
+    assert "await this.fetchTags();" in content
     assert "Release tag must use the format vX.Y." in content
     assert "Release tag must be v1.0 or newer." in content
     assert "this.info?.defaults?.branch ||" in content
-    assert "Version ${tag} does not exist on branch" in content
+    assert "Version ${this.trimmedTag} does not exist on branch" in content
     assert "this.selectedTagExistsOnBranch" in content
     assert 'const response = await fetch("/api/health"' in content
     assert "if (response.ok && observedBackendUnavailable)" in content
     assert "Waiting for Agent Zero to disconnect before reloading the page." in content
     assert "/api/csrf_token" not in content
+    assert "tagSuggestions" not in content
+    assert "tagDropdownOpen" not in content
 
 
-def test_self_update_modal_validates_exact_tag_on_blur():
+def test_self_update_modal_uses_standard_select_and_manual_backup():
     modal_path = (
         PROJECT_ROOT
         / "webui"
@@ -101,10 +130,15 @@ def test_self_update_modal_validates_exact_tag_on_blur():
     )
     content = modal_path.read_text(encoding="utf-8")
 
-    assert '@blur="$store.selfUpdateStore.onTagBlur()"' in content
-    assert '@mousedown.prevent="$store.selfUpdateStore.selectTag(tag)"' in content
-    assert "$store.selfUpdateStore.tagExistenceWarning" in content
+    assert 'x-model="$store.selfUpdateStore.form.tag"' in content
+    assert "$store.selfUpdateStore.versionSelectPlaceholder" in content
+    assert "$store.selfUpdateStore.higherMajorVersionMessage" in content
+    assert "Docker update guide" in content
+    assert "https://www.agent-zero.ai/p/docs/get-started/" in content
+    assert "Manual backup" in content
     assert 'type="button"' in content
+    assert "@blur" not in content
+    assert "selectTag(tag)" not in content
 
 
 def test_self_update_schedule_rejects_missing_tag_on_branch(monkeypatch, tmp_path):
