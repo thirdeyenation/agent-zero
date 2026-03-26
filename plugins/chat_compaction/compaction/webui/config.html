@@ -1,0 +1,104 @@
+<html>
+<head>
+  <title>Compaction Plugin Settings</title>
+</head>
+<body>
+  <div x-data>
+    <template x-if="config">
+      <div>
+        <div class="section-title">Compaction Configuration</div>
+        <div class="section-description">
+          Configure how the chat compaction feature works.
+        </div>
+
+        <div class="field">
+          <div class="field-label">
+            <div class="field-title">Use chat model</div>
+            <div class="field-description">
+              When enabled, uses the currently selected chat model for compaction.
+              When disabled, uses the utility model (usually faster and cheaper).
+            </div>
+          </div>
+          <div class="field-control">
+            <label class="toggle">
+              <input type="checkbox" x-model="config.use_chat_model" />
+              <span class="toggler"></span>
+            </label>
+          </div>
+        </div>
+      </div>
+    </template>
+  </div>
+
+  <style>
+    .section-title {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: var(--color-text, #e5e5e5);
+    }
+    .section-description {
+      font-size: 0.85rem;
+      color: var(--color-text-secondary, #999);
+      margin-bottom: 20px;
+      line-height: 1.5;
+    }
+    .field {
+      margin-bottom: 20px;
+    }
+    .field-label {
+      margin-bottom: 8px;
+    }
+    .field-title {
+      font-weight: 500;
+      color: var(--color-text, #e5e5e5);
+      margin-bottom: 4px;
+    }
+    .field-description {
+      font-size: 0.8rem;
+      color: var(--color-text-secondary, #999);
+      line-height: 1.4;
+    }
+    .field-control {
+      margin-top: 8px;
+    }
+    .toggle {
+      display: inline-flex;
+      align-items: center;
+      cursor: pointer;
+    }
+    .toggle input {
+      display: none;
+    }
+    .toggler {
+      width: 44px;
+      height: 24px;
+      background: var(--color-border, #444);
+      border-radius: 12px;
+      position: relative;
+      transition: background 0.2s;
+    }
+    .toggler::after {
+      content: '';
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      background: white;
+      border-radius: 50%;
+      top: 2px;
+      left: 2px;
+      transition: transform 0.2s;
+    }
+    .toggle input:checked + .toggler {
+      background: var(--color-primary, #3b82f6);
+    }
+    .toggle input:checked + .toggler::after {
+      transform: translateX(20px);
+    }
+  </style>
+
+  <script type="module">
+    import { store } from "/components/plugins/plugin-settings-store.js";
+  </script>
+</body>
+</html>
