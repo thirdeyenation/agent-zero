@@ -613,7 +613,7 @@ def test_self_update_manager_latest_on_main_uses_current_major_release(monkeypat
         "git_output",
         lambda repo_dir, *args: {
             ("tag", "--merged", "refs/remotes/a0-self-update/main"): "v2.0\nv1.4\nv1.2\n",
-            ("rev-parse", "refs/tags/v1.4"): "deadbeef1234",
+            ("rev-parse", "refs/tags/v1.4^{commit}"): "deadbeef1234",
         }[args],
     )
 
@@ -627,6 +627,49 @@ def test_self_update_manager_latest_on_main_uses_current_major_release(monkeypat
 
     assert resolved["effective_tag"] == "v1.4"
     assert resolved["expected_short_tag"] == "v1.4"
+    assert resolved["expected_commit"] == "deadbeef1234"
+
+
+def test_self_update_manager_explicit_tag_uses_peeled_commit(monkeypatch):
+    manager = load_self_update_manager()
+    monkeypatch.setattr(manager, "fetch_release_refs", lambda repo_dir, branch, tag, logger: None)
+    monkeypatch.setattr(
+        manager,
+        "git_output",
+        lambda repo_dir, *args: {
+            ("rev-parse", "refs/tags/v1.10^{commit}"): "192d6e2cae1a85c0a2e7a6ecf41c153b39f1b4c6",
+        }[args],
+    )
+
+    resolved = manager.resolve_requested_target(
+        Path("/tmp/repo"),
+        "development",
+        "v1.10",
+        "v1.11",
+        manager.NullLogger(),
+    )
+
+    assert resolved["effective_tag"] == "v1.10"
+    assert resolved["expected_commit"] == "192d6e2cae1a85c0a2e7a6ecf41c153b39f1b4c6"
+
+
+def test_self_update_manager_fetch_release_refs_checks_peeled_tag_commit(monkeypatch):
+    manager = load_self_update_manager()
+    commands = []
+    monkeypatch.setattr(
+        manager,
+        "run_command",
+        lambda command, **kwargs: commands.append(command),
+    )
+
+    manager.fetch_release_refs(
+        Path("/tmp/repo"),
+        "development",
+        "v1.10",
+        manager.NullLogger(),
+    )
+
+    assert commands[1][-2] == "refs/tags/v1.10^{commit}"
 
 
 def test_self_update_manager_latest_on_non_main_rejects_cross_major(monkeypatch):

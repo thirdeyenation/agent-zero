@@ -166,6 +166,10 @@ def is_latest_selector_tag(tag: str) -> bool:
     return tag.strip().lower() == LATEST_SELECTOR_TAG
 
 
+def get_tag_commit_ref(tag: str) -> str:
+    return f"refs/tags/{tag}^{{commit}}"
+
+
 def build_default_backup_name() -> str:
     timestamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
     return f"usr-{timestamp}.zip"
@@ -493,6 +497,7 @@ def clean_repo_worktree(
 
 def fetch_release_refs(repo_dir: Path, branch: str, tag: str, logger: AttemptLogger) -> None:
     remote_branch_ref = f"refs/remotes/a0-self-update/{branch}"
+    tag_commit_ref = get_tag_commit_ref(tag)
     logger.log(f"Fetching branch {branch} and tag {tag} from {OFFICIAL_REPO_URL}")
     run_command(
         [
@@ -516,7 +521,7 @@ def fetch_release_refs(repo_dir: Path, branch: str, tag: str, logger: AttemptLog
             str(repo_dir),
             "merge-base",
             "--is-ancestor",
-            f"refs/tags/{tag}",
+            tag_commit_ref,
             remote_branch_ref,
         ],
         cwd=None,
@@ -557,12 +562,13 @@ def resolve_requested_target(
 
     if not is_latest_selector_tag(normalized_tag):
         fetch_release_refs(repo_dir, branch, normalized_tag, logger)
+        tag_commit_ref = get_tag_commit_ref(normalized_tag)
         return {
             "requested_tag": normalized_tag,
             "effective_tag": normalized_tag,
             "target_ref": f"refs/tags/{normalized_tag}",
             "expected_short_tag": normalized_tag,
-            "expected_commit": git_output(repo_dir, "rev-parse", f"refs/tags/{normalized_tag}"),
+            "expected_commit": git_output(repo_dir, "rev-parse", tag_commit_ref),
             "target_description": f"tag {normalized_tag}",
         }
 
@@ -573,13 +579,14 @@ def resolve_requested_target(
             branch_ref=remote_branch_ref,
             current_version=current_version,
         )
+        tag_commit_ref = get_tag_commit_ref(effective_tag)
         logger.log(f"Resolved latest on main to tag {effective_tag}")
         return {
             "requested_tag": LATEST_SELECTOR_TAG,
             "effective_tag": effective_tag,
             "target_ref": f"refs/tags/{effective_tag}",
             "expected_short_tag": effective_tag,
-            "expected_commit": git_output(repo_dir, "rev-parse", f"refs/tags/{effective_tag}"),
+            "expected_commit": git_output(repo_dir, "rev-parse", tag_commit_ref),
             "target_description": f"latest tag {effective_tag}",
         }
 
