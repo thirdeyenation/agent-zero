@@ -103,6 +103,6 @@ jobs:
               }
             }
 
-            const base = `repo:${owner}/${repo} is:open updated:<${cutoffDate}`;
+            const base = `repo:${owner}/${repo} is:open updated:<${cutoffDate} sort:updated-asc`;
             await processQuery("issues", `${base} is:issue`);
             await processQuery("pull requests", `${base} is:pr`);
