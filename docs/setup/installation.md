@@ -1,13 +1,37 @@
 # Installation Guide
 
-Click to open a video to learn how to install Agent Zero:
-
-[![Easy Installation guide](../res/install_guide.png)](https://www.youtube.com/watch?v=2-qFNUvqrXA)
-
 ## **Goal:** Go from zero to a first working chat with minimal setup.
 
+---
 
-## Step 1: Install Docker Desktop
+## Quick Start (Recommended)
+
+The install script is the fastest way to get Agent Zero running. It handles Docker, image pulling, and container setup automatically.
+
+**macOS / Linux:**
+```bash
+curl -fsSL https://bash.agent-zero.ai | bash
+```
+
+**Windows (PowerShell):**
+```powershell
+irm https://ps.agent-zero.ai | iex
+```
+
+**Docker (run directly):**
+```bash
+docker run -p 80:80 agent0ai/agent-zero
+```
+
+Once the install completes, open the URL shown in your terminal to access the Web UI and proceed to [Step 3: Configure Agent Zero](#step-3-configure-agent-zero).
+
+---
+
+## Manual Docker Setup
+
+If you prefer to set things up manually, follow the steps below.
+
+### Step 1: Install Docker Desktop
 
 Docker Desktop provides the runtime environment for Agent Zero, ensuring consistent behavior and security across platforms. The entire framework runs within a Docker container, providing isolation and easy deployment.
 
@@ -39,7 +63,7 @@ Docker Desktop provides the runtime environment for Agent Zero, ensuring consist
 ---
 
 <a name="windows-installation"></a>
-## <img src="../res/setup/oses/windows.png" width="30" alt="Windows"/> Windows Installation
+#### <img src="../res/setup/oses/windows.png" width="30" alt="Windows"/> Windows Installation
 
 **1.1. Download Docker Desktop**
 
@@ -64,12 +88,12 @@ Once installed, launch Docker Desktop from your Start menu or desktop shortcut.
 
 ✅ **Docker is now installed!** 
 
-### Continue to [Step 2: Run Agent Zero](#step-2-run-agent-zero)
+Continue to [Step 2: Run Agent Zero](#step-2-run-agent-zero)
 
 ---
 
 <a name="macos-installation"></a>
-## <img src="../res/setup/oses/apple.png" width="30" alt="macOS"/> macOS Installation
+#### <img src="../res/setup/oses/apple.png" width="30" alt="macOS"/> macOS Installation
 
 **1.1. Download Docker Desktop**
 
@@ -101,12 +125,12 @@ Open Docker Desktop from your Applications folder.
 
 ✅ **Docker is now installed!** 
 
-### Continue to [Step 2: Run Agent Zero](#step-2-run-agent-zero)
+Continue to [Step 2: Run Agent Zero](#step-2-run-agent-zero)
 
 ---
 
 <a name="linux-installation"></a>
-## <img src="../res/setup/oses/linux.png" width="30" alt="Linux"/> Linux Installation
+#### <img src="../res/setup/oses/linux.png" width="30" alt="Linux"/> Linux Installation
 
 **1.1. Choose Installation Method**
 
@@ -145,9 +169,9 @@ If you installed Docker Desktop, launch it from your applications menu.
 
 ---
 
-## Step 2: Run Agent Zero
+### Step 2: Run Agent Zero
 
-### 2.1. Pull the Agent Zero Docker Image
+#### 2.1. Pull the Agent Zero Docker Image
 
 **Using Docker Desktop GUI:**
 
@@ -163,11 +187,11 @@ If you installed Docker Desktop, launch it from your applications menu.
 docker pull agent0ai/agent-zero
 ```
 
-### 2.2. (Optional) Map Folders for Persistence
+#### 2.2. (Optional) Map Folders for Persistence
 
 Choose or create a folder on your computer where Agent Zero will save its data. 
 
-### Setting up persistence is needed only if you want your data and files to remain available even after you delete the container. 
+Setting up persistence is needed only if you want your data and files to remain available even after you delete the container.
 
 You can pick any location you find convenient:
 
@@ -182,7 +206,7 @@ You can map just the `/a0/usr` directory (recommended) or individual subfolders 
 > [!TIP]
 > Choose a location that's easy to access and backup. All your Agent Zero data will be directly accessible in this directory.
 
-### 2.3. Run the Container
+#### 2.3. Run the Container
 
 **Using Docker Desktop GUI:**
 
@@ -199,7 +223,7 @@ The container will start and show in the "Containers" tab:
 
 ![docker containers](../res/setup/4-docker-container-started.png)
 
-### 2.4. Access the Web UI
+#### 2.4. Access the Web UI
 
 The framework will take a few seconds to initialize. Find the mapped port in Docker Desktop (shown as `<PORT>:80`) or click the port right under the container ID:
 
