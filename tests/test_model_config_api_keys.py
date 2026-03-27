@@ -3,6 +3,7 @@ import threading
 import types
 from pathlib import Path
 
+import pytest
 from flask import Flask
 
 
@@ -44,6 +45,7 @@ sys.modules["watchdog.observers"] = watchdog.observers
 sys.modules["watchdog.events"] = watchdog.events
 
 from plugins._model_config.api.api_keys import ApiKeys
+from plugins._model_config.extensions.python.banners import _20_missing_api_key as missing_key_banner
 import models
 
 
@@ -66,12 +68,29 @@ def test_model_config_api_keys_can_be_cleared_via_backend(monkeypatch, tmp_path)
     assert handler._reveal_key({"provider": "openrouter"}) == {"ok": True, "value": ""}
 
 
+@pytest.mark.asyncio
+async def test_missing_api_key_banner_exposes_missing_providers(monkeypatch):
+    from plugins._model_config.helpers import model_config
+
+    fake = [{"model_type": "Chat Model", "provider": "openai"}]
+    monkeypatch.setattr(model_config, "get_missing_api_key_providers", lambda: fake)
+
+    banners = []
+    await missing_key_banner.MissingApiKeyCheck(agent=None).execute(
+        banners=banners, frontend_context={}
+    )
+    row = next(b for b in banners if b.get("id") == "missing-api-key")
+    assert row.get("missing_providers") == fake
+
+
 def test_model_config_frontend_tracks_inline_api_key_edits():
     store_path = PROJECT_ROOT / "plugins" / "_model_config" / "webui" / "model-config-store.js"
+    composer_store_path = PROJECT_ROOT / "webui" / "components" / "chat" / "input" / "composer-banner-store.js"
     config_path = PROJECT_ROOT / "plugins" / "_model_config" / "webui" / "config.html"
     modal_path = PROJECT_ROOT / "plugins" / "_model_config" / "webui" / "api-keys.html"
 
     store_content = store_path.read_text(encoding="utf-8")
+    composer_store_content = composer_store_path.read_text(encoding="utf-8")
     config_content = config_path.read_text(encoding="utf-8")
     modal_content = modal_path.read_text(encoding="utf-8")
 
@@ -79,6 +98,9 @@ def test_model_config_frontend_tracks_inline_api_key_edits():
     assert "resetApiKeyDrafts()" in store_content
     assert "!provider || seen.has(provider) || !this.apiKeyDirty[provider]" in store_content
     assert "normalized[provider] = value.trim() ? value : '';" in store_content
+    assert '"missing-api-key"' in composer_store_content
+    assert 'callJsonApi("/banners"' in composer_store_content
+    assert "/plugins/_model_config/missing_api_key_status" not in composer_store_content
     assert "$store.modelConfig.resetApiKeyDrafts();" in config_content
     assert '@input="$store.modelConfig.touchApiKey(config[section.key].provider)"' in config_content
     assert "updates[provider] = this.keys[provider] || '';" in modal_content
