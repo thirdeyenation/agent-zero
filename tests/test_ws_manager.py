@@ -397,6 +397,56 @@ async def test_flush_buffer_delivers_and_logs(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_known_sid_expires_after_buffer_ttl(monkeypatch):
+    """After BUFFER_TTL, a disconnected sid is swept from _known_sids and emit_to raises."""
+    socketio = FakeSocketIOServer()
+    manager = WsManager(socketio, threading.RLock())
+
+    await manager.handle_connect(NAMESPACE, "sid-stale")
+    await manager.handle_disconnect(NAMESPACE, "sid-stale")
+
+    # Immediately after disconnect, buffering still works
+    await manager.emit_to(NAMESPACE, "sid-stale", "event", {"x": 1})
+    assert (NAMESPACE, "sid-stale") in manager.buffers
+
+    from datetime import timedelta, timezone, datetime
+
+    future = datetime.now(timezone.utc) + BUFFER_TTL + timedelta(seconds=10)
+    monkeypatch.setattr("helpers.ws_manager._utcnow", lambda: future)
+
+    # After TTL, emit_to should raise because the sid is no longer known
+    with pytest.raises(ConnectionNotFoundError):
+        await manager.emit_to(NAMESPACE, "sid-stale", "event", {"x": 2})
+
+    # _known_sids and buffers should be cleaned
+    assert (NAMESPACE, "sid-stale") not in manager._known_sids
+    assert (NAMESPACE, "sid-stale") not in manager.buffers
+    assert (NAMESPACE, "sid-stale") not in manager._disconnect_times
+
+
+@pytest.mark.asyncio
+async def test_sweep_cleans_stale_sids_on_disconnect(monkeypatch):
+    """_sweep_stale_sids runs during handle_disconnect and cleans expired entries."""
+    socketio = FakeSocketIOServer()
+    manager = WsManager(socketio, threading.RLock())
+
+    await manager.handle_connect(NAMESPACE, "old-sid")
+    await manager.handle_disconnect(NAMESPACE, "old-sid")
+
+    from datetime import timedelta, timezone, datetime
+
+    future = datetime.now(timezone.utc) + BUFFER_TTL + timedelta(seconds=10)
+    monkeypatch.setattr("helpers.ws_manager._utcnow", lambda: future)
+
+    # A new connect/disconnect triggers sweep which cleans old-sid
+    await manager.handle_connect(NAMESPACE, "new-sid")
+    await manager.handle_disconnect(NAMESPACE, "new-sid")
+
+    assert (NAMESPACE, "old-sid") not in manager._known_sids
+    assert (NAMESPACE, "old-sid") not in manager._disconnect_times
+
+
+@pytest.mark.asyncio
 async def test_broadcast_excludes_multiple_sids():
     socketio = FakeSocketIOServer()
     manager = WsManager(socketio, threading.RLock())

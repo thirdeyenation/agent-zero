@@ -5,7 +5,7 @@ const MAX_PAYLOAD_BYTES = 50 * 1024 * 1024; // 50MB hard cap per contract
 const DEFAULT_TIMEOUT_MS = 0;
 
 const _UUID_HEX = [..."0123456789abcdef"];
-const _OPTION_KEYS = new Set(["correlationId"]);
+const _OPTION_KEYS = new Set(["correlationId", "includeHandlers", "excludeHandlers", "excludeSids"]);
 
 /**
  * @param {unknown} value
@@ -744,5 +744,3 @@ export function getNamespacedClient(namespace) {
   _namespacedClients.set(key, client);
   return client;
 }
-
-export const websocket = getNamespacedClient("/");

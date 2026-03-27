@@ -247,6 +247,7 @@ class WsManager:
             defaultdict(deque)
         )
         self._known_sids: Set[ConnectionIdentity] = set()
+        self._disconnect_times: Dict[ConnectionIdentity, datetime] = {}
         self._identifier: str = f"{self.__class__.__module__}.{self.__class__.__name__}"
         # Session tracking (single-user default)
         self.user_to_sids: defaultdict[str, Set[ConnectionIdentity]] = defaultdict(set)
@@ -257,6 +258,7 @@ class WsManager:
         self._diagnostics_enabled: bool = runtime.is_development()
         self._dispatcher_loop: asyncio.AbstractEventLoop | None = None
         self._handler_worker: DeferredTask | None = None
+        self._lifecycle_tasks: Set[asyncio.Task] = set()
 
     # Internal: development-only debug logging to avoid noise in production
     def _debug(self, message: str) -> None:
@@ -414,7 +416,23 @@ class WsManager:
             except Exception as exc:  # pragma: no cover - diagnostic
                 self._debug(f"Failed to broadcast lifecycle event {event_type}: {exc}")
 
-        asyncio.create_task(_broadcast())
+        task = asyncio.create_task(_broadcast())
+        self._lifecycle_tasks.add(task)
+        task.add_done_callback(self._lifecycle_tasks.discard)
+
+    def _sweep_stale_sids(self) -> None:
+        """Remove _known_sids entries whose disconnect exceeds BUFFER_TTL."""
+        now = _utcnow()
+        with self.lock:
+            stale = [
+                identity
+                for identity, dt in self._disconnect_times.items()
+                if identity not in self.connections and (now - dt) > BUFFER_TTL
+            ]
+            for identity in stale:
+                self._known_sids.discard(identity)
+                self._disconnect_times.pop(identity, None)
+                self.buffers.pop(identity, None)
 
     def _normalize_handler_filter(self, value: Any, field_name: str) -> Set[str] | None:
         if value is None:
@@ -513,11 +531,132 @@ class WsManager:
                     f"Registered handler {handler.identifier} namespace={namespace}"
                 )
 
-    def iter_event_types(self, namespace: str) -> Iterable[str]:
-        return []
-
     def iter_namespaces(self) -> list[str]:
         return list(self.handlers.keys())
+
+    async def process_client_event(
+        self,
+        namespace: str,
+        event_type: str,
+        data: dict[str, Any],
+        sid: str,
+        *,
+        handlers: list[WsHandler],
+    ) -> dict[str, Any]:
+        """Process a client-originated event through provided handler instances.
+
+        Unlike ``route_event`` which selects from globally registered handlers,
+        this accepts pre-selected instances (e.g. per-connection activated
+        handlers that have already passed security checks).
+        """
+        self._ensure_dispatcher_loop()
+        incoming = dict(data or {})
+        correlation_id = self._resolve_correlation_id(incoming)
+
+        if "data" in incoming and isinstance(incoming.get("data"), dict):
+            handler_payload = dict(incoming["data"])
+            if "excludeSids" in incoming:
+                handler_payload["excludeSids"] = incoming["excludeSids"]
+        else:
+            handler_payload = dict(incoming)
+        handler_payload["correlationId"] = correlation_id
+
+        if not handlers:
+            error = self._build_error_result(
+                handler_id=self._identifier,
+                code="NO_HANDLERS",
+                message="No handlers available after security filtering",
+                correlation_id=correlation_id,
+            )
+            return {"correlationId": correlation_id, "results": [error]}
+
+        with self.lock:
+            info = self.connections.get((namespace, sid))
+            if info:
+                info.last_activity = _utcnow()
+
+        executions = await asyncio.gather(
+            *[
+                self._invoke_handler(handler, event_type, dict(handler_payload), sid)
+                for handler in handlers
+            ]
+        )
+
+        results: List[dict[str, Any]] = []
+        for execution in executions:
+            handler = execution.handler
+            value = execution.value
+            duration_ms = execution.duration_ms
+
+            if isinstance(value, Exception):
+                PrintStyle.error(
+                    f"Error in handler {handler.identifier} for '{event_type}' "
+                    f"(correlation {correlation_id}): {value}"
+                )
+                results.append(
+                    self._build_error_result(
+                        handler_id=handler.identifier,
+                        code="HANDLER_ERROR",
+                        message="Internal server error",
+                        details=str(value),
+                        correlation_id=correlation_id,
+                        duration_ms=duration_ms,
+                    )
+                )
+                continue
+
+            if isinstance(value, WsResult):
+                results.append(
+                    value.as_result(
+                        handler_id=handler.identifier,
+                        fallback_correlation_id=correlation_id,
+                        duration_ms=duration_ms,
+                    )
+                )
+                continue
+
+            # Skip handlers that return None — they opted out of contributing
+            # a result (fire-and-forget semantics, matching legacy _dispatch).
+            if value is None:
+                continue
+
+            if isinstance(value, dict):
+                helper_result = WsResult(ok=True, data=value)
+            else:
+                helper_result = WsResult(ok=True, data={"result": value})
+
+            results.append(
+                helper_result.as_result(
+                    handler_id=handler.identifier,
+                    fallback_correlation_id=correlation_id,
+                    duration_ms=duration_ms,
+                )
+            )
+
+        await self._publish_diagnostic_event(
+            lambda: {
+                "kind": "inbound",
+                "sourceNamespace": namespace,
+                "namespace": namespace,
+                "eventType": event_type,
+                "sid": sid,
+                "correlationId": correlation_id,
+                "timestamp": self._timestamp(),
+                "handlerCount": len(handlers),
+                "durationMs": sum(
+                    (exec.duration_ms or 0.0) for exec in executions
+                ),
+                "resultSummary": self._summarize_results(results),
+                "payloadSummary": self._summarize_payload(handler_payload),
+            }
+        )
+
+        response = {"correlationId": correlation_id, "results": results}
+        self._debug(
+            f"Completed client event namespace={namespace} '{event_type}' "
+            f"sid={sid} correlation={correlation_id}"
+        )
+        return response
 
     async def _invoke_handler(
         self,
@@ -551,6 +690,7 @@ class WsManager:
         with self.lock:
             self.connections[identity] = ConnectionInfo(namespace=namespace, sid=sid)
             self._known_sids.add(identity)
+            self._disconnect_times.pop(identity, None)
             self.sid_to_user[identity] = user_bucket
             self.user_to_sids[self._ALL_USERS_BUCKET].add(identity)
             self.user_to_sids[user_bucket].add(identity)
@@ -600,7 +740,9 @@ class WsManager:
         identity: ConnectionIdentity = (namespace, sid)
         with self.lock:
             self.connections.pop(identity, None)
-            # Keep identity in _known_sids so emit_to buffers instead of raising
+            # Keep identity in _known_sids so emit_to buffers instead of raising;
+            # record disconnect time for TTL-based cleanup
+            self._disconnect_times[identity] = _utcnow()
             # session tracking cleanup
             user_bucket = self.sid_to_user.pop(identity, None)
             if self._ALL_USERS_BUCKET in self.user_to_sids:
@@ -633,6 +775,7 @@ class WsManager:
         self._schedule_lifecycle_broadcast(
             namespace, LIFECYCLE_DISCONNECT_EVENT, lifecycle_payload
         )
+        self._sweep_stale_sids()
 
     async def route_event(
         self,
@@ -1112,6 +1255,14 @@ class WsManager:
         with self.lock:
             connected = identity in self.connections
             known = identity in self._known_sids or identity in self.buffers
+            # Evict if disconnect has exceeded BUFFER_TTL
+            if not connected and known:
+                dt = self._disconnect_times.get(identity)
+                if dt is not None and (_utcnow() - dt) > BUFFER_TTL:
+                    self._known_sids.discard(identity)
+                    self._disconnect_times.pop(identity, None)
+                    self.buffers.pop(identity, None)
+                    known = False
 
         if connected:
             self._debug(

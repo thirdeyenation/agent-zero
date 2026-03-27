@@ -300,37 +300,56 @@ class WsHandler:
                 for sid, handlers in _active_handlers.items()
             }
 
+        mgr = self._manager
         aggregated: list[dict[str, Any]] = []
         for sid, handlers in snapshot.items():
             ctx = _ws_contexts.get(sid)
-            sid_results: list[dict[str, Any]] = []
+            security_errors: list[dict[str, Any]] = []
+            passing: list[WsHandler] = []
             for _path, instance in handlers.items():
                 if ctx is not None:
                     error = _check_security(type(instance), ctx)
                     if error is not None:
-                        sid_results.append({
+                        security_errors.append({
                             "handlerId": instance.identifier,
                             "ok": False,
                             "correlationId": cid,
                             "error": error,
                         })
                         continue
-                try:
-                    result = await instance.process(event, dict(data, correlationId=cid), sid)
-                    if result is not None:
+                passing.append(instance)
+
+            if mgr is not None and passing:
+                result = await mgr.process_client_event(
+                    self._namespace, event,
+                    dict(data, correlationId=cid), sid,
+                    handlers=passing,
+                )
+                sid_results = security_errors + result.get("results", [])
+            else:
+                # Fallback: inline processing
+                sid_results = list(security_errors)
+                for _path, instance in handlers.items():
+                    if instance not in passing:
+                        continue
+                    try:
+                        result = await instance.process(
+                            event, dict(data, correlationId=cid), sid,
+                        )
+                        if result is not None:
+                            sid_results.append({
+                                "handlerId": instance.identifier,
+                                "ok": True,
+                                "correlationId": cid,
+                                "data": result,
+                            })
+                    except Exception as e:
                         sid_results.append({
                             "handlerId": instance.identifier,
-                            "ok": True,
+                            "ok": False,
                             "correlationId": cid,
-                            "data": result,
+                            "error": {"code": "HANDLER_ERROR", "error": str(e)},
                         })
-                except Exception as e:
-                    sid_results.append({
-                        "handlerId": instance.identifier,
-                        "ok": False,
-                        "correlationId": cid,
-                        "error": {"code": "HANDLER_ERROR", "error": str(e)},
-                    })
             aggregated.append({
                 "sid": sid,
                 "correlationId": cid,
@@ -530,24 +549,47 @@ def register_ws_namespace(
                 return _error_response("NO_HANDLERS",
                                        "No handlers activated", correlation_id)
 
-            # Unwrap nested payload (mirrors WsManager.route_event):
-            # frontend sends {ts, data: {actual fields...}, correlationId}
+            # Pre-filter handlers through security checks
+            passing_handlers: list[WsHandler] = []
+            security_errors: list[dict[str, Any]] = []
+            for path, instance in activated.items():
+                error = _check_security(type(instance), ctx)
+                if error is not None:
+                    security_errors.append({
+                        "handlerId": instance.identifier,
+                        "ok": False,
+                        "correlationId": correlation_id,
+                        "error": error,
+                    })
+                else:
+                    passing_handlers.append(instance)
+
+            # Delegate to WsManager for unified processing pipeline
+            # (worker thread isolation, diagnostic events, WsResult support)
+            if manager is not None and passing_handlers:
+                result = await manager.process_client_event(
+                    NAMESPACE, event, incoming, sid,
+                    handlers=passing_handlers,
+                )
+                if security_errors:
+                    result["results"] = security_errors + result.get("results", [])
+                return result
+
+            # All handlers failed security or no manager — return collected errors
+            if not passing_handlers:
+                return {"correlationId": correlation_id, "results": security_errors}
+
+            # Fallback: inline processing (no manager — should not happen in practice)
+            handler_payload: dict[str, Any]
             if "data" in incoming and isinstance(incoming.get("data"), dict):
                 handler_payload = dict(incoming["data"])
             else:
                 handler_payload = dict(incoming)
             handler_payload["correlationId"] = correlation_id
 
-            results: list[dict[str, Any]] = []
+            results: list[dict[str, Any]] = list(security_errors)
             for path, instance in activated.items():
-                error = _check_security(type(instance), ctx)
-                if error is not None:
-                    results.append({
-                        "handlerId": instance.identifier,
-                        "ok": False,
-                        "correlationId": correlation_id,
-                        "error": error,
-                    })
+                if instance not in passing_handlers:
                     continue
                 try:
                     result = await instance.process(event, handler_payload, sid)
