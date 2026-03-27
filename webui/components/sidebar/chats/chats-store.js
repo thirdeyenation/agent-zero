@@ -12,6 +12,7 @@ import {
 import { store as notificationStore } from "/components/notifications/notification-store.js";
 import { store as tasksStore } from "/components/sidebar/tasks/tasks-store.js";
 import { store as syncStore } from "/components/sync/sync-store.js";
+import { store as chatInputStore } from "/components/chat/input/input-store.js";
 
 const model = {
   contexts: [],

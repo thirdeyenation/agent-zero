@@ -557,6 +557,13 @@ export const setContext = function (id) {
 
   //skip one speech if enabled when switching context
   if (preferencesStore.speech) skipOneSpeech = true;
+
+  // Focus the chat input
+  if (id) {
+    setTimeout(() => {
+      inputStore.focus();
+    }, 50);
+  }
 };
 
 export const deselectChat = function () {

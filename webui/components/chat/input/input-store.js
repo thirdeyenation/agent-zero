@@ -219,6 +219,13 @@ const model = {
     await fileBrowserStore.open(path);
   },
 
+  focus() {
+    const chatInput = document.getElementById("chat-input");
+    if (chatInput) {
+      chatInput.focus();
+    }
+  },
+
   reset() {
     this.message = "";
     attachmentsStore.clearAttachments();
