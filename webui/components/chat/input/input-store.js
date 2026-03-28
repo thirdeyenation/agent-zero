@@ -10,6 +10,8 @@ const model = {
   message: "",
   /** Composer + menu (bottom actions moved into dropdown) */
   chatMoreMenuOpen: false,
+  progressText: "",
+  progressActive: false,
 
   toggleChatMoreMenu() {
     this.chatMoreMenuOpen = !this.chatMoreMenuOpen;
@@ -32,6 +34,10 @@ const model = {
   get inputPlaceholder() {
     const state = this._getSendState();
     if (state === "all") return "Press Enter to send queued messages";
+    // Show progress as ghost text when agent is working and input is empty
+    if (this.progressText && !this.message) {
+      return "|>  " + this.progressText;
+    }
     return "Type your message here...";
   },
 
