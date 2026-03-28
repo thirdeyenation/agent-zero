@@ -1,7 +1,6 @@
 import { createStore } from "/js/AlpineStore.js";
 import * as api from "/js/api.js";
-import { marked } from "/vendor/marked/marked.esm.js";
-import { addBlankTargetsToLinks } from "/js/messages.js";
+import { renderSafeMarkdown } from "/js/safe-markdown.js";
 import { store as pluginSettingsStore } from "/components/plugins/plugin-settings-store.js";
 import { store as pluginToggleStore } from "/components/plugins/toggle/plugin-toggle-store.js";
 import { store as pluginExecuteStore } from "/components/plugins/list/plugin-execute-store.js";
@@ -167,8 +166,7 @@ const model = {
         doc: "readme",
       });
       if (response?.error) throw new Error(response.error);
-      const html = marked.parse(response.content || "", { breaks: true });
-      this.readmeContent = addBlankTargetsToLinks(html);
+      this.readmeContent = renderSafeMarkdown(response.content || "");
     } catch (e) {
       const error = e instanceof Error ? e : new Error(String(e));
       this.readmeError = error.message || "Failed to load README";

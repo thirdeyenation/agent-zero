@@ -1,8 +1,7 @@
 import { createStore } from "/js/AlpineStore.js";
 import * as api from "/js/api.js";
-import { addBlankTargetsToLinks } from "/js/messages.js";
 import { openModal } from "/js/modals.js";
-import { marked } from "/vendor/marked/marked.esm.js";
+import { renderSafeMarkdown } from "/js/safe-markdown.js";
 import { toastFrontendSuccess, toastFrontendError } from "/components/notifications/notification-store.js";
 import { showConfirmDialog } from "/js/confirmDialog.js";
 import { store as imageViewerStore } from "/components/modals/image-viewer/image-viewer-store.js";
@@ -78,90 +77,6 @@ const model = {
     let url = githubUrl.trim().replace(/\.git$/i, "");
     if (!url.includes("github.com")) return null;
     return url.replace("https://github.com/", "https://raw.githubusercontent.com/");
-  },
-
-  _rebaseReadmeLinks(html, githubUrl, branch) {
-    if (!html || typeof html !== "string" || !githubUrl || !branch) return html;
-
-    let repoUrl;
-    try {
-      repoUrl = new URL(githubUrl.trim().replace(/\.git$/i, ""));
-    } catch {
-      return html;
-    }
-
-    if (repoUrl.hostname !== "github.com") return html;
-
-    const [owner, repo] = repoUrl.pathname
-      .replace(/^\/+|\/+$/g, "")
-      .split("/");
-    if (!owner || !repo) return html;
-
-    const repoWebBase = `https://github.com/${owner}/${repo}`;
-    const repoBlobBase = `${repoWebBase}/blob/${branch}`;
-    const repoRawBase = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}`;
-    const doc = new DOMParser().parseFromString(html, "text/html");
-    const githubRepoRoutePrefixes = new Set([
-      "actions",
-      "blob",
-      "branches",
-      "commit",
-      "commits",
-      "compare",
-      "discussions",
-      "issues",
-      "labels",
-      "milestones",
-      "packages",
-      "projects",
-      "pulls",
-      "raw",
-      "releases",
-      "security",
-      "tags",
-      "tree",
-      "wiki",
-    ]);
-    const shouldSkipRebase = (value) =>
-      !value ||
-      value.startsWith("#") ||
-      value.startsWith("//") ||
-      /^[a-zA-Z][a-zA-Z\d+.-]*:/.test(value);
-
-    const resolveRepoPath = (value) => {
-      if (shouldSkipRebase(value)) return null;
-      try {
-        const resolved = new URL(value, "https://repo-root.invalid/");
-        return `${resolved.pathname.replace(/^\/+/, "")}${resolved.search}${resolved.hash}`;
-      } catch {
-        return null;
-      }
-    };
-    const isRepoRoutePath = (repoPath) => {
-      const pathOnly = repoPath
-        .split(/[?#]/, 1)[0]
-        .replace(/^\/+|\/+$/g, "");
-      if (!pathOnly) return false;
-      const firstSegment = pathOnly.split("/")[0].toLowerCase();
-      return githubRepoRoutePrefixes.has(firstSegment);
-    };
-
-    doc.querySelectorAll("a[href]").forEach((anchor) => {
-      const href = (anchor.getAttribute("href") || "").trim();
-      const repoPath = resolveRepoPath(href);
-      if (!repoPath) return;
-      const base = isRepoRoutePath(repoPath) ? repoWebBase : repoBlobBase;
-      anchor.setAttribute("href", `${base}/${repoPath}`);
-    });
-
-    doc.querySelectorAll("img[src]").forEach((image) => {
-      const src = (image.getAttribute("src") || "").trim();
-      const repoPath = resolveRepoPath(src);
-      if (!repoPath) return;
-      image.setAttribute("src", `${repoRawBase}/${repoPath}`);
-    });
-
-    return doc.body.innerHTML;
   },
 
   _pluginPrimaryTag(plugin) {
@@ -589,9 +504,10 @@ const model = {
           if (!response.ok) continue;
 
           const readme = await response.text();
-          let html = marked.parse(readme, { breaks: true });
-          html = this._rebaseReadmeLinks(html, plugin?.github, branch);
-          this.readmeContent = addBlankTargetsToLinks(html);
+          this.readmeContent = renderSafeMarkdown(readme, {
+            githubUrl: plugin?.github,
+            branch,
+          });
           return;
         } catch (error) {
           lastError = error;

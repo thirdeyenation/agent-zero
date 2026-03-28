@@ -13,6 +13,7 @@ import { store as preferencesStore } from "/components/sidebar/bottom/preference
 import { formatDuration } from "./time-utils.js";
 import { Scroller } from "./scroller.js";
 import { callJsExtensions } from "/js/extensions.js";
+import { addBlankTargetsToLinks } from "/js/html-links.js";
 
 // Delay before collapsing previous steps when a new step is added
 const STEP_COLLAPSE_DELAY = {
@@ -762,30 +763,7 @@ export function _drawMessage({
   return messageDiv;
 }
 
-export function addBlankTargetsToLinks(str) {
-  const doc = new DOMParser().parseFromString(str, "text/html");
-
-  doc.querySelectorAll("a").forEach((anchor) => {
-    const href = anchor.getAttribute("href") || "";
-    if (
-      href.startsWith("#") ||
-      href.trim().toLowerCase().startsWith("javascript")
-    )
-      return;
-    if (
-      !anchor.hasAttribute("target") ||
-      anchor.getAttribute("target") === ""
-    ) {
-      anchor.setAttribute("target", "_blank");
-    }
-
-    const rel = (anchor.getAttribute("rel") || "").split(/\s+/).filter(Boolean);
-    if (!rel.includes("noopener")) rel.push("noopener");
-    if (!rel.includes("noreferrer")) rel.push("noreferrer");
-    anchor.setAttribute("rel", rel.join(" "));
-  });
-  return doc.body.innerHTML;
-}
+export { addBlankTargetsToLinks };
 
 /**
  * @param {MessageHandlerArgs & Record<string, any>} param0
