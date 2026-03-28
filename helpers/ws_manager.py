@@ -233,6 +233,16 @@ class _HandlerExecution:
 DIAGNOSTIC_EVENT = "ws_dev_console_event"
 LIFECYCLE_CONNECT_EVENT = "ws_lifecycle_connect"
 LIFECYCLE_DISCONNECT_EVENT = "ws_lifecycle_disconnect"
+STATE_PUSH_EVENT = "state_push"
+SERVER_RESTART_EVENT = "server_restart"
+
+# Error codes returned by _build_error_result
+ERR_NO_HANDLERS = "NO_HANDLERS"
+ERR_HANDLER_ERROR = "HANDLER_ERROR"
+ERR_INVALID_FILTER = "INVALID_FILTER"
+ERR_INVALID_EVENT = "INVALID_EVENT"
+ERR_CONNECTION_NOT_FOUND = "CONNECTION_NOT_FOUND"
+ERR_TIMEOUT = "TIMEOUT"
 
 
 class WsManager:
@@ -559,13 +569,12 @@ class WsManager:
         handler_payload["correlationId"] = correlation_id
 
         if not handlers:
-            error = self._build_error_result(
+            return self._ack_error(
                 handler_id=self._identifier,
-                code="NO_HANDLERS",
+                code=ERR_NO_HANDLERS,
                 message="No handlers available after security filtering",
                 correlation_id=correlation_id,
             )
-            return {"correlationId": correlation_id, "results": [error]}
 
         with self.lock:
             info = self.connections.get((namespace, sid))
@@ -638,7 +647,7 @@ class WsManager:
                 results.append(
                     self._build_error_result(
                         handler_id=handler.identifier,
-                        code="HANDLER_ERROR",
+                        code=ERR_HANDLER_ERROR,
                         message="Internal server error",
                         details=str(value),
                         correlation_id=correlation_id,
@@ -722,7 +731,7 @@ class WsManager:
             await self.emit_to(
                 namespace,
                 sid,
-                "server_restart",
+                SERVER_RESTART_EVENT,
                 {
                     "emittedAt": self._timestamp(),
                     "runtimeId": runtime.get_runtime_id(),
@@ -829,66 +838,55 @@ class WsManager:
                 include_meta_raw, "includeHandlers"
             )
         except ValueError as exc:
-            error = self._build_error_result(
+            return self._ack_error(
                 handler_id=handler_id or self._identifier,
-                code="INVALID_FILTER",
+                code=ERR_INVALID_FILTER,
                 message=str(exc),
                 correlation_id=correlation_id,
+                ack=ack,
             )
-            if ack:
-                ack({"correlationId": correlation_id, "results": [error]})
-            return {"correlationId": correlation_id, "results": [error]}
 
         try:
             exclude_meta = self._normalize_handler_filter(
                 exclude_meta_raw, "excludeHandlers"
             )
         except ValueError as exc:
-            error = self._build_error_result(
+            return self._ack_error(
                 handler_id=handler_id or self._identifier,
-                code="INVALID_FILTER",
+                code=ERR_INVALID_FILTER,
                 message=str(exc),
                 correlation_id=correlation_id,
+                ack=ack,
             )
-            payload_error = {"correlationId": correlation_id, "results": [error]}
-            if ack:
-                ack(payload_error)
-            return payload_error
 
         if exclude_meta_raw is not None and not allow_exclude:
-            error = self._build_error_result(
+            return self._ack_error(
                 handler_id=handler_id or self._identifier,
-                code="INVALID_FILTER",
+                code=ERR_INVALID_FILTER,
                 message="excludeHandlers is not supported for this operation",
                 correlation_id=correlation_id,
+                ack=ack,
             )
-            if ack:
-                ack({"correlationId": correlation_id, "results": [error]})
-            return {"correlationId": correlation_id, "results": [error]}
 
         if include_handlers is not None and include_meta is not None:
             if include_handlers != include_meta:
-                error = self._build_error_result(
+                return self._ack_error(
                     handler_id=handler_id or self._identifier,
-                    code="INVALID_FILTER",
+                    code=ERR_INVALID_FILTER,
                     message="Conflicting includeHandlers filters supplied",
                     correlation_id=correlation_id,
+                    ack=ack,
                 )
-                if ack:
-                    ack({"correlationId": correlation_id, "results": [error]})
-                return {"correlationId": correlation_id, "results": [error]}
 
         if allow_exclude and exclude_handlers is not None and exclude_meta is not None:
             if exclude_handlers != exclude_meta:
-                error = self._build_error_result(
+                return self._ack_error(
                     handler_id=handler_id or self._identifier,
-                    code="INVALID_FILTER",
+                    code=ERR_INVALID_FILTER,
                     message="Conflicting excludeHandlers filters supplied",
                     correlation_id=correlation_id,
+                    ack=ack,
                 )
-                if ack:
-                    ack({"correlationId": correlation_id, "results": [error]})
-                return {"correlationId": correlation_id, "results": [error]}
 
         include = include_handlers or include_meta
         exclude = exclude_handlers or (exclude_meta if allow_exclude else None)
@@ -896,54 +894,46 @@ class WsManager:
         try:
             validate_event_type(event_type)
         except (TypeError, ValueError) as exc:
-            error = self._build_error_result(
+            return self._ack_error(
                 handler_id=handler_id or self._identifier,
-                code="INVALID_EVENT",
+                code=ERR_INVALID_EVENT,
                 message=str(exc),
                 correlation_id=correlation_id,
+                ack=ack,
             )
-            if ack:
-                ack({"correlationId": correlation_id, "results": [error]})
-            return {"correlationId": correlation_id, "results": [error]}
 
         registered = self.handlers.get(namespace, [])
         if not registered:
             PrintStyle.warning(f"No handlers registered for namespace '{namespace}'")
-            error = self._build_error_result(
+            return self._ack_error(
                 handler_id=handler_id or self._identifier,
-                code="NO_HANDLERS",
+                code=ERR_NO_HANDLERS,
                 message=f"No handler for namespace '{namespace}'",
                 correlation_id=correlation_id,
+                ack=ack,
             )
-            if ack:
-                ack({"correlationId": correlation_id, "results": [error]})
-            return {"correlationId": correlation_id, "results": [error]}
 
         try:
             selected_handlers, _ = self._select_handlers(
                 namespace, include=include, exclude=exclude
             )
         except ValueError as exc:
-            error = self._build_error_result(
+            return self._ack_error(
                 handler_id=handler_id or self._identifier,
-                code="INVALID_FILTER",
+                code=ERR_INVALID_FILTER,
                 message=str(exc),
                 correlation_id=correlation_id,
+                ack=ack,
             )
-            if ack:
-                ack({"correlationId": correlation_id, "results": [error]})
-            return {"correlationId": correlation_id, "results": [error]}
 
         if not selected_handlers:
-            error = self._build_error_result(
+            return self._ack_error(
                 handler_id=handler_id or self._identifier,
-                code="NO_HANDLERS",
+                code=ERR_NO_HANDLERS,
                 message=f"No handler for '{event_type}' after applying filters",
                 correlation_id=correlation_id,
+                ack=ack,
             )
-            if ack:
-                ack({"correlationId": correlation_id, "results": [error]})
-            return {"correlationId": correlation_id, "results": [error]}
 
         with self.lock:
             info = self.connections.get((namespace, sid))
@@ -1011,7 +1001,7 @@ class WsManager:
                 "results": [
                     self._build_error_result(
                         handler_id=handler_id or self._identifier,
-                        code="CONNECTION_NOT_FOUND",
+                        code=ERR_CONNECTION_NOT_FOUND,
                         message=f"Connection '{sid}' not found in namespace '{namespace}'",
                         correlation_id=correlation_id,
                     )
@@ -1040,7 +1030,7 @@ class WsManager:
                     "results": [
                         self._build_error_result(
                             handler_id=handler_id or self._identifier,
-                            code="TIMEOUT",
+                            code=ERR_TIMEOUT,
                             message="Request timeout",
                             correlation_id=correlation_id,
                         )
@@ -1073,7 +1063,7 @@ class WsManager:
             except ValueError as exc:
                 error = self._build_error_result(
                     handler_id=handler_id or self._identifier,
-                    code="INVALID_FILTER",
+                    code=ERR_INVALID_FILTER,
                     message=str(exc),
                     correlation_id=correlation_id,
                 )
@@ -1090,7 +1080,7 @@ class WsManager:
             elif exclude_meta is not None and exclude_combined != exclude_meta:
                 error = self._build_error_result(
                     handler_id=handler_id or self._identifier,
-                    code="INVALID_FILTER",
+                    code=ERR_INVALID_FILTER,
                     message="Conflicting excludeHandlers filters supplied",
                     correlation_id=correlation_id,
                 )
@@ -1155,7 +1145,7 @@ class WsManager:
                     "results": [
                         self._build_error_result(
                             handler_id=handler_id or self._identifier,
-                            code="TIMEOUT",
+                            code=ERR_TIMEOUT,
                             message="Request timeout",
                             correlation_id=correlation_id,
                         )
@@ -1458,6 +1448,27 @@ class WsManager:
         if duration_ms is not None:
             result["durationMs"] = round(duration_ms, 4)
         return result
+
+    def _ack_error(
+        self,
+        *,
+        handler_id: str | None = None,
+        code: str,
+        message: str,
+        correlation_id: str | None = None,
+        ack: Callable | None = None,
+    ) -> dict[str, Any]:
+        """Build an error response, optionally invoke the ack callback, and return."""
+        error = self._build_error_result(
+            handler_id=handler_id,
+            code=code,
+            message=message,
+            correlation_id=correlation_id,
+        )
+        response = {"correlationId": correlation_id, "results": [error]}
+        if ack:
+            ack(response)
+        return response
 
     # Session tracking helpers (single-user defaults)
     def get_sids_for_user(self, user: str | None = None) -> list[ConnectionIdentity]:

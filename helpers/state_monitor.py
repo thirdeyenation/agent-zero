@@ -15,6 +15,7 @@ from helpers.state_snapshot import (
     build_snapshot_from_request,
 )
 from helpers.ws import ConnectionIdentity, ConnectionNotFoundError, _ws_debug_enabled, ws_debug
+from helpers.ws_manager import STATE_PUSH_EVENT
 
 if TYPE_CHECKING:  # pragma: no cover - hints only
     from helpers.ws_manager import WsManager
@@ -292,7 +293,7 @@ class StateMonitor:
                 await manager.emit_to(
                     namespace,
                     sid,
-                    "state_push",
+                    STATE_PUSH_EVENT,
                     payload,
                     handler_id=handler_id,
                 )
