@@ -47,13 +47,5 @@ usr/**/*
 # for browser-use
 agent_history.gif
 
-.agents/**
+.agent/**
 .claude/**
-
-meta.json
-.lock
-**/*storage.sqlite
-
-hashes_codebase.json
-
-**/*plans
