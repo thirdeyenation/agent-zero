@@ -15,13 +15,7 @@ import uuid
 from helpers.defer import DeferredTask
 from helpers.print_style import PrintStyle
 from helpers import runtime
-from helpers.ws import ConnectionNotFoundError, WsHandler
-
-
-def _ws_debug_enabled() -> bool:
-    """Check A0_WS_DEBUG env var — no heavyweight imports needed."""
-    value = os.getenv("A0_WS_DEBUG", "").strip().lower()
-    return value in {"1", "true", "yes", "on"}
+from helpers.ws import ConnectionIdentity, ConnectionNotFoundError, WsHandler, _ws_debug_enabled, ws_debug
 
 
 # Event validation
@@ -182,9 +176,16 @@ _shared_ws_manager: WsManager | None = None
 async def send_data(
     event_type: str,
     data: dict[str, Any],
+    *,
     endpoint_name: str = "/ws",
     connection_id: str | None = None,
 ) -> None:
+    """Convenience wrapper around :pymeth:`WsManager.send_data`.
+
+    All optional parameters are keyword-only to match the instance method's
+    ``(endpoint_name, event_type, data, connection_id)`` order and avoid
+    positional confusion between the two signatures.
+    """
     manager = get_shared_ws_manager()
     await manager.send_data(endpoint_name, event_type, data, connection_id)
 
@@ -220,9 +221,6 @@ class ConnectionInfo:
     sid: str
     connected_at: datetime = field(default_factory=_utcnow)
     last_activity: datetime = field(default_factory=_utcnow)
-
-
-ConnectionIdentity = tuple[str, str]  # (namespace, sid)
 
 
 @dataclass
@@ -262,8 +260,7 @@ class WsManager:
 
     # Internal: development-only debug logging to avoid noise in production
     def _debug(self, message: str) -> None:
-        if _ws_debug_enabled():
-            PrintStyle.debug(message)
+        ws_debug(message)
 
     def _ensure_dispatcher_loop(self) -> None:
         if self._dispatcher_loop is None:

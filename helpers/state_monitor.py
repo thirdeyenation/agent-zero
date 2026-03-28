@@ -14,24 +14,10 @@ from helpers.state_snapshot import (
     advance_state_request_after_snapshot,
     build_snapshot_from_request,
 )
-from helpers.ws import ConnectionNotFoundError
+from helpers.ws import ConnectionIdentity, ConnectionNotFoundError, _ws_debug_enabled, ws_debug
 
 if TYPE_CHECKING:  # pragma: no cover - hints only
     from helpers.ws_manager import WsManager
-
-
-ConnectionIdentity = tuple[str, str]  # (namespace, sid)
-
-
-def _ws_debug_enabled() -> bool:
-    value = os.getenv("A0_WS_DEBUG", "").strip().lower()
-    return value in {"1", "true", "yes", "on"}
-
-
-def _debug_log(message: str) -> None:
-    if not _ws_debug_enabled():
-        return
-    PrintStyle.debug(message)
 
 
 @dataclass
@@ -73,7 +59,7 @@ class StateMonitor:
             # Use the manager's dispatcher loop for all scheduling so mark_dirty can be
             # invoked safely from non-async contexts and other threads.
             self._dispatcher_loop = getattr(manager, "_dispatcher_loop", None)
-        _debug_log(
+        ws_debug(
             f"[StateMonitor] bind_manager handler_id={handler_id or self._emit_handler_id}"
         )
 
@@ -83,7 +69,7 @@ class StateMonitor:
             self._projections.setdefault(
                 identity, ConnectionProjection(namespace=namespace, sid=sid)
             )
-        _debug_log(f"[StateMonitor] register_sid namespace={namespace} sid={sid}")
+        ws_debug(f"[StateMonitor] register_sid namespace={namespace} sid={sid}")
 
     def unregister_sid(self, namespace: str, sid: str) -> None:
         identity: ConnectionIdentity = (namespace, sid)
@@ -95,7 +81,7 @@ class StateMonitor:
             if task is not None:
                 task.cancel()
             self._projections.pop(identity, None)
-        _debug_log(f"[StateMonitor] unregister_sid namespace={namespace} sid={sid}")
+        ws_debug(f"[StateMonitor] unregister_sid namespace={namespace} sid={sid}")
 
     def mark_dirty_all(self, *, reason: str | None = None) -> None:
         wave_id = None
@@ -142,7 +128,7 @@ class StateMonitor:
             projection.request = request
             projection.seq_base = seq_base
             projection.seq = seq_base
-        _debug_log(
+        ws_debug(
             f"[StateMonitor] update_projection namespace={namespace} sid={sid} context={request.context!r} "
             f"log_from={request.log_from} notifications_from={request.notifications_from} "
             f"timezone={request.timezone!r} seq_base={seq_base}"
@@ -221,7 +207,7 @@ class StateMonitor:
                 self.debounce_seconds, self._on_debounce_fire, identity
             )
             self._debounce_handles[identity] = handle
-            _debug_log(
+            ws_debug(
                 f"[StateMonitor] schedule_push namespace={projection.namespace} sid={projection.sid} "
                 f"delay_s={self.debounce_seconds} "
                 f"dirty={projection.dirty_version} pushed={projection.pushed_version} "
@@ -298,7 +284,7 @@ class StateMonitor:
                     if isinstance(snapshot.get("logs"), list)
                     else None
                 )
-                _debug_log(
+                ws_debug(
                     f"[StateMonitor] emit state_push namespace={namespace} sid={sid} seq={seq} "
                     f"context={request.context!r} logs_len={logs_len} "
                     f"reason={dirty_reason!r} wave={dirty_wave_id!r}"
@@ -312,13 +298,13 @@ class StateMonitor:
                 )
             except ConnectionNotFoundError:
                 # Sid was removed before the emit; treat as benign.
-                _debug_log(
+                ws_debug(
                     f"[StateMonitor] emit skipped: sid not found namespace={namespace} sid={sid}"
                 )
                 return
             except RuntimeError:
                 # Dispatcher loop may be closing (e.g., during shutdown or test teardown).
-                _debug_log(
+                ws_debug(
                     f"[StateMonitor] emit skipped: dispatcher closing namespace={namespace} sid={sid}"
                 )
                 return
@@ -341,7 +327,7 @@ class StateMonitor:
         if not follow_up:
             return
 
-        _debug_log(
+        ws_debug(
             f"[StateMonitor] follow_up_push namespace={namespace} sid={sid} dirty={dirty_version} pushed={pushed_version}"
         )
         try:
