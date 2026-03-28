@@ -299,24 +299,27 @@ class WsHandler:
                 sid: dict(handlers)
                 for sid, handlers in _active_handlers.items()
             }
+            contexts_snapshot = dict(_ws_contexts)
 
         mgr = self._manager
         aggregated: list[dict[str, Any]] = []
         for sid, handlers in snapshot.items():
-            ctx = _ws_contexts.get(sid)
+            ctx = contexts_snapshot.get(sid)
+            # Skip sids whose security context was removed (concurrent disconnect).
+            if ctx is None:
+                continue
             security_errors: list[dict[str, Any]] = []
             passing: list[WsHandler] = []
             for _path, instance in handlers.items():
-                if ctx is not None:
-                    error = _check_security(type(instance), ctx)
-                    if error is not None:
-                        security_errors.append({
-                            "handlerId": instance.identifier,
-                            "ok": False,
-                            "correlationId": cid,
-                            "error": error,
-                        })
-                        continue
+                error = _check_security(type(instance), ctx)
+                if error is not None:
+                    security_errors.append({
+                        "handlerId": instance.identifier,
+                        "ok": False,
+                        "correlationId": cid,
+                        "error": error,
+                    })
+                    continue
                 passing.append(instance)
 
             if mgr is not None and passing:
