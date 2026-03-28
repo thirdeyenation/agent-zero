@@ -148,15 +148,13 @@ Create new handler files as `api/ws_<name>.py` and inherit from `WsHandler`.
 from helpers.ws import WsHandler
 
 class WsMyFeature(WsHandler):
-    HANDLER_ID = "my_feature"
-    HANDLED_EVENTS = ["my_event_a", "my_event_b"]
 
-    async def process_event(self, event_type: str, data: dict[str, Any], sid: str) -> dict | None:
-        if event_type == "dashboard_refresh":
+    async def process(self, event: str, data: dict, sid: str) -> dict | None:
+        if event == "dashboard_refresh":
             stats = await self._load_stats(data.get("scope", "all"))
             return {"ok": True, "stats": stats}
 
-        if event_type == "dashboard_push":
+        if event == "dashboard_push":
             await self.broadcast(
                 "dashboard_update",
                 {"stats": data.get("stats", {}), "source": sid},
@@ -165,16 +163,16 @@ class WsMyFeature(WsHandler):
         return None
 ```
 
-Handlers are auto-loaded on startup; duplicate event declarations produce warnings but are supported. Use `validate_event_types` to ensure names follow lowercase snake_case and avoid Socket.IO reserved events.
+Handlers are auto-loaded on startup. The `handlerId` is derived automatically from the fully-qualified class name (e.g., `api.ws_my_feature.WsMyFeature`). All registered handlers receive every event; use conditional logic inside `process()` to filter by event type.
 
 ### 2. Consuming Client Events (Server as Consumer)
 
-- Implement `process_event` and return either `None` (fire-and-forget) or a dict that becomes the handler’s contribution in `results[]`.
+- Implement `process` and return either `None` (fire-and-forget) or a dict that becomes the handler's contribution in `results[]`.
 - Use dependency injection (async functions, database calls, etc.) but keep event loop friendly—no blocking calls.
 - Validate input vigorously and return structured errors as needed.
 
 ```python
-async def process_event(self, event_type: str, data: dict, sid: str) -> dict | None:
+async def process(self, event: str, data: dict, sid: str) -> dict | None:
     if "query" not in data:
         return {"ok": False, "error": {"code": "VALIDATION", "error": "Missing query"}}
 
@@ -271,7 +269,7 @@ console.log(window.runtimeInfo.id, window.runtimeInfo.isDevelopment);
 
 ### Namespaces (end-state)
 
-- The root namespace (`/`) is reserved and intentionally unhandled by default for application events. Feature code should connect to an explicit namespace (for example `/webui`).
+- The root namespace (`/`) is reserved and intentionally unhandled by default for application events. Feature code should connect to the `/ws` namespace (defined as `NAMESPACE` in `helpers/ws.py`).
 - The frontend exposes `createNamespacedClient(namespace)` and `getNamespacedClient(namespace)` (one client instance per namespace per tab). Namespaced clients expose the same minimal API: `emit`, `request`, `on`, `off`.
 - Unknown namespaces are rejected deterministically during the Socket.IO connect handshake with a `connect_error` payload:
   - `err.message === "UNKNOWN_NAMESPACE"`
@@ -509,8 +507,8 @@ websocket.on("confirm_close_tab", async ({ data, correlationId }) => {
 Sometimes you want to acknowledge work immediately but stream additional updates later. Combine `request()` for the initial confirmation and `emit_to()` for follow-up events using the same correlation ID.
 
 ```python
-async def process_event(self, event_type: str, data: dict, sid: str) -> dict | None:
-    if event_type != "start_long_task":
+async def process(self, event: str, data: dict, sid: str) -> dict | None:
+    if event != "start_long_task":
         return None
 
     correlation_id = data.get("correlationId")
@@ -609,7 +607,7 @@ The manager validates the payload, resolves/creates `correlationId`, and passes 
 
 ## Best Practices Checklist
 
-- [ ] Always validate inbound payloads in `process_event` (required fields, type constraints, length limits).
+- [ ] Always validate inbound payloads in `process()` (required fields, type constraints, length limits).
 - [ ] Propagate `correlationId` through multi-step workflows so logs and envelopes align.
 - [ ] Respect the 50 MB payload cap; prefer HTTP + polling for bulk data transfers.
 - [ ] Ensure long-running operations emit progress via `emit_to` or switch to an async task with periodic updates.
@@ -657,7 +655,7 @@ The manager validates the payload, resolves/creates `correlationId`, and passes 
 
 > **Tip:** When extending the infrastructure (new metadata) start by updating the contracts, sync the manager/frontend helpers, and then document the change here so producers and consumers stay in lockstep.
 
-## Error Codes Registry (Draft for Phase 6)
+## Error Codes Registry
 
 The WebSocket stack standardizes backend error codes returned in `RequestResultItem.error.code`. This registry documents the currently used codes and their intended meaning. Client and server implementations should reference these values verbatim (UPPER_SNAKE_CASE).
 
@@ -666,7 +664,8 @@ The WebSocket stack standardizes backend error codes returned in `RequestResultI
 | `NO_HANDLERS` | Manager routing | No handler is registered for the requested `eventType`. | Register a handler for the event or correct the event name. | `{ "handlerId": "WsManager", "ok": false, "error": { "code": "NO_HANDLERS", "error": "No handler for 'missing'" } }` |
 | `TIMEOUT` | Aggregated or single request | The request exceeded `timeoutMs`. | Increase `timeoutMs`, reduce handler processing time, or split work. | `{ "handlerId": "ExampleHandler", "ok": false, "error": { "code": "TIMEOUT", "error": "Request timeout" } }` |
 | `CONNECTION_NOT_FOUND` | Single‑sid request | Target `sid` is not connected/known. | Use an active `sid` or retry after reconnect. | `{ "handlerId": "WsManager", "ok": false, "error": { "code": "CONNECTION_NOT_FOUND", "error": "Connection 'sid-123' not found" } }` |
-| `HARNESS_UNKNOWN_EVENT` | Developer harness | Harness test handler received an unsupported event name. | Update harness sources or disable the step before running automation. | `{ "handlerId": "api.ws_dev_test.WsDevTest", "ok": false, "error": { "code": "HARNESS_UNKNOWN_EVENT", "error": "Unhandled event", "details": "ws_tester_foo" } }` |
+| `NOT_AVAILABLE` | Developer harness | Feature is restricted to development mode. | Ensure `runtime.is_development()` returns `True` or skip the operation. | `{ "handlerId": "api.ws_dev_test.WsDevTest", "ok": false, "error": { "code": "NOT_AVAILABLE", "error": "Event console is available only in development mode" } }` |
+| `SUBSCRIBE_FAILED` | Developer harness | Diagnostic watcher subscription failed. | Verify the SID is connected and retry. | `{ "handlerId": "api.ws_dev_test.WsDevTest", "ok": false, "error": { "code": "SUBSCRIBE_FAILED", "error": "Unable to subscribe to diagnostics" } }` |
 
 Notes
 - Error payload shape follows the contract documented in `contracts/event-schemas.md` (`RequestResultItem.error`).

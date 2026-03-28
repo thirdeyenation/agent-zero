@@ -2,6 +2,7 @@ import asyncio
 from typing import Any
 
 from helpers.ws import WsHandler
+from helpers.ws_manager import WsResult
 from helpers.print_style import PrintStyle
 from helpers import runtime
 
@@ -9,15 +10,19 @@ from helpers import runtime
 class WsDevTest(WsHandler):
     """Developer-only WebSocket test harness handler."""
 
-    async def process(self, event: str, data: dict, sid: str) -> dict[str, Any] | None:
+    async def process(self, event: str, data: dict, sid: str) -> dict[str, Any] | WsResult | None:
         if event == "ws_event_console_subscribe":
             if not runtime.is_development():
-                return {"_error": True, "code": "NOT_AVAILABLE",
-                        "message": "Event console is available only in development mode"}
+                return WsResult.error(
+                    code="NOT_AVAILABLE",
+                    message="Event console is available only in development mode",
+                )
             registered = self.manager.register_diagnostic_watcher(self.namespace, sid)
             if not registered:
-                return {"_error": True, "code": "SUBSCRIBE_FAILED",
-                        "message": "Unable to subscribe to diagnostics"}
+                return WsResult.error(
+                    code="SUBSCRIBE_FAILED",
+                    message="Unable to subscribe to diagnostics",
+                )
             return {"status": "subscribed", "timestamp": data.get("requestedAt")}
 
         if event == "ws_event_console_unsubscribe":
