@@ -97,30 +97,68 @@ const model = {
       .split("/");
     if (!owner || !repo) return html;
 
-    const repoBlobBase = `https://github.com/${owner}/${repo}/blob/${branch}`;
+    const repoWebBase = `https://github.com/${owner}/${repo}`;
+    const repoBlobBase = `${repoWebBase}/blob/${branch}`;
+    const repoRawBase = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}`;
     const doc = new DOMParser().parseFromString(html, "text/html");
+    const githubRepoRoutePrefixes = new Set([
+      "actions",
+      "blob",
+      "branches",
+      "commit",
+      "commits",
+      "compare",
+      "discussions",
+      "issues",
+      "labels",
+      "milestones",
+      "packages",
+      "projects",
+      "pulls",
+      "raw",
+      "releases",
+      "security",
+      "tags",
+      "tree",
+      "wiki",
+    ]);
+    const shouldSkipRebase = (value) =>
+      !value ||
+      value.startsWith("#") ||
+      value.startsWith("//") ||
+      /^[a-zA-Z][a-zA-Z\d+.-]*:/.test(value);
+
+    const resolveRepoPath = (value) => {
+      if (shouldSkipRebase(value)) return null;
+      try {
+        const resolved = new URL(value, "https://repo-root.invalid/");
+        return `${resolved.pathname.replace(/^\/+/, "")}${resolved.search}${resolved.hash}`;
+      } catch {
+        return null;
+      }
+    };
+    const isRepoRoutePath = (repoPath) => {
+      const pathOnly = repoPath
+        .split(/[?#]/, 1)[0]
+        .replace(/^\/+|\/+$/g, "");
+      if (!pathOnly) return false;
+      const firstSegment = pathOnly.split("/")[0].toLowerCase();
+      return githubRepoRoutePrefixes.has(firstSegment);
+    };
 
     doc.querySelectorAll("a[href]").forEach((anchor) => {
       const href = (anchor.getAttribute("href") || "").trim();
-      if (
-        !href ||
-        href.startsWith("#") ||
-        href.startsWith("//") ||
-        /^[a-zA-Z][a-zA-Z\d+.-]*:/.test(href)
-      ) {
-        return;
-      }
+      const repoPath = resolveRepoPath(href);
+      if (!repoPath) return;
+      const base = isRepoRoutePath(repoPath) ? repoWebBase : repoBlobBase;
+      anchor.setAttribute("href", `${base}/${repoPath}`);
+    });
 
-      try {
-        const resolved = new URL(href, "https://repo-root.invalid/");
-        const repoPath = resolved.pathname.replace(/^\/+/, "");
-        anchor.setAttribute(
-          "href",
-          `${repoBlobBase}/${repoPath}${resolved.search}${resolved.hash}`,
-        );
-      } catch {
-        // Leave malformed links unchanged.
-      }
+    doc.querySelectorAll("img[src]").forEach((image) => {
+      const src = (image.getAttribute("src") || "").trim();
+      const repoPath = resolveRepoPath(src);
+      if (!repoPath) return;
+      image.setAttribute("src", `${repoRawBase}/${repoPath}`);
     });
 
     return doc.body.innerHTML;
