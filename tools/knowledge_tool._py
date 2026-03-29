@@ -120,7 +120,7 @@ class Knowledge(Tool):
             # Search for conversation memories (field doesn't exist or is not True)
             conversation_docs = await db.search_similarity_threshold(
                 query=question, limit=5, threshold=DEFAULT_MEMORY_THRESHOLD,
-                filter="not knowledge_source if knowledge_source is not None else True"
+                filter="not knowledge_source"
             )
 
             # Combine and fallback to lower threshold if needed
@@ -136,7 +136,7 @@ class Knowledge(Tool):
                 )
                 conversation_docs = await db.search_similarity_threshold(
                     query=question, limit=5, threshold=lower_threshold,
-                    filter="not knowledge_source if knowledge_source is not None else True"
+                    filter="not knowledge_source"
                 )
                 all_docs = knowledge_docs + conversation_docs
                 if all_docs:
