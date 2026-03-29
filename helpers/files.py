@@ -10,7 +10,7 @@ from typing import Any, Literal
 import zipfile
 import glob
 import mimetypes
-from simpleeval import simple_eval
+from simpleeval import SimpleEval
 from helpers import yaml
 
 AGENTS_DIR = "agents"
@@ -191,7 +191,7 @@ def evaluate_text_conditions(_content: str, **kwargs):
         after = text[m.end() :]
 
         try:
-            result = simple_eval(condition, names=kwargs)
+            result = SimpleEval(names=kwargs, functions={}).eval(condition)
         except Exception:
             # On evaluation error, do not modify this block
             return text

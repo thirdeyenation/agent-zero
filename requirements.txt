@@ -13,7 +13,7 @@ GitPython==3.1.43
 giturlparse==0.14.0
 inputimeout==1.0.4
 kokoro>=0.9.2
-simpleeval==1.0.3
+simpleeval>=1.0.5  # CVE-2026-32640 fix: sandbox escape/code injection
 langchain-core==0.3.49
 langchain-community==0.3.19
 langchain-unstructured==0.1.6
