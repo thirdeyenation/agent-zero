@@ -28,6 +28,7 @@
       <div class="field-control">
         <select x-model="model.provider"
                 x-effect="$nextTick(() => { if (providers.length) $el.value = model.provider })">
+          <option value="">&mdash; select &mdash;</option>
           <template x-for="p in providers" :key="p.value">
             <option :value="p.value" x-text="p.label"></option>
           </template>
@@ -79,15 +80,15 @@
         </div>
         <div class="field-control" style="position:relative;" x-data="{ showKey: false }">
           <input :type="showKey ? 'text' : 'password'"
-                 :value="$store.modelConfig.apiKeyValues[model.provider]"
-                 :placeholder="$store.modelConfig.apiKeyStatus[model.provider] ? '&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;' : ''"
+                 :value="$store.modelConfig.apiKeyValues[_prov]"
+                 :placeholder="$store.modelConfig.apiKeyStatus[_prov] ? '&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;' : ''"
                  autocomplete="off"
-                 @input="$store.modelConfig.setApiKeyValue(model.provider, $el.value)"
+                 @input="$store.modelConfig.setApiKeyValue(_prov, $el.value)"
                  style="padding-right:32px;" />
           <span class="material-symbols-outlined eye-toggle"
                 @click="
                   showKey = !showKey;
-                  const prov = model.provider;
+                  const prov = _prov;
                   if (showKey && !$store.modelConfig.apiKeyValues[prov] && $store.modelConfig.apiKeyStatus[prov]) {
                     $store.modelConfig.revealApiKey(prov).then(v => { if (v) $store.modelConfig.apiKeyValues[prov] = v; });
                   }
