@@ -437,7 +437,9 @@ class Memory:
     def _get_comparator(condition: str):
         def comparator(data: dict[str, Any]):
             try:
-                result = SimpleEval(names=data, functions={}).eval(condition)
+                from collections import defaultdict
+                safe_data = defaultdict(lambda: None, data)
+                result = SimpleEval(names=safe_data, functions={"str": str, "int": int, "float": float, "bool": bool, "len": len}).eval(condition)
                 return result
             except Exception as e:
                 PrintStyle.error(f"Error evaluating condition: {e}")
