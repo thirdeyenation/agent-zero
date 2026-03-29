@@ -191,6 +191,9 @@ def evaluate_text_conditions(_content: str, **kwargs):
         after = text[m.end() :]
 
         try:
+            # Template conditions only use simple variable truthiness checks,
+            # so no functions are needed. This is stricter than the metadata
+            # filter comparators which allow a safe subset.
             result = SimpleEval(names=kwargs, functions={}).eval(condition)
         except Exception:
             # On evaluation error, do not modify this block

@@ -437,12 +437,9 @@ class Memory:
     def _get_comparator(condition: str):
         def comparator(data: dict[str, Any]):
             try:
-                class SafeNames(dict):
-                    def __missing__(self, key):
-                        return None
+                from helpers.vector_db import SafeNames, SAFE_EVAL_FUNCTIONS
                 safe_data = SafeNames(data)
-                safe_funcs = {"str": str, "int": int, "float": float, "bool": bool, "len": len, "abs": abs, "min": min, "max": max, "round": round}
-                result = SimpleEval(names=safe_data, functions=safe_funcs).eval(condition)
+                result = SimpleEval(names=safe_data, functions=SAFE_EVAL_FUNCTIONS).eval(condition)
                 return result
             except Exception as e:
                 PrintStyle.error(f"Error evaluating condition: {e}")
