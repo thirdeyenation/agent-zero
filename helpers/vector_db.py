@@ -13,7 +13,7 @@ from langchain_community.vectorstores.utils import (
     DistanceStrategy,
 )
 from langchain.embeddings import CacheBackedEmbeddings
-from simpleeval import simple_eval
+from simpleeval import SimpleEval
 
 from agent import Agent
 from helpers import guids
@@ -141,7 +141,12 @@ def cosine_normalizer(val: float) -> float:
 def get_comparator(condition: str):
     def comparator(data: dict[str, Any]):
         try:
-            result = simple_eval(condition, names=data)
+            class SafeNames(dict):
+                def __missing__(self, key):
+                    return None
+            safe_data = SafeNames(data)
+            safe_funcs = {"str": str, "int": int, "float": float, "bool": bool, "len": len, "abs": abs, "min": min, "max": max, "round": round}
+            result = SimpleEval(names=safe_data, functions=safe_funcs).eval(condition)
             return result
         except Exception as e:
             # PrintStyle.error(f"Error evaluating condition: {e}")
