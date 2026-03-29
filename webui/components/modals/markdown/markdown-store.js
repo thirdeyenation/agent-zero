@@ -1,5 +1,5 @@
-import { marked } from "/vendor/marked/marked.esm.js";
 import { createStore } from "/js/AlpineStore.js";
+import { renderSafeMarkdown } from "/js/safe-markdown.js";
 
 export const store = createStore("markdownModal", {
     title: "",
@@ -14,7 +14,7 @@ export const store = createStore("markdownModal", {
 
     get renderedHtml() {
         if (!this.content) return "";
-        return marked.parse(this.content, { breaks: true });
+        return renderSafeMarkdown(this.content);
     },
 
     cleanup() {

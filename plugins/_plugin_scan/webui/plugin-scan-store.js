@@ -67,10 +67,6 @@ function formatRatingIcons(ratings) {
   return Object.values(ratings).map((r) => r.icon).join("/");
 }
 let _pollGen = 0;
-/** @type {{ gen: number, ctxId: string, prompt: string }[]} */
-let _queue = [];
-/** @type {{ gen: number, ctxId: string } | null} */
-let _running = null;
 const POLL_INTERVAL = 2000;
 const MAX_POLL_MS = 10 * 60 * 1000;
 const SCAN_TITLE = "Plugin Scanner";
@@ -86,7 +82,6 @@ export const store = createStore("pluginScan", {
   prompt: "",
   output: "",
   scanning: false,
-  queued: false,
   scanCtxId: "",
 
   get renderedOutput() {
@@ -105,7 +100,6 @@ export const store = createStore("pluginScan", {
   async onOpen(url) {
     this.output = "";
     this.scanning = false;
-    this.queued = false;
     if (url) this.gitUrl = url;
     const cfg = await loadConfig();
     if (cfg && Object.keys(this.checks).length === 0) {
@@ -171,11 +165,7 @@ export const store = createStore("pluginScan", {
     }
   },
 
-  /**
-   * Create a context immediately and either execute or queue the scan.
-   * Queued scans have their prompt logged to the chat + progress bar set to "Queued",
-   * but the agent is NOT started until it's their turn.
-   */
+  /** Create a fresh context, log the prompt into it, and start the scan immediately. */
   async runScan() {
     if (!this.gitUrl.trim()) {
       void toastFrontendError("Please enter a Git URL", SCAN_TITLE);
@@ -198,26 +188,15 @@ export const store = createStore("pluginScan", {
     }
     this.scanCtxId = ctxId;
 
-    if (_running) {
-      try {
-        await api.callJsonApi("/plugins/_plugin_scan/plugin_scan_queue", { context: ctxId, text: capturedPrompt, queued: true });
-      } catch { /* best-effort */ }
-      _queue.push({ gen, ctxId, prompt: capturedPrompt });
-      this.queued = true;
-      this.scanning = false;
-    } else {
-      try {
-        await api.callJsonApi("/plugins/_plugin_scan/plugin_scan_queue", { context: ctxId, text: capturedPrompt });
-      } catch { /* best-effort */ }
-      this.queued = false;
-      this.scanning = true;
-      this._runNext(gen, ctxId, capturedPrompt);
-    }
+    try {
+      await api.callJsonApi("/plugins/_plugin_scan/plugin_scan_queue", { context: ctxId, text: capturedPrompt });
+    } catch { /* best-effort */ }
+    this.scanning = true;
+    this._runNext(gen, ctxId, capturedPrompt);
   },
 
   /** @param {number} gen  @param {string} ctxId  @param {string} prompt */
   async _runNext(gen, ctxId, prompt) {
-    _running = { gen, ctxId };
     try {
       await api.callJsonApi("/plugins/_plugin_scan/plugin_scan_start", { text: prompt, context: ctxId });
       await this._pollLoop(gen, ctxId);
@@ -225,19 +204,6 @@ export const store = createStore("pluginScan", {
       if (gen === _pollGen) {
         void toastFrontendError(`Scan failed: ${formatErrorMessage(e)}`, SCAN_TITLE);
         this.scanning = false;
-        this.queued = false;
-      }
-    } finally {
-      _running = null;
-      while (_queue.length) {
-        const next = /** @type {{ gen: number, ctxId: string, prompt: string }} */ (_queue.shift());
-        if (!next || next.gen !== _pollGen) {
-          continue;
-        }
-        this.queued = false;
-        this.scanning = true;
-        this._runNext(next.gen, next.ctxId, next.prompt);
-        break;
       }
     }
   },

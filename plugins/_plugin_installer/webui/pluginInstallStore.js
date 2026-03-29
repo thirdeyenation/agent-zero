@@ -1,8 +1,7 @@
 import { createStore } from "/js/AlpineStore.js";
 import * as api from "/js/api.js";
-import { addBlankTargetsToLinks } from "/js/messages.js";
 import { openModal } from "/js/modals.js";
-import { marked } from "/vendor/marked/marked.esm.js";
+import { renderSafeMarkdown } from "/js/safe-markdown.js";
 import { toastFrontendSuccess, toastFrontendError } from "/components/notifications/notification-store.js";
 import { showConfirmDialog } from "/js/confirmDialog.js";
 import { store as imageViewerStore } from "/components/modals/image-viewer/image-viewer-store.js";
@@ -78,52 +77,6 @@ const model = {
     let url = githubUrl.trim().replace(/\.git$/i, "");
     if (!url.includes("github.com")) return null;
     return url.replace("https://github.com/", "https://raw.githubusercontent.com/");
-  },
-
-  _rebaseReadmeLinks(html, githubUrl, branch) {
-    if (!html || typeof html !== "string" || !githubUrl || !branch) return html;
-
-    let repoUrl;
-    try {
-      repoUrl = new URL(githubUrl.trim().replace(/\.git$/i, ""));
-    } catch {
-      return html;
-    }
-
-    if (repoUrl.hostname !== "github.com") return html;
-
-    const [owner, repo] = repoUrl.pathname
-      .replace(/^\/+|\/+$/g, "")
-      .split("/");
-    if (!owner || !repo) return html;
-
-    const repoBlobBase = `https://github.com/${owner}/${repo}/blob/${branch}`;
-    const doc = new DOMParser().parseFromString(html, "text/html");
-
-    doc.querySelectorAll("a[href]").forEach((anchor) => {
-      const href = (anchor.getAttribute("href") || "").trim();
-      if (
-        !href ||
-        href.startsWith("#") ||
-        href.startsWith("//") ||
-        /^[a-zA-Z][a-zA-Z\d+.-]*:/.test(href)
-      ) {
-        return;
-      }
-
-      try {
-        const resolved = new URL(href, "https://repo-root.invalid/");
-        const repoPath = resolved.pathname.replace(/^\/+/, "");
-        anchor.setAttribute(
-          "href",
-          `${repoBlobBase}/${repoPath}${resolved.search}${resolved.hash}`,
-        );
-      } catch {
-        // Leave malformed links unchanged.
-      }
-    });
-
-    return doc.body.innerHTML;
   },
 
   _pluginPrimaryTag(plugin) {
@@ -551,9 +504,10 @@ const model = {
           if (!response.ok) continue;
 
           const readme = await response.text();
-          let html = marked.parse(readme, { breaks: true });
-          html = this._rebaseReadmeLinks(html, plugin?.github, branch);
-          this.readmeContent = addBlankTargetsToLinks(html);
+          this.readmeContent = renderSafeMarkdown(readme, {
+            githubUrl: plugin?.github,
+            branch,
+          });
           return;
         } catch (error) {
           lastError = error;

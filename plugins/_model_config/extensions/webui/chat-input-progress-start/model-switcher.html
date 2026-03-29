@@ -1,4 +1,4 @@
-<!-- Model Switcher - Floating Preset Selector -->
+<!-- Model Switcher - Floating Preset Selector (left-aligned with inline model display) -->
 <script type="module">
   import { store } from "/plugins/_model_config/webui/model-config-store.js";
 </script>
@@ -17,12 +17,31 @@
                 :class="{ 'has-override': !!$store.modelConfig.switcherOverride }"
                 @click="showDropdown = !showDropdown"
                 @click.outside="showDropdown = false">
-          <span class="material-symbols-outlined">neurology</span>
+          <span class="material-symbols-outlined" style="font-size: 16px;">neurology</span>
           <span class="model-switcher-label" x-text="$store.modelConfig.getSwitcherLabel()"></span>
-          <span class="material-symbols-outlined" style="font-size: 0.75rem;"
+          <span class="material-symbols-outlined" style="font-size: 0.7rem;"
                 x-text="showDropdown ? 'expand_less' : 'expand_more'"></span>
         </button>
 
+        <!-- Inline active model pills (shown when a preset is active) -->
+        <template x-if="$store.modelConfig.switcherOverride">
+          <div class="model-switcher-active-pills">
+            <template x-if="$store.modelConfig.getActiveModels().main">
+              <div class="model-pill">
+                <span class="model-pill-role">Main</span>
+                <span class="model-pill-name" x-text="$store.modelConfig.getActiveModels().main.name"></span>
+              </div>
+            </template>
+            <template x-if="$store.modelConfig.getActiveModels().utility">
+              <div class="model-pill">
+                <span class="model-pill-role">Util</span>
+                <span class="model-pill-name" x-text="$store.modelConfig.getActiveModels().utility.name"></span>
+              </div>
+            </template>
+          </div>
+        </template>
+
+        <!-- Dropdown (opens upward) -->
         <div class="model-switcher-dropdown" x-show="showDropdown" x-transition.opacity>
           <!-- Use Default -->
           <template x-if="$store.modelConfig.switcherOverride">
@@ -99,6 +118,9 @@
   }
   .model-switcher-anchor {
     position: relative;
+    display: flex;
+    align-items: center;
+    gap: 6px;
   }
   .model-switcher-btn {
     width: auto;
@@ -108,6 +130,7 @@
     border: none;
     font-size: 0.75rem;
     white-space: nowrap;
+    flex-shrink: 0;
   }
   .model-switcher-btn:hover {
     border: none;
@@ -116,15 +139,53 @@
     /* color: var(--color-text); */
   }
   .model-switcher-label {
-    max-width: 160px;
+    max-width: 120px;
     overflow: hidden;
     text-overflow: ellipsis;
   }
+
+  /* Inline active model pills */
+  .model-switcher-active-pills {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 1;
+    min-width: 0;
+  }
+  .model-pill {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--color-highlight) 8%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-highlight) 15%, transparent);
+    font-size: 0.68rem;
+    white-space: nowrap;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .model-pill-role {
+    font-weight: 600;
+    opacity: 0.55;
+    font-size: 0.62rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    flex-shrink: 0;
+  }
+  .model-pill-name {
+    opacity: 0.85;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+  }
+
+  /* Dropdown - opens upward, aligned to left */
   .model-switcher-dropdown {
     position: absolute;
     bottom: calc(100% + 6px);
-    right: 0;
-    min-width: 250px;
+    left: 0;
+    min-width: 280px;
     max-height: 550px;
     overflow-y: auto;
     background-color: var(--color-panel);
@@ -201,5 +262,12 @@
     gap: 6px;
     opacity: 0.6;
     font-size: 0.75rem;
+  }
+
+  /* Responsive: hide pills on narrow screens */
+  @media (max-width: 600px) {
+    .model-switcher-active-pills {
+      display: none;
+    }
   }
 </style>
