@@ -154,12 +154,12 @@ export const store = createStore("modelConfig", {
   },
 
   async saveGlobalPresets(presets) {
-    // Strip UI-only fields before saving
+    // Strip UI-only and globally-managed fields before saving
     const clean = presets.map(p => {
       const c = { name: p.name };
       for (const slot of ['chat', 'utility']) {
         if (p[slot]) {
-          const { _kwargs_text, ...rest } = p[slot];
+          const { _kwargs_text, api_key, ...rest } = p[slot];
           c[slot] = rest;
         }
       }

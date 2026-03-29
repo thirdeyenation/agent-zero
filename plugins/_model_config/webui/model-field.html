@@ -79,10 +79,10 @@
         </div>
         <div class="field-control" style="position:relative;" x-data="{ showKey: false }">
           <input :type="showKey ? 'text' : 'password'"
-                 x-model="$store.modelConfig.apiKeyValues[model.provider]"
+                 :value="$store.modelConfig.apiKeyValues[model.provider]"
                  :placeholder="$store.modelConfig.apiKeyStatus[model.provider] ? '&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;' : ''"
                  autocomplete="off"
-                 @input="$store.modelConfig.touchApiKey(model.provider)"
+                 @input="$store.modelConfig.setApiKeyValue(model.provider, $el.value)"
                  style="padding-right:32px;" />
           <span class="material-symbols-outlined eye-toggle"
                 @click="

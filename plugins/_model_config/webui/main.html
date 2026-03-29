@@ -11,6 +11,8 @@
        x-init="
          await $store.modelConfig.ensureLoaded();
          await $store.modelConfig.loadGlobalPresets();
+         $store.modelConfig.resetApiKeyDrafts();
+         await $store.modelConfig.refreshApiKeyStatus();
        ">
     <template x-if="$store.modelConfig._loaded && $store.modelConfig._presetsLoaded">
       <div class="presets-page" x-data="{ presets: JSON.parse(JSON.stringify($store.modelConfig.globalPresets)) }">
@@ -46,12 +48,12 @@
               </div>
 
               <div class="preset-subheader">Main Model</div>
-              <div x-data="{ model: preset.chat, modelType: 'chat', providers: $store.modelConfig.chatProviders, searchType: 'chat', apiKeyMode: 'inline' }">
+              <div x-data="{ model: preset.chat, modelType: 'chat', providers: $store.modelConfig.chatProviders, searchType: 'chat', apiKeyMode: 'store' }">
                 <x-component path="/plugins/_model_config/webui/model-field.html"></x-component>
               </div>
 
               <div class="preset-subheader">Utility Model <span style="opacity:0.5; font-size:0.75rem;">(optional &#x2014; falls back to the configured Utility Model)</span></div>
-              <div x-data="{ model: preset.utility, modelType: 'utility', providers: $store.modelConfig.chatProviders, searchType: 'chat', apiKeyMode: 'inline', providerFallback: preset.chat.provider, apiBaseFallback: preset.chat.api_base }">
+              <div x-data="{ model: preset.utility, modelType: 'utility', providers: $store.modelConfig.chatProviders, searchType: 'chat', apiKeyMode: 'store', providerFallback: preset.chat.provider, apiBaseFallback: preset.chat.api_base }">
                 <x-component path="/plugins/_model_config/webui/model-field.html"></x-component>
               </div>
             </div>
@@ -83,7 +85,7 @@
         </div>
 
         <div class="presets-footer">
-          <button class="button" @click="$store.modelConfig.saveGlobalPresets(presets)">
+          <button class="button" @click="(async () => { await $store.modelConfig.persistAllDirtyApiKeys(); await $store.modelConfig.saveGlobalPresets(presets); })()">
             <span class="icon material-symbols-outlined">save</span> Save Presets
           </button>
         </div>

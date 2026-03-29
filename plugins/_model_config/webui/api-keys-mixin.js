@@ -1,4 +1,5 @@
 const API_BASE = "/plugins/_model_config";
+const API_KEY_PLACEHOLDER = "************";
 
 export const apiKeysState = {
   apiKeyStatus: {},
@@ -15,6 +16,14 @@ export const apiKeysMethods = {
     this.allProviders = (this.allProviders || []).map((item) =>
       item.value?.toLowerCase() === normalized ? { ...item, has_key: !!hasKey } : item
     );
+  },
+
+  _syncApiKeysToSettingsStore(savedKeys) {
+    const settingsApiKeys = globalThis.Alpine?.store('settings')?.settings?.api_keys;
+    if (!settingsApiKeys) return;
+    for (const [provider, value] of Object.entries(savedKeys)) {
+      settingsApiKeys[provider] = value.trim() ? API_KEY_PLACEHOLDER : '';
+    }
   },
 
   _ensureApiKeySlot(provider) {
@@ -34,6 +43,13 @@ export const apiKeysMethods = {
   },
 
   touchApiKey(provider) {
+    this._setApiKeyDirty(provider, true);
+  },
+
+  setApiKeyValue(provider, value) {
+    if (!provider) return;
+    this._ensureApiKeySlot(provider);
+    this.apiKeyValues = { ...this.apiKeyValues, [provider]: value };
     this._setApiKeyDirty(provider, true);
   },
 
@@ -113,6 +129,11 @@ export const apiKeysMethods = {
     }
     this.apiKeyValues = nextValues;
     this.apiKeyDirty = nextDirty;
+
+    // Sync saved keys into the Settings store so Settings Save
+    // won't overwrite just-saved keys with stale empty values.
+    this._syncApiKeysToSettingsStore(normalized);
+
     return data;
   },
 
@@ -153,6 +174,16 @@ export const apiKeysMethods = {
       const provider = config?.[section.key]?.provider;
       if (!provider || seen.has(provider) || !this.apiKeyDirty[provider]) continue;
       seen.add(provider);
+      const value = this.apiKeyValues[provider];
+      updates[provider] = typeof value === 'string' ? value : '';
+    }
+    return this.saveApiKeys(updates);
+  },
+
+  async persistAllDirtyApiKeys() {
+    const updates = {};
+    for (const [provider, isDirty] of Object.entries(this.apiKeyDirty)) {
+      if (!isDirty) continue;
       const value = this.apiKeyValues[provider];
       updates[provider] = typeof value === 'string' ? value : '';
     }

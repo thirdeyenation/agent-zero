@@ -35,14 +35,7 @@
          this.saving = true;
          this.error = '';
          try {
-           const updates = {};
-           const dirty = $store.modelConfig.apiKeyDirty;
-           const values = $store.modelConfig.apiKeyValues;
-           for (const provider of Object.keys(dirty)) {
-             if (!dirty[provider]) continue;
-             updates[provider] = values[provider] || '';
-           }
-           await $store.modelConfig.saveApiKeys(updates);
+           await $store.modelConfig.persistAllDirtyApiKeys();
            await $store.modelConfig.refreshApiKeyStatus();
            window.closeModal?.();
          } catch (e) {
@@ -78,10 +71,10 @@
           </div>
           <div class="field-control" style="position:relative;" x-data="{ showKey: false }">
             <input :type="showKey ? 'text' : 'password'"
-                   x-model="$store.modelConfig.apiKeyValues[provider.value]"
+                   :value="$store.modelConfig.apiKeyValues[provider.value]"
                    :placeholder="provider.has_key ? '••••••••••••' : ''"
                    autocomplete="off"
-                   @input="$store.modelConfig.touchApiKey(provider.value)"
+                   @input="$store.modelConfig.setApiKeyValue(provider.value, $el.value)"
                    style="padding-right:32px;" />
             <span class="material-symbols-outlined eye-toggle"
                   @click="
