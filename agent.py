@@ -848,8 +848,10 @@ class Agent:
         # search for tool usage requests in agent message
         tool_request = extract_tools.json_parse_dirty(msg)
 
-        # basic validation + extensions
-        await self.validate_tool_request(tool_request)
+        # Only validate when extraction produced an object; None means no JSON tool
+        # block was found — the misformat warning path below handles that.
+        if tool_request is not None:
+            await self.validate_tool_request(tool_request)
 
         if tool_request is not None:
             raw_tool_name = tool_request.get("tool_name", tool_request.get("tool",""))  # Get the raw tool name
