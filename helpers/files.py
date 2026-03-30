@@ -22,6 +22,18 @@ TEMP_DIR = "tmp"
 API_DIR = "api"
 _base_dir = os.path.dirname(os.path.abspath(os.path.join(__file__, "../")))
 
+# ⚡ Bolt: Performance optimization
+# Pre-compiling these regular expressions at the module level avoids the overhead
+# of recompiling them on every function call. Since evaluate_text_conditions,
+# process_includes, and others are called frequently during prompt parsing,
+# this provides a measurable performance boost.
+_IF_PATTERN = re.compile(r"{{\s*if\s+(.*?)}}", flags=re.DOTALL)
+_TOKEN_PATTERN = re.compile(r"{{\s*(if\b.*?|endif)\s*}}", flags=re.DOTALL)
+_ORIGINAL_PATTERN = re.compile(r"{{\s*include\s+original\s*}}")
+_INCLUDE_PATTERN = re.compile(r"{{\s*include\s*['\"](.*?)['\"]\s*}}")
+_CODE_FENCE_PATTERN = re.compile(r"(```|~~~)(.*?\n)(.*?)(\1)", flags=re.DOTALL)
+_FULL_JSON_TEMPLATE_PATTERN = re.compile(r"^\s*(```|~~~)\s*json\s*\n(.*?)\n\1\s*$", flags=re.DOTALL)
+
 class VariablesPlugin(ABC):
     @abstractmethod
     def get_variables(self, file: str, backup_dirs: list[str] | None = None, **kwargs) -> dict[str, Any]:  # type: ignore
@@ -164,18 +176,15 @@ def read_prompt_file(
 
 def evaluate_text_conditions(_content: str, **kwargs):
     # search for {{if ...}} ... {{endif}} blocks and evaluate conditions with nesting support
-    if_pattern = re.compile(r"{{\s*if\s+(.*?)}}", flags=re.DOTALL)
-    token_pattern = re.compile(r"{{\s*(if\b.*?|endif)\s*}}", flags=re.DOTALL)
-
     def _process(text: str) -> str:
-        m_if = if_pattern.search(text)
+        m_if = _IF_PATTERN.search(text)
         if not m_if:
             return text
 
         depth = 1
         pos = m_if.end()
         while True:
-            m = token_pattern.search(text, pos)
+            m = _TOKEN_PATTERN.search(text, pos)
             if not m:
                 # Unterminated if-block, do not modify text
                 return text
@@ -337,8 +346,6 @@ def process_includes(
     **kwargs,
 ):
     # {{include original}} — include same file from lower-priority directory
-    original_pattern = re.compile(r"{{\s*include\s+original\s*}}")
-
     def replace_original(match):
         if not _source_file or not _source_dir:
             return match.group(0)
@@ -350,11 +357,9 @@ def process_includes(
         except FileNotFoundError:
             return ""
 
-    _content = re.sub(original_pattern, replace_original, _content)
+    _content = _ORIGINAL_PATTERN.sub(replace_original, _content)
 
     # {{ include 'path' }} — include a named file
-    include_pattern = re.compile(r"{{\s*include\s*['\"](.*?)['\"]\s*}}")
-
     def replace_include(match):
         include_path = match.group(1)
         if os.path.isabs(include_path):
@@ -364,7 +369,7 @@ def process_includes(
         except FileNotFoundError:
             return match.group(0)
 
-    return re.sub(include_pattern, replace_include, _content)
+    return _INCLUDE_PATTERN.sub(replace_include, _content)
 
 
 def _get_dirs_after(_directories: list[str], _source_dir: str) -> list[str]:
@@ -434,24 +439,19 @@ def find_existing_paths_by_pattern(pattern: str):
 
 
 def remove_code_fences(text):
-    # Pattern to match code fences with optional language specifier
-    pattern = r"(```|~~~)(.*?\n)(.*?)(\1)"
-
     # Function to replace the code fences
     def replacer(match):
         return match.group(3)  # Return the code without fences
 
     # Use re.DOTALL to make '.' match newlines
-    result = re.sub(pattern, replacer, text, flags=re.DOTALL)
+    result = _CODE_FENCE_PATTERN.sub(replacer, text)
 
     return result
 
 
 def is_full_json_template(text):
     # Pattern to match the entire text enclosed in ```json or ~~~json fences
-    pattern = r"^\s*(```|~~~)\s*json\s*\n(.*?)\n\1\s*$"
-    # Use re.DOTALL to make '.' match newlines
-    match = re.fullmatch(pattern, text.strip(), flags=re.DOTALL)
+    match = _FULL_JSON_TEMPLATE_PATTERN.fullmatch(text.strip())
     return bool(match)
 
 
