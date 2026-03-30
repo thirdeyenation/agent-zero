@@ -124,6 +124,12 @@
                                 </div>
 
                                 <div class="pi-card-bubbles pi-card-bubbles-status">
+                                    <template x-if="plugin.suspended">
+                                        <span class="pi-card-bubble pi-card-bubble-suspended">
+                                            <span class="material-symbols-outlined">priority_high</span>
+                                            <span class="pi-card-bubble-text">Suspended</span>
+                                        </span>
+                                    </template>
                                     <template x-if="plugin.installed">
                                         <span class="pi-card-bubble pi-card-bubble-installed">
                                             <span class="material-symbols-outlined">check_circle</span>
@@ -641,6 +647,19 @@
             border-color: rgba(59, 130, 246, 0.3);
         }
 
+        .pi-card-bubble-suspended .material-symbols-outlined {
+            color: #f59e0b;
+        }
+
+        .pi-card-bubble-suspended .pi-card-bubble-text {
+            color: #f59e0b;
+        }
+
+        .pi-card-bubble-suspended:hover {
+            background: rgba(245, 158, 11, 0.12);
+            border-color: rgba(245, 158, 11, 0.35);
+        }
+
         body.light-mode .pi-card-bubble-installed .material-symbols-outlined,
         body.light-mode .pi-card-bubble-installed .pi-card-bubble-text {
             color: #166534;
@@ -659,6 +678,16 @@
         body.light-mode .pi-card-bubble-update:hover {
             background: rgba(59, 130, 246, 0.1);
             border-color: rgba(59, 130, 246, 0.35);
+        }
+
+        body.light-mode .pi-card-bubble-suspended .material-symbols-outlined,
+        body.light-mode .pi-card-bubble-suspended .pi-card-bubble-text {
+            color: #b45309;
+        }
+
+        body.light-mode .pi-card-bubble-suspended:hover {
+            background: rgba(245, 158, 11, 0.16);
+            border-color: rgba(217, 119, 6, 0.35);
         }
 
         .pi-pagination {

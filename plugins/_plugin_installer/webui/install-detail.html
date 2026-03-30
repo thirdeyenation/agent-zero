@@ -25,6 +25,12 @@
                             <div class="pi-hero-main">
                                 <h2 class="pi-hero-title" x-text="$store.pluginInstallStore.selectedPlugin.title || $store.pluginInstallStore.selectedPlugin.key"></h2>
                                 <div class="pi-status-badges">
+                                    <template x-if="$store.pluginInstallStore.selectedPlugin.suspended">
+                                        <span class="pi-card-suspended-pill">
+                                            <span class="material-symbols-outlined">priority_high</span>
+                                            <span>Suspended</span>
+                                        </span>
+                                    </template>
                                     <template x-if="$store.pluginInstallStore.selectedPlugin.installed">
                                         <span class="pi-card-installed-pill">Installed</span>
                                     </template>
@@ -99,6 +105,17 @@
                         </div>
                     </div>
                 </div>
+
+                <template x-if="$store.pluginInstallStore.selectedPlugin.suspended">
+                    <div class="pi-suspension-banner">
+                        <span class="material-symbols-outlined">priority_high</span>
+                        <div class="pi-suspension-banner-copy">
+                            <div class="pi-suspension-banner-title">Plugin has been suspended for the following reasons:</div>
+                            <div class="pi-suspension-banner-explanation"
+                                 x-text="$store.pluginInstallStore.selectedPlugin.suspended"></div>
+                        </div>
+                    </div>
+                </template>
 
                 <div class="pi-description" x-text="$store.pluginInstallStore.selectedPlugin.description || 'No description available.'"></div>
 
@@ -435,6 +452,27 @@
             color: #1d4ed8;
         }
 
+        .pi-card-suspended-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            padding: 0.24rem 0.5rem;
+            border-radius: 0.5rem;
+            background: rgba(245, 158, 11, 0.16);
+            color: #f59e0b;
+            font-size: 0.72rem;
+            font-weight: 700;
+        }
+
+        .pi-card-suspended-pill .material-symbols-outlined {
+            font-size: 0.95rem;
+        }
+
+        body.light-mode .pi-card-suspended-pill {
+            background: rgba(245, 158, 11, 0.2);
+            color: #b45309;
+        }
+
         .pi-status-badges .pi-card-installed-pill {
             position: static;
             top: auto;
@@ -442,6 +480,12 @@
         }
 
         .pi-status-badges .pi-card-update-pill {
+            position: static;
+            top: auto;
+            right: auto;
+        }
+
+        .pi-status-badges .pi-card-suspended-pill {
             position: static;
             top: auto;
             right: auto;
@@ -464,6 +508,47 @@
             line-height: 1.6;
             color: var(--color-text-primary);
             margin-bottom: 1.5rem;
+        }
+
+        .pi-suspension-banner {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+            padding: 0.9rem 1rem;
+            border: 1px solid rgba(245, 158, 11, 0.32);
+            border-radius: 10px;
+            background: rgba(245, 158, 11, 0.12);
+            color: #f59e0b;
+        }
+
+        .pi-suspension-banner .material-symbols-outlined {
+            font-size: 1.2rem;
+            line-height: 1.2;
+            flex-shrink: 0;
+        }
+
+        .pi-suspension-banner-copy {
+            min-width: 0;
+        }
+
+        .pi-suspension-banner-title {
+            font-size: 0.92rem;
+            font-weight: 700;
+            line-height: 1.45;
+        }
+
+        .pi-suspension-banner-explanation {
+            margin-top: 0.2rem;
+            font-size: 0.92rem;
+            line-height: 1.55;
+            white-space: pre-line;
+        }
+
+        body.light-mode .pi-suspension-banner {
+            border-color: rgba(217, 119, 6, 0.28);
+            background: rgba(245, 158, 11, 0.14);
+            color: #b45309;
         }
 
         .pi-actions-primary {

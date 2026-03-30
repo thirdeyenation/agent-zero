@@ -11,6 +11,7 @@ import { store as pluginSettingsStore } from "/components/plugins/plugin-setting
 
 const PLUGIN_API = "plugins/_plugin_installer/plugin_install";
 const PER_PAGE = 24;
+const POPULAR_PLUGIN_MIN_STARS = 3;
 
 const SECURITY_WARNING = {
   title: "Security Warning",
@@ -93,11 +94,23 @@ const model = {
       .join(" ");
   },
 
+  _isPopularPlugin(plugin) {
+    return (plugin?.stars || 0) >= POPULAR_PLUGIN_MIN_STARS;
+  },
+
+  _getSuspensionReason(plugin) {
+    return typeof plugin?.suspended === "string" ? plugin.suspended.trim() : "";
+  },
+
+  isPluginSuspended(plugin) {
+    return !!this._getSuspensionReason(plugin);
+  },
+
   _matchesBrowseFilter(plugin, filterKey) {
     if (!filterKey || filterKey === "all") return true;
     if (filterKey === "installed") return !!plugin?.installed;
     if (filterKey === "update") return !!plugin?.has_update;
-    if (filterKey === "popular") return (plugin?.stars || 0) >= 3;
+    if (filterKey === "popular") return this._isPopularPlugin(plugin);
     if (filterKey.startsWith("tag:")) {
       return this._pluginPrimaryTag(plugin) === filterKey.slice(4);
     }
@@ -124,6 +137,22 @@ const model = {
     if (timestampComparison !== 0) return timestampComparison > 0;
 
     return true;
+  },
+
+  _comparePluginsByStars(a, b) {
+    const aSuspended = this.isPluginSuspended(a);
+    const bSuspended = this.isPluginSuspended(b);
+    if (aSuspended !== bSuspended) {
+      return aSuspended ? 1 : -1;
+    }
+
+    const aStars = aSuspended ? 0 : Number(a?.stars) || 0;
+    const bStars = bSuspended ? 0 : Number(b?.stars) || 0;
+    if (aStars !== bStars) {
+      return bStars - aStars;
+    }
+
+    return (a.title || a.key).localeCompare(b.title || b.key);
   },
 
   // ── ZIP Install ──────────────────────────────
@@ -341,6 +370,7 @@ const model = {
         commit: val?.commit || val?.latest_commit || "",
         updated: val?.updated || val?.latest_commit_timestamp || "",
         version: val?.version || "",
+        suspended: this._getSuspensionReason(val),
         installed,
       };
 
@@ -365,7 +395,7 @@ const model = {
     const updateCount = plugins.filter((plugin) => plugin.has_update).length;
     filters.push({ key: "update", label: "Update", count: updateCount });
 
-    const popularCount = plugins.filter((plugin) => (plugin.stars || 0) > 0).length;
+    const popularCount = plugins.filter((plugin) => this._isPopularPlugin(plugin)).length;
     if (popularCount) {
       filters.push({ key: "popular", label: "Popular", count: popularCount });
     }
@@ -406,7 +436,7 @@ const model = {
       );
     }
     if (this.sortBy === "stars") {
-      list.sort((a, b) => (b.stars || 0) - (a.stars || 0));
+      list.sort((a, b) => this._comparePluginsByStars(a, b));
     } else {
       list.sort((a, b) =>
         (a.title || a.key).localeCompare(b.title || b.key)
