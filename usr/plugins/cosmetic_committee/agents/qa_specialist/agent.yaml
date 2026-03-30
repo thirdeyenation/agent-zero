@@ -1,0 +1,11 @@
+name: qa_specialist
+description: "Cosmetic Committee: Quality Assurance Specialist for custom CSS."
+model: ""
+temperature: 0.1
+max_tokens: 4096
+
+tools:
+  - "apply_css"
+
+disabled_tools:
+  - "*"

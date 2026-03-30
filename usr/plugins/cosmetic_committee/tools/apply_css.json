@@ -1,0 +1,14 @@
+{
+  "name": "apply_css",
+  "description": "Applies custom CSS to the Agent Zero Web UI.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "css": {
+        "type": "string",
+        "description": "The raw CSS string to apply to the Web UI."
+      }
+    },
+    "required": ["css"]
+  }
+}
