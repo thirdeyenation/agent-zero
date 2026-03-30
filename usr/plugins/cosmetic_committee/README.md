@@ -4,6 +4,8 @@ The Cosmetic Committee is an Agent Zero plugin that provides a dedicated, multi-
 
 ## The Team
 
+The plugin distributes specialized agent profiles directly in its `agents/` directory. These agents use the `call_subordinate` tool to form a strict hierarchy:
+
 - **Cosmo**: The user-facing representative. Cosmo acts as the bridge between you and the design team. Talk to Cosmo to request changes or select from pre-built themes.
 - **Lead Designer**: The orchestrator who takes Cosmo's instructions and turns them into technical tasks for the specialists.
 - **CSS Specialist**: The technical expert who writes the precise CSS code required to bring your vision to life.
@@ -12,7 +14,7 @@ The Cosmetic Committee is an Agent Zero plugin that provides a dedicated, multi-
 ## Features
 
 - **Direct Conversation**: Chat with Cosmo just like any other agent to request UI changes.
-- **Live Updates**: The team applies custom CSS directly to your interface on the fly.
+- **Live Updates**: The team applies custom CSS directly to your interface on the fly, broadcasting updates directly to your browser.
 - **Pre-built Themes**: Cosmo offers 3 unique out-of-the-box themes:
   - Cyberpunk
   - Minimalist Light
