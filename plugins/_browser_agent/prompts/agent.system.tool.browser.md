@@ -1,36 +1,7 @@
-### browser_agent:
-
-subordinate agent controls playwright browser
-message argument talks to agent give clear instructions credentials task based
-reset argument spawns new agent
-do not reset if iterating
-be precise descriptive like: open google login and end task, log in using ... and end task
-when following up start: considering open pages
-dont use phrase wait for instructions use end task
-downloads default in /a0/tmp/downloads
-pass secrets and variables in message when needed
-
-usage:
-```json
-{
-  "thoughts": ["I need to log in to..."],
-  "headline": "Opening new browser session for login",
-  "tool_name": "browser_agent",
-  "tool_args": {
-    "message": "Open and log me into...",
-    "reset": "true"
-  }
-}
-```
-
-```json
-{
-  "thoughts": ["I need to log in to..."],
-  "headline": "Continuing with existing browser session",
-  "tool_name": "browser_agent",
-  "tool_args": {
-    "message": "Considering open pages, click...",
-    "reset": "false"
-  }
-}
-```
+### browser_agent
+subordinate browser worker for web tasks
+args: `message`, `reset`
+- give clear task-oriented instructions, credentials, and a stop condition
+- `reset=true` starts a new browser session; `false` continues the current one
+- when continuing, refer to open pages instead of restarting
+downloads go to `/a0/tmp/downloads`
