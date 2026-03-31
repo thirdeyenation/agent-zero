@@ -1,42 +1,31 @@
 # Quick Start
-This guide provides a quick introduction to using Agent Zero. We'll cover the essential installation steps and running your first Skill.
+This guide provides a quick introduction to using Agent Zero. We'll cover the recommended install path and running your first Skill.
 
-## Installation Steps
+## Installation (recommended)
 
-### Step 1: Install Docker Desktop
+Run one command; the script handles Docker, image pull, and container setup.
 
-Download and install Docker Desktop for your operating system:
+**macOS / Linux:**
+```bash
+curl -fsSL https://bash.agent-zero.ai | bash
+```
 
-- **Windows:** Download from [Docker Desktop](https://www.docker.com/products/docker-desktop/) and run the installer with default settings
-- **macOS:** Download for Apple Silicon or Intel, drag to Applications, and enable the Docker socket in Settings → Advanced
-- **Linux:** Install Docker Desktop or docker-ce following the [official instructions](https://docs.docker.com/desktop/install/linux-install/)
+**Windows (PowerShell):**
+```powershell
+irm https://ps.agent-zero.ai | iex
+```
+
+Follow the CLI prompts for port and authentication, complete onboarding, then open the Web UI URL from the terminal.
 
 > [!TIP]
-> For complete OS-specific installation instructions, see the [full Installation Guide](setup/installation.md#step-1-install-docker-desktop).
+> To update later, use **Settings → Update → Self Update** (see [How to Update](setup/installation.md#how-to-update-agent-zero)). Always create a backup under **Settings → Backup & Restore** first.
 
-### Step 2: Pull the Agent Zero Image
+> [!NOTE]
+> For manual Docker Desktop setup, volume mapping, and platform-specific detail, see the [Installation Guide](setup/installation.md#manual-installation-advanced).
 
-Using Docker Desktop GUI, search for `agent0ai/agent-zero` and click Pull, or use the terminal:
+### Open the Web UI and configure your API key
 
-```bash
-docker pull agent0ai/agent-zero
-```
-
-### Step 3: Run the Container
-
-**Using Docker Desktop:** Go to Images tab, click Run next to `agent0ai/agent-zero`, open Optional settings, map a host port to container port `80` (use `0` for automatic assignment), then click Run.
-
-**Using Terminal:**
-
-```bash
-docker run -p 0:80 agent0ai/agent-zero
-```
-
-The container will start in a few seconds. Find the mapped port in Docker Desktop (shown as `<PORT>:80`).
-
-### Step 4: Open the Web UI and Configure API Key
-
-Open your browser and navigate to `http://localhost:<PORT>`. The Web UI will show a warning banner about missing API key.
+Open your browser and navigate to `http://localhost:<PORT>`. The Web UI will show the onboarding banner. Click Start Onboarding to set your AI models and API key.
 
 ![Agent Zero Web UI](res/setup/6-docker-a0-running-new.png)
 
@@ -44,12 +33,12 @@ Click **Add your API key** to open Settings and configure:
 
 - **Default Provider:** OpenRouter (supports most models with a single API key)
 - **Alternative Providers:** Anthropic, OpenAI, Ollama/LM Studio (local models), and many others
-- **Model Selection:** Choose your chat model (e.g., `anthropic/claude-sonnet-4-5` for OpenRouter)
+- **Model Selection:** Choose your chat model (e.g., `anthropic/claude-sonnet-4-6` for OpenRouter)
 
 > [!NOTE]
 > Agent Zero supports any LLM provider, including local models via Ollama. For detailed provider configuration and local model setup, see the [Installation Guide](setup/installation.md#choosing-your-llms).
 
-### Step 5: Start Your First Chat
+### Start your first chat
 
 Once configured, you'll see the Agent Zero dashboard with access to:
 
