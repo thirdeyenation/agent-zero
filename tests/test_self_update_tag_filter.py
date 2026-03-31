@@ -569,6 +569,8 @@ def test_self_update_modal_uses_standard_select_and_manual_backup():
     assert "quickComparisonIcon" in content
     assert "quickComparisonIconClass" in content
     assert "{ spinning: $store.selfUpdateStore.isCheckingStatus }" in content
+    assert "{ 'btn-field': !$store.selfUpdateStore.quickUpdateAvailable }" in content
+    assert "{ 'btn-field': !$store.selfUpdateStore.canScheduleUpdate }" in content
     assert "formatReleaseTimestamp($store.selfUpdateStore.currentReleasedAt)" in content
     assert "formatReleaseTimestamp($store.selfUpdateStore.mainBranchLatestReleasedAt)" in content
     assert "Latest version" in content

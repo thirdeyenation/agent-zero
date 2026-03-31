@@ -475,6 +475,7 @@
               <button
                 type="button"
                 class="btn btn-ok"
+                :class="{ 'btn-field': !$store.selfUpdateStore.quickUpdateAvailable }"
                 @click="$store.selfUpdateStore.scheduleQuickUpdate()"
                 :disabled="!$store.selfUpdateStore.quickUpdateAvailable"
               >
@@ -485,6 +486,7 @@
               <button
                 type="button"
                 class="btn btn-ok"
+                :class="{ 'btn-field': !$store.selfUpdateStore.canScheduleUpdate }"
                 @click="$store.selfUpdateStore.scheduleUpdate()"
                 :disabled="!$store.selfUpdateStore.canScheduleUpdate"
               >
