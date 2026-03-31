@@ -320,9 +320,14 @@ def test_self_update_update_info_uses_current_branch_for_latest_version(monkeypa
         "get_selector_tag_options",
         lambda branch, *, repo_dir=None, current_version=None: (
             [{"value": "latest", "label": "latest (v1.4)"}],
-            [],
+            [2] if branch == "main" else [],
             "",
         ),
+    )
+    monkeypatch.setattr(
+        self_update,
+        "get_available_tags",
+        lambda branch, *, repo_dir=None, query="": (["v1.4", "v1.2"], ""),
     )
     monkeypatch.setattr(
         self_update,
@@ -358,6 +363,102 @@ def test_self_update_update_info_uses_current_branch_for_latest_version(monkeypa
         "display_version": "v1.4",
         "commit": "def5678abcd",
         "short_commit": "def5678",
+        "released_at": "",
+    }
+    assert info["main_branch_latest"] == {
+        "branch": "main",
+        "supported": True,
+        "describe": "v1.4",
+        "short_tag": "v1.4",
+        "display_version": "v1.4",
+        "commit": "def5678abcd",
+        "short_commit": "def5678",
+        "released_at": "",
+    }
+    assert info["major_upgrade_versions"] == [2]
+
+
+def test_self_update_main_branch_latest_stays_within_current_major(monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        self_update,
+        "get_available_branch_values",
+        lambda repo_dir=None: ["main", "development"],
+    )
+    monkeypatch.setattr(
+        self_update,
+        "get_available_tags",
+        lambda branch, *, repo_dir=None, query="": (
+            ["v2.0", "v1.4", "v1.2"],
+            "",
+        ),
+    )
+    monkeypatch.setattr(
+        self_update,
+        "_get_branch_head_info",
+        lambda branch, repo_dir=None: {
+            "describe": "v2.0",
+            "short_tag": "v2.0",
+            "commit": "feedbee1234",
+            "released_at": "2026-03-30 15:15:50",
+        },
+    )
+    monkeypatch.setattr(
+        self_update,
+        "_run_git",
+        lambda repo_dir, *args: {
+            ("rev-parse", "refs/tags/v1.4^{commit}"): "deadbeef1234",
+        }[args],
+    )
+    monkeypatch.setattr(
+        self_update,
+        "_get_tag_release_time_in_repo",
+        lambda repo_dir, tag: "2026-02-01 08:30:00" if tag == "v1.4" else "",
+    )
+
+    info = self_update.get_current_major_main_latest_info("v1.2", repo_dir=tmp_path)
+
+    assert info == {
+        "branch": "main",
+        "supported": True,
+        "describe": "v1.4",
+        "short_tag": "v1.4",
+        "display_version": "v1.4",
+        "commit": "deadbeef1234",
+        "short_commit": "deadbee",
+        "released_at": "2026-02-01 08:30:00",
+    }
+
+
+def test_self_update_remote_branch_head_info_resolves_release_time_before_temp_repo_is_removed(
+    monkeypatch,
+):
+    monkeypatch.setattr(self_update, "_remote_branch_head_cache", {})
+
+    def fake_run_git(repo_dir, *args):
+        if args[:2] == ("init", "--bare"):
+            return ""
+        if args[0] == "fetch":
+            return ""
+        if args[:3] == ("describe", "--tags", "--always"):
+            return "v1.5"
+        if args[:2] == ("rev-parse", "refs/remotes/origin/main"):
+            return "abc1234def5678"
+        raise AssertionError(args)
+
+    monkeypatch.setattr(self_update, "_run_git", fake_run_git)
+    monkeypatch.setattr(
+        self_update,
+        "_get_tag_release_time_in_repo",
+        lambda repo_dir, tag: "2026-03-30 15:15:50" if Path(repo_dir).exists() else "",
+    )
+
+    info = self_update._get_remote_branch_head_info("main")
+
+    assert info == {
+        "describe": "v1.5",
+        "short_tag": "v1.5",
+        "commit": "abc1234def5678",
+        "released_at": "2026-03-30 15:15:50",
     }
 
 
@@ -376,9 +477,16 @@ def test_self_update_frontend_uses_preloaded_select():
     assert "const MIN_SELECTOR_VERSION = [1, 0];" in content
     assert "availableTagOptions: []" in content
     assert "higherMajorVersions: []" in content
+    assert "majorUpgradeVersions: []" in content
+    assert 'activeTab: "quick"' in content
+    assert "get hasPendingInitialLoad()" in content
+    assert "get isCheckingStatus()" in content
+    assert "get hasMajorUpgrade()" in content
+    assert "get majorUpgradeBannerMessage()" in content
     assert "this.applyAvailableTags({" in content
     assert "response.available_tag_options" in content
     assert "response.available_higher_major_versions" in content
+    assert "response.major_upgrade_versions" in content
     assert "response.tag_options" in content
     assert "response.higher_major_versions" in content
     assert "response.pending || {" in content
@@ -390,8 +498,20 @@ def test_self_update_frontend_uses_preloaded_select():
     assert "Release tag must be v1.0 or newer." in content
     assert "isLatestSelectorTag(value)" in content
     assert "this.isSelectableTag(this.form.tag)" in content
+    assert "get mainBranchLatestTag()" in content
+    assert "quickUpdateAvailable" in content
+    assert "scheduleQuickUpdate()" in content
+    assert 'branch: "main"' in content
+    assert "quickComparisonIcon" in content
+    assert "quickComparisonIconClass" in content
+    assert "Checking update status..." in content
+    assert '"CHECKING"' in content
+    assert '"Loading"' in content
+    assert "formatReleaseTimestamp(value)" in content
     assert "getLastStatusBadgeClass(status)" in content
     assert "this.info?.current?.display_version" in content
+    assert "this.info?.main_branch_latest?.display_version" in content
+    assert "this.info?.current?.released_at" in content
     assert "resetRestartState()" in content
     assert "restartRequestStarted" in content
     assert "restartResponse.status >= 500" in content
@@ -433,14 +553,39 @@ def test_self_update_modal_uses_standard_select_and_manual_backup():
     assert "$store.selfUpdateStore.availableTagOptions" in content
     assert "$store.selfUpdateStore.info?.current?.describe" in content
     assert "current_branch_latest?.display_version" in content
+    assert "mainBranchLatestVersion" in content
     assert "tagOption.label" in content
+    assert 'id="self-update-quick-tab"' in content
+    assert 'id="self-update-advanced-tab"' in content
     assert 'data-bs-target="#self-update-last-attempt-collapse"' in content
+    assert "New major version available" in content
+    assert 'x-show="$store.selfUpdateStore.hasMajorUpgrade"' in content
+    assert "$store.selfUpdateStore.majorUpgradeBannerMessage" in content
+    assert "Website installation guide" in content
     assert "self-update-header-status" in content
+    assert ".status-pill.self-update-quick-status" in content
     assert "getLastStatusLabel($store.selfUpdateStore.info?.last_status?.status)" in content
+    assert "Current version vs latest on main" not in content
+    assert "quickComparisonIcon" in content
+    assert "quickComparisonIconClass" in content
+    assert "{ spinning: $store.selfUpdateStore.isCheckingStatus }" in content
+    assert "formatReleaseTimestamp($store.selfUpdateStore.currentReleasedAt)" in content
+    assert "formatReleaseTimestamp($store.selfUpdateStore.mainBranchLatestReleasedAt)" in content
     assert "Latest version" in content
     assert "Docker update guide" in content
     assert "https://www.agent-zero.ai/p/docs/get-started/" in content
+    assert "Version numbers use the format <code>vMAJOR.MINOR</code>" in content
+    assert "requires a newer" in content
+    assert "Docker image." in content
+    assert "minor release line" in content
+    assert "Agent Zero self-update inside the existing image." in content
+    assert "On development branches you may also see versions like <code>v1.5+2</code>" in content
+    assert "This suffix is not used on" in content
+    assert "Only versions from the current major release line are listed here." in content
     assert "Manual backup" in content
+    assert ">Refresh Status<" not in content
+    assert "Refresh" in content
+    assert "Loading update status..." not in content
     assert 'type="button"' in content
     assert "@blur" not in content
     assert "selectTag(tag)" not in content
