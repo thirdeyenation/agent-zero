@@ -256,6 +256,8 @@ some classes like modal-header are shared between the old and the new system */
   background: #2196f3;
   color: white;
   width: fit-content;
+  align-items: center;
+  display: inline-flex;
 }
 .btn:disabled {
   cursor: not-allowed;
