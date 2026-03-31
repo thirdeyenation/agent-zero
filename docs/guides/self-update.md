@@ -1,5 +1,19 @@
 # Self Update
 
+## Using Self Update in the Web UI
+
+For day-to-day upgrades inside a running instance:
+
+1. **Settings → Update** → open **Self Update**
+2. Select the target version
+3. Click **Restart and Update**
+
+The UI will tell you when a new A0 update is available for download.
+
+---
+
+## Technical reference
+
 Agent Zero includes a Docker-oriented self-update flow for switching to a specific repository version tag on `main`, `testing`, or `development`.
 
 ## How it works

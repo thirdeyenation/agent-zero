@@ -23,13 +23,46 @@ irm https://ps.agent-zero.ai | iex
 docker run -p 80:80 agent0ai/agent-zero
 ```
 
-Once the install completes, open the URL shown in your terminal to access the Web UI and proceed to [Step 3: Configure Agent Zero](#step-3-configure-agent-zero).
+Once the install completes, open the URL shown in your terminal to access the Web UI. Follow the prompts in the CLI to set your port and authentication, complete onboarding, add your API key, then continue to [Step 3: Configure Agent Zero](#step-3-configure-agent-zero).
 
 ---
 
-## Manual Docker Setup
+## How to Update Agent Zero
 
-If you prefer to set things up manually, follow the steps below.
+### Self Update (Recommended)
+
+Use the built-in updater in the Web UI (since v1.5):
+
+1. Go to **Settings → Update** and open **Self Update**
+2. Choose the version you want
+3. Click **Restart and Update**
+
+For technical details of the updater, see [Self Update](../guides/self-update.md).
+
+### Manual Update (Advanced)
+
+> Use this only if Self Update is unavailable or you must manage containers yourself (for example, some custom Docker setups).
+
+1. Keep the current container running
+2. `docker pull agent0ai/agent-zero:latest`
+3. Start a **new** container on a different host port, for example: `docker run -d -p 50081:80 --name agent-zero-new agent0ai/agent-zero`
+4. On the **old** instance: **Settings → Backup & Restore → Create Backup**
+5. On the **new** instance: **Restore** the backup
+6. Verify chats and data, then remove the old container
+
+> [!CAUTION]
+> Do not delete the old container until the new one has your data.
+
+> [!TIP]
+> If the new instance fails to load settings, remove `/a0/usr/settings.json` and restart to regenerate default settings.
+
+---
+
+## Manual Installation (Advanced)
+
+> Users should use [Quick Start (Recommended)](#quick-start-recommended) above. The steps below are for custom Docker setups, air-gapped installs, or when you cannot use the install scripts.
+
+Follow the steps below to install Docker and run the image by hand.
 
 ### Step 1: Install Docker Desktop
 
@@ -491,24 +524,6 @@ ollama rm <model-name>
 
 > [!TIP]
 > Experiment with different model combinations to find the balance of performance and cost that best suits your needs. E.g., faster and lower latency LLMs will help, and you can also use `faiss_gpu` instead of `faiss_cpu` for the memory. 
-
----
-
-## How to Update Agent Zero
-
-> [!NOTE]
-> Since v0.9, Agent Zero includes a Backup & Restore workflow in the Settings UI. This is the **safest** way to upgrade Docker instances.
-
-### Recommended Update Process (Docker)
-
-1. **Keep the old container running** and note its port.
-2. **Pull the new image** (`agent0ai/agent-zero:latest`).
-3. **Start a new container** on a different host port.
-4. In the **old** instance, open **Settings → Backup & Restore** and create a backup.
-5. In the **new** instance, restore that backup from the same panel.
-
-> [!TIP]
-> If the new instance fails to load settings, remove `/a0/usr/settings.json` and restart to regenerate default settings.
 
 ---
 
