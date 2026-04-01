@@ -214,6 +214,8 @@ def clear_plugin_cache(plugin_names: list[str] | None = None):
 
 def get_plugin_roots(plugin_name: str = "") -> List[str]:
     """Plugin root directories, ordered by priority (user first)."""
+    if plugin_name and ("/" in plugin_name or "\\" in plugin_name or ".." in plugin_name):
+        return []
     return [
         files.get_abs_path(files.USER_DIR, files.PLUGINS_DIR, plugin_name),
         files.get_abs_path(files.PLUGINS_DIR, plugin_name),
@@ -358,7 +360,7 @@ def get_plugin_meta(plugin_name: str):
 
 
 def find_plugin_dir(plugin_name: str):
-    if not plugin_name:
+    if not plugin_name or "/" in plugin_name or "\\" in plugin_name or ".." in plugin_name:
         return None
 
     # check if the plugin is in the user directory
