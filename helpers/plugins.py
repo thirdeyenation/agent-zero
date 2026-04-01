@@ -607,9 +607,10 @@ def get_plugin_config(
 
     # use default config if not found
     if not file_path:
-        file_path = files.get_abs_path(
-            find_plugin_dir(plugin_name), CONFIG_DEFAULT_FILE_NAME
-        )
+        plugin_dir = find_plugin_dir(plugin_name)
+        if not plugin_dir:
+            return None
+        file_path = files.get_abs_path(plugin_dir, CONFIG_DEFAULT_FILE_NAME)
         default_used = True
 
     result = None
@@ -635,9 +636,11 @@ def get_plugin_config(
 
 
 def get_default_plugin_config(plugin_name: str):
-    file_path = files.get_abs_path(
-        find_plugin_dir(plugin_name), CONFIG_DEFAULT_FILE_NAME
-    )
+    plugin_dir = find_plugin_dir(plugin_name)
+    if not plugin_dir:
+        return None
+
+    file_path = files.get_abs_path(plugin_dir, CONFIG_DEFAULT_FILE_NAME)
 
     # call plugin hook to get the result
     result = call_plugin_hook(
