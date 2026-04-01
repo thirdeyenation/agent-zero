@@ -1,4 +1,4 @@
-## 2024-05-24 - simpleeval Sandbox Escape (CVE-2026-32640)
-**Vulnerability:** The `simpleeval` package used in the project allowed arbitrary function execution resulting in potential sandbox escapes or remote code injection during the evaluation of user inputs and template conditions.
-**Learning:** Using `simple_eval()` without explicitly disabling `functions` allowed unintended function executions.
-**Prevention:** Update `simpleeval` dependency to version >=1.0.5 and always use `SimpleEval(names=..., functions={}).eval(...)` to prevent code execution when only evaluating variables.
+## 2025-03-05 - Add input validation for plugin path resolution
+**Vulnerability:** Path Traversal via `plugin_name` parameter
+**Learning:** `helpers.files.get_abs_path` does not prevent path traversal if user inputs (such as `plugin_name` from API requests) contain characters like `/`, `\`, or `..`. This allows an attacker to resolve arbitrary paths outside of the designated `plugins` directories and potentially execute arbitrary Python scripts using mechanisms like `_run_execute_script`.
+**Prevention:** Strictly validate and sanitize parameters that dictate directory traversal (like `plugin_name`) before passing them to path construction functions. E.g., `if not plugin_name or "/" in plugin_name or "\\" in plugin_name or ".." in plugin_name: return None`.
