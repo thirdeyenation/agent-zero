@@ -141,9 +141,9 @@ const model = {
   },
 
   get sortedBanners() {
-    return [...this.banners].sort(
-      (a, b) => (b.priority || 0) - (a.priority || 0),
-    );
+    return [...this.banners]
+      .filter((b) => b.type !== "hero" && b.type !== "feature")
+      .sort((a, b) => (b.priority || 0) - (a.priority || 0));
   },
 
   /**
