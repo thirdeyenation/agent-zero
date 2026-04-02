@@ -1,7 +1,7 @@
-# A0 Small - Tool Call Reference Examples
+# Tool Call Reference Examples
 
 These examples are intentionally short and high signal so tool-call shape guidance
-can live in knowledge instead of bloating tool prompts.
+can live in knowledge without bloating the default prompt stack.
 
 ## 1) Namespaced tool (`text_editor`) vs non-namespaced tool (`code_execution_tool`)
 

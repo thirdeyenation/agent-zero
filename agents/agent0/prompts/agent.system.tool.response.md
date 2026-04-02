@@ -1,30 +1,11 @@
-### response:
-final answer to user
-ends task processing use only when done or no task active
-put result in text arg
-always use markdown formatting headers bold text lists
-full message is automatically markdown do not wrap ~~~markdown
-use emojis as icons improve readability
-prefer using tables
-focus nice structured output key selling point
-output full file paths not only names to be clickable
-images shown with ![alt](img:///path/to/image.png) show images when possible when relevant also output full path
-all math and variables wrap with latex notation delimiters <latex>x = ...</latex>, use only single line latex do formatting in markdown instead
-speech: text and lists are spoken, tables and code blocks not, therefore use tables for files and technicals, use text and lists for plain english, do not include technical details in lists
-
-
-usage:
-~~~json
-{
-    "thoughts": [
-        "...",
-    ],
-    "headline": "Explaining why...",
-    "tool_name": "response",
-    "tool_args": {
-        "text": "Answer to the user",
-    }
-}
-~~~
-
+### response
+final answer to user. ends task.
+arg: `text`
+default style:
+- balanced and concise; informative but tight, not terse and not verbose
+- prefer short paragraphs; use short lists only when they improve scanability
+- markdown is allowed but do not over-format or wrap the whole reply in a code block
+- use full local file paths when referring to files so the UI can open them
+- show local images as `![alt](img:///abs/path)` when relevant
+- use `<latex>...</latex>` for math only when needed
 {{ include "agent.system.response_tool_tips.md" }}

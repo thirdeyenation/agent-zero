@@ -1,16 +1,4 @@
-### search_engine:
-provide query arg get search results
-returns list urls titles descriptions
-**Example usage**:
-~~~json
-{
-    "thoughts": [
-        "...",
-    ],
-    "headline": "Searching web for video content",
-    "tool_name": "search_engine",
-    "tool_args": {
-        "query": "Video of...",
-    }
-}
-~~~
+### search_engine
+find live news, prices, and other real-time web data
+arg: `query` (text search query)
+returns urls, titles, and descriptions
