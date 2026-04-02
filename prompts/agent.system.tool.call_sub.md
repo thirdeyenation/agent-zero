@@ -18,3 +18,7 @@ example:
 }
 ~~~
 reuse long subordinate output with `§§include(path)` instead of rewriting it
+{{if agent_profiles}}
+available profiles:
+{{agent_profiles}}
+{{endif}}

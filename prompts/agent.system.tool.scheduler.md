@@ -14,3 +14,14 @@ methods:
 - `scheduler:create_adhoc_task`: `name`, `system_prompt`, `prompt`, optional `attachments[]`, optional `dedicated_context`
 - `scheduler:create_planned_task`: `name`, `system_prompt`, `prompt`, optional `attachments[]`, `plan[]` iso datetimes like `2025-04-29T18:25:00`, optional `dedicated_context`
 - `scheduler:wait_for_task`: `uuid`; works for dedicated-context tasks
+example:
+~~~json
+{
+  "thoughts": ["I should check for an existing task before I create or run anything."],
+  "headline": "Looking up scheduled task",
+  "tool_name": "scheduler:find_task_by_name",
+  "tool_args": {
+    "name": "daily backup"
+  }
+}
+~~~
