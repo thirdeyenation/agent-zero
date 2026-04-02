@@ -93,7 +93,8 @@
                                 <button class="welcome-banner-dismiss" 
                                         x-show="banner.dismissible !== false"
                                         @click.stop="$store.welcomeStore.dismissBanner(banner.id)"
-                                        title="Dismiss">
+                                        title="Dismiss"
+                                        aria-label="Dismiss banner">
                                     <span class="material-symbols-outlined">close</span>
                                 </button>
                             </div>
