@@ -13,7 +13,7 @@ from helpers.secrets import get_secrets_manager
 from extensions.python.message_loop_start._10_iteration_no import get_iter_no
 from pydantic import BaseModel
 import uuid
-from helpers.dirty_json import DirtyJson
+from helpers import dirty_json
 
 
 PLUGIN_DIR = Path(__file__).resolve().parents[1]
@@ -303,7 +303,7 @@ class BrowserAgent(Tool):
             answer = result.final_result()
             try:
                 if answer and isinstance(answer, str) and answer.strip():
-                    answer_data = DirtyJson.parse_string(answer)
+                    answer_data = dirty_json.try_parse(answer)  # ⚡ Bolt: Use try_parse for standard json fast path
                     answer_text = strings.dict_to_text(answer_data)  # type: ignore
                 else:
                     answer_text = (
