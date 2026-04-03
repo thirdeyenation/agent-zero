@@ -1,24 +1,67 @@
 ### text_editor
-read write or patch text files; binary files are not supported
-always use the method form in `tool_name`; never send bare `text_editor`
-- `text_editor:read`: `path`, optional `line_from`, `line_to`
-- `text_editor:write`: `path`, `content`
-- `text_editor:patch`: `path`, `edits[]`
-example:
+file read write patch with numbered lines
+not code execution rejects binary
+terminal (grep find sed) advance search/replace
+
+#### text_editor:read
+read file with numbered lines
+args path line_from line_to (inclusive optional)
+no range → first {{default_line_count}} lines
+long lines cropped output may trim by token limit
+read surrounding context before patching
+usage:
 ~~~json
 {
-  "thoughts": ["Need to inspect the file before patching it."],
-  "headline": "Reading file with text editor",
-  "tool_name": "text_editor:read",
-  "tool_args": {
-    "path": "/path/file.py",
-    "line_from": 1,
-    "line_to": 50
-  }
+    ...
+    "tool_name": "text_editor:read",
+    "tool_args": {
+        "path": "/path/file.py",
+        "line_from": 1,
+        "line_to": 50
+    }
 }
 ~~~
-patch edit format: `{from,to?,content?}`
-- omit `to` to insert before `from`
-- omit `content` to delete
-- line numbers come from the last read
-- avoid overlapping edits; re-read after insert delete or other line shifts
+
+#### text_editor:write
+create/overwrite file auto-creates dirs
+args path content
+usage:
+~~~json
+{
+    ...
+    "tool_name": "text_editor:write",
+    "tool_args": {
+        "path": "/path/file.py",
+        "content": "import os\nprint('hello')\n"
+    }
+}
+~~~
+
+#### text_editor:patch
+line edits on existing file
+args path edits [{from to content}]
+from to inclusive \n in content
+{from:2 to:2 content:"x\n"} replace line
+{from:1 to:3 content:"x\n"} replace range
+{from:2 to:2} delete (no content)
+{from:2 content:"x\n"} insert before (omit to)
+use original line numbers from read 
+dont adjust for shifts no overlapping edits
+ensure valid syntax in content (all braces brackets tags closed)
+only replace exact lines needed dont include surrounding unchanged lines
+re-read when insert delete or N≠M replace else patch again ok
+large changes write over multiple patches
+usage:
+~~~json
+{
+    ...
+    "tool_name": "text_editor:patch",
+    "tool_args": {
+        "path": "/path/file.py",
+        "edits": [
+            {"from": 1, "content": "import sys\n"},
+            {"from": 5, "to": 5, "content": "    if x == 2:\n"}
+        ]
+    }
+}
+~~~
