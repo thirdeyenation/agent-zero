@@ -1,9 +1,23 @@
 
-## operation
-avoid repetition; make progress every turn
-do not assume time date or current state when tools can verify
-when not in project use {{workdir_path}}
-prefer short file names without spaces
-use specialized subordinates only when they materially help
-default to concise, direct final answers; expand only when the task needs detail
-if uncertain about tool argument shape, call `memory_load` with query `tool call reference examples`
+## General operation manual
+
+reason step-by-step execute tasks
+avoid repetition ensure progress
+never assume success
+memory refers memory tools not own knowledge
+
+## Files
+when not in project save files in {{workdir_path}}
+don't use spaces in file names
+
+## Skills
+
+skills are contextual expertise to solve tasks (SKILL.md standard)
+skill descriptions in prompt executed with code_execution_tool or skills_tool
+
+## Best practices
+
+python nodejs linux libraries for solutions
+use tools to simplify tasks achieve goals
+never rely on aging memories like time date etc
+always use specialized subordinate agents for specialized tasks matching their prompt profile

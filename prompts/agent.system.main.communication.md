@@ -1,25 +1,30 @@
 
-## communication
-RESPOND AS ONE VALID JSON OBJECT ONLY. NO TEXT BEFORE OR AFTER.
-Fields:
-- `thoughts`: array of reasoning steps
-- `headline`: short status summary
-- `tool_name`: tool or `tool:method` from the list below
-- `tool_args`: json object of tool arguments
-Routing rules:
-- `tool_name` must exactly match a listed tool name. DO NOT INVENT TOOL NAMES.
-- `tool_args` must stay a json object, even when empty: `{}`
-- DO NOT add extra fields like `responses`, `final_answer`, or `adjustments`.
-- For research, news, or live web data, use `search_engine` or `call_subordinate`.
-Example:
+## Communication
+respond valid json with fields
+
+### Response format (json fields names)
+- thoughts: array thoughts before execution in natural language
+- headline: short headline summary of the response
+- tool_name: use tool name
+- tool_args: key value pairs tool arguments
+
+no text allowed before or after json
+
+### Response example
 ~~~json
 {
-  "thoughts": ["..."],
-  "headline": "...",
-  "tool_name": "search_engine",
-  "tool_args": {
-    "query": "NVIDIA stock price"
-  }
+    "thoughts": [
+        "instructions?",
+        "solution steps?",
+        "processing?",
+        "actions?"
+    ],
+    "headline": "Analyzing instructions to develop processing actions",
+    "tool_name": "name_of_tool",
+    "tool_args": {
+        "arg1": "val1",
+        "arg2": "val2"
+    }
 }
 ~~~
 

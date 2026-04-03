@@ -19,15 +19,73 @@ examples:
 1 terminal command
 ~~~json
 {
-  "thoughts": ["I should run a terminal command in the default session."],
-  "headline": "Running terminal command",
-  "tool_name": "code_execution_tool",
-  "tool_args": {
-    "runtime": "terminal",
-    "session": 0,
-    "reset": false,
-    "code": "pwd"
-  }
+    "thoughts": [
+        "Need to do...",
+        "Need to install...",
+    ],
+    "headline": "Installing zip package via terminal",
+    "tool_name": "code_execution_tool",
+    "tool_args": {
+        "runtime": "terminal",
+        "session": 0,
+        "reset": false,
+        "code": "apt-get install zip",
+    }
+}
+~~~
+
+2 execute python code
+
+~~~json
+{
+    "thoughts": [
+        "Need to do...",
+        "I can use...",
+        "Then I can...",
+    ],
+    "headline": "Executing Python code to check current directory",
+    "tool_name": "code_execution_tool",
+    "tool_args": {
+        "runtime": "python",
+        "session": 0,
+        "reset": false,
+        "code": "import os\nprint(os.getcwd())",
+    }
+}
+~~~
+
+3 execute nodejs code
+
+~~~json
+{
+    "thoughts": [
+        "Need to do...",
+        "I can use...",
+        "Then I can...",
+    ],
+    "headline": "Executing Javascript code to check current directory",
+    "tool_name": "code_execution_tool",
+    "tool_args": {
+        "runtime": "nodejs",
+        "session": 0,
+        "reset": false,
+        "code": "console.log(process.cwd());",
+    }
+}
+~~~
+
+4 wait for output with long-running scripts
+~~~json
+{
+    "thoughts": [
+        "Waiting for program to finish...",
+    ],
+    "headline": "Waiting for long-running program to complete",
+    "tool_name": "code_execution_tool",
+    "tool_args": {
+        "runtime": "output",
+        "session": 0,
+    }
 }
 ~~~
 

@@ -1,7 +1,19 @@
-### response
-final answer to superior. ends task.
-arg: `text` (summary or result)
-use only when done.
-default to balanced, concise answers: informative but tight, not terse and not verbose.
-use short paragraphs or short lists when they help; expand only when the task needs more depth.
+### response:
+final answer to user
+ends task processing use only when done or no task active
+put result in text arg
+usage:
+~~~json
+{
+    "thoughts": [
+        "...",
+    ],
+    "headline": "Providing final answer to user",
+    "tool_name": "response",
+    "tool_args": {
+        "text": "Answer to the user",
+    }
+}
+~~~
+
 {{ include "agent.system.response_tool_tips.md" }}
