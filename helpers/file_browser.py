@@ -343,6 +343,8 @@ class FileBrowser:
     def get_full_path(self, file_path: str, allow_dir: bool = False) -> str:
         """Get full file path if it exists and is within base_dir"""
         full_path = files.get_abs_path(self.base_dir, file_path)
+        if not files.is_in_base_dir(full_path):
+            raise ValueError(f"Path traversal detected: {file_path}")
         if not files.exists(full_path):
             raise ValueError(f"File {file_path} not found")
         return full_path
