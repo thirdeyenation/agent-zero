@@ -971,7 +971,8 @@ class Agent:
         try:
             if len(stream) < 25:
                 return  # no reason to try
-            response = DirtyJson.parse_string(stream)
+            # ⚡ Bolt: Use try_parse for standard json.loads fast path
+            response = dirty_json.try_parse(stream)
             if isinstance(response, dict):
                 await extension.call_extensions_async(
                     "response_stream",
