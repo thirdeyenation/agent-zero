@@ -14,6 +14,11 @@
                      'has-notifications': $store.notificationStore.notifications.length > 0
                  }"
                  @click="$store.notificationStore.openModal()"
+                 @keydown.enter="$store.notificationStore.openModal()"
+                 @keydown.space.prevent="$store.notificationStore.openModal()"
+                 role="button"
+                 tabindex="0"
+                 aria-label="View Notifications"
                  title="View Notifications">
                 <div class="notification-icon">
                     <span class="material-symbols-outlined">notifications</span>
