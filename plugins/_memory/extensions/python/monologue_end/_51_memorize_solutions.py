@@ -2,6 +2,7 @@ import asyncio
 from helpers import errors, plugins
 from helpers.extension import Extension
 from helpers.dirty_json import DirtyJson
+from helpers import dirty_json
 from agent import LoopData
 from helpers.log import LogItem
 from helpers.defer import DeferredTask, THREAD_BACKGROUND
@@ -82,7 +83,8 @@ class MemorizeSolutions(Extension):
                 return
 
             try:
-                solutions = DirtyJson.parse_string(solutions_json)
+                # ⚡ Bolt: Use try_parse for standard json.loads fast path
+                solutions = dirty_json.try_parse(solutions_json)
             except Exception as e:
                 log_item.update(heading=f"Failed to parse solutions response: {str(e)}")
                 return
