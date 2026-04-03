@@ -475,7 +475,7 @@ class LiteLLMChatWrapper(SimpleChatModel):
         system_message="",
         user_message="",
         messages: List[BaseMessage] | None = None,
-        response_callback: Callable[[str, str], Awaitable[None]] | None = None,
+        response_callback: Callable[[str, str], Awaitable[str | None]] | None = None,
         reasoning_callback: Callable[[str, str], Awaitable[None]] | None = None,
         tokens_callback: Callable[[str, int], Awaitable[None]] | None = None,
         rate_limiter_callback: (
@@ -526,36 +526,46 @@ class LiteLLMChatWrapper(SimpleChatModel):
 
                 if stream:
                     # iterate over chunks
-                    async for chunk in _completion:  # type: ignore
-                        got_any_chunk = True
-                        # parse chunk
-                        parsed = _parse_chunk(chunk)
-                        output = result.add_chunk(parsed)
+                    stop_response: str | None = None
+                    try:
+                        async for chunk in _completion:  # type: ignore
+                            got_any_chunk = True
+                            # parse chunk
+                            parsed = _parse_chunk(chunk)
+                            output = result.add_chunk(parsed)
 
-                        # collect reasoning delta and call callbacks
-                        if output["reasoning_delta"]:
-                            if reasoning_callback:
-                                await reasoning_callback(output["reasoning_delta"], result.reasoning)
-                            if tokens_callback:
-                                await tokens_callback(
-                                    output["reasoning_delta"],
-                                    approximate_tokens(output["reasoning_delta"]),
-                                )
-                            # Add output tokens to rate limiter if configured
-                            if limiter:
-                                limiter.add(output=approximate_tokens(output["reasoning_delta"]))
-                        # collect response delta and call callbacks
-                        if output["response_delta"]:
-                            if response_callback:
-                                await response_callback(output["response_delta"], result.response)
-                            if tokens_callback:
-                                await tokens_callback(
-                                    output["response_delta"],
-                                    approximate_tokens(output["response_delta"]),
-                                )
-                            # Add output tokens to rate limiter if configured
-                            if limiter:
-                                limiter.add(output=approximate_tokens(output["response_delta"]))
+                            # collect reasoning delta and call callbacks
+                            if output["reasoning_delta"]:
+                                if reasoning_callback:
+                                    await reasoning_callback(output["reasoning_delta"], result.reasoning)
+                                if tokens_callback:
+                                    await tokens_callback(
+                                        output["reasoning_delta"],
+                                        approximate_tokens(output["reasoning_delta"]),
+                                    )
+                                # Add output tokens to rate limiter if configured
+                                if limiter:
+                                    limiter.add(output=approximate_tokens(output["reasoning_delta"]))
+                            # collect response delta and call callbacks
+                            if output["response_delta"]:
+                                if response_callback:
+                                    stop_response = await response_callback(
+                                        output["response_delta"], result.response
+                                    )
+                                if tokens_callback:
+                                    await tokens_callback(
+                                        output["response_delta"],
+                                        approximate_tokens(output["response_delta"]),
+                                    )
+                                # Add output tokens to rate limiter if configured
+                                if limiter:
+                                    limiter.add(output=approximate_tokens(output["response_delta"]))
+                            if stop_response is not None:
+                                result.response = stop_response
+                                break
+                    finally:
+                        if stop_response is not None and hasattr(_completion, "aclose"):
+                            await _completion.aclose()  # type: ignore[attr-defined]
 
                 # non-stream response
                 else:
