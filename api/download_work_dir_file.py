@@ -98,6 +98,11 @@ class DownloadFile(ApiHandler):
         if not file_path.startswith("/"):
             file_path = f"/{file_path}"
 
+        # Security check: prevent path traversal
+        abs_path = files.get_abs_path(file_path)
+        if not files.is_in_base_dir(abs_path):
+            raise ValueError("Access denied: Path is outside of allowed directory")
+
         file = await runtime.call_development_function(
             file_info.get_file_info, file_path
         )
