@@ -28,10 +28,10 @@ class DirtyJson:
         self.completed = False
         self._parsing_started = False
 
-    def _pop_stack(self):
-        """Pop from the parsing stack and mark completed if root structure is closed."""
+    def _pop_stack(self, root_closed: bool = False):
+        """Pop from the parsing stack and mark completed only on an explicit root close."""
         self.stack.pop()
-        if self._parsing_started and not self.stack:
+        if root_closed and self._parsing_started and not self.stack:
             self.completed = True
 
     @staticmethod
@@ -103,6 +103,8 @@ class DirtyJson:
             self._advance()
 
     def _parse(self):
+        if self.completed and not self.stack:
+            return
         if self.result is None:
             self.result = self._parse_value()
         else:
@@ -110,6 +112,8 @@ class DirtyJson:
 
     def _continue_parsing(self):
         while self.current_char is not None:
+            if self.completed and not self.stack:
+                return
             if isinstance(self.result, dict):
                 self._parse_object_content()
             elif isinstance(self.result, list):
@@ -122,7 +126,9 @@ class DirtyJson:
     def _parse_value(self):
         self._skip_whitespace()
         if self.current_char == "{":
-            if self._peek(1) == "{":  # Handle {{
+            # Only treat doubled braces as a wrapper at the root; nested objects
+            # must keep their closing braces paired correctly.
+            if not self.stack and self._peek(1) == "{":  # Handle {{
                 self._advance(2)
             return self._parse_object()
         elif self.current_char == "[":
@@ -169,11 +175,13 @@ class DirtyJson:
         while self.current_char is not None:
             self._skip_whitespace()
             if self.current_char == "}":
-                if self._peek(1) == "}":  # Handle }}
+                # Root-level wrapper outputs may end in "}}"; nested objects must
+                # still close one brace at a time.
+                if len(self.stack) == 1 and self._peek(1) == "}":  # Handle }}
                     self._advance(2)
                 else:
                     self._advance()
-                self._pop_stack()
+                self._pop_stack(root_closed=True)
                 return
             if self.current_char is None:
                 self._pop_stack()
@@ -234,7 +242,7 @@ class DirtyJson:
             self._skip_whitespace()
             if self.current_char == "]":
                 self._advance()
-                self._pop_stack()
+                self._pop_stack(root_closed=True)
                 return
             value = self._parse_value()
             self.stack[-1].append(value)
@@ -246,7 +254,7 @@ class DirtyJson:
                 if self.current_char is None or self.current_char == "]":
                     if self.current_char == "]":
                         self._advance()
-                    self._pop_stack()
+                    self._pop_stack(root_closed=True)
                     return
             elif self.current_char != "]":
                 self._pop_stack()
