@@ -25,6 +25,14 @@ class DirtyJson:
         self.current_char = None
         self.result = None
         self.stack = []
+        self.completed = False
+        self._parsing_started = False
+
+    def _pop_stack(self):
+        """Pop from the parsing stack and mark completed if root structure is closed."""
+        self.stack.pop()
+        if self._parsing_started and not self.stack:
+            self.completed = True
 
     @staticmethod
     def parse_string(json_string):
@@ -153,6 +161,7 @@ class DirtyJson:
         obj = {}
         self._advance()  # Skip opening brace
         self.stack.append(obj)
+        self._parsing_started = True
         self._parse_object_content()
         return obj
 
@@ -164,10 +173,10 @@ class DirtyJson:
                     self._advance(2)
                 else:
                     self._advance()
-                self.stack.pop()
+                self._pop_stack()
                 return
             if self.current_char is None:
-                self.stack.pop()
+                self._pop_stack()
                 return  # End of input reached while parsing object
 
             key = self._parse_key()
@@ -190,7 +199,7 @@ class DirtyJson:
                 continue
             elif self.current_char != "}":
                 if self.current_char is None:
-                    self.stack.pop()
+                    self._pop_stack()
                     return  # End of input reached after value
                 continue
 
@@ -216,6 +225,7 @@ class DirtyJson:
         arr = []
         self._advance()  # Skip opening bracket
         self.stack.append(arr)
+        self._parsing_started = True
         self._parse_array_content()
         return arr
 
@@ -224,7 +234,7 @@ class DirtyJson:
             self._skip_whitespace()
             if self.current_char == "]":
                 self._advance()
-                self.stack.pop()
+                self._pop_stack()
                 return
             value = self._parse_value()
             self.stack[-1].append(value)
@@ -236,10 +246,10 @@ class DirtyJson:
                 if self.current_char is None or self.current_char == "]":
                     if self.current_char == "]":
                         self._advance()
-                    self.stack.pop()
+                    self._pop_stack()
                     return
             elif self.current_char != "]":
-                self.stack.pop()
+                self._pop_stack()
                 return
 
     def _parse_string(self):
