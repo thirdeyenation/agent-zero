@@ -27,6 +27,11 @@ class FileInfo(TypedDict):
 
 async def get_file_info(path: str) -> FileInfo:
     abs_path = files.get_abs_path(path)
+
+    # Security check: prevent path traversal
+    if not files.is_in_base_dir(abs_path):
+        raise ValueError(f"Security: Path traversal attempt blocked for path: {path}")
+
     exists = os.path.exists(abs_path)
     message = ""
 
