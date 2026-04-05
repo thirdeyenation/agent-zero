@@ -15,6 +15,7 @@ class FieldOption(TypedDict):
 class ProviderManager:
     _raw: Optional[Dict[str, List[Dict[str, str]]]] = None  # full provider data
     _options: Optional[Dict[str, List[FieldOption]]] = None  # UI-friendly list
+    _indexed_raw: Optional[Dict[str, Dict[str, Dict[str, str]]]] = None  # O(1) lookup map (type -> lowercased_id -> config)
 
     @classmethod
     def get_instance(cls):
@@ -32,7 +33,7 @@ class ProviderManager:
         inst._load_providers()
 
     def __init__(self):
-        if self._raw is None or self._options is None:
+        if self._raw is None or self._options is None or self._indexed_raw is None:
             self._load_providers()
 
     @staticmethod
@@ -94,16 +95,21 @@ class ProviderManager:
         # Save raw
         self._raw = normalised
 
-        # Build UI-friendly option list (value / label)
+        # Build UI-friendly option list (value / label) and O(1) lookup cache
         self._options = {}
+        self._indexed_raw = {}
         for p_type, providers in normalised.items():
             opts: List[FieldOption] = []
+            indexed: Dict[str, Dict[str, str]] = {}
             for p in providers:
                 pid = (p.get("id") or p.get("value") or "").lower()
                 name = p.get("name") or p.get("label") or pid
                 if pid:
                     opts.append({"value": pid, "label": name})
+                    # ⚡ Bolt: Store the full metadata dict under the lowercased ID for O(1) lookup
+                    indexed[pid] = p
             self._options[p_type] = opts
+            self._indexed_raw[p_type] = indexed
 
     def get_providers(self, provider_type: ModelType) -> List[FieldOption]:
         """Returns a list of providers for a given type (e.g., 'chat', 'embedding')."""
@@ -115,10 +121,9 @@ class ProviderManager:
 
     def get_provider_config(self, provider_type: ModelType, provider_id: str) -> Optional[Dict[str, str]]:
         """Return the metadata dict for a single provider id (case-insensitive)."""
-        provider_id_low = provider_id.lower()
-        for p in self.get_raw_providers(provider_type):
-            if (p.get("id") or p.get("value", "")).lower() == provider_id_low:
-                return p
+        # ⚡ Bolt: Optimized from O(N) list search to O(1) dictionary lookup
+        if self._indexed_raw:
+            return self._indexed_raw.get(provider_type, {}).get(provider_id.lower())
         return None
 
 
