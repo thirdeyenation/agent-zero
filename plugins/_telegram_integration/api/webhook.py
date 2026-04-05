@@ -1,6 +1,7 @@
 from helpers.api import ApiHandler, Request, Response
 from helpers.print_style import PrintStyle
 from plugins._telegram_integration.helpers.dependencies import ensure_dependencies
+import secrets
 
 
 class TelegramWebhook(ApiHandler):
@@ -35,7 +36,7 @@ class TelegramWebhook(ApiHandler):
 
         # Verify webhook secret if configured
         secret_header = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
-        if instance.webhook_secret and secret_header != instance.webhook_secret:
+        if instance.webhook_secret and not secrets.compare_digest(secret_header, instance.webhook_secret):
             return Response("Invalid secret token", 403)
 
         # Parse and feed the update to aiogram
