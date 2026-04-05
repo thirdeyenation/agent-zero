@@ -1,0 +1,3 @@
+## 2026-03-25 - Sidebar Container Keyboard Accessibility
+**Learning:** Interactive container elements inside lists (like `.chat-container` and `.task-container` in the sidebar) used `div` tags with `@click` handlers but lacked `role="button"`, `tabindex="0"`, or keyboard event listeners (`@keydown.enter`, `@keydown.space`). This made the core chat/task selection entirely inaccessible to keyboard users.
+**Action:** Always ensure that custom interactive `div` elements meant to act as buttons include `role="button"`, `tabindex="0"`, `@keydown.enter`, and `@keydown.space.prevent` handlers. Also, mirror `:hover` CSS styles to `:focus-visible` so that keyboard users receive visual feedback when tabbing to these elements.
