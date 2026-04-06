@@ -27,6 +27,8 @@ class FileInfo(TypedDict):
 
 async def get_file_info(path: str) -> FileInfo:
     abs_path = files.get_abs_path(path)
+    if not files.is_in_base_dir(abs_path):
+        raise ValueError("Path is outside of allowed directory")
     exists = os.path.exists(abs_path)
     message = ""
 
