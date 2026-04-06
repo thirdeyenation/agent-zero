@@ -8,7 +8,7 @@ from enum import Enum
 from langchain_core.documents import Document
 
 from plugins._memory.helpers.memory import Memory
-from helpers.dirty_json import DirtyJson
+import helpers.dirty_json as dirty_json
 from helpers.log import LogItem
 from helpers.print_style import PrintStyle
 from agent import Agent
@@ -432,7 +432,8 @@ class MemoryConsolidator:
             )
 
             # Parse the response - expect JSON array of strings
-            keywords_json = DirtyJson.parse_string(keywords_response.strip())
+            # ⚡ Bolt: Try standard fast json.loads first, fallback to DirtyJson (Performance Optimization)
+            keywords_json = dirty_json.try_parse(keywords_response.strip())
 
             if isinstance(keywords_json, list):
                 return [str(k) for k in keywords_json if k]
@@ -490,7 +491,8 @@ class MemoryConsolidator:
             )
 
             # Parse LLM response
-            result_json = DirtyJson.parse_string(analysis_response.strip())
+            # ⚡ Bolt: Try standard fast json.loads first, fallback to DirtyJson (Performance Optimization)
+            result_json = dirty_json.try_parse(analysis_response.strip())
 
             if not isinstance(result_json, dict):
                 raise ValueError("LLM response is not a valid JSON object")

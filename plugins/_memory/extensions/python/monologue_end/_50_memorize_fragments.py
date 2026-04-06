@@ -1,7 +1,7 @@
 import asyncio
 from helpers import errors, plugins
 from helpers.extension import Extension
-from helpers.dirty_json import DirtyJson
+import helpers.dirty_json as dirty_json
 from agent import LoopData
 from helpers.log import LogItem
 from helpers.defer import DeferredTask, THREAD_BACKGROUND
@@ -79,7 +79,8 @@ class MemorizeMemories(Extension):
                 return
 
             try:
-                memories = DirtyJson.parse_string(memories_json)
+                # ⚡ Bolt: Try standard fast json.loads first, fallback to DirtyJson (Performance Optimization)
+                memories = dirty_json.try_parse(memories_json)
             except Exception as e:
                 log_item.update(heading=f"Failed to parse memories response: {str(e)}")
                 return
