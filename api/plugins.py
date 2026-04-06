@@ -52,6 +52,15 @@ class Plugins(ApiHandler):
 
         return Response(status=400, response=f"Unknown action: {action}")
 
+    def _is_valid(self, plugin_name: str, project_name: str = "", agent_profile: str = "", allow_star: bool = False) -> Response | None:
+        if not plugins.validate_plugin_name(plugin_name):
+            return Response(status=400, response="Invalid plugin_name")
+        if project_name and not plugins.validate_asset_name(project_name, allow_star=allow_star):
+            return Response(status=400, response="Invalid project_name")
+        if agent_profile and not plugins.validate_asset_name(agent_profile, allow_star=allow_star):
+            return Response(status=400, response="Invalid agent_profile")
+        return None
+
     @extension.extensible
     def _get_config(self, input: dict) -> dict | Response:
         plugin_name = input.get("plugin_name", "")
@@ -59,6 +68,7 @@ class Plugins(ApiHandler):
         agent_profile = input.get("agent_profile", "")
         if not plugin_name:
             return Response(status=400, response="Missing plugin_name")
+        if err := self._is_valid(plugin_name, project_name, agent_profile): return err
 
         result = plugins.find_plugin_assets(
             plugins.CONFIG_FILE_NAME,
@@ -97,6 +107,7 @@ class Plugins(ApiHandler):
         agent_profile = input.get("agent_profile", "")
         if not plugin_name:
             return Response(status=400, response="Missing plugin_name")
+        if err := self._is_valid(plugin_name, project_name, agent_profile): return err
 
         meta = plugins.get_plugin_meta(plugin_name)
         if not meta:
@@ -147,6 +158,7 @@ class Plugins(ApiHandler):
         asset_type = input.get("asset_type", "config")
         if not plugin_name:
             return Response(status=400, response="Missing plugin_name")
+        if err := self._is_valid(plugin_name): return err
 
         configs = plugins.find_plugin_assets(
             (
@@ -168,6 +180,7 @@ class Plugins(ApiHandler):
         path = input.get("path", "")
         if not plugin_name:
             return Response(status=400, response="Missing plugin_name")
+        if err := self._is_valid(plugin_name): return err
         if not path:
             return Response(status=400, response="Missing path")
 
@@ -204,6 +217,7 @@ class Plugins(ApiHandler):
         plugin_name = input.get("plugin_name", "")
         if not plugin_name:
             return Response(status=400, response="Missing plugin_name")
+        if err := self._is_valid(plugin_name): return err
         try:
             plugins.uninstall_plugin(plugin_name)
         except FileNotFoundError as e:
@@ -219,6 +233,7 @@ class Plugins(ApiHandler):
         plugin_name = input.get("plugin_name", "")
         if not plugin_name:
             return Response(status=400, response="Missing plugin_name")
+        if err := self._is_valid(plugin_name): return err
         settings = plugins.get_default_plugin_config(plugin_name)
         return {"ok": True, "data": settings or {}}
 
@@ -230,6 +245,7 @@ class Plugins(ApiHandler):
         settings = input.get("settings", {})
         if not plugin_name:
             return Response(status=400, response="Missing plugin_name")
+        if err := self._is_valid(plugin_name, project_name, agent_profile): return err
         if not isinstance(settings, dict):
             return Response(status=400, response="settings must be an object")
         plugins.save_plugin_config(plugin_name, project_name, agent_profile, settings)
@@ -245,6 +261,7 @@ class Plugins(ApiHandler):
 
         if not plugin_name:
             return Response(status=400, response="Missing plugin_name")
+        if err := self._is_valid(plugin_name, project_name, agent_profile): return err
         if enabled is None:
             return Response(status=400, response="Missing enabled state")
 
@@ -259,6 +276,7 @@ class Plugins(ApiHandler):
         doc = input.get("doc", "")
         if not plugin_name:
             return Response(status=400, response="Missing plugin_name")
+        if err := self._is_valid(plugin_name): return err
         if doc not in ("readme", "license"):
             return Response(status=400, response="doc must be 'readme' or 'license'")
 
@@ -278,6 +296,7 @@ class Plugins(ApiHandler):
         plugin_name = input.get("plugin_name", "")
         if not plugin_name:
             return Response(status=400, response="Missing plugin_name")
+        if err := self._is_valid(plugin_name): return err
 
         plugin_dir = plugins.find_plugin_dir(plugin_name)
         if not plugin_dir:
@@ -325,6 +344,7 @@ class Plugins(ApiHandler):
         plugin_name = input.get("plugin_name", "")
         if not plugin_name:
             return Response(status=400, response="Missing plugin_name")
+        if err := self._is_valid(plugin_name): return err
 
         execute_record_path = plugins.determine_plugin_asset_path(
             plugin_name, "", "", "execute_record.json"

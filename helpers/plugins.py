@@ -69,6 +69,18 @@ ENABLED_PLUGINS_PATHS_CACHE_AREA = "enabled_plugins_paths(plugins)"
 
 _last_frontend_reload_notification_at = 0.0
 
+def validate_plugin_name(name: str | None) -> bool:
+    if not name:
+        return False
+    return bool(re.fullmatch(r'^[a-zA-Z0-9_-]+$', name))
+
+def validate_asset_name(name: str | None, allow_star: bool = False) -> bool:
+    if not name:
+        return False
+    if allow_star and name == "*":
+        return True
+    return bool(re.fullmatch(r'^[a-zA-Z0-9_-]+$', name))
+
 
 class PluginMetadata(BaseModel):
     name: str = ""
@@ -214,7 +226,7 @@ def clear_plugin_cache(plugin_names: list[str] | None = None):
 
 def get_plugin_roots(plugin_name: str = "") -> List[str]:
     """Plugin root directories, ordered by priority (user first)."""
-    if plugin_name and ("/" in plugin_name or "\\" in plugin_name or ".." in plugin_name):
+    if plugin_name and not validate_plugin_name(plugin_name):
         return []
     return [
         files.get_abs_path(files.USER_DIR, files.PLUGINS_DIR, plugin_name),
@@ -360,7 +372,7 @@ def get_plugin_meta(plugin_name: str):
 
 
 def find_plugin_dir(plugin_name: str):
-    if not plugin_name or "/" in plugin_name or "\\" in plugin_name or ".." in plugin_name:
+    if not validate_plugin_name(plugin_name):
         return None
 
     # check if the plugin is in the user directory
@@ -699,6 +711,13 @@ def find_plugin_assets(
     agent_profile: str = "*",
     only_first: bool = False,
 ) -> list[PluginAssetFile]:
+    if (
+        (plugin_name and not validate_asset_name(plugin_name, allow_star=True)) or
+        (project_name and not validate_asset_name(project_name, allow_star=True)) or
+        (agent_profile and not validate_asset_name(agent_profile, allow_star=True))
+    ):
+        return []
+
     from helpers import projects, subagents
 
     results: list[PluginAssetFile] = []
@@ -810,6 +829,9 @@ def find_plugin_assets(
 def determine_plugin_asset_path(
     plugin_name: str, project_name: str, agent_profile: str, *subpaths: str
 ):
+    if not validate_plugin_name(plugin_name) or (project_name and not validate_asset_name(project_name)) or (agent_profile and not validate_asset_name(agent_profile)):
+        return ""
+
     base_path = files.get_abs_path(files.USER_DIR)
 
     if project_name:
@@ -868,6 +890,9 @@ def send_frontend_reload_notification(plugin_names: list[str] | None = None):
 def call_plugin_hook(
     plugin_name: str, hook_name: str, default: Any = None, *args, **kwargs
 ):
+    if not validate_plugin_name(plugin_name):
+        return default
+
     hooks = None
 
     # use cached hooks if enabled
