@@ -26,7 +26,7 @@ from langchain_core.prompts import (
 from langchain_core.messages import SystemMessage, BaseMessage
 
 import helpers.log as Log
-from helpers.dirty_json import DirtyJson
+from helpers import dirty_json
 from helpers.defer import DeferredTask
 from typing import Callable
 from helpers.localization import Localization
@@ -971,7 +971,7 @@ class Agent:
         try:
             if len(stream) < 25:
                 return  # no reason to try
-            response = DirtyJson.parse_string(stream)
+            response = dirty_json.try_parse(stream)  # ⚡ Bolt: Use try_parse for standard json fast path
             if isinstance(response, dict):
                 await extension.call_extensions_async(
                     "response_stream",
