@@ -16,38 +16,38 @@
                     <!-- Action Cards -->
                     <div class="welcome-actions">
                         <x-extension id="welcome-actions-start"></x-extension>
-                        <div class="welcome-action-card" @click="$store.welcomeStore.executeAction('new-chat')">
+                        <div class="welcome-action-card" role="button" tabindex="0" @click="$store.welcomeStore.executeAction('new-chat')" @keydown.enter="$store.welcomeStore.executeAction('new-chat')" @keydown.space.prevent="$store.welcomeStore.executeAction('new-chat')">
                             <span class="material-symbols-outlined welcome-action-icon">add_circle</span>
                             <h3 class="welcome-action-title">New Chat</h3>
                         </div>
 
-                        <div class="welcome-action-card" @click="$store.welcomeStore.executeAction('projects')">
+                        <div class="welcome-action-card" role="button" tabindex="0" @click="$store.welcomeStore.executeAction('projects')" @keydown.enter="$store.welcomeStore.executeAction('projects')" @keydown.space.prevent="$store.welcomeStore.executeAction('projects')">
                             <span class="material-symbols-outlined welcome-action-icon">folder</span>
                             <h3 class="welcome-action-title">Projects</h3>
                         </div>
-                        <div class="welcome-action-card" @click="$store.welcomeStore.executeAction('memory')">
+                        <div class="welcome-action-card" role="button" tabindex="0" @click="$store.welcomeStore.executeAction('memory')" @keydown.enter="$store.welcomeStore.executeAction('memory')" @keydown.space.prevent="$store.welcomeStore.executeAction('memory')">
                             <span class="material-symbols-outlined welcome-action-icon">memory</span>
                             <h3 class="welcome-action-title">Memory</h3>
                         </div>
 
-                        <div class="welcome-action-card" @click="$store.welcomeStore.executeAction('scheduler')">
+                        <div class="welcome-action-card" role="button" tabindex="0" @click="$store.welcomeStore.executeAction('scheduler')" @keydown.enter="$store.welcomeStore.executeAction('scheduler')" @keydown.space.prevent="$store.welcomeStore.executeAction('scheduler')">
                             <span class="material-symbols-outlined welcome-action-icon">schedule</span>
                             <h3 class="welcome-action-title">Scheduler</h3>
                         </div>
-                        <div class="welcome-action-card" @click="$store.welcomeStore.executeAction('settings')">
+                        <div class="welcome-action-card" role="button" tabindex="0" @click="$store.welcomeStore.executeAction('settings')" @keydown.enter="$store.welcomeStore.executeAction('settings')" @keydown.space.prevent="$store.welcomeStore.executeAction('settings')">
                             <span class="material-symbols-outlined welcome-action-icon">settings</span>
                             <h3 class="welcome-action-title">Settings</h3>
                         </div>
-                        <div class="welcome-action-card" @click="$store.welcomeStore.executeAction('plugins')">
+                        <div class="welcome-action-card" role="button" tabindex="0" @click="$store.welcomeStore.executeAction('plugins')" @keydown.enter="$store.welcomeStore.executeAction('plugins')" @keydown.space.prevent="$store.welcomeStore.executeAction('plugins')">
                             <span class="material-symbols-outlined welcome-action-icon">extension</span>
                             <h3 class="welcome-action-title">Plugins</h3>
                         </div>
 
-                        <div class="welcome-action-card" @click="$store.welcomeStore.executeAction('files')">
+                        <div class="welcome-action-card" role="button" tabindex="0" @click="$store.welcomeStore.executeAction('files')" @keydown.enter="$store.welcomeStore.executeAction('files')" @keydown.space.prevent="$store.welcomeStore.executeAction('files')">
                             <span class="material-symbols-outlined welcome-action-icon">folder_open</span>
                             <h3 class="welcome-action-title">Files</h3>
                         </div>
-                        <div class="welcome-action-card" @click="$store.welcomeStore.executeAction('website')">
+                        <div class="welcome-action-card" role="button" tabindex="0" @click="$store.welcomeStore.executeAction('website')" @keydown.enter="$store.welcomeStore.executeAction('website')" @keydown.space.prevent="$store.welcomeStore.executeAction('website')">
                             <span class="material-symbols-outlined welcome-action-icon">language</span>
                             <h3 class="welcome-action-title">Visit Website</h3>
                         </div>
@@ -272,9 +272,11 @@
             aspect-ratio: 1 / 1;
         }
 
-        .welcome-action-card:hover {
+        .welcome-action-card:hover,
+        .welcome-action-card:focus-visible {
             border-color: var(--color-primary);
             background: var(--color-message-bg);
+            outline: none;
         }
 
         .welcome-action-icon {
