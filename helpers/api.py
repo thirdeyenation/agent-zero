@@ -4,6 +4,7 @@ import socket
 import struct
 import threading
 from functools import wraps
+import secrets
 from pathlib import Path
 from typing import Union, TypedDict, Dict, Any
 from flask import (
@@ -159,14 +160,14 @@ def requires_api_key(f):
     async def decorated(*args, **kwargs):
         from helpers.settings import get_settings
 
-        valid_api_key = get_settings()["mcp_server_token"]
+        valid_api_key = get_settings()["mcp_server_token"] or ""
 
         if api_key := request.headers.get("X-API-KEY"):
-            if api_key != valid_api_key:
+            if not secrets.compare_digest(api_key, valid_api_key):
                 return Response("Invalid API key", 401)
         elif request.json and request.json.get("api_key"):
             api_key = request.json.get("api_key")
-            if api_key != valid_api_key:
+            if not isinstance(api_key, str) or not secrets.compare_digest(api_key, valid_api_key):
                 return Response("Invalid API key", 401)
         else:
             return Response("API key required", 401)
@@ -193,7 +194,7 @@ def requires_auth(f):
         user_pass_hash = login.get_credentials_hash()
         if not user_pass_hash:
             return await f(*args, **kwargs)
-        if session.get("authentication") != user_pass_hash:
+        if not secrets.compare_digest(session.get("authentication", ""), user_pass_hash):
             return redirect(url_for("login_handler"))
         return await f(*args, **kwargs)
 
@@ -209,7 +210,7 @@ def csrf_protect(f):
         header = request.headers.get("X-CSRF-Token")
         cookie = request.cookies.get("csrf_token_" + runtime.get_runtime_id())
         sent = header or cookie
-        if not token or not sent or token != sent:
+        if not token or not sent or not secrets.compare_digest(token, sent):
             return Response("CSRF token missing or invalid", 403)
         return await f(*args, **kwargs)
 
