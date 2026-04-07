@@ -15,6 +15,7 @@ class FieldOption(TypedDict):
 class ProviderManager:
     _raw: Optional[Dict[str, List[Dict[str, str]]]] = None  # full provider data
     _options: Optional[Dict[str, List[FieldOption]]] = None  # UI-friendly list
+    _indexed_raw: Optional[Dict[str, Dict[str, Dict[str, str]]]] = None  # O(1) lookup cache
 
     @classmethod
     def get_instance(cls):
@@ -94,6 +95,15 @@ class ProviderManager:
         # Save raw
         self._raw = normalised
 
+        # Build O(1) lookup cache
+        self._indexed_raw = {}
+        for p_type, providers in normalised.items():
+            self._indexed_raw[p_type] = {}
+            for p in providers:
+                pid = (p.get("id") or p.get("value") or "").lower()
+                if pid:
+                    self._indexed_raw[p_type][pid] = p
+
         # Build UI-friendly option list (value / label)
         self._options = {}
         for p_type, providers in normalised.items():
@@ -115,11 +125,17 @@ class ProviderManager:
 
     def get_provider_config(self, provider_type: ModelType, provider_id: str) -> Optional[Dict[str, str]]:
         """Return the metadata dict for a single provider id (case-insensitive)."""
-        provider_id_low = provider_id.lower()
-        for p in self.get_raw_providers(provider_type):
-            if (p.get("id") or p.get("value", "")).lower() == provider_id_low:
-                return p
-        return None
+        # Ensure lazy loading is triggered if not initialized
+        self.get_raw_providers(provider_type)
+
+        if not self._indexed_raw:
+            return None
+
+        type_cache = self._indexed_raw.get(provider_type)
+        if not type_cache:
+            return None
+
+        return type_cache.get(provider_id.lower())
 
 
 def get_providers(provider_type: ModelType) -> List[FieldOption]:
