@@ -68,10 +68,14 @@ class VisionLoad(Tool):
 
         # build image data messages for LLMs, or error message
         content = []
+        loaded_count = len(self.loaded_paths)
+        skipped_count = len(self.skipped_paths)
         loaded_summary = "\n".join(self.loaded_paths) if self.loaded_paths else "none"
         skipped_summary = "\n".join(self.skipped_paths) if self.skipped_paths else "none"
         summary = (
+            f"Loaded images: {loaded_count}\n"
             f"Loaded images:\n{loaded_summary}\n\n"
+            f"Skipped images: {skipped_count}\n"
             f"Skipped images (max {self._get_max_embeds()} loaded at a time according to model configuration):\n{skipped_summary}"
         )
         if self.images_dict:
@@ -103,7 +107,7 @@ class VisionLoad(Tool):
         message = (
             "No images processed"
             if not self.images_dict and not self.skipped_paths
-            else f"{len(self.loaded_paths)} images loaded, {len(self.skipped_paths)} skipped"
+            else f"{loaded_count} images loaded, {skipped_count} skipped"
         )
         PrintStyle(
             font_color="#1B4F72", background_color="white", padding=True, bold=True
