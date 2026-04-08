@@ -1,3 +1,6 @@
 ## 2024-05-18 - JSON Parse Performance Optimization
 **Learning:** `json_parse_dirty` in `helpers/extract_tools.py` was directly relying on `DirtyJson.parse_string` which is significantly slower than the standard library's `json.loads` for well-formed JSON strings. This was a bottleneck as this method is used frequently to parse extracted JSON strings.
 **Action:** When working with custom fallback parsers for data formats like JSON, always attempt parsing with the standard library's fast path first (e.g. `json.loads()`), falling back to the custom parser only upon a `JSONDecodeError`.
+## 2024-05-18 - DirtyJson.parse_string Fast Path Optimization
+**Learning:** `DirtyJson.parse_string` was used extensively throughout the codebase but lacked a fast path for valid JSON, defaulting to a character-by-character O(N) custom parser every time. This caused significant unnecessary overhead when parsing well-formed JSON outputs from tools or the LLM.
+**Action:** Always wrap custom error-correcting parsers with a fast path attempt (like `json.loads`) at the lowest entry point possible, ensuring all upstream callers benefit without needing to remember to use `try_parse` instead of the class directly.
