@@ -26,7 +26,15 @@
                     <div class="plugin-settings-scope-header">
                         <div class="plugin-settings-scope-header-copy">
                             <div class="plugin-settings-scope-title">Settings scope</div>
-                            <div class="plugin-settings-scope-desc">This plugin supports settings per project or agent profile.</div>
+                            <div class="plugin-settings-scope-desc"
+                                 x-text="
+                                    context.perProjectConfig && context.perAgentConfig
+                                      ? 'This plugin supports settings per project or agent profile.'
+                                      : context.perProjectConfig
+                                        ? 'This plugin supports settings per project.'
+                                        : 'This plugin supports settings per agent profile.'
+                                 ">
+                            </div>
                         </div>
                         <div class="plugin-settings-scope-header-toggle"
                              x-show="$store.pluginToggle && !$store.pluginToggle.alwaysEnabled">
@@ -44,7 +52,8 @@
                     <div class="plugin-settings-toolbar">
                     <div class="plugin-settings-toolbar-row">
 
-                        <label class="plugin-settings-toolbar-item">
+                        <label class="plugin-settings-toolbar-item"
+                               x-show="context.perProjectConfig">
                             <span class="plugin-settings-toolbar-label">Project</span>
                             <select x-model="context.projectName"
                                     x-init="$nextTick(() => $el.value = context.projectName)"
@@ -57,7 +66,8 @@
                             </select>
                         </label>
 
-                        <label class="plugin-settings-toolbar-item">
+                        <label class="plugin-settings-toolbar-item"
+                               x-show="context.perAgentConfig">
                             <span class="plugin-settings-toolbar-label">Agent profile</span>
                             <select x-model="context.agentProfileKey"
                                     x-init="$nextTick(() => $el.value = context.agentProfileKey)"
