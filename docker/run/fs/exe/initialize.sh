@@ -1,5 +1,7 @@
 #!/bin/bash
 
+echo "Running initialization script..."
+
 # branch from parameter
 if [ -z "$1" ]; then
     echo "Error: Branch parameter is empty. Please provide a valid branch name."
@@ -17,15 +19,5 @@ chmod 444 /root/.profile
 # update package list to save time later
 apt-get update > /dev/null 2>&1 &
 
-# Start SSH service in background
-/usr/sbin/sshd -D &
-
-# Start searxng server in background
-su - searxng -c "bash /exe/run_searxng.sh \"$@\"" &
-
-# Start A0 and restart on exit
-bash /exe/run_A0.sh "$@"
-if [ $? -ne 0 ]; then
-    echo "A0 script exited with an error. Restarting container..."
-    exit 1
-fi
+# let supervisord handle the services
+exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf

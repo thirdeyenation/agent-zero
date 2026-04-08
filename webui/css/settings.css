@@ -47,7 +47,7 @@ textarea,
 select {
   width: 100%;
   padding: 0.5rem;
-  border: 1px solid var(--color-secondary);
+  border: 1px solid var(--color-border);
   border-radius: 0.25rem;
   background-color: var(--color-background);
   color: var(--color-text);
@@ -56,22 +56,35 @@ select {
   transition: all 0.3s ease;
 }
 
-input[type="text"]:focus,
-input[type="password"]:focus {
-  opacity: 1;
-}
-
 textarea {
   min-height: 100px;
   font-family: 'Roboto Mono', monospace;
   scroll-behavior: smooth;
   resize: none;
   background-clip: border-box;
-  border: 6px solid transparent;
 }
 
+input[type="text"]:focus,
+input[type="number"]:focus,
+input[type="password"]:focus,
 textarea:focus {
-  background-color: #151515;
+  background-color: var(--color-background);
+  filter: brightness(1.2);
+}
+
+.light-mode input[type="text"]:focus,
+.light-mode input[type="number"]:focus,
+.light-mode input[type="password"]:focus, 
+.light-mode textarea:focus {
+  filter: brightness(1.1);
+}
+
+/* Button Disabled State */
+.btn-disabled,
+.btn-ok.btn-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 /* Toggle Switch Styles */
@@ -120,24 +133,18 @@ input:checked + .toggler:before {
   transform: translateX(26px);
 }
 
-/* Range Input Styles */
-input[type="range"] {
-  width: 100%;
-  cursor: grab;
-}
-
-.range-value {
-  min-width: 3em;
-  text-align: right;
-}
-
 /* Select Styles */
 select {
   cursor: pointer;
+  color-scheme: dark;
+}
+
+.light-mode select {
+  color-scheme: light;
 }
 
 select:disabled {
-  background-color: #f5f5f5;
+  background-color: var(--color-background);
   cursor: not-allowed;
 }
 
@@ -173,13 +180,14 @@ nav ul li a {
   border-radius: 8px;
   padding: 1rem;
   width: 100%;
-  transition: all 0.2s ease-in-out;
+  transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out,
+    box-shadow 0.2s ease-in-out, opacity 0.2s ease-in-out;
 }
 
 nav ul li a:hover {
-  transform: translateY(-2px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   background-color: var(--color-secondary);
+  border-color: var(--color-primary);
 }
 
 nav ul li a img {
@@ -214,7 +222,7 @@ nav ul li a img {
   }
 }
 
-@media (max-width: 640px) { 
+@media (max-width: 640px) {
   nav ul {
     grid-template-columns: repeat(2, 1.2fr);
   }
@@ -224,17 +232,187 @@ nav ul li a img {
   nav ul {
     grid-template-columns: 1fr;
   }
-  
+
   nav ul li a {
     flex-direction: row;
     justify-content: flex-start;
     gap: 1rem;
     padding: 0.75rem 1rem;
   }
-  
+
   nav ul li a img {
     margin-bottom: 0;
     width: 30px;
     height: 30px;
+  }
+}
+
+/* Settings Tab Styles */
+.settings-tabs-container {
+  width: 100%;
+  margin-bottom: 8px;
+  padding: 0;
+  position: relative;
+  overflow: visible;
+}
+
+.settings-tabs {
+  display: flex;
+  width: 100%;
+  position: relative;
+  gap: 5px;
+  border-bottom: 3px solid var(--color-border);
+  justify-content: flex-start;
+  padding-left: 20px;
+  padding-top: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+  -webkit-overflow-scrolling: touch;
+}
+
+.settings-tabs::before,
+.settings-tabs::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  bottom: 3px;
+  width: 20px;
+  pointer-events: none;
+  z-index: 2;
+  opacity: 0.7;
+}
+
+.settings-tabs::before {
+  left: 0;
+}
+
+.settings-tabs::after {
+  right: 0;
+}
+
+.settings-tab {
+  padding: 8px 16px;
+  cursor: pointer;
+  position: relative;
+  color: var(--color-text);
+  border: 2px solid var(--color-border);
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  transition: all 0.3s ease;
+  background-color: var(--color-panel);
+  margin-bottom: -3px;
+  z-index: 1;
+  min-width: min-content;
+  width: auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.settings-tab:not(.active) {
+  opacity: 0.8;
+  border-bottom: 3px solid var(--color-border);
+  background-color: var(--color-background);
+}
+
+.settings-tab.active {
+  border-color: var(--color-border);
+  /* box-shadow:
+    0 -4px 8px -2px var(--color-border),
+    4px 0 8px -2px var(--color-border),
+    -4px 0 8px -2px var(--color-border); */
+  font-weight: bold;
+  background-color: var(--color-panel);
+  min-width: min-content;
+  max-width: 150px;
+}
+
+
+/* Responsive Design for Settings Tabs */
+@media (max-width: 640px) {
+  .settings-tabs {
+    gap: 2px;
+    padding-left: 10px;
+  }
+
+  .settings-tab {
+    padding: 6px 12px;
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .settings-tabs {
+    padding-left: 5px;
+  }
+
+  .settings-tab {
+    flex: 0 0 auto;
+    text-align: center;
+    min-width: min-content;
+    max-width: 150px;
+  }
+  .settings-tab.active {
+    min-width: min-content;
+    max-width: 150px;
+  }
+}
+
+/* Section Styles */
+.section {
+  margin-bottom: 2rem;
+  padding: 1rem;
+  padding-bottom: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  overflow-x: visible;
+  width: 100%;
+  min-width: min-content;
+  display: block;
+  box-sizing: border-box;
+}
+
+.section-title {
+  font-size: 1.25rem;
+  font-weight: bold;
+  color: var(--color-primary);
+  margin-bottom: 0.5rem;
+}
+
+.section-description {
+  color: var(--color-text);
+  margin-bottom: 1rem;
+}
+
+/* Scrollbar styling for sections */
+.section::-webkit-scrollbar {
+  height: 10px;
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+.section::-webkit-scrollbar-thumb {
+  background-color: rgba(155, 155, 155, 0.7);
+  border-radius: 5px;
+}
+
+.section::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(155, 155, 155, 0.9);
+}
+
+@media (max-width: 1280px) {
+  .section::-webkit-scrollbar {
+    height: 10px;
+    background-color: rgba(0, 0, 0, 0.1);
+  }
+
+  .section::-webkit-scrollbar-thumb {
+    background-color: rgba(155, 155, 155, 0.7);
+    border-radius: 5px;
+  }
+
+  .section::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(155, 155, 155, 0.9);
   }
 }

@@ -1,953 +1,790 @@
-import * as msgs from "./js/messages.js";
-import { speech } from "./js/speech.js";
+import * as msgs from "/js/messages.js";
+import * as api from "/js/api.js";
+import { callJsExtensions } from "/js/extensions.js";
+import * as css from "/js/css.js";
+import { sleep } from "/js/sleep.js";
+import { store as attachmentsStore } from "/components/chat/attachments/attachmentsStore.js";
+import { store as speechStore } from "/components/chat/speech/speech-store.js";
+import { store as notificationStore } from "/components/notifications/notification-store.js";
+import { store as preferencesStore } from "/components/sidebar/bottom/preferences/preferences-store.js";
+import { store as inputStore } from "/components/chat/input/input-store.js";
+import { store as chatsStore } from "/components/sidebar/chats/chats-store.js";
+import { store as tasksStore } from "/components/sidebar/tasks/tasks-store.js";
+import { store as chatTopStore } from "/components/chat/top-section/chat-top-store.js";
+import { store as _tooltipsStore } from "/components/tooltips/tooltip-store.js";
+import { store as messageQueueStore } from "/components/chat/message-queue/message-queue-store.js";
+import { store as syncStore } from "/components/sync/sync-store.js"
 
-const leftPanel = document.getElementById('left-panel');
-const rightPanel = document.getElementById('right-panel');
-const container = document.querySelector('.container');
-const chatInput = document.getElementById('chat-input');
-const chatHistory = document.getElementById('chat-history');
-const sendButton = document.getElementById('send-button');
-const inputSection = document.getElementById('input-section');
-const statusSection = document.getElementById('status-section');
-const chatsSection = document.getElementById('chats-section');
-const progressBar = document.getElementById('progress-bar');
-const autoScrollSwitch = document.getElementById('auto-scroll-switch');
-const timeDate = document.getElementById('time-date-container');
+globalThis.fetchApi = api.fetchApi; // TODO - backward compatibility for non-modular scripts, remove once refactored to alpine
 
+// Declare variables for DOM elements, they will be assigned on DOMContentLoaded
+let leftPanel,
+  rightPanel,
+  container,
+  chatInput,
+  chatHistory,
+  sendButton,
+  inputSection,
+  statusSection,
+  progressBar,
+  autoScrollSwitch,
+  timeDate;
 
 let autoScroll = true;
-let context = "";
-let connectionStatus = false
+let context = null;
+globalThis.resetCounter = 0; // Used by stores and getChatBasedId
+let skipOneSpeech = false;
 
-
-// Initialize the toggle button 
-setupSidebarToggle();
-
-function isMobile() {
-    return window.innerWidth <= 768;
-}
-
-function toggleSidebar(show) {
-    const overlay = document.getElementById('sidebar-overlay');
-    if (typeof show === 'boolean') {
-        leftPanel.classList.toggle('hidden', !show);
-        rightPanel.classList.toggle('expanded', !show);
-        overlay.classList.toggle('visible', show);
-    } else {
-        leftPanel.classList.toggle('hidden');
-        rightPanel.classList.toggle('expanded');
-        overlay.classList.toggle('visible', !leftPanel.classList.contains('hidden'));
-    }
-}
-
-function handleResize() {
-    const overlay = document.getElementById('sidebar-overlay');
-    if (isMobile()) {
-        leftPanel.classList.add('hidden');
-        rightPanel.classList.add('expanded');
-        overlay.classList.remove('visible');
-    } else {
-        leftPanel.classList.remove('hidden');
-        rightPanel.classList.remove('expanded');
-        overlay.classList.remove('visible');
-    }
-}
-
-window.addEventListener('load', handleResize);
-window.addEventListener('resize', handleResize);
-
-document.addEventListener('DOMContentLoaded', () => {
-    const overlay = document.getElementById('sidebar-overlay');
-    overlay.addEventListener('click', () => {
-        if (isMobile()) {
-            toggleSidebar(false);
-        }
-    });
-});
-
-function setupSidebarToggle() {
-    const leftPanel = document.getElementById('left-panel');
-    const rightPanel = document.getElementById('right-panel');
-    const toggleSidebarButton = document.getElementById('toggle-sidebar');
-    if (toggleSidebarButton) {
-        toggleSidebarButton.addEventListener('click', toggleSidebar);
-    } else {
-        console.error('Toggle sidebar button not found');
-        setTimeout(setupSidebarToggle, 100);
-    }
-}
-document.addEventListener('DOMContentLoaded', setupSidebarToggle);
+// Sidebar toggle logic is now handled by sidebar-store.js
 
 export async function sendMessage() {
-    try {
-        const message = chatInput.value.trim();
-        const inputAD = Alpine.$data(inputSection);
-        const attachments = inputAD.attachments;
-        const hasAttachments = attachments && attachments.length > 0;
+  try {
+    let message = inputStore.message.trim();
+    let attachmentsWithUrls = attachmentsStore.getAttachmentsForSending();
+    const hasAttachments = attachmentsWithUrls.length > 0;
 
-        if (message || hasAttachments) {
-            let response;
-            const messageId = generateGUID();
+    const sendCtx = { message, attachments: attachmentsWithUrls, context, cancel: false };
+    await callJsExtensions("send_message_before", sendCtx);
+    if (sendCtx.cancel) return;
+    message = sendCtx.message;
+    attachmentsWithUrls = sendCtx.attachments;
 
-            // Include attachments in the user message
-            if (hasAttachments) {
-                const attachmentsWithUrls = attachments.map(attachment => {
-                    if (attachment.type === 'image') {
-                        return {
-                            ...attachment,
-                            url: URL.createObjectURL(attachment.file)
-                        };
-                    } else {
-                        return {
-                            ...attachment
-                        };
-                    }
-                });
+    // If empty input but has queued messages, send all queued
+    if (!message && !hasAttachments && messageQueueStore.hasQueue) {
+      await messageQueueStore.sendAll();
+      return;
+    }
 
-                // Render user message with attachments
-                setMessage(messageId, 'user', '', message, false, {
-                    attachments: attachmentsWithUrls
-                });
+    if (message || hasAttachments) {
+      // Check if agent is busy - queue instead of sending
+      if (chatsStore.selectedContext.running || messageQueueStore.hasQueue) {
+        const success = messageQueueStore.addToQueue(message, attachmentsWithUrls);
+        // no await for the queue
+        // if (success) {
+          inputStore.reset();
+          adjustTextareaHeight();
+        // }
+        return;
+      }
 
-                const formData = new FormData();
-                formData.append('text', message);
-                formData.append('context', context);
-                formData.append('message_id', messageId);
+      // Sending a message is an explicit user intent to go to the bottom
+      msgs.scrollOnNextProcessGroup();
+      forceScrollChatToBottom();
 
-                for (let i = 0; i < attachments.length; i++) {
-                    formData.append('attachments', attachments[i].file);
-                }
+      let response;
+      const messageId = generateGUID();
 
-                response = await fetch('/message_async', {
-                    method: 'POST',
-                    body: formData
-                });
-            } else {
-                // For text-only messages
-                const data = {
-                    text: message,
-                    context,
-                    message_id: messageId
-                };
-                response = await fetch('/message_async', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(data)
-                });
-            }
+    // Clear input and attachments
+    inputStore.reset();
+    adjustTextareaHeight();
 
-            // Handle response
-            const jsonResponse = await response.json();
-            if (!jsonResponse) {
-                toast("No response returned.", "error");
-            }
-            // else if (!jsonResponse.ok) {
-            //     if (jsonResponse.message) {
-            //         toast(jsonResponse.message, "error");
-            //     } else {
-            //         toast("Undefined error.", "error");
-            //     }
-            // } 
-            else {
-                setContext(jsonResponse.context);
-            }
+      // Include attachments in the user message
+      if (hasAttachments) {
+        const heading =
+          attachmentsWithUrls.length > 0
+            ? "Uploading attachments..."
+            : "";
 
-            // Clear input and attachments
-            chatInput.value = '';
-            inputAD.attachments = [];
-            inputAD.hasAttachments = false;
-            adjustTextareaHeight();
+        // Render user message with attachments
+        await setMessages([{ id: messageId, type: "user", heading, content: message, kvps: {
+          // attachments: attachmentsWithUrls, // skip here, let the backend properly log them
+        }}]);
+
+        // sleep one frame to render the message before upload starts - better UX
+        sleep(0);
+
+        const formData = new FormData();
+        formData.append("text", message);
+        formData.append("context", context);
+        formData.append("message_id", messageId);
+
+        for (let i = 0; i < attachmentsWithUrls.length; i++) {
+          formData.append("attachments", attachmentsWithUrls[i].file);
         }
-    } catch (e) {
-        toastFetchError("Error sending message", e)
+
+        response = await api.fetchApi("/message_async", {
+          method: "POST",
+          body: formData,
+        });
+      } else {
+        // For text-only messages
+        const data = {
+          text: message,
+          context,
+          message_id: messageId,
+        };
+        response = await api.fetchApi("/message_async", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(data),
+        });
+      }
+
+      // Handle response
+      const jsonResponse = await response.json();
+      if (!jsonResponse) {
+        toast("No response returned.", "error");
+      } else {
+        setContext(jsonResponse.context);
+      }
     }
+  } catch (e) {
+    toastFetchError("Error sending message", e); // Will use new notification system
+  }
+}
+globalThis.sendMessage = sendMessage;
+
+function getChatHistoryEl() {
+  return document.getElementById("chat-history");
 }
 
-function toastFetchError(text, error) {
-    if (getConnectionStatus()) {
-        toast(`${text}: ${error.message}`, "error");
-    } else {
-        toast(`${text} (it seems the backend is not running): ${error.message}`, "error");
-    }
-    console.error(text, error);
+function forceScrollChatToBottom() {
+  const chatHistoryEl = getChatHistoryEl();
+  if (!chatHistoryEl) return;
+  chatHistoryEl.scrollTop = chatHistoryEl.scrollHeight;
 }
-window.toastFetchError = toastFetchError
+globalThis.forceScrollChatToBottom = forceScrollChatToBottom;
 
-chatInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        sendMessage();
-    }
-});
+export function toastFetchError(text, error) {
+  console.error(text, error);
+  // Use new frontend error notification system (async, but we don't need to wait)
+  const errorMessage = error?.message || error?.toString() || "Unknown error";
 
-sendButton.addEventListener('click', sendMessage);
+  if (getConnectionStatus()) {
+    // Backend is connected, just show the error
+    toastFrontendError(`${text}: ${errorMessage}`).catch((e) =>
+      console.error("Failed to show error toast:", e)
+    );
+  } else {
+    // Backend is disconnected, show connection error
+    toastFrontendError(
+      `${text} (backend appears to be disconnected): ${errorMessage}`,
+      "Connection Error"
+    ).catch((e) => console.error("Failed to show connection error toast:", e));
+  }
+}
+globalThis.toastFetchError = toastFetchError;
 
+// Event listeners will be set up in DOMContentLoaded
 
 export function updateChatInput(text) {
-    console.log('updateChatInput called with:', text);
+  const chatInputEl = document.getElementById("chat-input");
+  if (!chatInputEl) {
+    console.warn("`chatInput` element not found, cannot update.");
+    return;
+  }
+  console.log("updateChatInput called with:", text);
 
-    // Append text with proper spacing
-    const currentValue = chatInput.value;
-    const needsSpace = currentValue.length > 0 && !currentValue.endsWith(' ');
-    chatInput.value = currentValue + (needsSpace ? ' ' : '') + text + ' ';
+  // Append text with proper spacing
+  const currentValue = chatInputEl.value;
+  const needsSpace = currentValue.length > 0 && !currentValue.endsWith(" ");
+  chatInputEl.value = currentValue + (needsSpace ? " " : "") + text + " ";
 
-    // Adjust height and trigger input event
-    adjustTextareaHeight();
-    chatInput.dispatchEvent(new Event('input'));
+  // Adjust height and trigger input event
+  adjustTextareaHeight();
+  chatInputEl.dispatchEvent(new Event("input"));
 
-    console.log('Updated chat input value:', chatInput.value);
+  console.log("Updated chat input value:", chatInputEl.value);
 }
 
-function updateUserTime() {
-    const now = new Date();
-    const hours = now.getHours();
-    const minutes = now.getMinutes();
-    const seconds = now.getSeconds();
-    const ampm = hours >= 12 ? 'pm' : 'am';
-    const formattedHours = hours % 12 || 12;
+async function updateUserTime() {
+  let userTimeElement = document.getElementById("time-date");
 
-    // Format the time
-    const timeString = `${formattedHours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')} ${ampm}`;
+  while (!userTimeElement) {
+    await sleep(100);
+    userTimeElement = document.getElementById("time-date");
+  }
 
-    // Format the date
-    const options = { year: 'numeric', month: 'short', day: 'numeric' };
-    const dateString = now.toLocaleDateString(undefined, options);
+  const now = new Date();
+  const hours = now.getHours();
+  const minutes = now.getMinutes();
+  const seconds = now.getSeconds();
+  const ampm = hours >= 12 ? "pm" : "am";
+  const formattedHours = hours % 12 || 12;
 
-    // Update the HTML
-    const userTimeElement = document.getElementById('time-date');
-    userTimeElement.innerHTML = `${timeString}<br><span id="user-date">${dateString}</span>`;
+  // Format the time
+  const timeString = `${formattedHours}:${minutes
+    .toString()
+    .padStart(2, "0")}:${seconds.toString().padStart(2, "0")} ${ampm}`;
+
+  // Format the date
+  const options = { year: "numeric", month: "short", day: "numeric" };
+  const dateString = now.toLocaleDateString(undefined, options);
+
+  // Update the HTML
+  userTimeElement.innerHTML = `${timeString}<br><span id="user-date">${dateString}</span>`;
 }
 
 updateUserTime();
 setInterval(updateUserTime, 1000);
 
-
-function setMessage(id, type, heading, content, temp, kvps = null) {
-    // Search for the existing message container by id
-    let messageContainer = document.getElementById(`message-${id}`);
-
-    if (messageContainer) {
-        // Don't re-render user messages
-        if (type === 'user') {
-            return; // Skip re-rendering
-        }
-        // For other types, update the message
-        messageContainer.innerHTML = '';
-    } else {
-        // Create a new container if not found
-        const sender = type === 'user' ? 'user' : 'ai';
-        messageContainer = document.createElement('div');
-        messageContainer.id = `message-${id}`;
-        messageContainer.classList.add('message-container', `${sender}-container`);
-        if (temp) messageContainer.classList.add("message-temp");
-    }
-
-    const handler = msgs.getHandler(type);
-    handler(messageContainer, id, type, heading, content, temp, kvps);
-
-    // If the container was found, it was already in the DOM, no need to append again
-    if (!document.getElementById(`message-${id}`)) {
-        chatHistory.appendChild(messageContainer);
-    }
-
-    if (autoScroll) chatHistory.scrollTop = chatHistory.scrollHeight;
+async function setMessages(...params) {
+  return await msgs.setMessages(...params);
 }
 
-
-window.loadKnowledge = async function () {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.txt,.pdf,.csv,.html,.json,.md';
-    input.multiple = true;
-
-    input.onchange = async () => {
-        try{
-        const formData = new FormData();
-        for (let file of input.files) {
-            formData.append('files[]', file);
-        }
-
-        formData.append('ctxid', getContext());
-
-        const response = await fetch('/import_knowledge', {
-            method: 'POST',
-            body: formData,
-        });
-
-        if (!response.ok) {
-            toast(await response.text(), "error");
-        } else {
-            const data = await response.json();
-            toast("Knowledge files imported: " + data.filenames.join(", "), "success");
-        }
-        } catch (e) {
-            toastFetchError("Error loading knowledge", e)
-        }
-    };
-
-    input.click();
-}
-
+globalThis.loadKnowledge = async function () {
+  await inputStore.loadKnowledge();
+};
 
 function adjustTextareaHeight() {
-    chatInput.style.height = 'auto';
-    chatInput.style.height = (chatInput.scrollHeight) + 'px';
+  const chatInputEl = document.getElementById("chat-input");
+  if (chatInputEl) {
+    if (!inputStore.message) chatInputEl.value = "";
+    chatInputEl.style.height = "auto";
+    chatInputEl.style.height = chatInputEl.scrollHeight + "px";
+  }
 }
 
 export const sendJsonData = async function (url, data) {
-    const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(data)
-    });
+  return await api.callJsonApi(url, data);
+  // const response = await api.fetchApi(url, {
+  //     method: 'POST',
+  //     headers: {
+  //         'Content-Type': 'application/json'
+  //     },
+  //     body: JSON.stringify(data)
+  // });
 
-    if (!response.ok) {
-        const error = await response.text();
-        throw new Error(error);
-    }
-    const jsonResponse = await response.json();
-    return jsonResponse;
-}
-window.sendJsonData = sendJsonData
+  // if (!response.ok) {
+  //     const error = await response.text();
+  //     throw new Error(error);
+  // }
+  // const jsonResponse = await response.json();
+  // return jsonResponse;
+};
+globalThis.sendJsonData = sendJsonData;
 
 function generateGUID() {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-        var r = Math.random() * 16 | 0;
-        var v = c === 'x' ? r : (r & 0x3 | 0x8);
-        return v.toString(16);
-    });
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
+    var r = (Math.random() * 16) | 0;
+    var v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
 }
 
-function getConnectionStatus() {
-    return connectionStatus
+export function getConnectionStatus() {
+  return chatTopStore.connected;
 }
+globalThis.getConnectionStatus = getConnectionStatus;
 
 function setConnectionStatus(connected) {
-    connectionStatus = connected
-    const statusIcon = Alpine.$data(timeDate.querySelector('.status-icon'));
-    statusIcon.connected = connected
+  chatTopStore.connected = connected;
+  // connectionStatus = connected;
+  // // Broadcast connection status without touching Alpine directly
+  // try {
+  //   window.dispatchEvent(
+  //     new CustomEvent("connection-status", { detail: { connected } })
+  //   );
+  // } catch (_e) {
+  //   // no-op
+  // }
 }
 
 let lastLogVersion = 0;
-let lastLogGuid = ""
-let lastSpokenNo = 0
+let lastLogGuid = "";
+let lastSpokenNo = 0;
 
-async function poll() {
-    let updated = false
-    try {
-        const response = await sendJsonData("/poll", { log_from: lastLogVersion, context });
-        //console.log(response)
-
-        if (!context) setContext(response.context)
-        if (response.context != context) return //skip late polls after context change
-
-        if (lastLogGuid != response.log_guid) {
-            chatHistory.innerHTML = ""
-            lastLogVersion = 0
-        }
-
-        if (lastLogVersion != response.log_version) {
-            updated = true
-            for (const log of response.logs) {
-                const messageId = log.id || log.no; // Use log.id if available
-                setMessage(messageId, log.type, log.heading, log.content, log.temp, log.kvps);
-            }
-            afterMessagesUpdate(response.logs)
-        }
-
-        updateProgress(response.log_progress, response.log_progress_active)
-
-        //set ui model vars from backend
-        const inputAD = Alpine.$data(inputSection);
-        inputAD.paused = response.paused;
-
-        // Update status icon state
-        setConnectionStatus(true)
-
-        const chatsAD = Alpine.$data(chatsSection);
-        chatsAD.contexts = response.contexts;
-
-        lastLogVersion = response.log_version;
-        lastLogGuid = response.log_guid;
-
-    } catch (error) {
-        console.error('Error:', error);
-        setConnectionStatus(false)
-    }
-
-    return updated
+export function buildStateRequestPayload(options = {}) {
+  const { forceFull = false } = options || {};
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return {
+    context: context || null,
+    log_from: forceFull ? 0 : lastLogVersion,
+    notifications_from: forceFull ? 0 : notificationStore.lastNotificationVersion || 0,
+    timezone,
+  };
 }
 
-function afterMessagesUpdate(logs) {
-    if (localStorage.getItem('speech') == 'true') {
-        speakMessages(logs)
+export async function applySnapshot(snapshot, options = {}) {
+  const { touchConnectionStatus = false, onLogGuidReset = null } = options || {};
+
+  let updated = false;
+
+  // Check if the snapshot is valid
+  if (!snapshot || typeof snapshot !== "object") {
+    console.error("Invalid snapshot payload");
+    return { updated: false };
+  }
+
+  // deselect chat if it is requested by the backend
+  if (snapshot.deselect_chat) {
+    chatsStore.deselectChat();
+    return { updated: false };
+  }
+
+  if (
+    snapshot.context != context &&
+    context !== null
+  ) {
+    return { updated: false };
+  }
+
+  const snapCtx = {
+    snapshot,
+    willUpdateMessages: lastLogVersion != snapshot.log_version,
+    skip: false,
+  };
+  await callJsExtensions("apply_snapshot_before", snapCtx);
+  if (snapCtx.skip) return { updated: false };
+
+  // If the chat has been reset, reset cursors and request a resync from the caller.
+  // Note: on first snapshot after a context switch, lastLogGuid is intentionally empty,
+  // so the mismatch is expected and should not trigger a second state_request/poll.
+  if (lastLogGuid != snapshot.log_guid) {
+    if (lastLogGuid) {
+      const chatHistoryEl = document.getElementById("chat-history");
+      if (chatHistoryEl) chatHistoryEl.innerHTML = "";
+      lastLogVersion = 0;
+      lastLogGuid = snapshot.log_guid;
+      if (typeof onLogGuidReset === "function") {
+        await onLogGuidReset();
+      }
+      return { updated: false, resynced: true };
     }
+    // First guid observed for this context: accept it and continue applying snapshot.
+    lastLogVersion = 0;
+    lastLogGuid = snapshot.log_guid;
+  }
+
+  if (lastLogVersion != snapshot.log_version) {
+    updated = true;
+    await setMessages(snapshot.logs);
+    afterMessagesUpdate(snapshot.logs);
+  }
+
+  lastLogVersion = snapshot.log_version;
+  lastLogGuid = snapshot.log_guid;
+
+  updateProgress(snapshot.log_progress, snapshot.log_progress_active);
+
+  // Update notifications from snapshot
+  notificationStore.updateFromPoll(snapshot);
+
+  // set ui model vars from backend
+  inputStore.paused = snapshot.paused;
+
+  // Optional: treat snapshot application as proof of connectivity (poll path)
+  if (touchConnectionStatus) {
+    setConnectionStatus(true);
+  }
+
+  // Update chats list using store
+  let contexts = snapshot.contexts || [];
+  chatsStore.applyContexts(contexts);
+
+  // Update tasks list using store
+  let tasks = snapshot.tasks || [];
+  tasksStore.applyTasks(tasks);
+
+  // Make sure the active context is properly selected in both lists
+  if (context) {
+    // Update selection in both stores
+    chatsStore.setSelected(context);
+
+    const contextInChats = chatsStore.contains(context);
+    const contextInTasks = tasksStore.contains(context);
+
+    if (contextInTasks) {
+      tasksStore.setSelected(context);
+    }
+
+      if (!contextInChats && !contextInTasks) {
+        if (chatsStore.contexts.length > 0) {
+          // If it doesn't exist in the list but other contexts do, fall back to the first
+          const firstChatId = chatsStore.firstId();
+          if (firstChatId) {
+            setContext(firstChatId);
+            chatsStore.setSelected(firstChatId);
+          }
+        } else if (typeof deselectChat === "function") {
+          // No contexts remain – clear state so the welcome screen can surface
+          deselectChat();
+        }
+      }
+    } else {
+      // No context selected: keep it that way so the welcome screen stays visible.
+    }
+
+    // update message queue
+    messageQueueStore.updateFromPoll();
+
+    return { updated };
+  }
+
+export async function poll() {
+  try {
+    // Get timezone from navigator
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+    const log_from = lastLogVersion;
+    const response = await sendJsonData("/poll", {
+      log_from: log_from,
+      notifications_from: notificationStore.lastNotificationVersion || 0,
+      context: context || null,
+      timezone: timezone,
+    });
+
+    const result = await applySnapshot(response, {
+      touchConnectionStatus: true,
+      onLogGuidReset: poll,
+    });
+    return { ok: true, updated: Boolean(result && result.updated) };
+  } catch (error) {
+    console.error("Error:", error);
+    setConnectionStatus(false);
+    return { ok: false, updated: false };
+  }
+}
+globalThis.poll = poll;
+
+function afterMessagesUpdate(logs) {
+  if (preferencesStore.speech) speakMessages(logs);
 }
 
 function speakMessages(logs) {
-    // log.no, log.type, log.heading, log.content
-    for (let i = logs.length - 1; i >= 0; i--) {
-        const log = logs[i]
-        if (log.type == "response") {
-            if (log.no > lastSpokenNo) {
-                lastSpokenNo = log.no
-                speech.speak(log.content)
-                return
-            }
-        }
+  if (skipOneSpeech) {
+    skipOneSpeech = false;
+    return;
+  }
+  // log.no, log.type, log.heading, log.content
+  for (let i = logs.length - 1; i >= 0; i--) {
+    const log = logs[i];
+
+    // if already spoken, end
+    // if(log.no < lastSpokenNo) break;
+
+    // finished response
+    if (log.type == "response") {
+      // lastSpokenNo = log.no;
+      speechStore.speakStream(
+        getChatBasedId(log.no),
+        log.content,
+        log.kvps?.finished
+      );
+      return;
+
+      // finished LLM headline, not response
+    } else if (
+      log.type == "agent" &&
+      log.kvps &&
+      log.kvps.headline &&
+      log.kvps.tool_args &&
+      log.kvps.tool_name != "response"
+    ) {
+      // lastSpokenNo = log.no;
+      speechStore.speakStream(getChatBasedId(log.no), log.kvps.headline, true);
+      return;
     }
+  }
 }
 
 function updateProgress(progress, active) {
-    if (!progress) progress = ""
+  if (!progress) progress = "";
 
-    if (!active) {
-        removeClassFromElement(progressBar, "shiny-text")
+  // Strip HTML tags for plain-text placeholder use
+  const plainText = progress.replace(/<[^>]*>/g, "").trim();
+
+  // Update the input store so the placeholder reflects progress
+  inputStore.progressText = plainText;
+  inputStore.progressActive = !!active;
+
+  // Apply shimmer class to the textarea when active
+  const chatInputEl = document.getElementById("chat-input");
+  if (chatInputEl) {
+    if (active && plainText) {
+      addClassToElement(chatInputEl, "progress-active");
     } else {
-        addClassToElement(progressBar, "shiny-text")
+      removeClassFromElement(chatInputEl, "progress-active");
     }
+  }
 
-    if (progressBar.innerHTML != progress) {
-        progressBar.innerHTML = progress
+  // Also update legacy progress bar element if it still exists
+  const progressBarEl = document.getElementById("progress-bar");
+  if (progressBarEl) {
+    setProgressBarShine(progressBarEl, active);
+    const html = msgs.convertIcons(progress);
+    if (progressBarEl.innerHTML != html) {
+      progressBarEl.innerHTML = html;
     }
+  }
 }
 
-window.pauseAgent = async function (paused) {
-    try {
-        const resp = await sendJsonData("/pause", { paused: paused, context });
-    } catch (e) {
-        window.toastFetchError("Error pausing agent", e)
-    }
+function setProgressBarShine(progressBarEl, active) {
+  if (!progressBarEl) return;
+  if (!active) {
+    removeClassFromElement(progressBarEl, "shiny-text");
+  } else {
+    addClassToElement(progressBarEl, "shiny-text");
+  }
 }
 
-window.resetChat = async function () {
-    try {
-        const resp = await sendJsonData("/chat_reset", { context });
-        updateAfterScroll()
-    } catch (e) {
-        window.toastFetchError("Error resetting chat", e)
-    }
+globalThis.pauseAgent = async function (paused) {
+  await inputStore.pauseAgent(paused);
+};
+
+function generateShortId() {
+  const chars =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  let result = "";
+  for (let i = 0; i < 8; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
 }
 
-window.newChat = async function () {
-    try {
-        setContext(generateGUID());
-        updateAfterScroll()
-    } catch (e) {
-        window.toastFetchError("Error creating new chat", e)
-    }
-}
-
-window.killChat = async function (id) {
-    try {
-        const chatsAD = Alpine.$data(chatsSection);
-        let found, other
-        for (let i = 0; i < chatsAD.contexts.length; i++) {
-            if (chatsAD.contexts[i].id == id) {
-                found = true
-            } else {
-                other = chatsAD.contexts[i]
-            }
-            if (found && other) break
-        }
-
-        if (context == id && found) {
-            if (other) setContext(other.id)
-            else setContext(generateGUID())
-        }
-
-        if (found) sendJsonData("/chat_remove", { context: id });
-
-        updateAfterScroll()
-
-    } catch (e) {
-        window.toastFetchError("Error creating new chat", e)
-    }
-}
-
-window.selectChat = async function (id) {
-    setContext(id)
-    updateAfterScroll()
-}
+export const newContext = function () {
+  context = generateShortId();
+  setContext(context);
+};
+globalThis.newContext = newContext;
 
 export const setContext = function (id) {
-    if (id == context) return
-    context = id
-    lastLogGuid = ""
-    lastLogVersion = 0
-    lastSpokenNo = 0
-    const chatsAD = Alpine.$data(chatsSection);
-    chatsAD.selected = id
-}
+  if (id == context) return;
+  context = id;
+  // Always reset the log tracking variables when switching contexts
+  // This ensures we get fresh data from the backend
+  lastLogGuid = "";
+  lastLogVersion = 0;
+  lastSpokenNo = 0;
+
+  // Stop speech when switching chats
+  speechStore.stopAudio();
+
+  // Clear the chat history immediately to avoid showing stale content
+  const chatHistoryEl = document.getElementById("chat-history");
+  if (chatHistoryEl) chatHistoryEl.innerHTML = "";
+
+  // Update both selected states using stores
+  chatsStore.setSelected(id);
+  tasksStore.setSelected(id);
+
+  // Trigger a new WS handshake for the newly selected context (push-based sync).
+  // This keeps the UI current without needing /poll during healthy operation.
+  try {
+    if (typeof syncStore.sendStateRequest === "function") {
+      syncStore.sendStateRequest({ forceFull: true }).catch((error) => {
+        console.error("[index] syncStore.sendStateRequest failed:", error);
+      });
+    }
+  } catch (_error) {
+    // no-op: sync store may not be initialized yet
+  }
+
+  //skip one speech if enabled when switching context
+  if (preferencesStore.speech) skipOneSpeech = true;
+
+  // Focus the chat input
+  if (id) {
+    setTimeout(() => {
+      inputStore.focus();
+    }, 50);
+  }
+};
+
+export const deselectChat = function () {
+  // Clear current context to show welcome screen
+  setContext(null);
+
+  // Clear selections so we don't auto-restore
+  sessionStorage.removeItem("lastSelectedChat");
+  sessionStorage.removeItem("lastSelectedTask");
+
+  // Clear the chat history
+  chatHistory.innerHTML = "";
+};
+globalThis.deselectChat = deselectChat;
 
 export const getContext = function () {
-    return context
-}
-
-window.toggleAutoScroll = async function (_autoScroll) {
-    autoScroll = _autoScroll;
-}
-
-window.toggleJson = async function (showJson) {
-    // add display:none to .msg-json class definition
-    toggleCssProperty('.msg-json', 'display', showJson ? 'block' : 'none');
-}
-
-window.toggleThoughts = async function (showThoughts) {
-    // add display:none to .msg-json class definition
-    toggleCssProperty('.msg-thoughts', 'display', showThoughts ? undefined : 'none');
-}
-
-window.toggleUtils = async function (showUtils) {
-    // add display:none to .msg-json class definition
-    toggleCssProperty('.message-util', 'display', showUtils ? undefined : 'none');
-    // toggleCssProperty('.message-util .msg-kvps', 'display', showUtils ? undefined : 'none');
-    // toggleCssProperty('.message-util .msg-content', 'display', showUtils ? undefined : 'none');
-}
-
-window.toggleDarkMode = function (isDark) {
-    if (isDark) {
-        document.body.classList.remove('light-mode');
-    } else {
-        document.body.classList.add('light-mode');
-    }
-    console.log("Dark mode:", isDark);
-    localStorage.setItem('darkMode', isDark);
+  return context;
 };
+globalThis.getContext = getContext;
+globalThis.setContext = setContext;
 
-window.toggleSpeech = function (isOn) {
-    console.log("Speech:", isOn);
-    localStorage.setItem('speech', isOn);
-    if (!isOn) speech.stop()
+export const getChatBasedId = function (id) {
+  return context + "-" + globalThis.resetCounter + "-" + id;
 };
-
-window.nudge = async function () {
-    try {
-        const resp = await sendJsonData("/nudge", { ctxid: getContext() });
-    } catch (e) {
-        toastFetchError("Error nudging agent", e)
-    }
-}
-
-window.restart = async function () {
-    try {
-        if (!getConnectionStatus()) {
-            toast("Backend disconnected, cannot restart.", "error");
-            return
-        }
-        // First try to initiate restart
-        const resp = await sendJsonData("/restart", {});
-    } catch (e) {
-        // Show restarting message
-        toast("Restarting...", "info", 0);
-
-        let retries = 0;
-        const maxRetries = 60; // Maximum number of retries (15 seconds with 250ms interval)
-
-        while (retries < maxRetries) {
-            try {
-                const resp = await sendJsonData("/health", {});
-                // Server is back up, show success message
-                await new Promise(resolve => setTimeout(resolve, 250));
-                hideToast();
-                await new Promise(resolve => setTimeout(resolve, 400));
-                toast("Restarted", "success", 5000);
-                return;
-            } catch (e) {
-                // Server still down, keep waiting
-                retries++;
-                await new Promise(resolve => setTimeout(resolve, 250));
-            }
-        }
-
-        // If we get here, restart failed or took too long
-        hideToast();
-        await new Promise(resolve => setTimeout(resolve, 400));
-        toast("Restart timed out or failed", "error", 5000);
-    }
-}
-
-// Modify this part
-document.addEventListener('DOMContentLoaded', () => {
-    const isDarkMode = localStorage.getItem('darkMode') !== 'false';
-    toggleDarkMode(isDarkMode);
-});
-
-window.toggleDarkMode = function (isDark) {
-    if (isDark) {
-        document.body.classList.remove('light-mode');
-    } else {
-        document.body.classList.add('light-mode');
-    }
-    console.log("Dark mode:", isDark);
-    localStorage.setItem('darkMode', isDark);
-};
-
-function toggleCssProperty(selector, property, value) {
-    // Get the stylesheet that contains the class
-    const styleSheets = document.styleSheets;
-
-    // Iterate through all stylesheets to find the class
-    for (let i = 0; i < styleSheets.length; i++) {
-        const styleSheet = styleSheets[i];
-        const rules = styleSheet.cssRules || styleSheet.rules;
-
-        for (let j = 0; j < rules.length; j++) {
-            const rule = rules[j];
-            if (rule.selectorText == selector) {
-                // Check if the property is already applied
-                if (value === undefined) {
-                    rule.style.removeProperty(property);
-                } else {
-                    rule.style.setProperty(property, value);
-                }
-                return;
-            }
-        }
-    }
-}
-
-window.loadChats = async function () {
-    try {
-        const fileContents = await readJsonFiles();
-        const response = await sendJsonData("/chat_load", { chats: fileContents });
-
-        if (!response) {
-            toast("No response returned.", "error")
-        }
-        // else if (!response.ok) {
-        //     if (response.message) {
-        //         toast(response.message, "error")
-        //     } else {
-        //         toast("Undefined error.", "error")
-        //     }
-        // } 
-        else {
-            setContext(response.ctxids[0])
-            toast("Chats loaded.", "success")
-        }
-
-    } catch (e) {
-        toastFetchError("Error loading chats", e)
-    }
-}
-
-window.saveChat = async function () {
-    try {
-        const response = await sendJsonData("/chat_export", { ctxid: context });
-
-        if (!response) {
-            toast("No response returned.", "error")
-        }
-        //  else if (!response.ok) {
-        //     if (response.message) {
-        //         toast(response.message, "error")
-        //     } else {
-        //         toast("Undefined error.", "error")
-        //     }
-        // }
-        else {
-            downloadFile(response.ctxid + ".json", response.content)
-            toast("Chat file downloaded.", "success")
-        }
-
-    } catch (e) {
-        toastFetchError("Error saving chat", e)
-    }
-}
-
-function downloadFile(filename, content) {
-    // Create a Blob with the content to save
-    const blob = new Blob([content], { type: 'application/json' });
-
-    // Create a link element
-    const link = document.createElement('a');
-
-    // Create a URL for the Blob
-    const url = URL.createObjectURL(blob);
-    link.href = url;
-
-    // Set the file name for download
-    link.download = filename;
-
-    // Programmatically click the link to trigger the download
-    link.click();
-
-    // Clean up by revoking the object URL
-    setTimeout(() => {
-        URL.revokeObjectURL(url);
-    }, 0);
-}
-
-
-function readJsonFiles() {
-    return new Promise((resolve, reject) => {
-        // Create an input element of type 'file'
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = '.json'; // Only accept JSON files
-        input.multiple = true;  // Allow multiple file selection
-
-        // Trigger the file dialog
-        input.click();
-
-        // When files are selected
-        input.onchange = async () => {
-            const files = input.files;
-            if (!files.length) {
-                resolve([]); // Return an empty array if no files are selected
-                return;
-            }
-
-            // Read each file as a string and store in an array
-            const filePromises = Array.from(files).map(file => {
-                return new Promise((fileResolve, fileReject) => {
-                    const reader = new FileReader();
-                    reader.onload = () => fileResolve(reader.result);
-                    reader.onerror = fileReject;
-                    reader.readAsText(file);
-                });
-            });
-
-            try {
-                const fileContents = await Promise.all(filePromises);
-                resolve(fileContents);
-            } catch (error) {
-                reject(error); // In case of any file reading error
-            }
-        };
-    });
-}
 
 function addClassToElement(element, className) {
-    element.classList.add(className);
+  element.classList.add(className);
 }
 
 function removeClassFromElement(element, className) {
-    element.classList.remove(className);
+  element.classList.remove(className);
 }
 
-
-function toast(text, type = 'info', timeout = 5000) {
-    const toast = document.getElementById('toast');
-    const isVisible = toast.classList.contains('show');
-
-    // Clear any existing timeout immediately
-    if (toast.timeoutId) {
-        clearTimeout(toast.timeoutId);
-        toast.timeoutId = null;
-    }
-
-    // Function to update toast content and show it
-    const updateAndShowToast = () => {
-        // Update the toast content and type
-        const title = type.charAt(0).toUpperCase() + type.slice(1);
-        toast.querySelector('.toast__title').textContent = title;
-        toast.querySelector('.toast__message').textContent = text;
-
-        // Remove old classes and add new ones
-        toast.classList.remove('toast--success', 'toast--error', 'toast--info');
-        toast.classList.add(`toast--${type}`);
-
-        // Show/hide copy button based on toast type
-        const copyButton = toast.querySelector('.toast__copy');
-        copyButton.style.display = type === 'error' ? 'inline-block' : 'none';
-
-        // Add the close button event listener
-        const closeButton = document.querySelector('.toast__close');
-        closeButton.onclick = () => {
-            hideToast();
-        };
-
-        // Add the copy button event listener
-        copyButton.onclick = () => {
-            navigator.clipboard.writeText(text);
-            copyButton.textContent = 'Copied!';
-            setTimeout(() => {
-                copyButton.textContent = 'Copy';
-            }, 2000);
-        };
-
-        // Show the toast
-        toast.style.display = 'flex';
-        // Force a reflow to ensure the animation triggers
-        void toast.offsetWidth;
-        toast.classList.add('show');
-
-        // Set timeout if specified
-        if (timeout) {
-            const minTimeout = Math.max(timeout, 5000);
-            toast.timeoutId = setTimeout(() => {
-                hideToast();
-            }, minTimeout);
-        }
-    };
-
-    if (isVisible) {
-        // If a toast is visible, hide it first then show the new one
-        toast.classList.remove('show');
-        toast.classList.add('hide');
-
-        // Wait for hide animation to complete before showing new toast
-        setTimeout(() => {
-            toast.classList.remove('hide');
-            updateAndShowToast();
-        }, 400); // Match this with CSS transition duration
-    } else {
-        // If no toast is visible, show the new one immediately
-        updateAndShowToast();
-    }
+export function justToast(text, type = "info", timeout = 5000, group = "") {
+  notificationStore.addFrontendToastOnly(type, text, "", timeout / 1000, group);
 }
-window.toast = toast
+globalThis.justToast = justToast;
 
-function hideToast() {
-    const toast = document.getElementById('toast');
+export function toast(text, type = "info", timeout = 5000) {
+  // Convert timeout from milliseconds to seconds for new notification system
+  const display_time = Math.max(timeout / 1000, 1); // Minimum 1 second
 
-    // Clear any existing timeout
-    if (toast.timeoutId) {
-        clearTimeout(toast.timeoutId);
-        toast.timeoutId = null;
-    }
-
-    toast.classList.remove('show');
-    toast.classList.add('hide');
-
-    // Wait for the hide animation to complete before removing from display
-    setTimeout(() => {
-        toast.style.display = 'none';
-        toast.classList.remove('hide');
-    }, 400); // Match this with CSS transition duration
+  // Use new frontend notification system based on type
+  switch (type.toLowerCase()) {
+    case "error":
+      return notificationStore.frontendError(text, "Error", display_time);
+    case "success":
+      return notificationStore.frontendInfo(text, "Success", display_time);
+    case "warning":
+      return notificationStore.frontendWarning(text, "Warning", display_time);
+    case "info":
+    default:
+      return notificationStore.frontendInfo(text, "Info", display_time);
+  }
 }
+globalThis.toast = toast;
 
-function scrollChanged(isAtBottom) {
-    const inputAS = Alpine.$data(autoScrollSwitch);
-    inputAS.autoScroll = isAtBottom
-    // autoScrollSwitch.checked = isAtBottom
-}
 
-function updateAfterScroll() {
-    // const toleranceEm = 1; // Tolerance in em units
-    // const tolerancePx = toleranceEm * parseFloat(getComputedStyle(document.documentElement).fontSize); // Convert em to pixels
-    const tolerancePx = 50;
-    const chatHistory = document.getElementById('chat-history');
-    const isAtBottom = (chatHistory.scrollHeight - chatHistory.scrollTop) <= (chatHistory.clientHeight + tolerancePx);
+import { store as _chatNavigationStore } from "/components/chat/navigation/chat-navigation-store.js";
 
-    scrollChanged(isAtBottom);
-}
 
-chatHistory.addEventListener('scroll', updateAfterScroll);
+// Navigation logic in chat-navigation-store.js
+// forceScrollChatToBottom is kept here as it is used by system events
 
-chatInput.addEventListener('input', adjustTextareaHeight);
 
 // setInterval(poll, 250);
 
 async function startPolling() {
-    const shortInterval = 25
-    const longInterval = 250
-    const shortIntervalPeriod = 100
-    let shortIntervalCount = 0
+  // Fallback polling cadence:
+  // - DISCONNECTED: do not poll (transport down, avoid request spam)
+  // - HANDSHAKE_PENDING/DEGRADED: steady fallback cadence to keep UI responsive
+  const degradedIntervalMs = 250;
+  let missingSyncSinceMs = null;
+  let consecutivePollFailures = 0;
+  let lastHandshakeKickMs = 0;
+  const startedAtMs = Date.now();
+  const initialNoPollGraceMs = 2000;
+  let pollInFlight = false;
 
-    async function _doPoll() {
-        let nextInterval = longInterval
+  async function _doPoll() {
+    const tickStartedAt = Date.now();
+    let nextInterval = degradedIntervalMs;
 
-        try {
-            const result = await poll();
-            if (result) shortIntervalCount = shortIntervalPeriod; // Reset the counter when the result is true
-            if (shortIntervalCount > 0) shortIntervalCount--; // Decrease the counter on each call
-            nextInterval = shortIntervalCount > 0 ? shortInterval : longInterval;
-        } catch (error) {
-            console.error('Error:', error);
+    try {
+      const syncMode = typeof syncStore.mode === "string" ? syncStore.mode : null;
+      // Polling is a fallback. In V1:
+      // - DEGRADED: poll at fallback cadence to keep the UI usable while WS sync is unavailable.
+      // - DISCONNECTED: do not poll; rely on Socket.IO reconnect and avoid console/network spam.
+      // Safety net: if the sync store never loads, start polling after a short grace period.
+      if (!syncStore || !syncMode) {
+        if (missingSyncSinceMs == null) {
+          missingSyncSinceMs = Date.now();
         }
+      } else {
+        missingSyncSinceMs = null;
+      }
 
-        // Call the function again after the selected interval
+      const shouldPoll =
+        syncMode === "DEGRADED" ||
+        (missingSyncSinceMs != null && Date.now() - missingSyncSinceMs > 2000);
+      if (!shouldPoll) {
         setTimeout(_doPoll.bind(this), nextInterval);
+        return;
+      }
+
+      if (pollInFlight) {
+        setTimeout(_doPoll.bind(this), nextInterval);
+        return;
+      }
+
+      // Avoid a “single poll on boot” while the websocket handshake is racing to take over.
+      if (Date.now() - startedAtMs < initialNoPollGraceMs && (!syncStore || !syncMode)) {
+        setTimeout(_doPoll.bind(this), nextInterval);
+        return;
+      }
+
+      // Call through `globalThis.poll` so test harnesses (and future instrumentation)
+      // can wrap/spy on polling behaviour. Fall back to the module-local function
+      // if the global is unavailable.
+      const pollFn = typeof globalThis.poll === "function" ? globalThis.poll : poll;
+      pollInFlight = true;
+      let result;
+      try {
+        result = await pollFn();
+      } finally {
+        pollInFlight = false;
+      }
+      const pollOk = Boolean(result && result.ok);
+
+      if (!pollOk) {
+        consecutivePollFailures += 1;
+      } else {
+        consecutivePollFailures = 0;
+      }
+
+      // If we are degraded but polling repeatedly fails, upgrade to DISCONNECTED.
+      if (
+        syncStore &&
+        syncMode === "DEGRADED" &&
+        !pollOk &&
+        consecutivePollFailures >= 3
+      ) {
+        syncStore.mode = "DISCONNECTED";
+      }
+
+      // If we're polling and the backend responds, try to re-establish push sync immediately.
+      if (syncStore && pollOk) {
+        const now = Date.now();
+        const modeNow = typeof syncStore.mode === "string" ? syncStore.mode : null;
+        const kickCooldownMs = modeNow === "DISCONNECTED" ? 0 : 3000;
+        const eligible =
+          (modeNow === "DISCONNECTED" || modeNow === "DEGRADED") &&
+          typeof syncStore.sendStateRequest === "function" &&
+          now - lastHandshakeKickMs >= kickCooldownMs;
+        if (eligible) {
+          lastHandshakeKickMs = now;
+          syncStore.sendStateRequest({ forceFull: true }).catch(() => {});
+        }
+      }
+
+      const effectiveMode =
+        syncStore && typeof syncStore.mode === "string" ? syncStore.mode : syncMode;
+      nextInterval =
+        effectiveMode === "DEGRADED" || effectiveMode === "HANDSHAKE_PENDING"
+          ? degradedIntervalMs
+          : degradedIntervalMs;
+    } catch (error) {
+      console.error("Error:", error);
     }
 
-    _doPoll();
+    // Call the function again after the selected interval
+    const elapsedMs = Date.now() - tickStartedAt;
+    const delayMs = Math.max(0, nextInterval - elapsedMs);
+    setTimeout(_doPoll.bind(this), delayMs);
+  }
+
+  _doPoll();
 }
 
-document.addEventListener("DOMContentLoaded", startPolling);
+// All initializations and event listeners are now consolidated here
+document.addEventListener("DOMContentLoaded", function () {
+  // Assign DOM elements to variables now that the DOM is ready
+  leftPanel = document.getElementById("left-panel");
+  rightPanel = document.getElementById("right-panel");
+  container = document.querySelector(".container");
+  chatInput = document.getElementById("chat-input");
+  chatHistory = document.getElementById("chat-history");
+  sendButton = document.getElementById("send-button");
+  inputSection = document.getElementById("input-section");
+  statusSection = document.getElementById("status-section");
+  progressBar = document.getElementById("progress-bar");
+  autoScrollSwitch = document.getElementById("auto-scroll-switch");
+  timeDate = document.getElementById("time-date-container");
 
-document.addEventListener('DOMContentLoaded', () => {
-    const dragDropOverlay = document.getElementById('dragdrop-overlay');
-    const inputSection = document.getElementById('input-section');
-    let dragCounter = 0;
 
-    // Prevent default drag behaviors
-    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-        document.addEventListener(eventName, (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-        }, false);
-    });
-
-    // Handle drag enter
-    document.addEventListener('dragenter', (e) => {
-        dragCounter++;
-        if (dragCounter === 1) {
-            Alpine.$data(dragDropOverlay).isVisible = true;
-        }
-    }, false);
-
-    // Handle drag leave
-    document.addEventListener('dragleave', (e) => {
-        dragCounter--;
-        if (dragCounter === 0) {
-            Alpine.$data(dragDropOverlay).isVisible = false;
-        }
-    }, false);
-
-    // Handle drop
-    dragDropOverlay.addEventListener('drop', (e) => {
-        dragCounter = 0;
-        Alpine.$data(dragDropOverlay).isVisible = false;
-        
-        const inputAD = Alpine.$data(inputSection);
-        const files = e.dataTransfer.files;
-        handleFiles(files, inputAD);
-    }, false);
+  // Start polling for updates
+  startPolling();
 });
 
-// Separate file handling logic to be used by both drag-drop and file input
-function handleFiles(files, inputAD) {
-    Array.from(files).forEach(file => {
-        const ext = file.name.split('.').pop().toLowerCase();
-       
-            const isImage = ['jpg', 'jpeg', 'png', 'bmp'].includes(ext);
-            
-            if (isImage) {
-                const reader = new FileReader();
-                reader.onload = e => {
-                    inputAD.attachments.push({
-                        file: file,
-                        url: e.target.result,
-                        type: 'image',
-                        name: file.name,
-                        extension: ext
-                    });
-                    inputAD.hasAttachments = true;
-                };
-                reader.readAsDataURL(file);
-            } else {
-                inputAD.attachments.push({
-                    file: file,
-                    type: 'file',
-                    name: file.name,
-                    extension: ext
-                });
-                inputAD.hasAttachments = true;
-            }
-        
-    });
-}
-
-// Modify the existing handleFileUpload to use the new handleFiles function
-window.handleFileUpload = function(event) {
-    const files = event.target.files;
-    const inputAD = Alpine.$data(inputSection);
-    handleFiles(files, inputAD);
-}
+/*
+ * A0 Chat UI
+ *
+ * Unified sidebar layout:
+ * - Both Chats and Tasks lists are always visible in a vertical layout
+ * - Both lists are sorted by creation time (newest first)
+ * - Tasks use the same context system as chats for communication with the backend
+ */

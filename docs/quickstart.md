@@ -1,54 +1,90 @@
 # Quick Start
-This guide provides a quick introduction to using Agent Zero. We'll cover launching the web UI, starting a new chat, and running a simple task.
+This guide provides a quick introduction to using Agent Zero. We'll cover the recommended install path and running your first Skill.
 
-## Launching the Web UI
-1. Make sure you have Agent Zero installed and your environment set up correctly (refer to the [Installation guide](installation.md) if needed).
-2. Open a terminal in the Agent Zero directory and activate your conda environment (if you're using one).
-3. Run the following command:
+## Installation (recommended)
 
+Run one command; the script handles Docker, image pull, and container setup.
+
+**macOS / Linux:**
 ```bash
-python run_ui.py
+curl -fsSL https://bash.agent-zero.ai | bash
 ```
 
-4.  A message similar to this will appear in your terminal, indicating the Web UI is running:
+**Windows (PowerShell):**
+```powershell
+irm https://ps.agent-zero.ai | iex
+```
 
-![](res/flask_link.png)
-
-5. Open your web browser and navigate to the URL shown in the terminal (usually `http://127.0.0.1:50001`). You should see the Agent Zero Web UI.
-
-![New Chat](res/ui_newchat1.png)
+Follow the CLI prompts for port and authentication, complete onboarding, then open the Web UI URL from the terminal.
 
 > [!TIP]
-> As you can see, the Web UI has four distinct buttons for easy chat management: 
-> `New Chat`, `Reset Chat`, `Save Chat`, and `Load Chat`.
-> Chats can be saved and loaded individually in `json` format and are stored in the
-> `/tmp/chats` directory.
+> To update later, open **Settings UI → Update tab → Open Self Update** (see [How to Update](setup/installation.md#how-to-update-agent-zero)). Backups are automatically managed internally.
 
-    ![Chat Management](res/ui_chat_management.png)
+> [!NOTE]
+> For manual Docker Desktop setup, volume mapping, and platform-specific detail, see the [Installation Guide](setup/installation.md#manual-installation-advanced).
 
-## Running a Simple Task
-Let's ask Agent Zero to download a YouTube video. Here's how:
+### Open the Web UI and configure your API key
 
-1.  Type "Download a YouTube video for me" in the chat input field and press Enter or click the send button.
+Open your browser and navigate to `http://localhost:<PORT>`. The Web UI will show the onboarding banner. Click Start Onboarding to set your AI models and API key.
 
-2. Agent Zero will process your request.  You'll see its "thoughts" and the actions it takes displayed in the UI. It will find a default already existing solution, that implies using the `code_execution_tool` to run a simple Python script to perform the task.
+![Agent Zero Web UI](res/setup/6-docker-a0-running-new.png)
 
-3. The agent will then ask you for the URL of the YouTube video you want to download.
+Click **Add your API key** to open Settings and configure:
+
+- **Default Provider:** OpenRouter (supports most models with a single API key)
+- **Alternative Providers:** Anthropic, OpenAI, Ollama/LM Studio (local models), and many others
+- **Model Selection:** Choose your chat model (e.g., `anthropic/claude-sonnet-4-6` for OpenRouter)
+
+> [!NOTE]
+> Agent Zero supports any LLM provider, including local models via Ollama. For detailed provider configuration and local model setup, see the [Installation Guide](setup/installation.md#choosing-your-llms).
+
+### Start your first chat
+
+Once configured, you'll see the Agent Zero dashboard with access to:
+
+- **Projects** - organize your work into projects
+- **Memory** - open the memory dashboard
+- **Scheduler** - create and manage planned tasks
+- **Files** - open the File Browser
+- **Settings** - configure models and preferences
+- **System Stats** - monitor resource usage
+
+Click **New Chat** to start creating with Agent Zero!
+
+![Agent Zero Dashboard](res/quickstart/ui_newchat1.png)
+
+> [!TIP]
+> The Web UI provides a comprehensive chat actions dropdown with options for managing conversations, including creating new chats, resetting, saving/loading, and many more advanced features. Chats are saved in JSON format in the `/usr/chats` directory.
+>
+> ![Chat Actions Dropdown](res/quickstart/ui_chat_management.png)
+
+---
 
 ## Example Interaction
+Let's ask Agent Zero to use one of the built-in skills. Here's how:
+
+1. Type "Activate your brainstorming skill" in the chat input field and press Enter or click the send button.
+2. Agent Zero will process your request. You'll see its thoughts and tool calls in the UI.
+3. The agent will acknowledge the skill activation and ask you for a follow-up on the brainstorming request.
+
 Here's an example of what you might see in the Web UI at step 3:
-![1](res/image-24.png)
+
+![1](res/quickstart/image-24.png)
 
 ## Next Steps
 Now that you've run a simple task, you can experiment with more complex requests. Try asking Agent Zero to:
 
-* Perform calculations
-* Search the web for information
+* Connect to your email
 * Execute shell commands
+* Develop skills
 * Explore web development tasks
-* Create or modify files
+* Develop A0 itself
 
-> [!TIP]
-> The [Usage Guide](usage.md) provides more in-depth information on using Agent 
-> Zero's various features, including prompt engineering, tool usage, and multi-agent 
-> cooperation.
+### [Open A0 Usage Guide](guides/usage.md)
+
+Provides more in-depth information on tools, projects, tasks, and backup/restore.
+
+## 🎓 Video Tutorials
+- [MCP Server Setup](https://youtu.be/pM5f4Vz3_IQ)
+- [Projects & Workspaces](https://youtu.be/RrTDp_v9V1c)
+- [Memory Management](https://youtu.be/sizjAq2-d9s)

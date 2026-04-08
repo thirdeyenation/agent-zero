@@ -2,48 +2,51 @@
 **/.DS_Store
 **/.env
 **/__pycache__/
+*.py[cod]
 **/.conda/
+**/node_modules/
+
+#Ignore IDE files
+.cursor/
+.windsurf/
 
 # ignore test files in root dir
 /*.test.py
 
-# Ignore git internal files (for bundler)
-.git/
-
 # Ignore all contents of the virtual environment directory
 .venv/
 
-# Handle bundle directory
-bundle/*/
-!bundle/mac_pkg_scripts
-
-# Handle work_dir directory
-work_dir/*
-
-# Handle memory directory
-memory/**
-!memory/**/
+# obsolete folders
+/memory/
+/knowledge/custom/
+/instruments/
 
 # Handle logs directory
-logs/*
+logs/**
+!logs/**/
 
-# Handle tmp directory
-tmp/*
+# Handle tmp and usr directory
+tmp/**
+!tmp/**/
 
-# Handle knowledge directory
-knowledge/**
-!knowledge/**/
-# Explicitly allow the default folder in knowledge
-!knowledge/default/
-!knowledge/default/**
+# hack to keep .gitkeep but ignore nested repos
+# Ignore everything under usr
+usr/**
+# Ignore nested repos
+/usr/**/.git
+# Allow git to traverse directories
+!usr/**/
+# Re-ignore everything again
+usr/**/*
+# But allow .gitkeep files
+!usr/**/.gitkeep
 
-# Handle instruments directory
-instruments/**
-!instruments/**/
-# Explicitly allow the default folder in instruments
-!instruments/default/
-!instruments/default/**
 
 # Global rule to include .gitkeep files anywhere
 !**/.gitkeep
+
+# for browser-use
 agent_history.gif
+
+.agent/**
+.claude/**

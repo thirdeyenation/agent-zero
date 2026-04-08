@@ -1,7 +1,5 @@
 #!/bin/bash
-
-# install playwright
-bash /ins/install_playwright.sh "$@"
+set -e
 
 # Cleanup package list
 rm -rf /var/lib/apt/lists/*
