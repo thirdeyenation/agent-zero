@@ -1,22 +1,22 @@
 ### code_execution_tool
-
-execute terminal commands python nodejs code for computation or software tasks
-place code in "code" arg; escape carefully and indent properly
-select "runtime" arg: "terminal" "python" "nodejs" "output"
-select "session" number, 0 default, others for multitasking
-if code runs long, use runtime "output" to wait
-use argument reset true on next call to kill previous process when stuck default false
-use "pip" "npm" "apt-get" in "terminal" to install package
-to output, use print() or console.log()
-if tool outputs error, adjust code before retrying; 
-important: check code for placeholders or demo data; replace with real variables; don't reuse snippets
-don't use with other tools except thoughts; wait for response before using others
-check dependencies before running code
-output may end with [SYSTEM: ...] information comming from framework, not terminal
-usage:
-
-
-1 execute terminal command
+run terminal, python, or nodejs commands
+args:
+- `runtime`: `terminal`, `python`, `nodejs`, or `output`
+- `code`: command or script code
+- `session`: terminal session id; default `0`
+- `reset`: kill a session before running; `true` or `false`
+rules:
+- place the command or script in `code`
+- use `runtime=output` to poll running work
+- use `input` for interactive terminal prompts
+- if a session is stuck, call again with the same `session` and `reset=true`
+- check dependencies before running code
+- replace placeholder or demo data with real values before execution
+- use `print()` or `console.log()` when you need explicit output
+- do not interleave other tools while waiting
+- ignore framework `[SYSTEM: ...]` info in output
+examples:
+1 terminal command
 ~~~json
 {
     "thoughts": [
@@ -86,5 +86,33 @@ usage:
         "runtime": "output",
         "session": 0,
     }
+}
+~~~
+
+2 python snippet
+~~~json
+{
+  "thoughts": ["A short Python check is faster than using the shell."],
+  "headline": "Running Python snippet",
+  "tool_name": "code_execution_tool",
+  "tool_args": {
+    "runtime": "python",
+    "session": 0,
+    "reset": false,
+    "code": "import os\nprint(os.getcwd())"
+  }
+}
+~~~
+
+3 wait for running output
+~~~json
+{
+  "thoughts": ["The previous command is still running, so I should poll for output."],
+  "headline": "Waiting for command output",
+  "tool_name": "code_execution_tool",
+  "tool_args": {
+    "runtime": "output",
+    "session": 0
+  }
 }
 ~~~

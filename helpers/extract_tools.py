@@ -19,6 +19,28 @@ def json_parse_dirty(json: str) -> dict[str, Any] | None:
             return None
     return None
 
+def extract_json_root_string(content: str) -> str | None:
+    if not content or not isinstance(content, str):
+        return None
+
+    start = content.find("{")
+    if start == -1:
+        return None
+    first_array = content.find("[")
+    if first_array != -1 and first_array < start:
+        return None
+
+    parser = DirtyJson()
+    try:
+        parser.parse(content[start:])
+    except Exception:
+        return None
+
+    if not parser.completed:
+        return None
+
+    return content[start : start + parser.index]
+
 
 def extract_json_object_string(content):
     start = content.find("{")

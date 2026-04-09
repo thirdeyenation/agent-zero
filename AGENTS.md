@@ -7,7 +7,7 @@ Tech Stack: Python 3.12+ | Flask | Alpine.js | LiteLLM | WebSocket (Socket.io)
 Dev Server: python run_ui.py (runs on http://localhost:50001 by default)
 Run Tests: pytest (standard) or pytest tests/test_name.py (file-scoped)
 Documentation: README.md | docs/
-Frontend Deep Dives: [Component System](docs/agents/AGENTS.components.md) | [Modal System](docs/agents/AGENTS.modals.md) | [Plugin Architecture](docs/agents/AGENTS.plugins.md)
+Frontend Deep Dives: [Component System](docs/agents/AGENTS.components.md) | [Modal System](docs/agents/AGENTS.modals.md) | [Plugin Architecture](docs/agents/AGENTS.plugins.md) | [Banners & Discovery](docs/agents/AGENTS.banners.md)
 
 ---
 
@@ -71,12 +71,10 @@ When running in Docker, Agent Zero uses two distinct Python runtimes to isolate 
 ├── initialize.py         # Framework initialization logic
 ├── models.py             # LLM provider configurations
 ├── run_ui.py             # WebUI server entry point
-├── python/
-│   ├── api/              # API Handlers (ApiHandler subclasses)
-│   ├── extensions/       # Backend lifecycle extensions
-│   ├── helpers/          # Shared Python utilities (plugins, files, etc.)
-│   ├── tools/            # Agent tools (Tool subclasses)
-│   └── websocket_handlers/# WebSocket event handlers
+├── api/                  # API Handlers (ApiHandler subclasses) + WsHandler subclasses (ws_*.py)
+├── extensions/           # Backend lifecycle extensions
+├── helpers/              # Shared Python utilities (plugins, files, etc.)
+├── tools/                # Agent tools (Tool subclasses)
 ├── webui/
 │   ├── components/       # Alpine.js components
 │   ├── js/               # Core frontend logic (modals, stores, etc.)

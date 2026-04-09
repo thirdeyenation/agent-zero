@@ -186,10 +186,27 @@ def _is_latest_selector_tag(tag: str) -> bool:
     return tag.strip().lower() == "latest"
 
 
+def _get_tag_release_time_in_repo(
+    repo_dir: str | Path,
+    tag: str,
+) -> str:
+    normalized_tag = tag.strip()
+    if not normalized_tag:
+        return ""
+    try:
+        timestamp = _run_git(repo_dir, "log", "-1", "--format=%ct", normalized_tag)
+        if not timestamp:
+            return ""
+        return datetime.fromtimestamp(int(timestamp)).strftime("%Y-%m-%d %H:%M:%S")
+    except Exception:
+        return ""
+
+
 def get_repo_version_info(repo_dir: str | Path | None = None) -> dict[str, str]:
     repository = get_repo_dir(repo_dir)
     describe = _run_git(repository, "describe", "--tags", "--always")
     commit = _run_git(repository, "rev-parse", "HEAD")
+    short_tag = _normalize_describe_to_version(describe)
     try:
         branch = _run_git(repository, "branch", "--show-current")
     except Exception:
@@ -197,10 +214,11 @@ def get_repo_version_info(repo_dir: str | Path | None = None) -> dict[str, str]:
     return {
         "branch": branch,
         "describe": describe,
-        "short_tag": _normalize_describe_to_version(describe),
+        "short_tag": short_tag,
         "display_version": _format_branch_head_version(branch, describe),
         "commit": commit,
         "short_commit": commit[:7],
+        "released_at": _get_tag_release_time_in_repo(repository, short_tag),
     }
 
 
@@ -402,7 +420,7 @@ def _get_remote_branch_merged_tags(branch: str) -> set[str]:
 def _get_remote_branch_head_info(branch: str) -> dict[str, str]:
     normalized_branch = branch.strip().lower()
     if _is_excluded_self_update_branch(normalized_branch):
-        return {"describe": "", "short_tag": "", "commit": ""}
+        return {"describe": "", "short_tag": "", "commit": "", "released_at": ""}
 
     cached = _remote_branch_head_cache.get(normalized_branch)
     now = time.monotonic()
@@ -425,11 +443,14 @@ def _get_remote_branch_head_info(branch: str) -> dict[str, str]:
         remote_ref = f"refs/remotes/origin/{normalized_branch}"
         describe = _run_git(repository, "describe", "--tags", "--always", remote_ref)
         commit = _run_git(repository, "rev-parse", remote_ref)
+        short_tag = _normalize_describe_to_version(describe)
+        released_at = _get_tag_release_time_in_repo(repository, short_tag)
 
     payload = {
         "describe": describe,
-        "short_tag": _normalize_describe_to_version(describe),
+        "short_tag": short_tag,
         "commit": commit,
+        "released_at": released_at,
     }
     _remote_branch_head_cache[normalized_branch] = (now, payload)
     return dict(payload)
@@ -464,10 +485,14 @@ def _get_local_branch_head_info(
                 "describe": describe,
                 "short_tag": _normalize_describe_to_version(describe),
                 "commit": commit,
+                "released_at": _get_tag_release_time_in_repo(
+                    repository,
+                    _normalize_describe_to_version(describe),
+                ),
             }
         except Exception:
             continue
-    return {"describe": "", "short_tag": "", "commit": ""}
+    return {"describe": "", "short_tag": "", "commit": "", "released_at": ""}
 
 
 def _get_branch_merged_tags(
@@ -555,6 +580,93 @@ def _format_branch_head_version(branch: str, describe: str) -> str:
     return f"{short_tag}+{commits_since_tag}"
 
 
+def _get_release_tag_info(
+    branch: str,
+    tag: str,
+    *,
+    repo_dir: str | Path | None = None,
+) -> dict[str, Any]:
+    repository = get_repo_dir(repo_dir)
+    commit = ""
+    try:
+        commit = _run_git(repository, "rev-parse", f"refs/tags/{tag}^{{commit}}")
+    except Exception:
+        commit = ""
+    return {
+        "branch": branch.strip().lower(),
+        "supported": True,
+        "describe": tag,
+        "short_tag": tag,
+        "display_version": tag,
+        "commit": commit,
+        "short_commit": commit[:7] if commit else "",
+        "released_at": _get_tag_release_time_in_repo(repository, tag),
+    }
+
+
+def get_current_major_main_latest_info(
+    current_version: str,
+    *,
+    repo_dir: str | Path | None = None,
+) -> dict[str, Any]:
+    repository = get_repo_dir(repo_dir)
+    available_branches = set(get_available_branch_values(repo_dir=repository))
+    if "main" not in available_branches:
+        return {
+            "branch": "main",
+            "supported": False,
+            "describe": "",
+            "short_tag": "",
+            "display_version": "",
+            "commit": "",
+            "short_commit": "",
+            "released_at": "",
+        }
+
+    current_major = _parse_major_version(current_version)
+    if current_major is None:
+        return get_current_branch_latest_info("main", repo_dir=repository)
+
+    tags, error = get_available_tags("main", repo_dir=repository)
+    if error:
+        return get_current_branch_latest_info("main", repo_dir=repository)
+
+    latest_same_major_tag = next(
+        (tag for tag in tags if _parse_major_version(tag) == current_major),
+        "",
+    )
+    if not latest_same_major_tag:
+        return {
+            "branch": "main",
+            "supported": True,
+            "describe": "",
+            "short_tag": "",
+            "display_version": "",
+            "commit": "",
+            "short_commit": "",
+            "released_at": "",
+        }
+
+    branch_head_info = _get_branch_head_info("main", repo_dir=repository)
+    head_describe = branch_head_info.get("describe", "")
+    head_short_tag = branch_head_info.get("short_tag", "")
+    _, commits_since_tag = _split_describe_version(head_describe)
+    if head_short_tag == latest_same_major_tag and commits_since_tag <= 0:
+        commit = branch_head_info.get("commit", "")
+        return {
+            "branch": "main",
+            "supported": True,
+            "describe": head_describe,
+            "short_tag": head_short_tag,
+            "display_version": _format_branch_head_version("main", head_describe),
+            "commit": commit,
+            "short_commit": commit[:7] if commit else "",
+            "released_at": branch_head_info.get("released_at", ""),
+        }
+
+    return _get_release_tag_info("main", latest_same_major_tag, repo_dir=repository)
+
+
 def get_current_branch_latest_info(
     current_branch: str,
     *,
@@ -572,6 +684,7 @@ def get_current_branch_latest_info(
             "display_version": "",
             "commit": "",
             "short_commit": "",
+            "released_at": "",
         }
 
     branch_head_info = _get_branch_head_info(normalized_branch, repo_dir=repository)
@@ -587,6 +700,7 @@ def get_current_branch_latest_info(
         ),
         "commit": commit,
         "short_commit": commit[:7] if commit else "",
+        "released_at": branch_head_info.get("released_at", ""),
     }
 
 
@@ -700,9 +814,21 @@ def get_update_info(repo_dir: str | Path | None = None) -> dict[str, Any]:
         repo_dir=repository,
         current_version=current_version,
     )
+    if "main" in available_branch_values:
+        _, major_upgrade_versions, _ = get_selector_tag_options(
+            "main",
+            repo_dir=repository,
+            current_version=current_version,
+        )
+    else:
+        major_upgrade_versions = []
     return {
         "repo_dir": str(repository),
         "current": version_info,
+        "main_branch_latest": get_current_major_main_latest_info(
+            current_version,
+            repo_dir=repository,
+        ),
         "current_branch_latest": get_current_branch_latest_info(
             current_branch,
             repo_dir=repository,
@@ -714,6 +840,7 @@ def get_update_info(repo_dir: str | Path | None = None) -> dict[str, Any]:
         "available_tag_options": tag_options,
         "available_tags_error": tags_error,
         "available_higher_major_versions": higher_major_versions,
+        "major_upgrade_versions": major_upgrade_versions,
         "paths": {
             "update_file": str(get_update_file_path()),
             "status_file": str(get_status_file_path()),

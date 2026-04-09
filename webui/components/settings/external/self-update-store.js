@@ -15,11 +15,13 @@ const model = {
   saving: false,
   restarting: false,
   tagsLoading: false,
+  activeTab: "quick",
   error: "",
   tagsError: "",
   info: null,
   availableTagOptions: [],
   higherMajorVersions: [],
+  majorUpgradeVersions: [],
   restartStatusText: "",
   restartDetailText: "",
   form: {
@@ -37,16 +39,60 @@ const model = {
     return this.loading || this.saving || this.restarting;
   },
 
+  get hasPendingInitialLoad() {
+    return !this.info && !this.error;
+  },
+
+  get isCheckingStatus() {
+    return this.loading || this.hasPendingInitialLoad;
+  },
+
   get isSupported() {
     return Boolean(this.info?.supported);
   },
 
   get currentVersion() {
-    return this.info?.current?.display_version || this.info?.current?.short_tag || "unknown";
+    return (
+      this.info?.current?.display_version ||
+      this.info?.current?.short_tag ||
+      (this.hasPendingInitialLoad ? "Loading" : "unknown")
+    );
   },
 
   get currentBranch() {
     return this.info?.current?.branch || "";
+  },
+
+  get currentComparableVersion() {
+    return this.info?.current?.short_tag || "";
+  },
+
+  get mainBranchLatestTag() {
+    return this.info?.main_branch_latest?.short_tag || "";
+  },
+
+  get mainBranchLatestVersion() {
+    return (
+      this.info?.main_branch_latest?.display_version ||
+      this.info?.main_branch_latest?.short_tag ||
+      (this.hasPendingInitialLoad ? "Loading" : "Unavailable")
+    );
+  },
+
+  get mainBranchLatestCommit() {
+    return this.info?.main_branch_latest?.short_commit || "";
+  },
+
+  get mainBranchLatestSupported() {
+    return Boolean(this.info?.main_branch_latest?.supported);
+  },
+
+  get currentReleasedAt() {
+    return this.info?.current?.released_at || "";
+  },
+
+  get mainBranchLatestReleasedAt() {
+    return this.info?.main_branch_latest?.released_at || "";
   },
 
   get trimmedTag() {
@@ -78,6 +124,20 @@ const model = {
     return `A newer major release line is available on this branch (${versionText}). Major upgrades require downloading a newer Docker image before using self-update.`;
   },
 
+  get hasMajorUpgrade() {
+    return this.majorUpgradeVersions.length > 0;
+  },
+
+  get majorUpgradeBannerMessage() {
+    if (!this.majorUpgradeVersions.length) return "";
+    const versionLabels = this.majorUpgradeVersions.map((major) => `v${major}.x`);
+    const versionText =
+      versionLabels.length === 1
+        ? versionLabels[0]
+        : `${versionLabels.slice(0, -1).join(", ")} and ${versionLabels[versionLabels.length - 1]}`;
+    return `A newer major release line is available (${versionText}). This self-updater keeps showing only updates from the current major version. Major upgrades require a new Docker image and data migration.`;
+  },
+
   get versionSelectPlaceholder() {
     if (this.tagsLoading) return "Loading versions...";
     if (!this.hasAvailableTags) return "No versions available";
@@ -95,8 +155,155 @@ const model = {
     );
   },
 
+  get quickUpdateComparison() {
+    return this.compareSelectorVersions(
+      this.mainBranchLatestTag,
+      this.currentComparableVersion,
+    );
+  },
+
+  get quickUpdateAvailable() {
+    return (
+      this.isSupported &&
+      !this.isBusy &&
+      this.mainBranchLatestSupported &&
+      this.quickUpdateComparison !== null &&
+      this.quickUpdateComparison > 0
+    );
+  },
+
+  get quickStatusLabel() {
+    if (this.isCheckingStatus) return "CHECKING";
+    if (!this.isSupported) return "UNAVAILABLE";
+    if (!this.mainBranchLatestSupported) return "MAIN UNAVAILABLE";
+    if (!this.mainBranchLatestTag) return "UNAVAILABLE";
+    if (this.quickUpdateComparison === null) return "REVIEW";
+    if (this.quickUpdateComparison > 0) return "UPDATE AVAILABLE";
+    if (this.quickUpdateComparison === 0) return "UP TO DATE";
+    return "AHEAD OF MAIN";
+  },
+
+  get quickBehindMinorCount() {
+    const latest = this.parseSelectorTag(this.mainBranchLatestTag);
+    const current = this.parseSelectorTag(this.currentComparableVersion);
+    if (!latest || !current || this.quickUpdateComparison === null || this.quickUpdateComparison <= 0) {
+      return null;
+    }
+    if (latest[0] !== current[0]) {
+      return 4;
+    }
+    return latest[1] - current[1];
+  },
+
+  get quickStatusMessage() {
+    if (this.isCheckingStatus) {
+      return "Checking update status...";
+    }
+    if (!this.isSupported) {
+      return "Self-update is currently available only in dockerized Agent Zero deployments that boot through /exe/run_A0.sh.";
+    }
+    if (!this.mainBranchLatestSupported) {
+      return "The main branch is not currently available from the configured remote.";
+    }
+    if (!this.mainBranchLatestTag) {
+      return "No supported main-branch version could be resolved right now.";
+    }
+    if (this.quickUpdateComparison === null) {
+      return "The current checkout does not expose a comparable tagged version. Use Advanced if you still want to choose a target manually.";
+    }
+    if (this.quickUpdateComparison > 0) {
+      if (this.quickBehindMinorCount !== null && this.quickBehindMinorCount <= 3) {
+        return `This instance is ${this.quickBehindMinorCount} minor version${this.quickBehindMinorCount === 1 ? "" : "s"} behind the latest release currently available on main.`;
+      }
+      return `This instance is significantly behind the latest release currently available on main. Restart Agent Zero to move to ${this.mainBranchLatestVersion}.`;
+    }
+    if (this.quickUpdateComparison === 0) {
+      return "This instance already matches the latest version currently available on main.";
+    }
+    return "This checkout already reports a newer tagged version than main.";
+  },
+
+  get quickStatusBadgeClass() {
+    if (this.isCheckingStatus) {
+      return "status-pill-neutral";
+    }
+    if (!this.isSupported || !this.mainBranchLatestSupported || !this.mainBranchLatestTag) {
+      return "status-pill-neutral";
+    }
+    if (this.quickUpdateComparison === null) {
+      return "status-pill-neutral";
+    }
+    if (this.quickUpdateComparison === 0) {
+      return "status-pill-success";
+    }
+    if (this.quickUpdateComparison > 0) {
+      return this.quickBehindMinorCount !== null && this.quickBehindMinorCount <= 3
+        ? "status-pill-info"
+        : "status-pill-warning";
+    }
+    return "status-pill-neutral";
+  },
+
+  get quickComparisonIcon() {
+    if (this.isCheckingStatus) return "progress_activity";
+    if (!this.isSupported || !this.mainBranchLatestSupported || !this.mainBranchLatestTag) {
+      return "help";
+    }
+    if (this.quickUpdateComparison === null) {
+      return "help";
+    }
+    if (this.quickUpdateComparison === 0) {
+      return "task_alt";
+    }
+    if (this.quickUpdateComparison > 0) {
+      return this.quickBehindMinorCount !== null && this.quickBehindMinorCount <= 3
+        ? "update"
+        : "warning";
+    }
+    return "north_east";
+  },
+
+  get quickComparisonIconClass() {
+    if (this.isCheckingStatus) {
+      return "self-update-quick-icon-neutral";
+    }
+    if (!this.isSupported || !this.mainBranchLatestSupported || !this.mainBranchLatestTag) {
+      return "self-update-quick-icon-neutral";
+    }
+    if (this.quickUpdateComparison === null) {
+      return "self-update-quick-icon-neutral";
+    }
+    if (this.quickUpdateComparison === 0) {
+      return "self-update-quick-icon-success";
+    }
+    if (this.quickUpdateComparison > 0) {
+      return this.quickBehindMinorCount !== null && this.quickBehindMinorCount <= 3
+        ? "self-update-quick-icon-info"
+        : "self-update-quick-icon-warning";
+    }
+    return "self-update-quick-icon-neutral";
+  },
+
+  get quickMajorUpgradeNotice() {
+    const latest = this.parseSelectorTag(this.mainBranchLatestTag);
+    const current = this.parseSelectorTag(this.currentComparableVersion);
+    if (!latest || !current || latest[0] === current[0]) {
+      return "";
+    }
+    return (
+      "This update crosses into a newer major release line. If your Docker image is older, " +
+      "you may still need to update the image itself after applying the repo update."
+    );
+  },
+
   async init() {
     await this.refresh();
+  },
+
+  setTab(tab) {
+    if (tab === "quick" || tab === "advanced") {
+      this.activeTab = tab;
+    }
   },
 
   cleanup() {
@@ -109,6 +316,7 @@ const model = {
     this.tagsLoading = false;
     this.availableTagOptions = [];
     this.higherMajorVersions = [];
+    this.majorUpgradeVersions = [];
     this.restartStatusText = "";
     this.restartDetailText = "";
     this.removeProgressOverlay();
@@ -128,6 +336,19 @@ const model = {
     } catch {
       return value;
     }
+  },
+
+  formatReleaseTimestamp(value) {
+    if (!value) {
+      if (this.hasPendingInitialLoad) {
+        return "Loading";
+      }
+      return "Release date unavailable";
+    }
+    if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(value)) {
+      return value;
+    }
+    return this.formatTimestamp(value);
   },
 
   formatBranchTag(branch, tag) {
@@ -283,6 +504,9 @@ const model = {
         throw new Error(response?.error || "Failed to load self-update info.");
       }
       this.info = response;
+      this.majorUpgradeVersions = Array.isArray(response.major_upgrade_versions)
+        ? response.major_upgrade_versions
+        : [];
       this.applyFormState(
         response.pending || {
           ...(response.defaults || {}),
@@ -413,6 +637,60 @@ const model = {
     return this.isLatestSelectorTag(value) || this.isSupportedSelectorTag(value);
   },
 
+  compareSelectorVersions(left, right) {
+    const leftVersion = this.parseSelectorTag(left);
+    const rightVersion = this.parseSelectorTag(right);
+    if (!leftVersion || !rightVersion) {
+      return null;
+    }
+    if (leftVersion[0] !== rightVersion[0]) {
+      return leftVersion[0] - rightVersion[0];
+    }
+    if (leftVersion[1] !== rightVersion[1]) {
+      return leftVersion[1] - rightVersion[1];
+    }
+    return 0;
+  },
+
+  async scheduleUpdateRequest(payload, notificationMessage) {
+    this.saving = true;
+    this.error = "";
+    this.setRestartState(
+      "Preparing update",
+      "Saving the request and asking Agent Zero to restart."
+    );
+    this.ensureProgressOverlay();
+    try {
+      const response = await API.callJsonApi("self_update_schedule", payload);
+      if (!response?.success) {
+        throw new Error(response?.error || "Failed to schedule the self-update.");
+      }
+
+      if (this.info) {
+        this.info.pending = response.pending;
+      }
+      notificationStore.frontendWarning(
+        notificationMessage,
+        "Self Update",
+        10,
+        "self-update-restart",
+        undefined,
+        true,
+      ).catch((warningError) => {
+        console.error("Failed to show self-update warning toast:", warningError);
+      });
+      await this.restartAndReload();
+    } catch (error) {
+      console.error("Failed to schedule self-update:", error);
+      this.restarting = false;
+      this.resetRestartState();
+      this.removeProgressOverlay();
+      this.error = error.message || "Failed to schedule the self-update.";
+    } finally {
+      this.saving = false;
+    }
+  },
+
   async scheduleUpdate() {
     if (!this.form.branch?.trim()) {
       this.error = "Choose a branch.";
@@ -442,49 +720,47 @@ const model = {
       }
     }
 
-    this.saving = true;
-    this.error = "";
-    this.setRestartState(
-      "Preparing update",
-      "Saving the request and asking Agent Zero to restart."
-    );
-    this.ensureProgressOverlay();
-    try {
-      const response = await API.callJsonApi("self_update_schedule", {
+    await this.scheduleUpdateRequest(
+      {
         branch: this.form.branch,
         tag: this.form.tag,
         backup_usr: this.form.backup_usr,
         backup_path: this.form.backup_path,
         backup_name: this.form.backup_name,
         backup_conflict_policy: this.form.backup_conflict_policy,
-      });
-      if (!response?.success) {
-        throw new Error(response?.error || "Failed to schedule the self-update.");
-      }
+      },
+      "Agent Zero is restarting to apply the requested branch and version target.",
+    );
+  },
 
-      if (this.info) {
-        this.info.pending = response.pending;
-      }
-      notificationStore.frontendWarning(
-        "Agent Zero is restarting to apply the requested branch and version target.",
-        "Self Update",
-        10,
-        "self-update-restart",
-        undefined,
-        true,
-      ).catch((warningError) => {
-        console.error("Failed to show self-update warning toast:", warningError);
-      });
-      await this.restartAndReload();
-    } catch (error) {
-      console.error("Failed to schedule self-update:", error);
-      this.restarting = false;
-      this.resetRestartState();
-      this.removeProgressOverlay();
-      this.error = error.message || "Failed to schedule the self-update.";
-    } finally {
-      this.saving = false;
+  async scheduleQuickUpdate() {
+    if (!this.mainBranchLatestSupported || !this.mainBranchLatestTag) {
+      this.error = "Latest main-branch version is not available right now.";
+      return;
     }
+
+    if (this.quickUpdateComparison === null) {
+      this.error =
+        "The current checkout cannot be compared to the latest main version. Use Advanced to choose a version manually.";
+      return;
+    }
+
+    if (this.quickUpdateComparison <= 0) {
+      return;
+    }
+
+    await this.scheduleUpdateRequest(
+      {
+        branch: "main",
+        tag: this.mainBranchLatestTag,
+        backup_usr: this.info?.defaults?.backup_usr ?? true,
+        backup_path: this.info?.defaults?.backup_path || "",
+        backup_name: this.info?.defaults?.backup_name || "",
+        backup_conflict_policy:
+          this.info?.defaults?.backup_conflict_policy || "rename",
+      },
+      "Agent Zero is restarting to apply the latest version from main.",
+    );
   },
 
   async restartAndReload() {

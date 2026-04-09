@@ -415,6 +415,48 @@ img {
   transition: margin-left var(--transition-speed) ease-in-out;
 }
 
+/* Chat area wrapper – contains chat-history + floating nav buttons */
+#chat-area-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  min-height: 0;
+}
+
+/* Chat Navigation Buttons – vertical, floating bottom-right of chat area */
+#chat-nav-buttons {
+  position: absolute;
+  right: var(--spacing-md);
+  bottom: var(--spacing-md);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  z-index: 100;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+#chat-area-wrapper:hover #chat-nav-buttons,
+#chat-nav-buttons:hover {
+  opacity: 0.85;
+  pointer-events: auto;
+}
+#chat-nav-buttons .btn-icon-action {
+  padding: var(--spacing-xs);
+  border: none !important;
+  border-radius: 50%;
+  background: var(--color-panel);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.18);
+}
+@media (max-width: 768px) {
+  #chat-nav-buttons {
+    opacity: 0.85;
+    pointer-events: auto;
+  }
+}
+
 /* Scrollbar styles for right panel */
 #right-panel.expanded {
   margin-left: 0;

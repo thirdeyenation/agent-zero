@@ -6,6 +6,7 @@ from typing import List
 from helpers.tool import Tool, Response
 from helpers import projects, files, file_tree
 from helpers import skills as skills_helper, runtime
+from helpers.print_style import PrintStyle
 
 
 DATA_NAME_LOADED_SKILLS = "loaded_skills"
@@ -24,6 +25,67 @@ class SkillsTool(Tool):
     Script execution is handled by code_execution_tool directly.
     """
 
+    def _current_method(self) -> str:
+        return (
+            (self.args.get("method") or self.method or "")
+            .strip()
+            .lower()
+        )
+
+    @staticmethod
+    def _normalize_skill_name(skill_name: str) -> str:
+        skill_name = skill_name.strip()
+        if skill_name.startswith("**") and skill_name.endswith("**"):
+            skill_name = skill_name[2:-2]
+        return skill_name.strip()
+
+    def get_log_object(self):
+        import uuid
+
+        if self._current_method() == "load":
+            skill_name = self._normalize_skill_name(
+                str(self.args.get("skill_name") or "")
+            )
+            heading = (
+                f"icon://construction Loading skill {skill_name}"
+                if skill_name
+                else "icon://construction Loading skill"
+            )
+            return self.agent.context.log.log(
+                type="tool",
+                heading=heading,
+                content="",
+                kvps={"_tool_name": self.name},
+                id=str(uuid.uuid4()),
+            )
+
+        return super().get_log_object()
+
+    async def before_execution(self, **kwargs):
+        if self._current_method() != "load":
+            await super().before_execution(**kwargs)
+            return
+
+        skill_name = self._normalize_skill_name(
+            str(kwargs.get("skill_name") or self.args.get("skill_name") or "")
+        )
+        label = f"{self.name}:{self._current_method()}"
+        if skill_name:
+            PrintStyle(
+                font_color="#1B4F72",
+                padding=True,
+                background_color="white",
+                bold=True,
+            ).print(f"{self.agent.agent_name}: Loading skill '{skill_name}'")
+        else:
+            PrintStyle(
+                font_color="#1B4F72",
+                padding=True,
+                background_color="white",
+                bold=True,
+            ).print(f"{self.agent.agent_name}: Using tool '{label}'")
+        self.log = self.get_log_object()
+
     async def execute(self, **kwargs) -> Response:
         method = (
             (kwargs.get("method") or self.args.get("method") or self.method or "")
@@ -38,7 +100,9 @@ class SkillsTool(Tool):
             #     query = str(kwargs.get("query") or "").strip()
             #     return Response(message=self._search(query), break_loop=False)
             if method == "load":
-                skill_name = str(kwargs.get("skill_name") or "").strip()
+                skill_name = self._normalize_skill_name(
+                    str(kwargs.get("skill_name") or "")
+                )
                 return Response(message=self._load(skill_name), break_loop=False)
             # if method == "read_file":
             #     skill_name = str(kwargs.get("skill_name") or "").strip()
@@ -106,9 +170,7 @@ class SkillsTool(Tool):
     #     return "\n".join(lines)
 
     def _load(self, skill_name: str) -> str:
-        skill_name = skill_name.strip()
-        if skill_name.startswith("**") and skill_name.endswith("**"):
-            skill_name = skill_name[2:-2]
+        skill_name = self._normalize_skill_name(skill_name)
 
         if not skill_name:
             return "Error: 'skill_name' is required for method=load."

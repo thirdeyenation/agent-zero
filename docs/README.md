@@ -6,7 +6,8 @@ Welcome to the Agent Zero documentation hub. Whether you're getting started or d
 ## Quick Start
 
 - **[Quickstart Guide](quickstart.md):** Get up and running in 5 minutes with Agent Zero.
-- **[Installation Guide](setup/installation.md):** Detailed setup instructions for all platforms (or [update your installation](setup/installation.md#how-to-update-agent-zero)).
+- **[Installation Guide](setup/installation.md):** Install scripts, updates, and advanced Docker setup (includes [How to Update](setup/installation.md#how-to-update-agent-zero)).
+- **[Self Update](guides/self-update.md):** How the in-app updater works (technical reference).
 - **[VPS Deployment](setup/vps-deployment.md):** Deploy Agent Zero on a remote server.
 - **[Development Setup](setup/dev-setup.md):** Set up a local development environment.
 
@@ -45,6 +46,8 @@ Welcome to the Agent Zero documentation hub. Whether you're getting started or d
 - [Quick Start](#quick-start)
   - [Quickstart Guide](quickstart.md)
   - [Installation Guide](setup/installation.md)
+    - [How to Update Agent Zero](setup/installation.md#how-to-update-agent-zero)
+    - [Manual Installation (Advanced)](setup/installation.md#manual-installation-advanced)
     - [Step 1: Install Docker Desktop](setup/installation.md#step-1-install-docker-desktop)
       - [Windows Installation](setup/installation.md#-windows-installation)
       - [macOS Installation](setup/installation.md#-macos-installation)
@@ -63,7 +66,7 @@ Welcome to the Agent Zero documentation hub. Whether you're getting started or d
     - [Choosing Your LLMs](setup/installation.md#choosing-your-llms)
     - [Installing Ollama (Local Models)](setup/installation.md#installing-and-using-ollama-local-models)
     - [Using on Mobile Devices](setup/installation.md#using-agent-zero-on-your-mobile-device)
-    - [How to Update Agent Zero](setup/installation.md#how-to-update-agent-zero)
+  - [Self Update (technical)](guides/self-update.md)
   - [VPS Deployment](setup/vps-deployment.md)
   - [Development Setup](setup/dev-setup.md)
 

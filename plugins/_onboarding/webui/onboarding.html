@@ -16,7 +16,7 @@
         }
         .onboarding-welcome-text {
             text-align: center;
-            margin: var(--spacing-md) 0;
+            margin: var(--spacing-md) 0 var(--spacing-lg) 0;
             color: var(--text-2);
             font-size: 1.1rem;
             line-height: 1.5;
@@ -29,7 +29,7 @@
         }
         .onboarding-success {
             text-align: center;
-            padding: 40px 0;
+            padding: var(--spacing-md) 0;
         }
         .onboarding-success-icon {
             font-size: 64px;
@@ -186,7 +186,7 @@
                                 <div x-show="$store.onboarding.step === 1">
                                     <div class="onboarding-welcome-text">
                                         <div class="onboarding-welcome-title">Welcome to Agent Zero</div>
-                                        Let's get your models configured. The <b>Main Model</b> handles chat, tool calls, skills, and browser automation.<br> We recommend a capable model like Claude Sonnet 4.6, GPT-5.4, Kimi 2.5, or similar.
+                                        Let's get your models configured. The <b>Main Model</b> handles chat, tool calls, skills, and browser automation. We recommend a capable model like Claude Sonnet 4.6, GPT-5.4, Kimi 2.5, or similar.
                                     </div>
 
                                     <div class="model-section">
@@ -270,7 +270,7 @@
                                 <div x-show="$store.onboarding.step === 2">
                                     <div class="onboarding-welcome-text">
                                         <div class="onboarding-welcome-title">Almost there!</div>
-                                        The <b>Utility Model</b> handles background tasks like summarization and memory updates.<br> A fast, cheap model like GPT-5.4-mini, Gemini 3.1 Flash Lite, or similar works best here.
+                                        The <b>Utility Model</b> handles background tasks like summarization and memory updates. A fast, cheap model like GPT-5.4-mini, Gemini 3.1 Flash Lite, or similar works best here.
                                     </div>
 
                                     <div class="model-section">
@@ -353,10 +353,11 @@
                                 <!-- Step 3: Success -->
                                 <div x-show="$store.onboarding.step === 3" class="onboarding-success">
                                     <div class="material-symbols-outlined onboarding-success-icon">check_circle</div>
-                                    <div class="onboarding-welcome-title">Ready to chat!</div>
                                     <div class="onboarding-welcome-text onboarding-success-text">
-                                        Your models are configured. You can change these anytime in Settings.
+                                        Your models are configured. You can change these anytime in Settings.<br>
+                                        While you're here, why not check out some integrations to extend what Agent Zero can do?
                                     </div>
+                                    <x-extension id="onboarding-success-end"></x-extension>
                                 </div>
 
                                 <div class="onboarding-advanced-link" x-show="$store.onboarding.step < 3">

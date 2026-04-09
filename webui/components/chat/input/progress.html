@@ -18,20 +18,6 @@
                   <span class="icon material-symbols-outlined">volume_off</span>
               </span>
           </h4>
-          <div id="chat-nav-buttons" aria-label="Chat navigation">
-            <button class="btn-icon-action" title="Scroll to top" x-on:click="$store.chatNavigation.scrollToTop()">
-              <span class="material-symbols-outlined">vertical_align_top</span>
-            </button>
-            <button class="btn-icon-action" title="Previous user message" x-on:click="$store.chatNavigation.scrollToPrevUserMessage()">
-              <span class="material-symbols-outlined">keyboard_arrow_up</span>
-            </button>
-            <button class="btn-icon-action" title="Next user message" x-on:click="$store.chatNavigation.scrollToNextUserMessage()">
-              <span class="material-symbols-outlined">keyboard_arrow_down</span>
-            </button>
-            <button class="btn-icon-action" title="Scroll to bottom" x-on:click="$store.chatNavigation.scrollToBottom()">
-              <span class="material-symbols-outlined">vertical_align_bottom</span>
-            </button>
-          </div>
           <x-extension id="chat-nav-after"></x-extension>
         </div>
         <x-extension id="chat-input-progress-end"></x-extension>
@@ -42,13 +28,8 @@
     #progress-bar-box { background-color: var(--color-panel); padding: var(--spacing-xs) var(--spacing-md) 0 var(--spacing-md); display: flex; flex-wrap: nowrap; justify-content: flex-start; align-items: center; z-index: 1001; gap: var(--spacing-sm); min-height: 0; }
     #progress-bar-box > x-extension { display: contents; }
     #progress-bar-box h4 { margin: 0; }
-    #progress-bar-right { display: flex; align-items: center; gap: var(--spacing-sm); flex-shrink: 0; margin-left: auto; margin-right: calc(5.5rem + var(--spacing-xs)); }
+    #progress-bar-right { display: flex; align-items: center; gap: var(--spacing-sm); flex-shrink: 0; margin-left: auto;}
     #progress-bar-right > x-extension { display: contents; }
-    #chat-nav-buttons { display: flex; align-items: center; gap: 2px; opacity: 0.85; }
-    #chat-nav-buttons .btn-icon-action { padding: var(--spacing-xs); }
-    #chat-nav-buttons .btn-icon-action {
-      border: none !important;
-    }
     .shiny-text { background: linear-gradient(to right, var(--color-primary-dark) 20%, var(--color-text) 40%, var(--color-text) 60%, var(--color-primary-dark) 60%); background-size: 200% auto; color: transparent; -webkit-background-clip: text; background-clip: text; animation: shine 1s linear infinite; }
     @keyframes shine { to { background-position: -200% center; } }
     </style>

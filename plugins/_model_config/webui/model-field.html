@@ -71,180 +71,194 @@
       </div>
     </div>
 
-    <!-- API key (store mode: config.html) -->
-    <template x-if="apiKeyMode === 'store'">
-      <div class="field">
-        <div class="field-label">
-          <div class="field-title">API key</div>
-          <div class="field-description">Authentication key for this provider. Shared across all model slots using the same provider.</div>
-        </div>
-        <div class="field-control" style="position:relative;" x-data="{ showKey: false }">
-          <input :type="showKey ? 'text' : 'password'"
-                 :value="$store.modelConfig.apiKeyValues[_prov]"
-                 :placeholder="$store.modelConfig.apiKeyStatus[_prov] ? '&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;' : ''"
-                 autocomplete="off"
-                 @input="$store.modelConfig.setApiKeyValue(_prov, $el.value)"
-                 style="padding-right:32px;" />
-          <span class="material-symbols-outlined eye-toggle"
-                @click="
-                  showKey = !showKey;
-                  const prov = _prov;
-                  if (showKey && !$store.modelConfig.apiKeyValues[prov] && $store.modelConfig.apiKeyStatus[prov]) {
-                    $store.modelConfig.revealApiKey(prov).then(v => { if (v) $store.modelConfig.apiKeyValues[prov] = v; });
-                  }
-                "
-                x-text="showKey ? 'visibility' : 'visibility_off'"></span>
-        </div>
+    <!-- Advanced Settings (collapsed by default) -->
+    <div class="advanced-section" x-data="{ advOpen: false }">
+      <div class="advanced-toggle" @click="advOpen = !advOpen">
+        <span class="material-symbols-outlined advanced-toggle-icon"
+              :style="advOpen ? 'transform:rotate(90deg)' : ''"
+              >chevron_right</span>
+        <span>Advanced Settings</span>
       </div>
-    </template>
 
-    <!-- API key (inline mode: presets) -->
-    <template x-if="apiKeyMode === 'inline'">
-      <div class="field">
-        <div class="field-label">
-          <div class="field-title">API key</div>
-          <div class="field-description">Authentication key for this provider. Shared across all model slots using the same provider.</div>
-        </div>
-        <div class="field-control" style="position:relative;" x-data="{ showKey: false, _revealed: '' }">
-          <input :type="showKey ? 'text' : 'password'" x-model="model.api_key" autocomplete="off"
-                 :placeholder="$store.modelConfig.apiKeyStatus[_prov] ? '&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;' : ''"
-                 style="padding-right:32px;" />
-          <span class="material-symbols-outlined eye-toggle"
-                @click="
-                  showKey = !showKey;
-                  if (showKey && !model.api_key && $store.modelConfig.apiKeyStatus[_prov]) {
-                    $store.modelConfig.revealApiKey(_prov).then(v => { if (v) { model.api_key = v; _revealed = v; } });
-                  }
-                  if (!showKey && _revealed && model.api_key === _revealed) {
-                    model.api_key = ''; _revealed = '';
-                  }
-                "
-                x-text="showKey ? 'visibility' : 'visibility_off'"></span>
-        </div>
-      </div>
-    </template>
+      <div class="advanced-body" x-show="advOpen" x-transition.opacity>
 
-    <!-- API base URL -->
-    <div class="field">
-      <div class="field-label">
-        <div class="field-title">API base URL</div>
-        <div class="field-description">Custom endpoint URL. Leave empty to use the provider's default.</div>
-      </div>
-      <div class="field-control">
-        <input type="text" x-model="model.api_base" />
-      </div>
-    </div>
-
-    <!-- Context length (not for embedding) -->
-    <template x-if="modelType !== 'embedding'">
-      <div class="field">
-        <div class="field-label">
-          <div class="field-title">Context length</div>
-          <div class="field-description">Maximum number of tokens in the context window. System prompt, chat history, RAG and response all count towards this limit.</div>
-        </div>
-        <div class="field-control">
-          <input type="number" x-model.number="model.ctx_length" />
-        </div>
-      </div>
-    </template>
-
-    <!-- Chat-specific: ctx_history, vision, max_embeds -->
-    <template x-if="modelType === 'chat'">
-      <div>
-        <div class="field">
-          <div class="field-label">
-            <div class="field-title">Context window space for chat history</div>
-            <div class="field-description">Portion of context window dedicated to chat history visible to the agent. Smaller size will result in shorter and more summarized history.</div>
-          </div>
-          <div class="field-control">
-            <input type="range" min="0.01" max="1" step="0.01" x-model.number="model.ctx_history" />
-            <span class="range-value" x-text="model.ctx_history"></span>
-          </div>
-        </div>
-        <div class="field">
-          <div class="field-label">
-            <div class="field-title">Supports Vision</div>
-            <div class="field-description">Models capable of Vision can for example natively see the content of image attachments.</div>
-          </div>
-          <div class="field-control">
-            <label class="toggle">
-              <input type="checkbox" x-model="model.vision" />
-              <span class="toggler"></span>
-            </label>
-          </div>
-        </div>
-        <template x-if="model.vision">
+        <!-- API key (store mode: config.html) -->
+        <template x-if="apiKeyMode === 'store'">
           <div class="field">
             <div class="field-label">
-              <div class="field-title">Max embeds</div>
-              <div class="field-description">Maximum number of embedded images used by the chat model. Set to 0 for unlimited.</div>
+              <div class="field-title">API key</div>
+              <div class="field-description">Authentication key for this provider. Shared across all model slots using the same provider.</div>
             </div>
-            <div class="field-control">
-              <input type="number" min="0" x-model.number="model.max_embeds" x-init="if (!model.max_embeds) model.max_embeds = 10" />
+            <div class="field-control" style="position:relative;" x-data="{ showKey: false }">
+              <input :type="showKey ? 'text' : 'password'"
+                     :value="$store.modelConfig.apiKeyValues[_prov]"
+                     :placeholder="$store.modelConfig.apiKeyStatus[_prov] ? '&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;' : ''"
+                     autocomplete="off"
+                     @input="$store.modelConfig.setApiKeyValue(_prov, $el.value)"
+                     style="padding-right:32px;" />
+              <span class="material-symbols-outlined eye-toggle"
+                    @click="
+                      showKey = !showKey;
+                      const prov = _prov;
+                      if (showKey && !$store.modelConfig.apiKeyValues[prov] && $store.modelConfig.apiKeyStatus[prov]) {
+                        $store.modelConfig.revealApiKey(prov).then(v => { if (v) $store.modelConfig.apiKeyValues[prov] = v; });
+                      }
+                    "
+                    x-text="showKey ? 'visibility' : 'visibility_off'"></span>
             </div>
           </div>
         </template>
-      </div>
-    </template>
 
-    <!-- Utility-specific: ctx_input slider -->
-    <template x-if="modelType === 'utility'">
-      <div class="field">
-        <div class="field-label">
-          <div class="field-title">Context window space for utility model input</div>
-          <div class="field-description">Portion of context window used for utility model input messages.</div>
-        </div>
-        <div class="field-control">
-          <input type="range" min="0.01" max="1" step="0.01" x-model.number="model.ctx_input" />
-          <span class="range-value" x-text="model.ctx_input"></span>
-        </div>
-      </div>
-    </template>
+        <!-- API key (inline mode: presets) -->
+        <template x-if="apiKeyMode === 'inline'">
+          <div class="field">
+            <div class="field-label">
+              <div class="field-title">API key</div>
+              <div class="field-description">Authentication key for this provider. Shared across all model slots using the same provider.</div>
+            </div>
+            <div class="field-control" style="position:relative;" x-data="{ showKey: false, _revealed: '' }">
+              <input :type="showKey ? 'text' : 'password'" x-model="model.api_key" autocomplete="off"
+                     :placeholder="$store.modelConfig.apiKeyStatus[_prov] ? '&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;' : ''"
+                     style="padding-right:32px;" />
+              <span class="material-symbols-outlined eye-toggle"
+                    @click="
+                      showKey = !showKey;
+                      if (showKey && !model.api_key && $store.modelConfig.apiKeyStatus[_prov]) {
+                        $store.modelConfig.revealApiKey(_prov).then(v => { if (v) { model.api_key = v; _revealed = v; } });
+                      }
+                      if (!showKey && _revealed && model.api_key === _revealed) {
+                        model.api_key = ''; _revealed = '';
+                      }
+                    "
+                    x-text="showKey ? 'visibility' : 'visibility_off'"></span>
+            </div>
+          </div>
+        </template>
 
-    <!-- Rate limits -->
-    <div class="field">
-      <div class="field-label">
-        <div class="field-title">Requests per minute limit</div>
-        <div class="field-description">Limits the number of requests per minute. Waits if the limit is exceeded. Set to 0 to disable.</div>
-      </div>
-      <div class="field-control">
-        <input type="number" x-model.number="model.rl_requests" />
-      </div>
-    </div>
-
-    <div class="field">
-      <div class="field-label">
-        <div class="field-title">Input tokens per minute limit</div>
-        <div class="field-description">Limits the number of input tokens per minute. Waits if the limit is exceeded. Set to 0 to disable.</div>
-      </div>
-      <div class="field-control">
-        <input type="number" x-model.number="model.rl_input" />
-      </div>
-    </div>
-
-    <template x-if="modelType !== 'embedding'">
-      <div class="field">
-        <div class="field-label">
-          <div class="field-title">Output tokens per minute limit</div>
-          <div class="field-description">Limits the number of output tokens per minute. Waits if the limit is exceeded. Set to 0 to disable.</div>
+        <!-- API base URL -->
+        <div class="field">
+          <div class="field-label">
+            <div class="field-title">API base URL</div>
+            <div class="field-description">Custom endpoint URL. Leave empty to use the provider's default.</div>
+          </div>
+          <div class="field-control">
+            <input type="text" x-model="model.api_base" />
+          </div>
         </div>
-        <div class="field-control">
-          <input type="number" x-model.number="model.rl_output" />
-        </div>
-      </div>
-    </template>
 
-    <!-- Additional parameters -->
-    <div class="field field-full">
-      <div class="field-label">
-        <div class="field-title">Additional parameters</div>
-        <div class="field-description">
-          Any other parameters supported by <a href='https://docs.litellm.ai/docs/set_keys' target='_blank'>LiteLLM</a>. Format is KEY=VALUE on individual lines. Value can be JSON objects; unquoted is treated as object/number, quoted as string.
+        <!-- Context length (not for embedding) -->
+        <template x-if="modelType !== 'embedding'">
+          <div class="field">
+            <div class="field-label">
+              <div class="field-title">Context length</div>
+              <div class="field-description">Maximum number of tokens in the context window. System prompt, chat history, RAG and response all count towards this limit.</div>
+            </div>
+            <div class="field-control">
+              <input type="number" x-model.number="model.ctx_length" />
+            </div>
+          </div>
+        </template>
+
+        <!-- Chat-specific: ctx_history, vision, max_embeds -->
+        <template x-if="modelType === 'chat'">
+          <div>
+            <div class="field">
+              <div class="field-label">
+                <div class="field-title">Context window space for chat history</div>
+                <div class="field-description">Portion of context window dedicated to chat history visible to the agent. Smaller size will result in shorter and more summarized history.</div>
+              </div>
+              <div class="field-control">
+                <input type="range" min="0.01" max="1" step="0.01" x-model.number="model.ctx_history" />
+                <span class="range-value" x-text="model.ctx_history"></span>
+              </div>
+            </div>
+            <div class="field">
+              <div class="field-label">
+                <div class="field-title">Supports Vision</div>
+                <div class="field-description">Models capable of Vision can for example natively see the content of image attachments.</div>
+              </div>
+              <div class="field-control">
+                <label class="toggle">
+                  <input type="checkbox" x-model="model.vision" />
+                  <span class="toggler"></span>
+                </label>
+              </div>
+            </div>
+            <template x-if="model.vision">
+              <div class="field">
+                <div class="field-label">
+                  <div class="field-title">Max embeds</div>
+                  <div class="field-description">Maximum number of embedded images used by the chat model. Set to 0 for unlimited.</div>
+                </div>
+                <div class="field-control">
+                  <input type="number" min="0" x-model.number="model.max_embeds" x-init="if (!model.max_embeds) model.max_embeds = 10" />
+                </div>
+              </div>
+            </template>
+          </div>
+        </template>
+
+        <!-- Utility-specific: ctx_input slider -->
+        <template x-if="modelType === 'utility'">
+          <div class="field">
+            <div class="field-label">
+              <div class="field-title">Context window space for utility model input</div>
+              <div class="field-description">Portion of context window used for utility model input messages.</div>
+            </div>
+            <div class="field-control">
+              <input type="range" min="0.01" max="1" step="0.01" x-model.number="model.ctx_input" />
+              <span class="range-value" x-text="model.ctx_input"></span>
+            </div>
+          </div>
+        </template>
+
+        <!-- Rate limits -->
+        <div class="field">
+          <div class="field-label">
+            <div class="field-title">Requests per minute limit</div>
+            <div class="field-description">Limits the number of requests per minute. Waits if the limit is exceeded. Set to 0 to disable.</div>
+          </div>
+          <div class="field-control">
+            <input type="number" x-model.number="model.rl_requests" />
+          </div>
         </div>
-      </div>
-      <div class="field-control">
-        <textarea x-model="model._kwargs_text"
-                  @change="model.kwargs = $store.modelConfig.textToKwargs(model._kwargs_text)"></textarea>
+
+        <div class="field">
+          <div class="field-label">
+            <div class="field-title">Input tokens per minute limit</div>
+            <div class="field-description">Limits the number of input tokens per minute. Waits if the limit is exceeded. Set to 0 to disable.</div>
+          </div>
+          <div class="field-control">
+            <input type="number" x-model.number="model.rl_input" />
+          </div>
+        </div>
+
+        <template x-if="modelType !== 'embedding'">
+          <div class="field">
+            <div class="field-label">
+              <div class="field-title">Output tokens per minute limit</div>
+              <div class="field-description">Limits the number of output tokens per minute. Waits if the limit is exceeded. Set to 0 to disable.</div>
+            </div>
+            <div class="field-control">
+              <input type="number" x-model.number="model.rl_output" />
+            </div>
+          </div>
+        </template>
+
+        <!-- Additional parameters -->
+        <div class="field field-full">
+          <div class="field-label">
+            <div class="field-title">Additional parameters</div>
+            <div class="field-description">
+              Any other parameters supported by <a href='https://docs.litellm.ai/docs/set_keys' target='_blank'>LiteLLM</a>. Format is KEY=VALUE on individual lines. Value can be JSON objects; unquoted is treated as object/number, quoted as string.
+            </div>
+          </div>
+          <div class="field-control">
+            <textarea x-model="model._kwargs_text"
+                      @change="model.kwargs = $store.modelConfig.textToKwargs(model._kwargs_text)"></textarea>
+          </div>
+        </div>
+
       </div>
     </div>
   </div>
@@ -333,6 +347,29 @@
   }
   .model-search-item.disabled:hover {
     background: transparent;
+  }
+
+  .advanced-section {
+    margin-top: 4px;
+  }
+  .advanced-toggle {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.78rem;
+    opacity: 0.6;
+    cursor: pointer;
+    user-select: none;
+    padding: 4px 0;
+  }
+  .advanced-toggle:hover {
+    opacity: 1;
+  }
+  .advanced-toggle-icon {
+    font-size: 16px;
+    transition: transform 0.15s ease;
+  }
+  .advanced-body {
   }
 </style>
 </body>
