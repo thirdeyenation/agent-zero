@@ -1,337 +1,617 @@
 <html>
+
 <head>
     <title>WhatsApp Integration</title>
+    <script type="module">
+        import { store } from "/plugins/_whatsapp_integration/webui/whatsapp-config-store.js";
+    </script>
 </head>
 
 <body>
-    <div x-data="{
-        testing: false,
-        test_results: null,
-        projects: [],
-
-        qr_visible: false,
-        qr_status: '',
-        qr_message: '',
-        qr_data_url: null,
-        qr_poll_timer: null,
-
-        disconnecting: false,
-        disconnect_message: '',
-
-        async init() {
-            try {
-                const { callJsonApi } = await import('/js/api.js');
-                const res = await callJsonApi('projects', { action: 'list' });
-                this.projects = res.data || [];
-            } catch (e) { this.projects = []; }
-        },
-        allowed_text() {
-            const value = config?.allowed_numbers;
-            if (Array.isArray(value)) return value.join(', ');
-            return typeof value === 'string' ? value : '';
-        },
-        allowed_is_empty() {
-            const value = config?.allowed_numbers;
-            if (Array.isArray(value)) return value.length === 0;
-            return !String(value || '').trim();
-        },
-        set_allowed(val) {
-            config.allowed_numbers = val.split(',')
-                .map(s => s.trim())
-                .filter(s => s);
-        },
-        async test_connection() {
-            this.testing = true;
-            this.test_results = null;
-            try {
-                const { callJsonApi } = await import('/js/api.js');
-                const res = await callJsonApi('/plugins/_whatsapp_integration/test_connection', {
-                    config: { bridge_port: config.bridge_port }
-                });
-                this.test_results = res;
-            } catch (e) {
-                this.test_results = { success: false, results: [{ test: 'Connection', ok: false, message: String(e) }] };
-            }
-            this.testing = false;
-        },
-
-        async show_qr() {
-            this.qr_visible = true;
-            this.qr_status = 'loading';
-            this.qr_message = 'Starting bridge...';
-            this.qr_data_url = null;
-            await this.poll_qr();
-            this.qr_poll_timer = setInterval(() => this.poll_qr(), 3000);
-        },
-        hide_qr() {
-            this.qr_visible = false;
-            this.qr_data_url = null;
-            this.qr_status = '';
-            if (this.qr_poll_timer) {
-                clearInterval(this.qr_poll_timer);
-                this.qr_poll_timer = null;
-            }
-        },
-        async poll_qr() {
-            try {
-                const { callJsonApi } = await import('/js/api.js');
-                const res = await callJsonApi('/plugins/_whatsapp_integration/qr_code', {});
-                this.qr_status = res.status || 'error';
-                this.qr_message = res.message || '';
-                this.qr_data_url = res.qr || null;
-
-                if (res.status === 'connected') {
-                    if (this.qr_poll_timer) {
-                        clearInterval(this.qr_poll_timer);
-                        this.qr_poll_timer = null;
-                    }
-                }
-            } catch (e) {
-                this.qr_status = 'error';
-                this.qr_message = String(e);
-                this.qr_data_url = null;
-            }
-        },
-        async disconnect_account() {
-            if (!confirm('Disconnect this WhatsApp account? You will need to scan a new QR code to reconnect.')) return;
-            this.disconnecting = true;
-            this.disconnect_message = '';
-            try {
-                const { callJsonApi } = await import('/js/api.js');
-                const res = await callJsonApi('/plugins/_whatsapp_integration/disconnect', {});
-                this.disconnect_message = res.success ? 'Account disconnected' : (res.message || 'Failed');
-            } catch (e) {
-                this.disconnect_message = String(e);
-            }
-            this.disconnecting = false;
-        }
-    }">
+    <div x-data x-init="$store.whatsappConfig.init(config, context)" x-destroy="$store.whatsappConfig.cleanup()">
         <template x-if="config">
-            <div>
-                <div class="section-title">WhatsApp Integration</div>
+            <div class="wa-page">
+                <div class="section-title">WhatsApp</div>
 
-
-                <div class="field">
-                    <div class="field-label">
-                        <div class="field-title">Enabled</div>
-                        <div class="field-description">Enable WhatsApp bridge and message polling</div>
+                <template x-if="config.enabled && $store.whatsappConfig.hasMeaningfulConfig()">
+                    <div class="wa-summary-card">
+                        <div class="wa-summary-copy">
+                            <div class="wa-summary-title">Current setup</div>
+                            <div class="wa-summary-subtitle"
+                                x-text="$store.whatsappConfig.modeSummary() + ' · ' + $store.whatsappConfig.projectSummary()">
+                            </div>
+                        </div>
+                        <span class="wa-status-pill" :class="'tone-' + $store.whatsappConfig.statusTone()"
+                            x-text="$store.whatsappConfig.statusLabel()"></span>
                     </div>
-                    <div class="field-control">
-                        <label class="toggle">
-                            <input type="checkbox" x-model="config.enabled" />
-                            <span class="toggler"></span>
-                        </label>
-                    </div>
-                </div>
+                </template>
 
-                <!-- WhatsApp Account (shown when enabled) -->
-                <template x-if="config.enabled">
-                    <div>
-                        <div class="field">
-                            <div class="field-label">
-                                <div class="field-title">WhatsApp Account</div>
-                                <div class="field-description">
-                                    <span x-show="!disconnect_message">Pair or switch your WhatsApp account</span>
-                                    <span x-show="disconnect_message" x-text="disconnect_message"
-                                          :style="'color:' + (disconnect_message === 'Account disconnected' ? '#4caf50' : '#f44336')"></span>
+                <div class="wa-wizard-card">
+                    <div class="wa-step-header">
+                        <div class="wa-step-copy">
+                            <div class="wa-step-title" x-text="$store.whatsappConfig.currentStepMeta().title"></div>
+                            <div class="wa-step-description"
+                                x-text="$store.whatsappConfig.currentStepMeta().description"></div>
+                        </div>
+                        <div class="wa-step-dots" aria-hidden="true">
+                            <template x-for="(step, idx) in $store.whatsappConfig.steps" :key="step.title">
+                                <button type="button" class="wa-step-dot"
+                                    :class="{ 'is-active': $store.whatsappConfig.currentStep === idx }"
+                                    @click="$store.whatsappConfig.setStep(idx)"></button>
+                            </template>
+                        </div>
+                    </div>
+
+                    <template x-if="$store.whatsappConfig.currentStep === 0">
+                        <div class="wa-step-panel">
+
+                            <div class="field">
+                                <div class="field-label">
+                                    <div class="field-title">Turn on WhatsApp</div>
+                                    <div class="field-description">Enable the local bridge to start.</div>
+                                </div>
+                                <div class="field-control">
+                                    <label class="toggle">
+                                        <input type="checkbox"
+                                               x-model="config.enabled"
+                                               @change="$store.whatsappConfig.onEnabledChange()" />
+                                        <span class="toggler"></span>
+                                    </label>
                                 </div>
                             </div>
-                            <div class="field-control" style="display: flex; gap: 8px;">
-                                <button class="btn btn-field" @click="show_qr()">
-                                    Show QR Code
-                                </button>
-                                <button class="btn btn-field" @click="disconnect_account()" :disabled="disconnecting">
-                                    <span x-show="!disconnecting">Disconnect</span>
-                                    <span x-show="disconnecting">Disconnecting...</span>
-                                </button>
-                            </div>
-                        </div>
 
-                        <!-- QR Code panel -->
-                        <template x-if="qr_visible">
-                            <div style="margin-top: 8px; padding: 16px; border-radius: 8px;
-                                        border: 1px solid var(--border-color, #333);
-                                        text-align: center;">
-
-                                <!-- Connected state -->
-                                <template x-if="qr_status === 'connected'">
-                                    <div>
-                                        <div style="font-size: 1.5rem; margin-bottom: 8px;">&#10003;</div>
-                                        <div style="font-weight: 500; color: #4caf50;" x-text="qr_message"></div>
-                                        <button class="btn btn-field" @click="hide_qr()" style="margin-top: 12px;">
-                                            Close
-                                        </button>
-                                    </div>
-                                </template>
-
-                                <!-- QR code ready -->
-                                <template x-if="qr_status === 'waiting_scan' && qr_data_url">
-                                    <div>
-                                        <div style="font-weight: 500; margin-bottom: 12px;">
-                                            Scan with WhatsApp on your phone
+                            <template x-if="config.enabled">
+                                <div>
+                                    <div class="field">
+                                        <div class="field-label">
+                                            <div class="field-title">WhatsApp account</div>
+                                            <div class="field-description">
+                                                <span x-show="!$store.whatsappConfig.disconnectMessage">Click "Show QR code" to pair your WhatsApp account.</span>
+                                                <span x-show="$store.whatsappConfig.disconnectMessage"
+                                                      x-text="$store.whatsappConfig.disconnectMessage"></span>
+                                            </div>
                                         </div>
-                                        <img :src="qr_data_url" alt="WhatsApp QR Code"
-                                             style="width: 256px; height: 256px; border-radius: 8px;
-                                                    background: white; padding: 4px;" />
-                                        <div style="margin-top: 8px; font-size: 0.8rem; opacity: 0.6;">
-                                            QR code refreshes automatically
+                                        <div class="field-control wa-inline-actions">
+                                            <button class="btn btn-field" @click="$store.whatsappConfig.showQr()">
+                                                Show QR code
+                                            </button>
+                                            <button class="btn btn-field" @click="$store.whatsappConfig.disconnectAccount()"
+                                                :disabled="$store.whatsappConfig.disconnecting">
+                                                <span x-show="!$store.whatsappConfig.disconnecting">Disconnect</span>
+                                                <span x-show="$store.whatsappConfig.disconnecting">Disconnecting...</span>
+                                            </button>
                                         </div>
-                                        <button class="btn btn-field" @click="hide_qr()" style="margin-top: 12px;">
-                                            Cancel
-                                        </button>
                                     </div>
-                                </template>
 
-                                <!-- Loading / waiting for QR -->
-                                <template x-if="qr_status !== 'connected' && !(qr_status === 'waiting_scan' && qr_data_url)">
-                                    <div>
-                                        <div style="font-weight: 500; margin-bottom: 8px;" x-text="qr_message || 'Connecting...'"></div>
-                                        <div style="font-size: 0.85rem; opacity: 0.6;">
-                                            <template x-if="qr_status === 'error'">
-                                                <span style="color: #f44336;" x-text="qr_message"></span>
+                                    <template x-if="$store.whatsappConfig.qrVisible">
+                                        <div class="wa-qr-panel">
+                                            <template x-if="$store.whatsappConfig.qrStatus === 'connected'">
+                                                <div>
+                                                    <div class="wa-qr-status ok">Connected</div>
+                                                    <div class="wa-qr-message" x-text="$store.whatsappConfig.qrMessage"></div>
+                                                    <button class="btn btn-field" @click="$store.whatsappConfig.hideQr()"
+                                                        style="margin-top: 12px;">
+                                                        Close
+                                                    </button>
+                                                </div>
                                             </template>
-                                            <template x-if="qr_status !== 'error'">
-                                                <span>Please wait...</span>
+
+                                            <template
+                                                x-if="$store.whatsappConfig.qrStatus === 'waiting_scan' && $store.whatsappConfig.qrDataUrl">
+                                                <div>
+                                                    <div class="wa-qr-status">Scan with WhatsApp on your phone</div>
+                                                    <img :src="$store.whatsappConfig.qrDataUrl" alt="WhatsApp QR Code"
+                                                        class="wa-qr-image" />
+                                                    <div class="wa-qr-help">The QR code refreshes automatically.</div>
+                                                    <button class="btn btn-field" @click="$store.whatsappConfig.hideQr()"
+                                                        style="margin-top: 12px;">
+                                                        Cancel
+                                                    </button>
+                                                </div>
+                                            </template>
+
+                                            <template
+                                                x-if="$store.whatsappConfig.qrStatus !== 'connected' && !($store.whatsappConfig.qrStatus === 'waiting_scan' && $store.whatsappConfig.qrDataUrl)">
+                                                <div>
+                                                    <div class="wa-qr-status"
+                                                        x-text="$store.whatsappConfig.qrMessage || 'Connecting...'"></div>
+                                                    <div class="wa-qr-help"
+                                                        x-show="$store.whatsappConfig.qrStatus !== 'error'">
+                                                        Please wait...</div>
+                                                    <div class="wa-qr-help error"
+                                                        x-show="$store.whatsappConfig.qrStatus === 'error'"
+                                                        x-text="$store.whatsappConfig.qrMessage"></div>
+                                                    <button class="btn btn-field" @click="$store.whatsappConfig.hideQr()"
+                                                        style="margin-top: 12px;">
+                                                        Cancel
+                                                    </button>
+                                                </div>
                                             </template>
                                         </div>
-                                        <button class="btn btn-field" @click="hide_qr()" style="margin-top: 12px;">
-                                            Cancel
-                                        </button>
-                                    </div>
-                                </template>
-                            </div>
-                        </template>
-                    </div>
-                </template>
-
-                <div class="field">
-                    <div class="field-label">
-                        <div class="field-title">Mode</div>
-                        <div class="field-description">
-                            <span x-show="config.mode === 'self-chat'">
-                                Use your personal number. You can message yourself to talk to the agent, and the agent can also handle messages that other people send to your number.
-                            </span>
-                            <span x-show="config.mode !== 'self-chat'">
-                                Use a separate WhatsApp number dedicated to Agent Zero conversations.
-                            </span>
-                        </div>
-                    </div>
-                    <div class="field-control">
-                        <select x-model="config.mode">
-                            <option value="self-chat">Personal number (self-chat)</option>
-                            <option value="dedicated">Separate number (dedicated)</option>
-                        </select>
-                    </div>
-                </div>
-
-                <template x-if="config.enabled && allowed_is_empty()">
-                    <div style="margin: 8px 0 20px; padding: 12px 14px; border-radius: 10px;
-                                border: 1px solid rgba(255, 170, 0, 0.45);
-                                background: rgba(255, 170, 0, 0.12);
-                                color: var(--color-warning-text);">
-                        <div style="font-weight: 600; display: flex; align-items: center; gap: 8px;">
-                            <span aria-hidden="true">&#9888;</span>
-                            <span>Warning</span>
-                        </div>
-                        <div style="margin-top: 4px; line-height: 1.45;">
-                            Allowed Numbers is empty. If other people can message this WhatsApp number, they can use your Agent Zero.
-                        </div>
-                    </div>
-                </template>
-
-                <div class="field">
-                    <div class="field-label">
-                        <div class="field-title">Allowed Numbers</div>
-                        <div class="field-description">Comma-separated phone numbers. Matching is normalized by the backend, so punctuation and + prefixes are okay. Empty = allow all.</div>
-                    </div>
-                    <div class="field-control">
-                        <input type="text" :value="allowed_text()" @change="set_allowed($event.target.value)" placeholder="+1 (415) 555-1234, +44 7911 123456" />
-                    </div>
-                </div>
-
-                <div class="field">
-                    <div class="field-label">
-                        <div class="field-title">Allow Group</div>
-                        <div class="field-description">Respond in group chats when mentioned or replied to</div>
-                    </div>
-                    <div class="field-control">
-                        <label class="toggle">
-                            <input type="checkbox" x-model="config.allow_group" />
-                            <span class="toggler"></span>
-                        </label>
-                    </div>
-                </div>
-
-                <div class="field">
-                    <div class="field-label">
-                        <div class="field-title">Project</div>
-                        <div class="field-description">Project to activate for WhatsApp chats</div>
-                    </div>
-                    <div class="field-control">
-                        <select :value="config.project" @change="config.project = $event.target.value">
-                            <option value="">No project</option>
-                            <template x-for="proj in projects" :key="proj.name">
-                                <option :value="proj.name" x-text="proj.title || proj.name" :selected="config.project === proj.name"></option>
+                                    </template>
+                                </div>
                             </template>
-                        </select>
-                    </div>
-                </div>
 
-                <div class="field">
-                    <div class="field-label">
-                        <div class="field-title">Agent Instructions</div>
-                        <div class="field-description">Extra instructions for the agent in WhatsApp chats</div>
-                    </div>
-                    <div class="field-control">
-                        <textarea x-model="config.agent_instructions" rows="3" placeholder="e.g. Always respond concisely..."></textarea>
-                    </div>
-                </div>
-
-                <div class="field">
-                    <div class="field-label">
-                        <div class="field-title">Bridge Port</div>
-                        <div class="field-description">Local port for the WhatsApp bridge HTTP server</div>
-                    </div>
-                    <div class="field-control">
-                        <input type="number" x-model.number="config.bridge_port" placeholder="3100" />
-                    </div>
-                </div>
-
-                <div class="field">
-                    <div class="field-label">
-                        <div class="field-title">Poll Interval (seconds)</div>
-                        <div class="field-description">How often to check for new messages (minimum 2)</div>
-                    </div>
-                    <div class="field-control">
-                        <input type="number" x-model.number="config.poll_interval_seconds" min="2" placeholder="3" />
-                    </div>
-                </div>
-
-                <!-- Test connection -->
-                <div style="margin-top: 16px; display: flex; align-items: center; gap: 12px;">
-                    <button class="btn btn-field" @click="test_connection()" :disabled="testing">
-                        <span x-show="!testing">Test Connection</span>
-                        <span x-show="testing">Testing...</span>
-                    </button>
-                </div>
-
-                <!-- Test results -->
-                <template x-if="test_results">
-                    <div style="margin-top: 8px; padding: 8px 12px; border-radius: 6px; font-size: 0.85rem;
-                                border: 1px solid var(--border-color, #333);">
-                        <template x-for="r in test_results.results" :key="r.test">
-                            <div style="display: flex; align-items: center; gap: 8px; padding: 4px 0;">
-                                <span x-text="r.ok ? '✓' : '✗'"
-                                      :style="'font-weight: bold; color:' + (r.ok ? '#4caf50' : '#f44336')"></span>
-                                <span style="font-weight: 500; min-width: 50px;" x-text="r.test"></span>
-                                <span style="opacity: 0.8;" x-text="r.message"></span>
+                            <div class="wa-note" x-show="!config.enabled">
+                                Turn on WhatsApp to pair or switch your account.
                             </div>
-                        </template>
+
+                            <div class="field">
+                                <div class="field-label">
+                                    <div class="field-title">Mode</div>
+                                    <div class="field-description">
+                                        <span x-show="config.mode === 'self-chat'">
+                                            Use your own number. You can message yourself to talk to the agent.
+                                        </span>
+                                        <span x-show="config.mode !== 'self-chat'">
+                                            Use a separate number dedicated to Agent Zero conversations.
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="field-control">
+                                    <select x-model="config.mode">
+                                        <option value="self-chat">Personal number (self-chat)</option>
+                                        <option value="dedicated">Separate number (dedicated)</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="wa-mode-note">
+                                <strong>Good to know:</strong> Self-chat uses your own number. Dedicated is better for
+                                shared or public access. You can pair now or come back to it later.
+                            </div>
+
+                            <div class="wa-warning" x-show="$store.whatsappConfig.accessWarning()">
+                                <div class="wa-warning-title">
+                                    <span aria-hidden="true">&#9888;</span>
+                                    <span>Warning</span>
+                                </div>
+                                <div class="wa-warning-body" x-text="$store.whatsappConfig.accessWarning()"></div>
+                            </div>
+
+                            <div class="field">
+                                <div class="field-label">
+                                    <div class="field-title">Allowed numbers</div>
+                                    <div class="field-description">Comma-separated phone numbers. Punctuation and +
+                                        prefixes are okay. Leave empty only if you want open access.</div>
+                                </div>
+                                <div class="field-control">
+                                    <input type="text" :value="$store.whatsappConfig.allowedText()"
+                                        @input="$store.whatsappConfig.setAllowed($event.target.value)"
+                                        placeholder="+1 (415) 555-1234, +44 7911 123456" />
+                                </div>
+                            </div>
+
+                            <div class="field">
+                                <div class="field-label">
+                                    <div class="field-title">Allow groups</div>
+                                    <div class="field-description">Reply in group chats when mentioned or replied to.
+                                    </div>
+                                </div>
+                                <div class="field-control">
+                                    <label class="toggle">
+                                        <input type="checkbox" x-model="config.allow_group" />
+                                        <span class="toggler"></span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+
+                    <template x-if="$store.whatsappConfig.currentStep === 1">
+                        <div class="wa-step-panel">
+                            <div class="field">
+                                <div class="field-label">
+                                    <div class="field-title">Project</div>
+                                    <div class="field-description">Optional project to activate for WhatsApp
+                                        conversations.</div>
+                                </div>
+                                <div class="field-control">
+                                    <select :value="config.project" @change="config.project = $event.target.value">
+                                        <option value="">No project</option>
+                                        <template x-for="proj in $store.whatsappConfig.projects" :key="proj.name">
+                                            <option :value="proj.name" x-text="proj.title || proj.name"
+                                                :selected="config.project === proj.name"></option>
+                                        </template>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="field">
+                                <div class="field-label">
+                                    <div class="field-title">Agent instructions</div>
+                                    <div class="field-description">Extra guidance for how the agent should reply in
+                                        WhatsApp chats.</div>
+                                </div>
+                                <div class="field-control">
+                                    <textarea x-model="config.agent_instructions" rows="3"
+                                        placeholder="Reply briefly and naturally, like a mobile conversation."></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+
+                    <div class="wa-test-panel">
+                        <div class="wa-test-copy">
+                            <div class="wa-test-title">Check the connection</div>
+                            <div class="wa-test-description">We will check whether the local WhatsApp bridge is up and
+                                connected.</div>
+                        </div>
+                        <button class="btn btn-field" @click="$store.whatsappConfig.testConnection()"
+                            :disabled="$store.whatsappConfig.testing">
+                            <span x-text="$store.whatsappConfig.testButtonLabel()"></span>
+                        </button>
                     </div>
-                </template>
+
+                    <template x-if="$store.whatsappConfig.testResults">
+                        <div class="wa-results" :class="{ 'is-error': !$store.whatsappConfig.testResults.success }">
+                            <template x-for="result in $store.whatsappConfig.testResults.results"
+                                :key="result.test + result.message">
+                                <div class="wa-result-row">
+                                    <span class="wa-result-icon" x-text="result.ok ? '✓' : '✗'"></span>
+                                    <div class="wa-result-copy">
+                                        <div class="wa-result-title" x-text="result.test"></div>
+                                        <div class="wa-result-message" x-text="result.message"></div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+
+                    <template x-if="$store.whatsappConfig.currentStep > 0">
+                        <details class="wa-advanced">
+                            <summary>
+                                <span>Advanced</span>
+                                <span class="material-symbols-outlined wa-advanced-chevron"
+                                    aria-hidden="true">keyboard_arrow_down</span>
+                            </summary>
+                            <div class="wa-advanced-body">
+                                <div class="wa-info-box">
+                                    These settings are here when you need them, but the defaults are fine for most
+                                    setups.
+                                </div>
+
+                                <div class="field">
+                                    <div class="field-label">
+                                        <div class="field-title">Bridge port</div>
+                                        <div class="field-description">Local port for the WhatsApp bridge HTTP server.
+                                        </div>
+                                    </div>
+                                    <div class="field-control">
+                                        <input type="number" x-model.number="config.bridge_port" placeholder="3100" />
+                                    </div>
+                                </div>
+
+                                <div class="field">
+                                    <div class="field-label">
+                                        <div class="field-title">Poll interval (seconds)</div>
+                                        <div class="field-description">How often to check for new messages. The minimum
+                                            is 2 seconds.</div>
+                                    </div>
+                                    <div class="field-control">
+                                        <input type="number" x-model.number="config.poll_interval_seconds" min="2"
+                                            placeholder="3" />
+                                    </div>
+                                </div>
+
+                            </div>
+                        </details>
+                    </template>
+                </div>
             </div>
         </template>
     </div>
+
+    <style>
+        .wa-page {
+            display: flex;
+            flex-direction: column;
+            gap: 0.9rem;
+        }
+
+        .wa-summary-card,
+        .wa-wizard-card {
+            border-radius: 0.5rem;
+        }
+
+        .wa-advanced summary {
+            cursor: pointer;
+            list-style: none;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .wa-advanced summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .wa-summary-title,
+        .wa-step-title,
+        .wa-test-title {
+            font-weight: 700;
+        }
+
+        .wa-summary-subtitle,
+        .wa-step-description,
+        .wa-note,
+        .wa-mode-note,
+        .wa-test-description,
+        .wa-result-message {
+            color: var(--color-text-secondary);
+            line-height: 1.5;
+        }
+
+        .wa-summary-card {
+            padding: 1rem;
+            border: 1px solid var(--color-border);
+            display: flex;
+            justify-content: space-between;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .wa-step-header {
+            display: flex;
+            justify-content: space-between;
+            gap: 1rem;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+
+        .wa-step-dots {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            align-items: center;
+        }
+
+        .wa-step-dot {
+            width: 0.85rem;
+            height: 0.85rem;
+            border-radius: 999px;
+            border: 1px solid var(--color-border);
+            background: transparent;
+            cursor: pointer;
+            padding: 0;
+        }
+
+        .wa-step-dot.is-active {
+            background: rgba(59, 130, 246, 0.9);
+            border-color: rgba(59, 130, 246, 0.9);
+        }
+
+        .wa-step-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 0.2rem;
+        }
+
+        .wa-info-box,
+        .wa-note {
+            margin-bottom: 0.9rem;
+            padding: 0.8rem 0.9rem;
+            border-radius: 12px;
+            font-size: var(--font-size-small);
+        }
+
+        .wa-info-box {
+            background: color-mix(in srgb, #3b82f6 12%, var(--color-background) 88%);
+        }
+
+        .wa-note {
+            background: color-mix(in srgb, var(--color-background) 88%, white 12%);
+        }
+
+        .wa-warning {
+            margin: 0.5rem 0 1.25rem;
+            padding: 0.75rem 0.9rem;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 170, 0, 0.45);
+            background: rgba(255, 170, 0, 0.12);
+            color: var(--color-warning-text);
+            font-size: var(--font-size-small);
+        }
+
+        .wa-warning-title {
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .wa-warning-body {
+            margin-top: 0.25rem;
+            line-height: 1.45;
+        }
+
+        .wa-mode-note {
+            margin-top: -0.2rem;
+            margin-bottom: 0.9rem;
+            font-size: var(--font-size-small);
+        }
+
+        .wa-inline-actions {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .wa-qr-panel {
+            margin-top: 0.25rem;
+            padding: 1rem;
+            border-radius: 14px;
+            border: 1px solid color-mix(in srgb, var(--color-border) 88%, white 12%);
+            background: color-mix(in srgb, var(--color-background) 90%, white 10%);
+            text-align: center;
+        }
+
+        .wa-qr-status {
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .wa-qr-status.ok {
+            color: #7ee7a4;
+        }
+
+        .wa-qr-message,
+        .wa-qr-help {
+            color: var(--color-text-secondary);
+            line-height: 1.5;
+        }
+
+        .wa-qr-help {
+            font-size: var(--font-size-small);
+            margin-top: 0.4rem;
+        }
+
+        .wa-qr-help.error {
+            color: #fca5a5;
+        }
+
+        .wa-qr-image {
+            width: 256px;
+            height: 256px;
+            max-width: 100%;
+            border-radius: 8px;
+            background: white;
+            padding: 4px;
+        }
+
+        .wa-advanced {
+            margin-top: 1rem;
+            border: 1px solid color-mix(in srgb, var(--color-border) 88%, white 12%);
+            border-radius: 14px;
+            overflow: hidden;
+        }
+
+        .wa-advanced summary {
+            padding: 0.9rem 1rem;
+            background: color-mix(in srgb, var(--color-background) 88%, white 12%);
+        }
+
+        .wa-advanced-chevron {
+            margin-left: auto;
+            flex: 0 0 auto;
+            transition: transform 0.18s ease, opacity 0.18s ease;
+            opacity: 0.72;
+        }
+
+        .wa-advanced[open] .wa-advanced-chevron {
+            transform: rotate(180deg);
+            opacity: 1;
+        }
+
+        .wa-advanced-body {
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.2rem;
+        }
+
+        .wa-test-panel {
+            margin-top: 1rem;
+            padding: var(--spacing-xs) 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .wa-test-copy,
+        .wa-result-copy {
+            min-width: 0;
+        }
+
+        .wa-results {
+            margin-top: 0.9rem;
+            border-radius: 14px;
+            border: 1px solid color-mix(in srgb, #22c55e 28%, var(--color-border) 72%);
+            background: color-mix(in srgb, #22c55e 8%, var(--color-background) 92%);
+            padding: 0.35rem 0.9rem;
+        }
+
+        .wa-results.is-error {
+            border-color: color-mix(in srgb, #ef4444 28%, var(--color-border) 72%);
+            background: color-mix(in srgb, #ef4444 8%, var(--color-background) 92%);
+        }
+
+        .wa-result-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.8rem;
+            padding: 0.7rem 0;
+        }
+
+        .wa-result-row+.wa-result-row {
+            border-top: 1px solid color-mix(in srgb, var(--color-border) 85%, white 15%);
+        }
+
+        .wa-result-icon {
+            width: 1.25rem;
+            font-weight: 800;
+            line-height: 1.3;
+        }
+
+        .wa-result-title {
+            font-weight: 700;
+            margin-bottom: 0.18rem;
+        }
+
+        .wa-status-pill {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 5.25rem;
+            padding: 0.35rem 0.7rem;
+            border-radius: 999px;
+            font-size: 0.8rem;
+            font-weight: 700;
+        }
+
+        .wa-status-pill.tone-success {
+            background: rgba(34, 197, 94, 0.14);
+            color: #7ee7a4;
+        }
+
+        .wa-status-pill.tone-ready {
+            background: rgba(59, 130, 246, 0.16);
+            color: #93c5fd;
+        }
+
+        .wa-status-pill.tone-warning {
+            background: rgba(245, 158, 11, 0.16);
+            color: #fcd34d;
+        }
+
+        .wa-status-pill.tone-muted {
+            background: rgba(148, 163, 184, 0.14);
+            color: #cbd5e1;
+        }
+
+        @media (max-width: 640px) {
+
+            .wa-summary-card,
+            .wa-step-header,
+            .wa-test-panel {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .wa-step-dots {
+                width: 100%;
+                justify-content: space-between;
+            }
+
+            .wa-status-pill {
+                min-width: 0;
+                align-self: flex-start;
+            }
+        }
+    </style>
 </body>
 
 </html>

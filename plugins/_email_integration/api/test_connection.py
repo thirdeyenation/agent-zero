@@ -1,9 +1,12 @@
-"""Test IMAP/SMTP connection for an email handler config."""
+"""Test inbound and outbound email connectivity for a handler config."""
+
+import asyncio
 
 from helpers.api import ApiHandler, Request
 from helpers.errors import format_error
 
 from plugins._email_integration.helpers.imap_client import (
+    connect_exchange,
     connect_imap,
     disconnect_imap,
     get_highest_uid,
@@ -18,7 +21,9 @@ class TestConnection(ApiHandler):
         results: list[dict] = []
         account_type = handler.get("account_type", "imap")
 
-        if account_type == "imap":
+        if account_type == "exchange":
+            await self._test_exchange(handler, results)
+        else:
             await self._test_imap(handler, results)
         await self._test_smtp(handler, results)
         if all(r["ok"] for r in results):
@@ -35,18 +40,39 @@ class TestConnection(ApiHandler):
                 username=handler.get("username", ""),
                 password=handler.get("password", ""),
             )
-            uid = await get_highest_uid(client)
+            await get_highest_uid(client)
             await disconnect_imap(client)
             results.append({
-                "test": "IMAP",
+                "test": "Incoming",
                 "ok": True,
-                "message": f"Connected, highest UID: {uid}",
+                "message": "Incoming mail looks good.",
             })
         except Exception as e:
             results.append({
-                "test": "IMAP",
+                "test": "Incoming",
                 "ok": False,
-                "message": format_error(e),
+                "message": f"Could not reach the inbox: {format_error(e)}",
+            })
+
+    async def _test_exchange(self, handler: dict, results: list[dict]):
+        try:
+            account = await connect_exchange(
+                server=handler.get("imap_server", ""),
+                username=handler.get("username", ""),
+                password=handler.get("password", ""),
+            )
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(None, lambda: account.inbox.total_count)
+            results.append({
+                "test": "Incoming",
+                "ok": True,
+                "message": "Exchange inbox looks good.",
+            })
+        except Exception as e:
+            results.append({
+                "test": "Incoming",
+                "ok": False,
+                "message": f"Could not reach the Exchange inbox: {format_error(e)}",
             })
 
     def _smtp_config(self, handler: dict) -> SmtpConfig:
@@ -62,18 +88,22 @@ class TestConnection(ApiHandler):
         try:
             error = await test_smtp(self._smtp_config(handler))
             if error:
-                results.append({"test": "SMTP", "ok": False, "message": error})
+                results.append({
+                    "test": "Outgoing",
+                    "ok": False,
+                    "message": f"Could not sign in for sending mail: {error}",
+                })
             else:
                 results.append({
-                    "test": "SMTP",
+                    "test": "Outgoing",
                     "ok": True,
-                    "message": "Authenticated successfully",
+                    "message": "Outgoing mail looks good.",
                 })
         except Exception as e:
             results.append({
-                "test": "SMTP",
+                "test": "Outgoing",
                 "ok": False,
-                "message": format_error(e),
+                "message": f"Could not sign in for sending mail: {format_error(e)}",
             })
 
     async def _test_send(self, handler: dict, results: list[dict]):
@@ -85,16 +115,20 @@ class TestConnection(ApiHandler):
                 body="This is a test email from Agent Zero email integration.",
             )
             if error:
-                results.append({"test": "Send", "ok": False, "message": error})
+                results.append({
+                    "test": "Send test email",
+                    "ok": False,
+                    "message": f"Could not send the test email: {error}",
+                })
             else:
                 results.append({
-                    "test": "Send",
+                    "test": "Send test email",
                     "ok": True,
-                    "message": "Test email sent to self",
+                    "message": "Test email sent to this inbox.",
                 })
         except Exception as e:
             results.append({
-                "test": "Send",
+                "test": "Send test email",
                 "ok": False,
-                "message": format_error(e),
+                "message": f"Could not send the test email: {format_error(e)}",
             })

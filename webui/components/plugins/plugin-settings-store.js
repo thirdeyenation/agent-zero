@@ -19,6 +19,7 @@ const model = {
 
     // plugin settings data (plugins bind their fields here)
     settings: {},
+    wizardFooter: null,
 
     settingsSnapshotJson: "",
     previousProjectName: "",
@@ -80,6 +81,7 @@ const model = {
         this.pluginMeta = pluginMeta || null;
         this.settings = {};
         this.settingsSnapshotJson = "";
+        this.wizardFooter = null;
         this.error = null;
         this.projectName = projectName;
         this.agentProfileKey = agentProfileKey;
@@ -373,6 +375,7 @@ const model = {
         this.agentProfileKey = "";
         this.settings = {};
         this.settingsSnapshotJson = "";
+        this.wizardFooter = null;
         this.previousProjectName = "";
         this.previousAgentProfileKey = "";
         this.loadedPath = "";
