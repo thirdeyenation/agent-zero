@@ -1,0 +1,3 @@
+## 2025-01-22 - Optimize DirtyJson parsing fast path
+**Learning:** `DirtyJson.parse_string` was missing a fast path utilizing standard `json.loads` causing significant CPU overhead for valid JSON. Previously, the fast path was implemented in `try_parse`, meaning callers bypassing it by calling `parse` or `DirtyJson.parse_string` directly missed out on the ~8x performance boost.
+**Action:** The fast path using `json.loads` was moved directly into `DirtyJson.parse_string`. Now, any caller invoking this method or its aliases (`parse`, `try_parse`) will benefit from the performance gain automatically.

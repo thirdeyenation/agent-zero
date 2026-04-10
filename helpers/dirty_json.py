@@ -1,10 +1,7 @@
 import json
 
 def try_parse(json_string: str):
-    try:
-        return json.loads(json_string)
-    except json.JSONDecodeError:
-        return DirtyJson.parse_string(json_string)
+    return DirtyJson.parse_string(json_string)
 
 
 def parse(json_string: str):
@@ -36,8 +33,11 @@ class DirtyJson:
 
     @staticmethod
     def parse_string(json_string):
-        parser = DirtyJson()
-        return parser.parse(json_string)
+        try:
+            return json.loads(json_string)
+        except json.JSONDecodeError:
+            parser = DirtyJson()
+            return parser.parse(json_string)
 
     def parse(self, json_string):
         self._reset()
