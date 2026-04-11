@@ -10,7 +10,10 @@ def hash_data(data: str, password: str):
 
 
 def verify_data(data: str, hash: str, password: str):
-    return hash_data(data, password) == hash
+    calculated_hash = hash_data(data, password)
+    if not isinstance(calculated_hash, str) or not isinstance(hash, str):
+        return False
+    return hmac.compare_digest(calculated_hash, hash)
 
 
 def _generate_private_key():
