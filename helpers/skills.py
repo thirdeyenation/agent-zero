@@ -450,7 +450,11 @@ def search_skills(
     if not q:
         return []
 
-    terms = [t for t in re.split(r"\s+", q) if t]
+    raw_terms = [t for t in re.split(r"\s+", q) if t]
+    terms = [
+        t for t in raw_terms
+        if len(t) >= 3 or any(ch.isdigit() for ch in t)
+    ] or raw_terms
     candidates = list_skills(agent)
 
     scored: List[Tuple[int, Skill]] = []
@@ -458,8 +462,22 @@ def search_skills(
         name = s.name.lower()
         desc = (s.description or "").lower()
         tags = [t.lower() for t in s.tags]
+        triggers = [t.lower() for t in s.triggers]
 
         score = 0
+        if q == name:
+            score += 10
+        if any(q == trigger for trigger in triggers):
+            score += 9
+        if q in name:
+            score += 6
+        if q in desc:
+            score += 4
+        if any(q in tag for tag in tags):
+            score += 3
+        if any(q in trigger for trigger in triggers):
+            score += 8
+
         for term in terms:
             if term in name:
                 score += 3
@@ -467,6 +485,8 @@ def search_skills(
                 score += 2
             if any(term in tag for tag in tags):
                 score += 1
+            if any(term in trigger for trigger in triggers):
+                score += 4
 
         if score > 0:
             scored.append((score, s))
@@ -524,4 +544,3 @@ def validate_skill_md(skill_md_path: Path) -> List[str]:
     if not skill:
         return ["Unable to parse SKILL.md frontmatter"]
     return validate_skill(skill)
-
