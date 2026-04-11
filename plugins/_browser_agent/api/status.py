@@ -1,16 +1,20 @@
 import importlib.metadata
 
 from helpers.api import ApiHandler, Request, Response
+from plugins._browser_agent.helpers.model_preset import (
+    get_browser_model_preset_options,
+    resolve_browser_model_selection,
+)
 from plugins._browser_agent.helpers.playwright import (
     get_playwright_binary,
     get_playwright_cache_dir,
 )
-from plugins._model_config.helpers.model_config import get_chat_model_config
 
 
 class Status(ApiHandler):
     async def process(self, input: dict, request: Request) -> dict | Response:
-        cfg = get_chat_model_config()
+        selection = resolve_browser_model_selection()
+        cfg = selection["config"]
         binary = get_playwright_binary()
 
         browser_use_ok = False
@@ -26,7 +30,12 @@ class Status(ApiHandler):
 
         return {
             "plugin": "_browser_agent",
-            "model_source": "Main Model via _model_config",
+            "model_source": selection["source_label"],
+            "model_source_kind": selection["source_kind"],
+            "selected_preset_name": selection["selected_preset_name"],
+            "preset_status": selection["preset_status"],
+            "preset_warning": selection["warning"],
+            "available_presets": get_browser_model_preset_options(),
             "model": {
                 "provider": cfg.get("provider", ""),
                 "name": cfg.get("name", ""),
