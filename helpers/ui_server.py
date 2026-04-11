@@ -204,7 +204,13 @@ class UiRouteHandlers:
             user = dotenv.get_dotenv_value("AUTH_LOGIN")
             password = dotenv.get_dotenv_value("AUTH_PASSWORD")
 
-            if request.form["username"] == user and request.form["password"] == password:
+            req_user = request.form["username"]
+            req_pass = request.form["password"]
+
+            user_match = isinstance(req_user, str) and isinstance(user, str) and secrets.compare_digest(req_user, user)
+            pass_match = isinstance(req_pass, str) and isinstance(password, str) and secrets.compare_digest(req_pass, password)
+
+            if user_match and pass_match:
                 session["authentication"] = login.get_credentials_hash()
                 return redirect(url_for("serve_index"))
             else:

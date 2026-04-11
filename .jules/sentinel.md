@@ -1,0 +1,4 @@
+## 2026-04-11 - [CRITICAL] Prevent Timing Attacks on Secret Comparisons
+**Vulnerability:** String comparison operators (`==`, `!=`) were being used to evaluate API keys, authentication credentials, and session/CSRF tokens. These naive comparisons stop at the first mismatching character, which allows an attacker to deduce secrets character-by-character based on timing differences.
+**Learning:** Security tokens, password hashes, and API keys must be compared using constant-time algorithms to prevent timing side-channel attacks.
+**Prevention:** Use `hmac.compare_digest` or `secrets.compare_digest` for evaluating secrets. Additionally, ensure both arguments to `compare_digest` are correctly validated as strings or bytes beforehand (using `isinstance`) to avoid raising `TypeError` exceptions when unexpected inputs (like `None`) are supplied.
