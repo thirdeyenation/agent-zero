@@ -36,8 +36,12 @@ class DirtyJson:
 
     @staticmethod
     def parse_string(json_string):
-        parser = DirtyJson()
-        return parser.parse(json_string)
+        # FAST PATH: Try standard json.loads first for ~10x performance boost on valid JSON
+        try:
+            return json.loads(json_string)
+        except Exception:
+            parser = DirtyJson()
+            return parser.parse(json_string)
 
     def parse(self, json_string):
         self._reset()
