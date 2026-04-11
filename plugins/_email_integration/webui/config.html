@@ -436,6 +436,21 @@
                                             </div>
                                         </div>
 
+                                        <div class="field">
+                                            <div class="field-label">
+                                                <div class="field-title">Conversation config</div>
+                                                <div class="field-description">Optional model preset for new chats created from this inbox.</div>
+                                            </div>
+                                            <div class="field-control">
+                                                <select x-model="handler.chat_model_preset">
+                                                    <option value="">Default</option>
+                                                    <template x-for="preset in $store.emailConfig.modelPresets" :key="preset.name">
+                                                        <option :value="preset.name" x-text="preset.name"></option>
+                                                    </template>
+                                                </select>
+                                            </div>
+                                        </div>
+
                                     </div>
                                 </details>
                             </div>

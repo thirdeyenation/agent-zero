@@ -84,6 +84,7 @@ class TelegramBotManager(Extension):
                     on_message=_on_message,
                     on_command_start=_on_start,
                     on_command_clear=_on_clear,
+                    on_command_control=_on_message,
                     on_callback_query=_on_callback,
                     on_new_members=_on_new_members,
                     group_mode=bot_cfg.get("group_mode", "mention"),

@@ -16,5 +16,6 @@ handlers: []
 #   sender_whitelist: []
 #   project: ""
 #   dispatcher_model: utility
+#   chat_model_preset: ""       # Optional preset from Model Configuration for new email chats
 #   dispatcher_instructions: ""
 #   agent_instructions: ""

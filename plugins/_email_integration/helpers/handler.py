@@ -13,12 +13,14 @@ import uuid
 from agent import Agent, AgentContext, AgentContextType, UserMessage
 from helpers import guids, plugins, files, runtime
 from helpers import message_queue as mq
+from helpers import integration_commands
 from helpers.persist_chat import save_tmp_chat
 from helpers.print_style import PrintStyle
 from helpers.errors import format_error
 from initialize import initialize_agent
 
 from plugins._email_integration.helpers import dispatcher as disp
+from plugins._model_config.helpers import model_config
 from plugins._email_integration.helpers.imap_client import (
     InboundMessage,
     connect_imap,
@@ -177,6 +179,9 @@ async def _dispatch_message(agent: Agent, handler_cfg: dict, msg: InboundMessage
 
     existing = _find_handler_chats(handler_name, msg.sender)
 
+    if await _handle_control_email(handler_cfg, msg, existing, thread_id):
+        return
+
     # Fast path: thread ID in subject matches a known chat
     if thread_id:
         for chat in existing:
@@ -281,6 +286,7 @@ async def _start_new_chat(agent: Agent, handler_cfg: dict, msg: InboundMessage):
     if project:
         projects.activate_project(context.id, project)
 
+    _apply_handler_model_preset(context, handler_cfg)
     save_tmp_chat(context)
 
     user_msg = _build_user_message(agent, msg, handler_cfg)
@@ -310,6 +316,8 @@ async def _route_to_chat(
 
     context.data[disp.CTX_EMAIL_MESSAGE_ID] = msg.message_id
     context.data[disp.CTX_EMAIL_LAST_BODY] = msg.body
+    if not context.get_data("chat_model_override"):
+        _apply_handler_model_preset(context, handler_cfg)
     
     refs = context.data.get(disp.CTX_EMAIL_REFERENCES, "")
     refs_list = refs.split() if refs else []
@@ -335,6 +343,131 @@ async def _route_to_chat(
 
     save_tmp_chat(context)
     PrintStyle.info(f"Email: continuing chat {context_id}")
+
+
+async def _handle_control_email(
+    handler_cfg: dict,
+    msg: InboundMessage,
+    existing_chats: list[disp.ChatSummary],
+    thread_id: str,
+) -> bool:
+    parsed = integration_commands.parse_command(msg.body)
+    if not parsed:
+        return False
+
+    target_context_id = ""
+    if thread_id:
+        for chat in existing_chats:
+            if chat["thread_id"] == thread_id:
+                target_context_id = chat["context_id"]
+                break
+
+    if not target_context_id:
+        if len(existing_chats) == 1:
+            target_context_id = existing_chats[0]["context_id"]
+        elif len(existing_chats) > 1:
+            await _send_control_email_reply(
+                handler_cfg,
+                msg,
+                "Multiple Agent Zero email chats match this sender. Reply inside the thread you want to control.",
+                thread_id=thread_id,
+            )
+            return True
+        else:
+            await _send_control_email_reply(
+                handler_cfg,
+                msg,
+                "No matching Agent Zero email chat was found. Reply inside an existing Agent Zero email thread to use /project, /config, or /send.",
+                thread_id=thread_id,
+            )
+            return True
+
+    context = AgentContext.get(target_context_id)
+    if not context:
+        await _send_control_email_reply(
+            handler_cfg,
+            msg,
+            "The matching Agent Zero email chat is no longer available. Send a normal email to start a fresh thread.",
+            thread_id=thread_id,
+        )
+        return True
+
+    response = integration_commands.try_handle_command(context, msg.body)
+    if response is None:
+        return False
+
+    await _send_control_email_reply(
+        handler_cfg,
+        msg,
+        response,
+        thread_id=context.data.get(disp.CTX_EMAIL_THREAD_ID, "") or thread_id,
+    )
+    return True
+
+
+def _apply_handler_model_preset(context: AgentContext, handler_cfg: dict) -> None:
+    preset_name = str(handler_cfg.get("chat_model_preset", "") or "").strip()
+    if not preset_name:
+        return
+    if not model_config.is_chat_override_allowed(context.agent0):
+        PrintStyle.warning(
+            f"Email ({handler_cfg.get('name', 'default')}): chat override is disabled,"
+            f" cannot apply preset '{preset_name}'"
+        )
+        return
+    if not model_config.get_preset_by_name(preset_name):
+        PrintStyle.warning(
+            f"Email ({handler_cfg.get('name', 'default')}): preset '{preset_name}' was not found"
+        )
+        return
+    context.set_data("chat_model_override", {"preset_name": preset_name})
+
+
+async def _send_control_email_reply(
+    handler_cfg: dict,
+    msg: InboundMessage,
+    body: str,
+    *,
+    thread_id: str = "",
+) -> str | None:
+    smtp_cfg = SmtpConfig(
+        server=handler_cfg.get("smtp_server", handler_cfg.get("imap_server", "")),
+        port=int(handler_cfg.get("smtp_port", 587)),
+        username=handler_cfg.get("username", ""),
+        password=handler_cfg.get("password", ""),
+    )
+
+    subject = _build_control_reply_subject(msg.subject, thread_id)
+    references = _merge_references(msg.references, msg.message_id)
+
+    return await send_reply(
+        config=smtp_cfg,
+        to=msg.sender,
+        subject=subject,
+        body=body,
+        in_reply_to=msg.message_id,
+        references=references,
+        attachments=None,
+    )
+
+
+def _build_control_reply_subject(subject: str, thread_id: str) -> str:
+    if thread_id:
+        return disp.build_reply_subject(subject, thread_id)
+    cleaned = subject.strip()
+    if not cleaned.lower().startswith("re:"):
+        cleaned = f"Re: {cleaned}"
+    return cleaned
+
+
+def _merge_references(existing: str, message_id: str) -> str:
+    refs = []
+    for ref in (existing or "").split():
+        if ref and ref not in refs:
+            refs.append(ref)
+    if message_id and message_id not in refs:
+        refs.append(message_id)
+    return " ".join(refs)
 
 
 # ------------------------------------------------------------------

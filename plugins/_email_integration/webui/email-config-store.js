@@ -77,6 +77,7 @@ export const store = createStore("emailConfig", {
   guideOpen: false,
   didInit: false,
   projects: [],
+  modelPresets: [],
   presets: PRESETS,
 
   get handlers() {
@@ -97,12 +98,15 @@ export const store = createStore("emailConfig", {
     if (this.handlers.length === 0) this._startInitialHandlerFlow();
     this.didInit = true;
 
-    try {
-      const response = await API.callJsonApi("projects", { action: "list" });
-      this.projects = response.data || [];
-    } catch (_) {
-      this.projects = [];
-    }
+    const [projectsResult, presetsResult] = await Promise.allSettled([
+      API.callJsonApi("projects", { action: "list" }),
+      API.callJsonApi("/plugins/_model_config/model_presets", { action: "get" }),
+    ]);
+
+    this.projects = projectsResult.status === "fulfilled" ? (projectsResult.value.data || []) : [];
+    this.modelPresets = presetsResult.status === "fulfilled" && Array.isArray(presetsResult.value.presets)
+      ? presetsResult.value.presets
+      : [];
   },
 
   cleanup() {
@@ -134,6 +138,7 @@ export const store = createStore("emailConfig", {
       sender_whitelist: [],
       project: "",
       dispatcher_model: "utility",
+      chat_model_preset: "",
       dispatcher_instructions: "",
       agent_instructions: "",
     };

@@ -45,6 +45,7 @@ def create_bot(
     on_message: Callable[..., Awaitable],
     on_command_start: Callable[..., Awaitable],
     on_command_clear: Callable[..., Awaitable],
+    on_command_control: Callable[..., Awaitable] | None = None,
     on_callback_query: Callable[..., Awaitable] | None = None,
     on_new_members: Callable[..., Awaitable] | None = None,
     group_mode: str = "mention",
@@ -56,6 +57,11 @@ def create_bot(
     # Register command handlers
     router.message.register(on_command_start, CommandStart())
     router.message.register(on_command_clear, Command("clear"))
+    if on_command_control:
+        router.message.register(
+            on_command_control,
+            Command(commands=["project", "config", "preset", "queue", "send"]),
+        )
 
     if on_callback_query:
         router.callback_query.register(on_callback_query)
