@@ -114,21 +114,42 @@
             </div>
 
             <!-- Footer (pinned outside scroll area) -->
-            <div class="modal-footer" data-modal-footer>
-                <button class="btn btn-ok"
-                        @click="context.save()"
-                        :disabled="context?.isSaving || context?.isLoading">
-                    Save
-                </button>
-                <button class="btn"
-                        @click="context.resetToDefault()"
-                        :disabled="context?.isSaving || context?.isLoading">
-                    Default
-                </button>
-                <button class="btn btn-cancel"
-                        @click="window.closeModal?.()">
-                    Cancel
-                </button>
+            <div class="modal-footer plugin-settings-footer" data-modal-footer>
+                <div class="plugin-settings-footer-nav"
+                     x-show="context.wizardFooter?.visible?.()">
+                    <div class="plugin-settings-footer-nav-row">
+                        <button class="btn"
+                                @click="context.wizardFooter?.onBack?.()"
+                                :disabled="!context.wizardFooter?.canGoBack?.()">
+                            <span x-text="context.wizardFooter?.backLabel?.() || 'Back'"></span>
+                        </button>
+                        <div class="plugin-settings-footer-note" x-text="context.wizardFooter?.note?.() || ''"></div>
+                    </div>
+                </div>
+
+                <div class="plugin-settings-footer-actions">
+                    <button class="btn"
+                            @click="context.resetToDefault()"
+                            :disabled="context?.isSaving || context?.isLoading">
+                        Default
+                    </button>
+                    <button class="btn btn-cancel"
+                            @click="window.closeModal?.()">
+                        Cancel
+                    </button>
+                    <button class="btn btn-field"
+                            x-show="context.wizardFooter?.showNext?.()"
+                            @click="context.wizardFooter?.onNext?.()"
+                            :disabled="context.wizardFooter?.nextDisabled?.()">
+                        <span x-text="context.wizardFooter?.nextLabel?.() || 'Next'"></span>
+                    </button>
+                    <button class="btn btn-ok"
+                            x-show="!context.wizardFooter || context.wizardFooter?.showSave?.()"
+                            @click="context.save()"
+                            :disabled="context?.isSaving || context?.isLoading">
+                        Save
+                    </button>
+                </div>
             </div>
             </div>
         </template>
@@ -213,6 +234,39 @@
             min-height: 4rem;
         }
 
+        .plugin-settings-footer {
+            justify-content: space-between;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .plugin-settings-footer-nav {
+            flex: 1 1 22rem;
+            min-width: 18rem;
+        }
+
+        .plugin-settings-footer-nav-row {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            width: 100%;
+        }
+
+        .plugin-settings-footer-note {
+            color: var(--color-text-secondary);
+            font-size: var(--font-size-small);
+            line-height: 1.4;
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+
+        .plugin-settings-footer-actions {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-left: auto;
+        }
+
         .spinning {
             animation: spin 1s linear infinite;
         }
@@ -281,6 +335,21 @@
                 margin-left: 0;
                 justify-content: flex-start;
                 white-space: normal;
+            }
+
+            .plugin-settings-footer-nav {
+                width: 100%;
+                min-width: 0;
+            }
+
+            .plugin-settings-footer-nav-row {
+                flex-wrap: wrap;
+            }
+
+            .plugin-settings-footer-actions {
+                width: 100%;
+                justify-content: flex-end;
+                margin-left: 0;
             }
         }
     </style>

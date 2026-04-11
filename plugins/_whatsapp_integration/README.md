@@ -24,6 +24,7 @@ Dependencies are auto-installed on first bridge start if missing.
 2. Configure allowed phone numbers
 3. Click Show QR Code and scan with WhatsApp on your phone
 4. Send a message from an allowed number to start a chat
+5. Use `/project <name>`, `/config <preset>`, or `/send` in WhatsApp to control the active chat directly
 
 The WhatsApp session persists across restarts in `tmp/whatsapp/session/`. No re-pairing needed unless you disconnect via settings.
 Be careful: if you use your personal number and leave `allowed_numbers` open, other people could misuse your Agent Zero.

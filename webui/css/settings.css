@@ -3,7 +3,7 @@
 /* Field Styles */
 .field {
   display: grid;
-  grid-template-columns: 60% 1fr;
+  grid-template-columns: 55% 1fr;
   align-items: center;
   margin-block: 1rem;
   padding: var(--spacing-xs) 0;

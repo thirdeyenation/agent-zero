@@ -32,19 +32,19 @@ class TestConnection(ApiHandler):
 
             if status == "connected":
                 results.append({
-                    "test": "Bridge",
+                    "test": "WhatsApp bridge",
                     "ok": True,
-                    "message": f"Connected (uptime: {uptime:.0f}s, queue: {queue})",
+                    "message": f"Connected and ready (uptime: {uptime:.0f}s, queue: {queue})",
                 })
             else:
                 results.append({
-                    "test": "Bridge",
+                    "test": "WhatsApp bridge",
                     "ok": False,
-                    "message": f"Bridge running but status: {status}",
+                    "message": f"The bridge is running, but WhatsApp is not fully connected yet (status: {status}).",
                 })
         except Exception as e:
             results.append({
-                "test": "Bridge",
+                "test": "WhatsApp bridge",
                 "ok": False,
-                "message": f"Bridge not reachable: {format_error(e)}",
+                "message": f"Could not reach the local WhatsApp bridge: {format_error(e)}",
             })

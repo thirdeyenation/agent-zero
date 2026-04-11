@@ -13,6 +13,7 @@ from aiogram.types import Message as TgMessage, CallbackQuery
 from agent import AgentContext, UserMessage
 from helpers import plugins, files, projects
 from helpers import message_queue as mq
+from helpers import integration_commands
 from helpers.notification import NotificationManager, NotificationType, NotificationPriority
 from helpers.persist_chat import save_tmp_chat
 from helpers.print_style import PrintStyle
@@ -139,7 +140,8 @@ async def handle_start(message: TgMessage, bot_name: str, bot_cfg: dict):
         instance.bot.token, message.chat.id,
         f"\U0001f44b Hello {user.first_name}! I'm connected to Agent Zero.\n\n"
         "Send me a message and I'll process it.\n"
-        "Use /clear to reset the conversation.",
+        "Use /clear to reset the conversation.\n"
+        "Use /project, /config, or /send to control the current chat.",
         parse_mode=None,
     )
 
@@ -201,19 +203,23 @@ async def handle_message(message: TgMessage, bot_name: str, bot_cfg: dict):
     if not instance:
         return
 
-    # Start persistent typing indicator (thread-based, works across event loops)
-    typing_stop = _start_typing(instance.bot.token, message.chat.id)
-
-    # Get or create agent context
+    text = _extract_message_content(message)
     context = await _get_or_create_context(bot_name, bot_cfg, message)
     if not context:
-        typing_stop.set()
         await _send_with_temp_bot(
             instance.bot.token, message.chat.id,
             "Failed to create chat session.",
             parse_mode=None,
         )
         return
+
+    command_reply = integration_commands.try_handle_command(context, text)
+    if command_reply is not None:
+        await _send_with_temp_bot(instance.bot.token, message.chat.id, command_reply, parse_mode=None)
+        return
+
+    # Start persistent typing indicator (thread-based, works across event loops)
+    typing_stop = _start_typing(instance.bot.token, message.chat.id)
 
     # Store stop event so send_telegram_reply can cancel typing
     context.data[CTX_TG_TYPING_STOP] = typing_stop
@@ -226,9 +232,6 @@ async def handle_message(message: TgMessage, bot_name: str, bot_cfg: dict):
                 and message.reply_to_message.from_user.id == instance.bot_info.id):
             reply_to_id = message.message_id
     context.data[CTX_TG_REPLY_TO] = reply_to_id
-
-    # Build user message text
-    text = _extract_message_content(message)
 
     # Use temp bot for downloads (cross-event-loop safe)
     async with _temp_bot(instance.bot.token) as dl_bot:
@@ -287,6 +290,13 @@ async def handle_callback_query(query: CallbackQuery, bot_name: str, bot_cfg: di
         bot_name, bot_cfg, user.id, user.username, query.message.chat.id,
     )
     if not context:
+        return
+
+    command_reply = integration_commands.try_handle_command(context, text)
+    if command_reply is not None:
+        instance = get_bot(bot_name)
+        if instance:
+            await _send_with_temp_bot(instance.bot.token, query.message.chat.id, command_reply, parse_mode=None)
         return
 
     agent = context.agent0

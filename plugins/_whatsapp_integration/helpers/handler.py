@@ -13,6 +13,7 @@ import uuid
 from agent import Agent, AgentContext, UserMessage
 from helpers import plugins, files, runtime
 from helpers import message_queue as mq
+from helpers import integration_commands
 from helpers.persist_chat import save_tmp_chat
 from helpers.print_style import PrintStyle
 from helpers.errors import format_error
@@ -120,15 +121,15 @@ async def _dispatch_message(config: dict, msg: dict) -> None:
             PrintStyle.debug(f"WhatsApp: skipping group message (not mentioned or replied to)")
             return
 
-    # Show typing indicator immediately so user sees activity
-    port = int(config.get("bridge_port", 3100))
-    base_url = bridge_manager.get_bridge_url(port)
-    await wa_client.send_typing(base_url, chat_id)
-
     existing = _find_chats_by_jid(chat_id)
 
     if existing:
         # Continue most recent chat for this JID
+        if await _handle_control_message(config, msg, existing[0]):
+            return
+        port = int(config.get("bridge_port", 3100))
+        base_url = bridge_manager.get_bridge_url(port)
+        await wa_client.send_typing(base_url, chat_id)
         await _route_to_chat(msg, existing[0])
     else:
         await _start_new_chat(config, msg)
@@ -162,6 +163,13 @@ async def _start_new_chat(config: dict, msg: dict) -> None:
         projects.activate_project(context.id, project)
 
     save_tmp_chat(context)
+
+    if await _handle_control_message(config, msg, context.id, context=context):
+        return
+
+    port = int(config.get("bridge_port", 3100))
+    base_url = bridge_manager.get_bridge_url(port)
+    await wa_client.send_typing(base_url, chat_id)
 
     user_msg = _build_user_message(context.agent0, msg)
     system_ctx = context.agent0.read_prompt("fw.wa.system_context.md")
@@ -210,6 +218,38 @@ async def _route_to_chat(
 
     save_tmp_chat(context)
     PrintStyle.info(f"WhatsApp: continuing chat {context_id}")
+
+
+async def _handle_control_message(
+    config: dict,
+    msg: dict,
+    context_id: str,
+    *,
+    context: AgentContext | None = None,
+) -> bool:
+    text = msg.get("body", "") or ""
+    parsed = integration_commands.parse_command(text)
+    if not parsed:
+        return False
+
+    context = context or AgentContext.get(context_id)
+    if not context:
+        return False
+
+    response = integration_commands.try_handle_command(context, text)
+    if response is None:
+        return False
+
+    port = int(config.get("bridge_port", 3100))
+    base_url = bridge_manager.get_bridge_url(port)
+    chat_id = context.data.get(CTX_WA_CHAT_ID, "") or msg.get("chatId", "")
+    reply_to = msg.get("messageId", "") if context.data.get(CTX_WA_IS_GROUP) else ""
+
+    await wa_client.send_message(base_url, chat_id, response, reply_to=reply_to)
+    await wa_client.send_typing(base_url, chat_id, paused=True)
+    context.data[CTX_WA_TYPING_ACTIVE] = False
+    PrintStyle.info(f"WhatsApp: handled control command in chat {context.id}")
+    return True
 
 
 # ------------------------------------------------------------------

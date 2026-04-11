@@ -17,6 +17,9 @@ This plugin connects one or more Telegram bots to Agent Zero. Each bot runs inde
 - **Per-user chat sessions**
   - Each Telegram user gets a dedicated `AgentContext`, persisted across restarts via a JSON state file.
   - `/start` creates a context; `/clear` resets it.
+  - `/project <name>` switches the active project for the current chat.
+  - `/config <preset>` switches the active model preset for the current chat.
+  - `/send` or `/queue send` flushes the queued messages for the current chat.
 - **Group support**
   - Three modes: `mention` (respond only when @mentioned or replied to), `all` (respond to every message), `off` (private only).
   - Optional welcome message for new members.
