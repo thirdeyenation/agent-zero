@@ -25,6 +25,9 @@ docker run -p 80:80 agent0ai/agent-zero
 
 Once the install completes, open the URL shown in your terminal to access the Web UI. Follow the prompts in the CLI to set your port and authentication, complete onboarding, add your API key, then continue to [Step 3: Configure Agent Zero](#step-3-configure-agent-zero).
 
+> [!TIP]
+> Prefer a terminal-native workflow too? Install the optional [A0 CLI Connector](../guides/a0-cli-connector.md) from GitHub, then run `a0` to connect to this Agent Zero instance from your terminal.
+
 ---
 
 ## How to Update Agent Zero

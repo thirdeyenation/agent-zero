@@ -42,10 +42,19 @@ class Skill:
 def get_skills_dirs() -> List[Path]:
     """Get all skill directories"""
     base = Path(files.get_abs_path("usr", "skills"))
-    return [
+    roots = [
+        Path(files.get_abs_path("skills")),
+        base,
         base / "custom",
         base / "default",
     ]
+    seen: set[Path] = set()
+    ordered: List[Path] = []
+    for root in roots:
+        if root not in seen:
+            seen.add(root)
+            ordered.append(root)
+    return ordered
 
 
 def parse_skill_file(skill_path: Path) -> Optional[Skill]:

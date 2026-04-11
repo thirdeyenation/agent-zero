@@ -23,6 +23,34 @@ Follow the CLI prompts for port and authentication, complete onboarding, then op
 > [!NOTE]
 > For manual Docker Desktop setup, volume mapping, and platform-specific detail, see the [Installation Guide](setup/installation.md#manual-installation-advanced).
 
+## Use Agent Zero on your real local files
+
+If you want Agent Zero to work on the actual files on your computer, this is the important part.
+
+Agent Zero stays in Docker for safety. The A0 CLI installs and runs on your host machine. That host-side CLI is what lets Agent Zero work on the real files on your real computer.
+
+**macOS / Linux:**
+```bash
+curl -LsSf https://raw.githubusercontent.com/agent0ai/a0-connector/main/install.sh | sh
+```
+
+**Windows (PowerShell):**
+```powershell
+irm https://raw.githubusercontent.com/agent0ai/a0-connector/main/install.ps1 | iex
+```
+
+Run those on the host machine, not inside the Agent Zero container.
+
+Then launch:
+
+```bash
+a0
+```
+
+Once `a0` connects, open or create a chat there. That is the path that lets Agent Zero stay in Docker while still working on real local files on your machine.
+
+For the full setup flow, manual fallback install paths, remote-host tips, and a copy-ready brief for another agent, see the [A0 CLI Connector guide](guides/a0-cli-connector.md).
+
 ### Open the Web UI and configure your API key
 
 Open your browser and navigate to `http://localhost:<PORT>`. The Web UI will show the onboarding banner. Click Start Onboarding to set your AI models and API key.

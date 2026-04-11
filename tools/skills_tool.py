@@ -96,9 +96,9 @@ class SkillsTool(Tool):
         try:
             if method == "list":
                 return Response(message=self._list(), break_loop=False)
-            # if method == "search":
-            #     query = str(kwargs.get("query") or "").strip()
-            #     return Response(message=self._search(query), break_loop=False)
+            if method == "search":
+                query = str(kwargs.get("query") or "").strip()
+                return Response(message=self._search(query), break_loop=False)
             if method == "load":
                 skill_name = self._normalize_skill_name(
                     str(kwargs.get("skill_name") or "")
@@ -112,7 +112,7 @@ class SkillsTool(Tool):
             #     )
 
             return Response(
-                message="Error: missing/invalid 'method'. Supported: list, load.",
+                message="Error: missing/invalid 'method'. Supported: list, search, load.",
                 break_loop=False,
             )
         except (
@@ -144,30 +144,30 @@ class SkillsTool(Tool):
         lines.append("Tip: use skills_tool method=search or method=load for details.")
         return "\n".join(lines)
 
-    # def _search(self, query: str) -> str:
-    #     if not query:
-    #         return "Error: 'query' is required for method=search."
+    def _search(self, query: str) -> str:
+        if not query:
+            return "Error: 'query' is required for method=search."
 
-    #     results = skills_helper.search_skills(
-    #         query,
-    #         limit=25,
-    #         agent=self.agent,
-    #     )
-    #     if not results:
-    #         return f"No skills matched query: {query!r}"
+        results = skills_helper.search_skills(
+            query,
+            limit=25,
+            agent=self.agent,
+        )
+        if not results:
+            return f"No skills matched query: {query!r}"
 
-    #     lines: List[str] = []
-    #     lines.append(f"Skills matching {query!r} ({len(results)}):")
-    #     for s in results:
-    #         desc = (s.description or "").strip()
-    #         if len(desc) > 200:
-    #             desc = desc[:200].rstrip() + "…"
-    #         lines.append(f"- {s.name}: {desc}")
-    #     lines.append("")
-    #     lines.append(
-    #         "Tip: use skills_tool method=load skill_name=<name> to load full instructions."
-    #     )
-    #     return "\n".join(lines)
+        lines: List[str] = []
+        lines.append(f"Skills matching {query!r} ({len(results)}):")
+        for s in results:
+            desc = (s.description or "").strip()
+            if len(desc) > 200:
+                desc = desc[:200].rstrip() + "…"
+            lines.append(f"- {s.name}: {desc}")
+        lines.append("")
+        lines.append(
+            "Tip: use skills_tool method=load skill_name=<name> to load full instructions."
+        )
+        return "\n".join(lines)
 
     def _load(self, skill_name: str) -> str:
         skill_name = self._normalize_skill_name(skill_name)
