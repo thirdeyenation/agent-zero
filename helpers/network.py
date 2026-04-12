@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import ipaddress
+import os
 import socket
 import struct
 from urllib.parse import urljoin, urlparse
@@ -11,6 +12,7 @@ import requests
 
 SAFE_HTTP_SCHEMES = frozenset({"http", "https"})
 DEFAULT_FETCH_TIMEOUT = (3.05, 10.0)
+DEFAULT_HTTP_USER_AGENT = "@mixedbread-ai/unstructured"
 
 
 @dataclass(frozen=True)
@@ -23,6 +25,15 @@ class HttpFetchResult:
 
 class UnsafeUrlError(ValueError):
     """Raised when a remote URL resolves to a non-public destination."""
+
+
+def _build_request_headers() -> dict[str, str]:
+    user_agent = (
+        os.getenv("USER_AGENT")
+        or os.getenv("user_agent")
+        or DEFAULT_HTTP_USER_AGENT
+    ).strip()
+    return {"User-Agent": user_agent or DEFAULT_HTTP_USER_AGENT}
 
 
 def _normalize_content_type(content_type: str | None) -> str | None:
@@ -104,6 +115,7 @@ def fetch_public_http_resource(
                 current_url,
                 stream=True,
                 allow_redirects=False,
+                headers=_build_request_headers(),
                 timeout=timeout,
             ) as response:
                 if 300 <= response.status_code < 400:
