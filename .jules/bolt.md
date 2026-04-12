@@ -1,0 +1,3 @@
+## 2025-04-12 - Replaced slow character iteration in format_key with regex
+**Learning:** In `helpers/strings.py`, a loop performing character-by-character checking and concatenating strings (`formatted += c`) is heavily inefficient in Python due to O(N^2) object creation.
+**Action:** Replace manual character loops with compiled regular expressions (`re.compile`) wherever doing text sanitization or complex formatting to gain 2x speedups. When refactoring `isalnum()`, remember it handles Unicode, so `[^\w]|_` should be used instead of `[^a-zA-Z0-9]` to prevent regressions on non-ASCII characters.
