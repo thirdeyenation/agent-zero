@@ -2,6 +2,7 @@ import base64
 from io import BytesIO
 import mimetypes
 import os
+from pathlib import Path
 
 from flask import Response
 from helpers.api import ApiHandler, Input, Output, Request
@@ -85,6 +86,24 @@ def make_disposition(download_name: str) -> str:
     return f'attachment; filename="{ascii_fallback}"; filename*=UTF-8\'\'{utf8_name}'
 
 
+def resolve_download_path(path: str) -> str:
+    """Resolve a requested download path and keep it within the runtime base dir."""
+    base_dir = Path(files.get_base_dir()).resolve()
+    candidate = Path(path)
+
+    if candidate.is_absolute():
+        resolved = candidate.resolve()
+    else:
+        resolved = (base_dir / candidate).resolve()
+
+    try:
+        resolved.relative_to(base_dir)
+    except ValueError as exc:
+        raise ValueError("Invalid file path") from exc
+
+    return str(resolved)
+
+
 class DownloadFile(ApiHandler):
 
     @classmethod
@@ -97,6 +116,13 @@ class DownloadFile(ApiHandler):
             raise ValueError("No file path provided")
         if not file_path.startswith("/"):
             file_path = f"/{file_path}"
+
+        try:
+            file_path = await runtime.call_development_function(
+                resolve_download_path, file_path
+            )
+        except ValueError as exc:
+            return Response(str(exc), status=400)
 
         file = await runtime.call_development_function(
             file_info.get_file_info, file_path
