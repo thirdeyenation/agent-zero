@@ -102,16 +102,16 @@
 
               <!-- Chat Navigation Buttons (floating over chat area) -->
               <div id="chat-nav-buttons" aria-label="Chat navigation" x-cloak>
-                <button class="btn-icon-action" title="Scroll to top" @click="$store.chatNavigation.scrollToTop()">
+                <button class="btn-icon-action" title="Scroll to top" aria-label="Scroll to top" @click="$store.chatNavigation.scrollToTop()">
                   <span class="material-symbols-outlined">vertical_align_top</span>
                 </button>
-                <button class="btn-icon-action" title="Previous user message" @click="$store.chatNavigation.scrollToPrevUserMessage()">
+                <button class="btn-icon-action" title="Previous user message" aria-label="Previous user message" @click="$store.chatNavigation.scrollToPrevUserMessage()">
                   <span class="material-symbols-outlined">keyboard_arrow_up</span>
                 </button>
-                <button class="btn-icon-action" title="Next user message" @click="$store.chatNavigation.scrollToNextUserMessage()">
+                <button class="btn-icon-action" title="Next user message" aria-label="Next user message" @click="$store.chatNavigation.scrollToNextUserMessage()">
                   <span class="material-symbols-outlined">keyboard_arrow_down</span>
                 </button>
-                <button class="btn-icon-action" title="Scroll to bottom" @click="$store.chatNavigation.scrollToBottom()">
+                <button class="btn-icon-action" title="Scroll to bottom" aria-label="Scroll to bottom" @click="$store.chatNavigation.scrollToBottom()">
                   <span class="material-symbols-outlined">vertical_align_bottom</span>
                 </button>
               </div>

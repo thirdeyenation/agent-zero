@@ -103,10 +103,10 @@
                             </button>
                           </div>
                         </div>
-                        <button class="btn-icon-action" x-show="!file.is_dir" @click.stop="$store.fileBrowser.downloadFile(file)" title="Download file">
+                        <button class="btn-icon-action" x-show="!file.is_dir" aria-label="Download file" @click.stop="$store.fileBrowser.downloadFile(file)" title="Download file">
                           <span class="material-symbols-outlined">download</span>
                         </button>
-                        <button class="btn-icon-action" @click.stop="$confirmClick($event, () => $store.fileBrowser.deleteFile(file))" title="Delete item">
+                        <button class="btn-icon-action" aria-label="Delete item" @click.stop="$confirmClick($event, () => $store.fileBrowser.deleteFile(file))" title="Delete item">
                           <span class="material-symbols-outlined">delete</span>
                         </button>
                       </div>
