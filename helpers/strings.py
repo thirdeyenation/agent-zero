@@ -96,22 +96,20 @@ def calculate_valid_match_lengths(first: bytes | str, second: bytes | str,
     # Return the last matched positions instead of the current indices
     return last_matched_i, last_matched_j
 
+_NON_ALPHANUM_RE = re.compile(r'[^\w]|_')
+_CAMEL_CASE_RE = re.compile(r'([a-z])([A-Z])')
+
 def format_key(key: str) -> str:
     """Format a key string to be more readable.
-    Converts camelCase and snake_case to Title Case with spaces."""
-    # First replace non-alphanumeric with spaces
-    result = ''.join(' ' if not c.isalnum() else c for c in key)
+    Converts camelCase and snake_case to Title Case with spaces.
+    Optimized to use regex instead of character-by-character building."""
+    # Handle camelCase by inserting a space
+    key = _CAMEL_CASE_RE.sub(r'\1 \2', key)
+    # Replace non-alphanumeric with spaces (unicode aware)
+    key = _NON_ALPHANUM_RE.sub(' ', key)
     
-    # Handle camelCase
-    formatted = ''
-    for i, c in enumerate(result):
-        if i > 0 and c.isupper() and result[i-1].islower():
-            formatted += ' ' + c
-        else:
-            formatted += c
-            
     # Split on spaces and capitalize each word
-    return ' '.join(word.capitalize() for word in formatted.split())
+    return ' '.join(word.capitalize() for word in key.split())
 
 def dict_to_text(d: dict) -> str:
     parts = []
