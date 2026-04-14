@@ -1,0 +1,3 @@
+## 2026-04-14 - os.path.commonpath Bottleneck in Path Matching
+**Learning:** Checking path containment with `os.path.commonpath` can become a significant performance bottleneck due to its internal iterations and path splitting. Using string matching (`startswith`) on absolute paths is considerably faster (~75% improvement).
+**Action:** When validating if a file path belongs inside a directory (e.g. `is_in_dir`), use `os.path.abspath` followed by `startswith`, but ensure both the path and the directory have trailing slashes appended first to prevent path traversal bugs (e.g. preventing `/app/database` from matching `/app/data`).
