@@ -1,0 +1,3 @@
+## 2025-02-14 - Redundant ARIA Labels
+**Learning:** Adding `aria-label` attributes to buttons that already contain visible text elements (e.g., `<span>Clear Chat</span>`) is slightly redundant for screen readers, as they typically read the inner text content anyway. This is not harmful, but can result in duplicate announcements.
+**Action:** When adding accessibility attributes to buttons, prioritize strictly icon-only buttons. For buttons with both an icon and text, rely on the visible text for the accessible name instead of adding an `aria-label` unless it needs to differ significantly from the visual text.
