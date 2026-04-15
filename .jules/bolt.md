@@ -1,0 +1,3 @@
+## 2024-03-08 - Path Containment Check Bottleneck
+**Learning:** `os.path.commonpath` is remarkably slow for frequent, hot-path validation checks due to its internal string splitting and list allocations. It became a noticeable bottleneck when scanning many files/directories during resolution.
+**Action:** Use normalized path comparisons with `os.path.abspath` and string matching via `str.startswith()` instead of `commonpath`. Ensure a trailing `os.sep` is appended to the root absolute directory before comparison to prevent path traversal exploits where `/app/database` incorrectly matches `/app/data`.
