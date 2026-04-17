@@ -651,9 +651,21 @@ def is_in_base_dir(path: str):
 
 def is_in_dir(path: str, dir: str):
     # check if the given path is within the directory
+    # optimized to use startswith instead of commonpath to avoid list allocations
     abs_path = os.path.abspath(path)
     abs_dir = os.path.abspath(dir)
-    return os.path.commonpath([abs_path, abs_dir]) == abs_dir
+
+    # Pad directory with trailing slash for safe containment check
+    if not abs_dir.endswith(os.sep):
+        abs_dir += os.sep
+
+    # Pad path with trailing slash if needed
+    if not abs_path.endswith(os.sep):
+        abs_path_with_sep = abs_path + os.sep
+    else:
+        abs_path_with_sep = abs_path
+
+    return abs_path_with_sep.startswith(abs_dir)
 
 
 def get_subdirectories(
