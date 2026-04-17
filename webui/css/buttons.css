@@ -229,6 +229,12 @@
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-primary) 20%, transparent);
 }
 
+.btn-icon-action:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  background-color: var(--color-background-hover);
+}
+
 .btn-icon-action:active {
   background-color: var(--color-background-hover);
   color: var(--color-primary);
