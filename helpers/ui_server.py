@@ -201,10 +201,17 @@ class UiRouteHandlers:
     async def login_handler(self):
         error = None
         if request.method == "POST":
-            user = dotenv.get_dotenv_value("AUTH_LOGIN")
-            password = dotenv.get_dotenv_value("AUTH_PASSWORD")
+            env_user = dotenv.get_dotenv_value("AUTH_LOGIN")
+            env_pass = dotenv.get_dotenv_value("AUTH_PASSWORD")
 
-            if request.form["username"] == user and request.form["password"] == password:
+            form_user = request.form.get("username", "")
+            form_pass = request.form.get("password", "")
+
+            # Use secrets.compare_digest for secure comparison
+            valid_user = isinstance(env_user, str) and isinstance(form_user, str) and secrets.compare_digest(form_user, env_user)
+            valid_pass = isinstance(env_pass, str) and isinstance(form_pass, str) and secrets.compare_digest(form_pass, env_pass)
+
+            if valid_user and valid_pass:
                 session["authentication"] = login.get_credentials_hash()
                 return redirect(url_for("serve_index"))
             else:
