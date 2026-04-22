@@ -11,7 +11,7 @@
 <body>
   <template x-if="$store.chatInput">
     <div class="chat-bottom-actions-menu">
-      <label class="chat-bottom-menu-item" @click.stop>
+      <label class="chat-bottom-menu-item" @click.stop tabindex="0" @keydown.enter="$el.click()" @keydown.space.prevent="$el.click()">
         <input
           type="file"
           id="chat-file-input"
@@ -110,10 +110,14 @@
       border: 0;
       opacity: 0;
     }
+
     button.chat-bottom-menu-item:hover:not(:disabled),
-    label.chat-bottom-menu-item:hover {
+    button.chat-bottom-menu-item:focus-visible:not(:disabled),
+    label.chat-bottom-menu-item:hover,
+    label.chat-bottom-menu-item:focus-visible {
       opacity: 1;
       background-color: var(--color-background-hover);
+      outline: none;
     }
     button.chat-bottom-menu-item:active:not(:disabled) { opacity: 0.72; }
     label.chat-bottom-menu-item:active { opacity: 0.72; }

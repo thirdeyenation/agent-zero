@@ -61,10 +61,13 @@
       align-items: center;
       gap: var(--spacing-xs);
     }
-    .text-button:hover:not(:disabled) {
+
+    .text-button:hover:not(:disabled),
+    .text-button:focus-visible:not(:disabled) {
       opacity: 1;
       background-color: var(--color-background-hover);
       border-radius: 4px;
+      outline: none;
     }
     .text-button:active:not(:disabled) { opacity: 0.5; }
     .text-button:disabled {
