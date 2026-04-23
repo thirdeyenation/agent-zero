@@ -1,0 +1,4 @@
+## 2024-04-23 - Timing Attack Vulnerability in Authentication Decorators
+**Vulnerability:** The API decorators `requires_api_key`, `requires_auth`, and `csrf_protect` in `helpers/api.py` were using basic string equality operators (`!=`, `==`) to compare secrets (API keys, session hashes, and CSRF tokens) which exposes the application to timing attacks.
+**Learning:** Using basic equality comparisons for secure keys allows an attacker to measure the time it takes for a comparison to fail, potentially exposing the secret byte by byte.
+**Prevention:** Always use `secrets.compare_digest()` for comparing security-sensitive strings (like API keys, webhook secrets, CSRF tokens, and authentication hashes). Ensure both arguments are explicitly checked as strings and handle `None` gracefully to prevent `TypeError` exceptions during comparisons.
