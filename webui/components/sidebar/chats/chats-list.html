@@ -32,7 +32,7 @@
                   <span class="chat-name"
                     x-text="context.name ? context.name : 'Chat #' + context.no"></span>
                 </div>
-                <button class="btn-icon-action chat-list-action-btn" title="Close chat" @click.stop="$confirmClick($event, () => $store.chats.killChat(context.id))">
+                <button class="btn-icon-action chat-list-action-btn" title="Close chat" @click.stop="$confirmClick($event, () => $store.chats.killChat(context.id))" aria-label="Close chat">
                   <span class="material-symbols-outlined">close</span>
                 </button>
               </div>

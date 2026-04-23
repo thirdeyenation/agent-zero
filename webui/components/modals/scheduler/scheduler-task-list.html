@@ -54,7 +54,7 @@
 
                 <!-- Pagination -->
                 <div class="status-pagination" x-show="$store.schedulerStore.totalPages > 1">
-                    <button class="btn btn-icon" @click="$store.schedulerStore.prevPage()"
+                    <button class="btn btn-icon" @click="$store.schedulerStore.prevPage()" aria-label="Previous page"
                         :disabled="$store.schedulerStore.currentPage === 1" title="Previous Page">
                         <span class="material-symbols-outlined">chevron_left</span>
                     </button>
@@ -68,7 +68,7 @@
                         <span class="page-total">of <strong
                                 x-text="$store.schedulerStore.totalPages"></strong></span>
                     </div>
-                    <button class="btn btn-icon" @click="$store.schedulerStore.nextPage()"
+                    <button class="btn btn-icon" @click="$store.schedulerStore.nextPage()" aria-label="Next page"
                         :disabled="$store.schedulerStore.currentPage === $store.schedulerStore.totalPages"
                         title="Next Page">
                         <span class="material-symbols-outlined">chevron_right</span>
@@ -172,7 +172,7 @@
                 </div>
 
                 <div class="status-pagination">
-                    <button class="btn btn-icon" @click="$store.schedulerStore.prevPage()"
+                    <button class="btn btn-icon" @click="$store.schedulerStore.prevPage()" aria-label="Previous page"
                         :disabled="$store.schedulerStore.currentPage === 1" title="Previous Page">
                         <span class="material-symbols-outlined">chevron_left</span>
                     </button>
@@ -186,7 +186,7 @@
                         <span class="page-total">of <strong
                                 x-text="$store.schedulerStore.totalPages"></strong></span>
                     </div>
-                    <button class="btn btn-icon" @click="$store.schedulerStore.nextPage()"
+                    <button class="btn btn-icon" @click="$store.schedulerStore.nextPage()" aria-label="Next page"
                         :disabled="$store.schedulerStore.currentPage === $store.schedulerStore.totalPages"
                         title="Next Page">
                         <span class="material-symbols-outlined">chevron_right</span>
