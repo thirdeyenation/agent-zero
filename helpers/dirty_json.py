@@ -349,5 +349,6 @@ class DirtyJson:
 
     def get_start_pos(self, input_str: str) -> int:
         chars = ["{", "[", '"']
-        indices = [input_str.find(char) for char in chars if input_str.find(char) != -1]
+        # ⚡ Bolt: Use walrus operator to avoid calling find() twice, halving search time for large strings
+        indices = [idx for char in chars if (idx := input_str.find(char)) != -1]
         return min(indices) if indices else 0
