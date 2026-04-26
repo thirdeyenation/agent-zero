@@ -1,0 +1,4 @@
+## 2024-05-24 - Fix Path Traversal in API Files Get
+**Vulnerability:** The `/api_files_get` API endpoint allowed arbitrary file retrieval from the file system. It took file paths provided directly by clients and constructed an `external_path`. If it didn't start with `/a0/`, it assumed the path was an external or absolute path and resolved it. This allowed attackers to request paths like `../../../../etc/passwd` or `/etc/passwd`.
+**Learning:** Functions translating relative to absolute paths should always enforce that the resulting absolute path stays within intended application bounds. Relying on default relative path combinations without validating containment creates critical path traversal risks.
+**Prevention:** Always use `os.path.abspath()` on the final constructed path and ensure it `.startswith(base_dir + os.sep)` to securely bound filesystem access.
