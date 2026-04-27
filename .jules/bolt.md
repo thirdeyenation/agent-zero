@@ -1,0 +1,3 @@
+## 2024-05-24 - os.path.commonpath performance bottleneck
+**Learning:** `os.path.commonpath` can be a significant bottleneck for path containment checks due to internal list allocations and path splitting.
+**Action:** Use `os.path.abspath` and `str.startswith()`, ensuring that a trailing `os.sep` is appended to the absolute directory (and path, if needed) before comparison to prevent path traversal bugs (e.g., preventing `/app/database` from matching `/app/data`).
