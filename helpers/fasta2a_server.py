@@ -2,6 +2,7 @@
 import asyncio
 import uuid
 import atexit
+import secrets
 from typing import Any, List
 import contextlib
 import threading
@@ -457,7 +458,7 @@ class DynamicA2AProxy:
             cfg = settings.get_settings()
             expected_token = cfg.get("mcp_server_token")
 
-            if expected_token and request_token != expected_token:
+            if expected_token and (not isinstance(request_token, str) or not isinstance(expected_token, str) or not secrets.compare_digest(request_token, expected_token)):
                 # Invalid token, return 401
                 await send({
                     'type': 'http.response.start',
