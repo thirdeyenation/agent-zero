@@ -1,5 +1,6 @@
 import os
 import asyncio
+import secrets
 from typing import Annotated, Literal, Union
 from urllib.parse import urlparse
 from openai import BaseModel
@@ -313,7 +314,7 @@ class DynamicMcpProxy:
         return DynamicMcpProxy._instance
 
     def reconfigure(self, token: str):
-        if self.token == token:
+        if isinstance(self.token, str) and isinstance(token, str) and secrets.compare_digest(self.token, token):
             return
 
         self.token = token

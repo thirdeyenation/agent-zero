@@ -1,5 +1,6 @@
 import hashlib
 import hmac
+import secrets
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives import serialization, hashes
 import os
@@ -10,7 +11,8 @@ def hash_data(data: str, password: str):
 
 
 def verify_data(data: str, hash: str, password: str):
-    return hash_data(data, password) == hash
+    computed_hash = hash_data(data, password)
+    return isinstance(computed_hash, str) and isinstance(hash, str) and secrets.compare_digest(computed_hash, hash)
 
 
 def _generate_private_key():
