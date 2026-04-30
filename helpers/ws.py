@@ -1,6 +1,7 @@
 import os
 import threading
 import uuid
+import secrets
 from abc import abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
@@ -400,15 +401,15 @@ def _check_security(handler_cls: type[WsHandler], ctx: _SecurityContext) -> dict
     if handler_cls.requires_csrf():
         if not ctx.csrf_token:
             return {"code": "CSRF_MISSING", "error": "CSRF token not initialised"}
-        if not ctx.client_csrf_token or ctx.client_csrf_token != ctx.csrf_token:
+        if not ctx.client_csrf_token or not (isinstance(ctx.client_csrf_token, str) and isinstance(ctx.csrf_token, str) and secrets.compare_digest(ctx.client_csrf_token, ctx.csrf_token)):
             return {"code": "CSRF_INVALID", "error": "CSRF token missing or invalid"}
-        if ctx.csrf_cookie != ctx.csrf_token:
+        if not (isinstance(ctx.csrf_cookie, str) and isinstance(ctx.csrf_token, str) and secrets.compare_digest(ctx.csrf_cookie, ctx.csrf_token)):
             return {"code": "CSRF_COOKIE", "error": "CSRF cookie mismatch"}
 
     if handler_cls.requires_api_key():
         from helpers.settings import get_settings
         valid_key = get_settings().get("mcp_server_token")
-        if not ctx.api_key or ctx.api_key != valid_key:
+        if not ctx.api_key or not (isinstance(ctx.api_key, str) and isinstance(valid_key, str) and secrets.compare_digest(ctx.api_key, valid_key)):
             return {"code": "API_KEY_REQUIRED", "error": "API key required"}
 
     return None
