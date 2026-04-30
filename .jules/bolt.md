@@ -1,0 +1,3 @@
+## 2024-05-18 - Optimize path containment check with string operations
+**Learning:** Using `os.path.commonpath` for simple path containment checks is an unexpected performance bottleneck due to its internal list allocations and path splitting operations. In environments with deep path structures and frequent access checks, this can slow down operations noticeably.
+**Action:** Replace `os.path.commonpath` with `os.path.abspath` coupled with `str.startswith()`. Always ensure to append a trailing `os.sep` to the base directory before the `startswith` comparison to prevent path traversal issues (e.g., matching `/app/database` when `/app/data` is the intended directory).
