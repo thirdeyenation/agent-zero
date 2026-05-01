@@ -34,9 +34,13 @@ class TelegramWebhook(ApiHandler):
             return Response(f"Bot not found: {bot_name}", 404)
 
         # Verify webhook secret if configured
+        import secrets
         secret_header = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
-        if instance.webhook_secret and secret_header != instance.webhook_secret:
-            return Response("Invalid secret token", 403)
+        if instance.webhook_secret:
+            if not isinstance(secret_header, str) or not isinstance(instance.webhook_secret, str):
+                return Response("Invalid secret token", 403)
+            if not secrets.compare_digest(secret_header, instance.webhook_secret):
+                return Response("Invalid secret token", 403)
 
         # Parse and feed the update to aiogram
         try:
