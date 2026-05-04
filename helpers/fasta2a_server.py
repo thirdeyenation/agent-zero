@@ -1,5 +1,6 @@
 # noqa: D401 (docstrings) – internal helper
 import asyncio
+import secrets
 import uuid
 import atexit
 from typing import Any, List
@@ -457,7 +458,7 @@ class DynamicA2AProxy:
             cfg = settings.get_settings()
             expected_token = cfg.get("mcp_server_token")
 
-            if expected_token and request_token != expected_token:
+            if expected_token and not secrets.compare_digest(str(request_token or ""), str(expected_token or "")):
                 # Invalid token, return 401
                 await send({
                     'type': 'http.response.start',

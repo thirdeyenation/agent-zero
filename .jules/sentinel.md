@@ -1,0 +1,4 @@
+## 2025-02-28 - Timing Attack Vulnerability in Authentication
+ **Vulnerability:** Standard equality operators (`==` and `!=`) were used for sensitive string comparisons (passwords, API keys, CSRF tokens, webhook secrets), exposing the system to timing attacks.
+ **Learning:** Standard string comparisons terminate early upon encountering the first mismatched character. This allows attackers to theoretically infer valid tokens character by character by measuring the exact time taken by the server to reject incorrect tokens.
+ **Prevention:** Always use `secrets.compare_digest` for validating authentication tokens, hashes, and secrets. When replacing `==` or `!=`, explicitly cast operands to strings handling `None` values (e.g., `secrets.compare_digest(str(a or ""), str(b or ""))`) to prevent `TypeError`s, and ensure necessary modules (like `secrets`) are imported globally.

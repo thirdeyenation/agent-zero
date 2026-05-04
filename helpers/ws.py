@@ -1,5 +1,6 @@
 import os
 import threading
+import secrets
 import uuid
 from abc import abstractmethod
 from dataclasses import dataclass
@@ -394,21 +395,21 @@ def _check_security(handler_cls: type[WsHandler], ctx: _SecurityContext) -> dict
     if handler_cls.requires_auth():
         from helpers import login
         user_pass_hash = login.get_credentials_hash()
-        if user_pass_hash and ctx.auth_hash != user_pass_hash:
+        if user_pass_hash and not secrets.compare_digest(str(ctx.auth_hash or ""), str(user_pass_hash or "")):
             return {"code": "AUTH_REQUIRED", "error": "Authentication required"}
 
     if handler_cls.requires_csrf():
         if not ctx.csrf_token:
             return {"code": "CSRF_MISSING", "error": "CSRF token not initialised"}
-        if not ctx.client_csrf_token or ctx.client_csrf_token != ctx.csrf_token:
+        if not ctx.client_csrf_token or not secrets.compare_digest(str(ctx.client_csrf_token or ""), str(ctx.csrf_token or "")):
             return {"code": "CSRF_INVALID", "error": "CSRF token missing or invalid"}
-        if ctx.csrf_cookie != ctx.csrf_token:
+        if not secrets.compare_digest(str(ctx.csrf_cookie or ""), str(ctx.csrf_token or "")):
             return {"code": "CSRF_COOKIE", "error": "CSRF cookie mismatch"}
 
     if handler_cls.requires_api_key():
         from helpers.settings import get_settings
         valid_key = get_settings().get("mcp_server_token")
-        if not ctx.api_key or ctx.api_key != valid_key:
+        if not ctx.api_key or not secrets.compare_digest(str(ctx.api_key or ""), str(valid_key or "")):
             return {"code": "API_KEY_REQUIRED", "error": "API key required"}
 
     return None
