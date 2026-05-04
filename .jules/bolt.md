@@ -1,0 +1,3 @@
+## 2024-05-19 - Fast Path Containment Checks
+**Learning:** `os.path.commonpath` can be a performance bottleneck due to internal list allocations and path splitting, especially when checked repeatedly for path containment (e.g., verifying if a file is within a base directory or plugin directory).
+**Action:** Replace `os.path.commonpath` with string comparisons like `abs_path == abs_dir or abs_path.startswith(abs_dir + ('' if abs_dir.endswith(os.sep) else os.sep))` after making paths absolute. This handles edge cases correctly (like trailing slashes and common prefixes like `/a/bc` vs `/a/b`) and is significantly faster.
