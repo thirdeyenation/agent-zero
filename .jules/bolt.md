@@ -1,0 +1,3 @@
+## 2024-06-25 - Avoid os.path.commonpath for hot path checking
+**Learning:** `os.path.commonpath` in Python is unexpectedly slow for frequent path containment checks because it internally splits path strings into lists of components and iterates over them, allocating memory along the way.
+**Action:** When a high-performance path containment check is needed (like checking if a path is inside a base directory repeatedly), normalize the paths with `os.path.abspath` and use `str.startswith()` instead. Be careful to conditionally append the OS directory separator (`os.sep`) to the target directory before checking `startswith` to avoid partial-match traversal bugs (e.g., `/app/data-backup` matching `/app/data`).
