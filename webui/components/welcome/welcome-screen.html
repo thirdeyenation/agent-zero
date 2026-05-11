@@ -59,8 +59,9 @@
                                 class="welcome-refresh-button"
                                 @click="$store.welcomeStore.refreshBanners(true)"
                                 :disabled="$store.welcomeStore.bannersLoading"
-                                title="Refresh banners">
-                            <span class="material-symbols-outlined" :class="{ 'welcome-spin': $store.welcomeStore.bannersLoading }">refresh</span>
+                                title="Refresh banners"
+                                aria-label="Refresh banners">
+                            <span class="material-symbols-outlined" aria-hidden="true" :class="{ 'welcome-spin': $store.welcomeStore.bannersLoading }">refresh</span>
                         </button>
 
                         <button type="button"
@@ -68,8 +69,9 @@
                                 @click="$store.welcomeStore.undismissBanners()"
                                 x-show="$store.welcomeStore.hasDismissedBanners"
                                 :disabled="$store.welcomeStore.bannersLoading"
-                                title="Undismiss all banners">
-                            <span class="material-symbols-outlined">undo</span>
+                                title="Undismiss all banners"
+                                aria-label="Undismiss all banners">
+                            <span class="material-symbols-outlined" aria-hidden="true">undo</span>
                         </button>
                     </div>
 
@@ -93,8 +95,9 @@
                                 <button class="welcome-banner-dismiss" 
                                         x-show="banner.dismissible !== false"
                                         @click.stop="$store.welcomeStore.dismissBanner(banner.id)"
-                                        title="Dismiss">
-                                    <span class="material-symbols-outlined">close</span>
+                                        title="Dismiss"
+                                        aria-label="Dismiss">
+                                    <span class="material-symbols-outlined" aria-hidden="true">close</span>
                                 </button>
                             </div>
                         </template>
