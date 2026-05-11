@@ -653,7 +653,9 @@ def is_in_dir(path: str, dir: str):
     # check if the given path is within the directory
     abs_path = os.path.abspath(path)
     abs_dir = os.path.abspath(dir)
-    return os.path.commonpath([abs_path, abs_dir]) == abs_dir
+    # Optimization: Avoid os.path.commonpath which uses internal list allocations and path splitting.
+    # Instead, use faster string matching while preventing path traversal bugs.
+    return abs_path == abs_dir or abs_path.startswith(abs_dir + ('' if abs_dir.endswith(os.sep) else os.sep))
 
 
 def get_subdirectories(
