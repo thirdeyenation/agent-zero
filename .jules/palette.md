@@ -1,0 +1,3 @@
+## 2024-05-14 - Google Material Icons Accessibility
+**Learning:** Google Material Icons rely on ligature text (e.g., `content_copy` or `close`) inside `<span class="material-symbols-outlined">`. Without `aria-hidden="true"`, screen readers will announce this literal ligature text to users, causing severe confusion. The `title` attribute is insufficient for accessibility as some screen reader configurations ignore it.
+**Action:** When adding `aria-label` to icon-only action buttons, always ensure the inner icon element (e.g., `<span class="material-symbols-outlined">`) is explicitly marked with `aria-hidden="true"`.
