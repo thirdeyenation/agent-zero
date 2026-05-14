@@ -31,12 +31,12 @@ export function showConfirmDialog(options) {
     dialog.innerHTML = `
       <div class="confirm-dialog-header">
         <span class="confirm-dialog-icon material-symbols-outlined" style="color: ${typeConfig.color}">${typeConfig.icon}</span>
-        <span class="confirm-dialog-title">${title}</span>
+        <span class="confirm-dialog-title"></span>
       </div>
-      <div class="confirm-dialog-body">${message}</div>
+      <div class="confirm-dialog-body"></div>
       <div class="confirm-dialog-footer">
-        <button class="button cancel confirm-dialog-cancel">${cancelText}</button>
-        <button class="button confirm confirm-dialog-confirm">${confirmText}</button>
+        <button class="button cancel confirm-dialog-cancel"></button>
+        <button class="button confirm confirm-dialog-confirm"></button>
       </div>
     `;
 
@@ -48,6 +48,11 @@ export function showConfirmDialog(options) {
     const footerElement = dialog.querySelector('.confirm-dialog-footer');
     const cancelButton = dialog.querySelector('.confirm-dialog-cancel');
     const confirmButton = dialog.querySelector('.confirm-dialog-confirm');
+
+    titleElement.textContent = title;
+    bodyElement.textContent = message;
+    cancelButton.textContent = cancelText;
+    confirmButton.textContent = confirmText;
     let isClosed = false;
 
     // Show with animation
