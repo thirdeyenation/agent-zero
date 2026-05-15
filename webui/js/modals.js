@@ -171,7 +171,7 @@ export async function openModal(modalPath, beforeClose = null) {
       importComponent(componentPath, modal.body)
         .then((doc) => {
           // Set the title from the document
-          modal.title.innerHTML = doc.title || modalPath;
+          modal.title.textContent = doc.title || modalPath;
           if (doc.html && doc.html.classList) {
             const inner = modal.element.querySelector(".modal-inner");
             if (inner) inner.classList.add(...doc.html.classList);
@@ -194,7 +194,11 @@ export async function openModal(modalPath, beforeClose = null) {
         })
         .catch((error) => {
           console.error("Error loading modal content:", error);
-          modal.body.innerHTML = `<div class="error">Failed to load modal content: ${error.message}</div>`;
+          modal.body.innerHTML = '';
+          const errorDiv = document.createElement('div');
+          errorDiv.className = 'error';
+          errorDiv.textContent = `Failed to load modal content: ${error.message}`;
+          modal.body.appendChild(errorDiv);
         });
 
       // Add modal to stack and show it
