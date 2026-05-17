@@ -44,14 +44,14 @@
 
                 <!-- Fixed zoom controls - OUTSIDE the canvas -->
                 <div class="zoom-controls">
-                    <button type="button" @click="$store.imageViewer.zoomOut()" class="button zoom-btn">
-                        <span class="icon material-symbols-outlined">zoom_out</span>
+                    <button type="button" @click="$store.imageViewer.zoomOut()" class="button zoom-btn" aria-label="Zoom out" title="Zoom out">
+                        <span class="icon material-symbols-outlined" aria-hidden="true">zoom_out</span>
                     </button>
-                    <button type="button" @click="$store.imageViewer.resetZoom()" class="button zoom-btn">
-                        <span class="icon material-symbols-outlined">home</span>
+                    <button type="button" @click="$store.imageViewer.resetZoom()" class="button zoom-btn" aria-label="Reset zoom" title="Reset zoom">
+                        <span class="icon material-symbols-outlined" aria-hidden="true">home</span>
                     </button>
-                    <button type="button" @click="$store.imageViewer.zoomIn()" class="button zoom-btn">
-                        <span class="icon material-symbols-outlined">zoom_in</span>
+                    <button type="button" @click="$store.imageViewer.zoomIn()" class="button zoom-btn" aria-label="Zoom in" title="Zoom in">
+                        <span class="icon material-symbols-outlined" aria-hidden="true">zoom_in</span>
                     </button>
                 </div>
             </div>

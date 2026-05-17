@@ -75,9 +75,9 @@
                                         @click="$store.skillsListStore.openSkill(skill)">
                                         <span class="icon material-symbols-outlined">folder_open</span> Open
                                     </button>
-                                    <button type="button" class="button cancel icon-button" title="Delete"
+                                    <button type="button" class="button cancel icon-button" title="Delete" aria-label="Delete"
                                         @click="$confirmClick($event, () => $store.skillsListStore.deleteSkill(skill))">
-                                        <span class="icon material-symbols-outlined">delete</span>
+                                        <span class="icon material-symbols-outlined" aria-hidden="true">delete</span>
                                     </button>
                                 </div>
                             </div>
