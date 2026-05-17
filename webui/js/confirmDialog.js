@@ -1,6 +1,7 @@
 // Custom confirmation dialog. CSS in /css/modals.css
 
 import { callJsExtensions } from "/js/extensions.js";
+import { sanitizeHtml } from "/js/safe-markdown.js";
 
 const DIALOG_TYPES = {
   warning: { icon: 'warning', color: 'var(--color-warning, #f59e0b)' },
@@ -31,12 +32,12 @@ export function showConfirmDialog(options) {
     dialog.innerHTML = `
       <div class="confirm-dialog-header">
         <span class="confirm-dialog-icon material-symbols-outlined" style="color: ${typeConfig.color}">${typeConfig.icon}</span>
-        <span class="confirm-dialog-title">${title}</span>
+        <span class="confirm-dialog-title">${sanitizeHtml(title)}</span>
       </div>
-      <div class="confirm-dialog-body">${message}</div>
+      <div class="confirm-dialog-body">${sanitizeHtml(message)}</div>
       <div class="confirm-dialog-footer">
-        <button class="button cancel confirm-dialog-cancel">${cancelText}</button>
-        <button class="button confirm confirm-dialog-confirm">${confirmText}</button>
+        <button class="button cancel confirm-dialog-cancel">${sanitizeHtml(cancelText)}</button>
+        <button class="button confirm confirm-dialog-confirm">${sanitizeHtml(confirmText)}</button>
       </div>
     `;
 
