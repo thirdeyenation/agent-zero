@@ -50,8 +50,8 @@
                                     <span class="icon material-symbols-outlined">edit</span>
                                     Edit
                                 </button>
-                                <button type="button" class="button cancel icon-button" title="Delete" @click="$confirmClick($event, () => $store.pluginToggle.deleteConfig(cfg.path))">
-                                    <span class="icon material-symbols-outlined">delete</span>
+                                <button type="button" class="button cancel icon-button" title="Delete" aria-label="Delete" @click="$confirmClick($event, () => $store.pluginToggle.deleteConfig(cfg.path))">
+                                    <span class="icon material-symbols-outlined" aria-hidden="true">delete</span>
                                 </button>
                             </div>
                         </div>
