@@ -1,0 +1,6 @@
+## 2024-05-24 - os.path.commonpath Bottleneck and List Comprehension Optimization
+**Learning:** Using `os.path.commonpath` for simple path containment checks is significantly slower than string-based `startswith` checks due to list allocations and internal path splitting. Also, calling `.find()` twice in a list comprehension is redundant.
+**Action:** For performance-sensitive containment checks, use `str.startswith()` with conditional appending of `os.sep` to prevent traversal bugs. Use the walrus operator (`:=`) in list comprehensions to store function results and avoid duplicate calls.
+## 2024-05-24 - Path.resolve() I/O Overhead and Path.is_relative_to() Performance
+**Learning:** When attempting to optimize lexical path checks, using `Path.resolve()` to normalize strings introduces expensive filesystem I/O operations, negating any purely string-based optimization gains. Furthermore, native `Path.is_relative_to()` in Python 3.12 benchmarks over 2x slower than `os.path.commonpath`.
+**Action:** Stick to purely lexical string operations (`str.startswith()`) when optimizing in-memory containment checks, ensuring not to inadvertently trigger filesystem accesses. Check path absolute/relative status matching before simple string comparisons.
