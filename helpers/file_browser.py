@@ -29,6 +29,11 @@ class FileBrowser:
         base_dir = "/"
         self.base_dir = Path(base_dir)
 
+    def _is_in_base_dir(self, path: Path) -> bool:
+        abs_path = os.path.abspath(path)
+        abs_base = os.path.abspath(self.base_dir)
+        return abs_path == abs_base or abs_path.startswith(abs_base + ("" if abs_base.endswith(os.sep) else os.sep))
+
     def _check_file_size(self, file) -> bool:
         try:
             file.seek(0, os.SEEK_END)
@@ -42,7 +47,7 @@ class FileBrowser:
         try:
             # Resolve the target directory path
             target_file = (self.base_dir / current_path / filename).resolve()
-            if not str(target_file).startswith(str(self.base_dir)):
+            if not self._is_in_base_dir(target_file):
                 raise ValueError("Invalid target directory")
 
             os.makedirs(target_file.parent, exist_ok=True)
@@ -62,7 +67,7 @@ class FileBrowser:
         try:
             # Resolve the target directory path
             target_dir = (self.base_dir / current_path).resolve()
-            if not str(target_dir).startswith(str(self.base_dir)):
+            if not self._is_in_base_dir(target_dir):
                 raise ValueError("Invalid target directory")
 
             os.makedirs(target_dir, exist_ok=True)
@@ -94,7 +99,7 @@ class FileBrowser:
         try:
             # Resolve the full path while preventing directory traversal
             full_path = (self.base_dir / file_path).resolve()
-            if not str(full_path).startswith(str(self.base_dir)):
+            if not self._is_in_base_dir(full_path):
                 raise ValueError("Invalid path")
 
             if os.path.exists(full_path):
@@ -118,13 +123,13 @@ class FileBrowser:
                 raise ValueError("New name cannot include path separators")
 
             full_path = (self.base_dir / file_path).resolve()
-            if not str(full_path).startswith(str(self.base_dir)):
+            if not self._is_in_base_dir(full_path):
                 raise ValueError("Invalid path")
             if not full_path.exists():
                 raise FileNotFoundError("File or folder not found")
 
             new_path = full_path.with_name(new_name)
-            if not str(new_path).startswith(str(self.base_dir)):
+            if not self._is_in_base_dir(new_path):
                 raise ValueError("Invalid target path")
             if full_path == new_path:
                 return True
@@ -145,11 +150,11 @@ class FileBrowser:
                 raise ValueError("Folder name cannot include path separators")
 
             parent_full = (self.base_dir / parent_path).resolve()
-            if not str(parent_full).startswith(str(self.base_dir)):
+            if not self._is_in_base_dir(parent_full):
                 raise ValueError("Invalid parent path")
 
             target_dir = (parent_full / folder_name).resolve()
-            if not str(target_dir).startswith(str(self.base_dir)):
+            if not self._is_in_base_dir(target_dir):
                 raise ValueError("Invalid target path")
             if target_dir.exists():
                 raise FileExistsError("Folder already exists")
@@ -169,7 +174,7 @@ class FileBrowser:
                 raise ValueError("File exceeds 1 MB and cannot be edited")
 
             full_path = (self.base_dir / file_path).resolve()
-            if not str(full_path).startswith(str(self.base_dir)):
+            if not self._is_in_base_dir(full_path):
                 raise ValueError("Invalid path")
             if full_path.exists() and full_path.is_dir():
                 raise ValueError("Target is a directory")
@@ -307,7 +312,7 @@ class FileBrowser:
         try:
             # Resolve the full path while preventing directory traversal
             full_path = (self.base_dir / current_path).resolve()
-            if not str(full_path).startswith(str(self.base_dir)):
+            if not self._is_in_base_dir(full_path):
                 raise ValueError("Invalid path")
 
             # Use ls command instead of os.scandir for better error handling
