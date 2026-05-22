@@ -1,0 +1,4 @@
+## 2026-05-22 - Zip Slip in skills_import.py
+**Vulnerability:** A path traversal vulnerability (Zip Slip) was found in `helpers/skills_import.py` where `zipfile.ZipFile.extractall()` was called without explicit validation of the member paths, allowing a malicious archive to write outside the intended extraction directory.
+**Learning:** Even if modern Python versions of `extractall()` include some mitigations against basic `../` traversal, explicit path validation (checking `os.path.realpath` against the target directory, or using `str.startswith()` with absolute paths) is the most robust and secure pattern to follow. The codebase already implements this correctly in other places (like plugin installation and validation).
+**Prevention:** Always validate each member of a ZIP archive in `z.namelist()` using `files.is_in_dir()` or a similar robust path containment check before extracting it. Do not rely solely on the default behavior of `extractall()`.
