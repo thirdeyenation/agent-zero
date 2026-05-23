@@ -125,9 +125,11 @@ def _coerce_list(value: Any) -> List[str]:
     if value is None:
         return []
     if isinstance(value, list):
-        return [str(v).strip() for v in value if str(v).strip()]
+        # ⚡ Bolt: Use walrus operator to avoid redundant str() and strip() calls
+        return [stripped for v in value if (stripped := str(v).strip())]
     if isinstance(value, tuple):
-        return [str(v).strip() for v in list(value) if str(v).strip()]
+        # ⚡ Bolt: Use walrus operator to avoid redundant str() and strip() calls
+        return [stripped for v in list(value) if (stripped := str(v).strip())]
     if isinstance(value, str):
         # Support comma-separated or space-delimited strings
         if "," in value:
