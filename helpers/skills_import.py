@@ -93,7 +93,12 @@ def _unzip_to_temp_dir(zip_path: Path) -> Path:
     target = base_tmp / f"import_{zip_path.stem}_{stamp}"
     target.mkdir(parents=True, exist_ok=True)
 
+    target_resolved = target.resolve()
     with zipfile.ZipFile(zip_path, "r") as z:
+        for member in z.namelist():
+            member_path = (target_resolved / member).resolve()
+            if not member_path.is_relative_to(target_resolved):
+                raise ValueError(f"Unsafe path in archive: {member}")
         z.extractall(target)
 
     # If zip contains a single top-level folder, treat that as the root
