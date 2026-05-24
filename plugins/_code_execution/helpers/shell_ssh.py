@@ -73,7 +73,7 @@ class SSHInteractiveSession:
                     full, part = await self.read_output()
                     if full and not part:
                         return
-                    time.sleep(0.1)
+                    await asyncio.sleep(0.1)
 
             except Exception as e:
                 errors += 1
@@ -83,7 +83,7 @@ class SSHInteractiveSession:
                         type="info",
                         content=f"SSH Connection attempt {errors}...",
                     )
-                    time.sleep(5)
+                    await asyncio.sleep(5)
                 else:
                     raise e
 
