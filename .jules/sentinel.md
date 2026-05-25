@@ -1,0 +1,4 @@
+## 2025-02-14 - Prevent Zip Slip Vulnerability during Extraction
+**Vulnerability:** Zip Slip (path traversal) risk when extracting `zipfile.ZipFile` archives using `extractall()` without verifying individual member paths in `helpers/skills_import.py`.
+**Learning:** Malicious zip files can contain relative paths (e.g., `../../etc/passwd`) or absolute paths that extract files outside the intended target directory. Using `extractall()` blindly trusts the paths within the zip archive, bypassing directory containment.
+**Prevention:** Explicitly iterate through every member in `z.namelist()`, construct the member's resolved absolute path, and verify it falls within the intended target directory using a safe path containment method like `Path.resolve().is_relative_to()` before proceeding with extraction.
