@@ -210,7 +210,8 @@ def get_api_key(service: str) -> str:
     )
     # if the key contains a comma, use round-robin
     if "," in key:
-        api_keys = [k.strip() for k in key.split(",") if k.strip()]
+        # Bolt: Avoid redundant strip() calculations with walrus operator
+        api_keys = [stripped for k in key.split(",") if (stripped := k.strip())]
         api_keys_round_robin[service] = api_keys_round_robin.get(service, -1) + 1
         key = api_keys[api_keys_round_robin[service] % len(api_keys)]
     return key

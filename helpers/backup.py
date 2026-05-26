@@ -249,7 +249,8 @@ class BackupService:
         patterns_string = self._patterns_to_string(include_patterns, exclude_patterns)
 
         # Parse patterns using pathspec
-        pattern_lines = [line.strip() for line in patterns_string.split('\n') if line.strip() and not line.strip().startswith('#')]
+        # Bolt: Optimize list comprehension by avoiding redundant strip() calls
+        pattern_lines = [stripped for line in patterns_string.split('\n') if (stripped := line.strip()) and not stripped.startswith('#')]
 
         if not pattern_lines:
             return []
