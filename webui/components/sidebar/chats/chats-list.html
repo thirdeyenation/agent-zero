@@ -15,7 +15,7 @@
           <h3 class="section-header">Chats</h3>
           <!-- New Chat Button -->
           <button id="newChat" class="btn-icon-action chat-list-action-btn" @click="$store.chats.newChat()" aria-label="New Chat" title="New Chat" data-bs-placement="top" data-bs-trigger="hover">
-            <span class="material-symbols-outlined">chat_add_on</span>
+            <span class="material-symbols-outlined" aria-hidden="true">chat_add_on</span>
           </button>
           <x-extension id="chats-header-controls"></x-extension>
         </div>
@@ -33,8 +33,8 @@
                   <span class="chat-name"
                     x-text="context.name ? context.name : 'Chat #' + context.no"></span>
                 </div>
-                <button class="btn-icon-action chat-list-action-btn" title="Close chat" @click.stop="$confirmClick($event, () => $store.chats.killChat(context.id))">
-                  <span class="material-symbols-outlined">close</span>
+                <button class="btn-icon-action chat-list-action-btn" aria-label="Close chat" title="Close chat" @click.stop="$confirmClick($event, () => $store.chats.killChat(context.id))">
+                  <span class="material-symbols-outlined" aria-hidden="true">close</span>
                 </button>
               </div>
             </li>
