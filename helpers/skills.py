@@ -124,18 +124,17 @@ def discover_skill_md_files(root: Path) -> List[Path]:
 def _coerce_list(value: Any) -> List[str]:
     if value is None:
         return []
-    if isinstance(value, list):
-        return [str(v).strip() for v in value if str(v).strip()]
-    if isinstance(value, tuple):
-        return [str(v).strip() for v in list(value) if str(v).strip()]
+    if isinstance(value, (list, tuple)):
+        return [stripped for v in value if (stripped := str(v).strip())]
     if isinstance(value, str):
         # Support comma-separated or space-delimited strings
         if "," in value:
-            parts = [p.strip() for p in value.split(",")]
-        else:
-            parts = [p.strip() for p in re.split(r"\s+", value)]
-        return [p for p in parts if p]
-    return [str(value).strip()] if str(value).strip() else []
+            return [stripped for p in value.split(",") if (stripped := p.strip())]
+        return value.split()
+
+    if stripped := str(value).strip():
+        return [stripped]
+    return []
 
 
 def _normalize_name(name: str) -> str:
