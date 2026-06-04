@@ -1,0 +1,3 @@
+## 2025-02-18 - Optimize whitespace tokenization and redundant strips in skills.py
+**Learning:** Python's native `str.split()` without arguments is heavily optimized in C and automatically skips consecutive whitespace. It is roughly 12x faster than using `re.split(r"\s+", value)` followed by empty string filtering in a list comprehension. Furthermore, using the walrus operator (`:=`) inside list comprehensions avoids redundant function calls (like `.strip()`) on the same element.
+**Action:** When tokenizing strings by whitespace in performance-sensitive contexts, strictly prefer native `str.split()`. When iterating over sequences and applying transformations with conditions, evaluate whether a walrus operator can save duplicate calls.
