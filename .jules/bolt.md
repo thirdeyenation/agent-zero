@@ -1,0 +1,3 @@
+## 2025-06-05 - Optimizing Whitespace Tokenization
+**Learning:** In heavily used data cleaning pipelines (like `_coerce_list` and string tokenizers), using `re.split(r"\s+", value)` is significantly slower (~6-10x) than simply using the native `str.split()`. Native `str.split()` automatically handles consecutive whitespace characters and strips padding efficiently without regex compilation overhead.
+**Action:** When basic whitespace separation is needed, default to `str.split()` rather than regular expressions. Additionally, when looping over arrays to strip strings and filter empty ones, use the walrus operator (`(stripped := v.strip())`) to prevent double-processing.
