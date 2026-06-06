@@ -1,0 +1,4 @@
+## 2026-06-06 - Use Cryptographically Secure Randomization for Secrets
+**Vulnerability:** The application used `random.choices` to generate sensitive random strings, including a fallback root SSH password (`prepare.py`), agent session/context identifiers (`agent.py`), and general internal GUIDs (`helpers/guids.py`). The `random` module relies on a predictable pseudo-random number generator (Mersenne Twister), making tokens potentially vulnerable to prediction if the seed state is determined.
+**Learning:** Standard library random string generation is often implemented using the non-cryptographic `random` module out of convenience.
+**Prevention:** Always use the `secrets` module (e.g. `secrets.choice`) when generating tokens, passwords, or other identifiers that require cryptographic unpredictability.
