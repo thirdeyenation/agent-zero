@@ -125,17 +125,16 @@ def _coerce_list(value: Any) -> List[str]:
     if value is None:
         return []
     if isinstance(value, list):
-        return [str(v).strip() for v in value if str(v).strip()]
+        return [stripped for v in value if (stripped := str(v).strip())]
     if isinstance(value, tuple):
-        return [str(v).strip() for v in list(value) if str(v).strip()]
+        return [stripped for v in value if (stripped := str(v).strip())]
     if isinstance(value, str):
         # Support comma-separated or space-delimited strings
         if "," in value:
-            parts = [p.strip() for p in value.split(",")]
+            return [stripped for p in value.split(",") if (stripped := p.strip())]
         else:
-            parts = [p.strip() for p in re.split(r"\s+", value)]
-        return [p for p in parts if p]
-    return [str(value).strip()] if str(value).strip() else []
+            return value.split()
+    return [stripped] if (stripped := str(value).strip()) else []
 
 
 def _normalize_name(name: str) -> str:
@@ -475,7 +474,7 @@ def search_skills(
     if not q:
         return []
 
-    raw_terms = [t for t in re.split(r"\s+", q) if t]
+    raw_terms = q.split()
     terms = [
         t for t in raw_terms
         if len(t) >= 3 or any(ch.isdigit() for ch in t)
