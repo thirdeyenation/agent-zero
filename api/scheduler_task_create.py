@@ -7,6 +7,7 @@ from helpers.projects import load_basic_project_data
 from helpers.localization import Localization
 from helpers.print_style import PrintStyle
 import random
+import secrets
 
 
 class SchedulerTaskCreate(ApiHandler):
@@ -58,7 +59,7 @@ class SchedulerTaskCreate(ApiHandler):
 
         # Generate a random token if empty or not provided
         if not token:
-            token = str(random.randint(1000000000000000000, 9999999999999999999))
+            token = str(secrets.randbelow(9000000000000000000) + 1000000000000000000)
             printer.print(f"Generated new token: '{token}'")
 
         plan = input.get("plan", {})

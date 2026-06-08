@@ -2,6 +2,7 @@ import asyncio
 from datetime import datetime, timezone, timedelta
 import os
 import random
+import secrets
 import threading
 from urllib.parse import urlparse
 import uuid
@@ -252,7 +253,7 @@ class BaseTask(BaseModel):
 
 class AdHocTask(BaseTask):
     type: Literal[TaskType.AD_HOC] = TaskType.AD_HOC
-    token: str = Field(default_factory=lambda: str(random.randint(1000000000000000000, 9999999999999999999)))
+    token: str = Field(default_factory=lambda: str(secrets.randbelow(9000000000000000000) + 1000000000000000000))
 
     @classmethod
     def create(
@@ -530,7 +531,7 @@ class SchedulerTaskList(BaseModel):
                             f"WARNING: AdHocTask {task.name} ({task.uuid}) has a null or empty token before saving: '{task.token}'"
                         )
                         # Generate a new token to prevent errors
-                        task.token = str(random.randint(1000000000000000000, 9999999999999999999))
+                        task.token = str(secrets.randbelow(9000000000000000000) + 1000000000000000000)
                         PrintStyle.info(
                             f"Fixed: Generated new token '{task.token}' for task {task.name}"
                         )
@@ -1209,7 +1210,7 @@ def deserialize_task(task_data: Dict[str, Any], task_class: Optional[Type[T]] = 
             determined_class = cast(Type[T], AdHocTask)
             # Ensure token is a valid non-empty string
             if not task_data.get('token'):
-                task_data['token'] = str(random.randint(1000000000000000000, 9999999999999999999))
+                task_data['token'] = str(secrets.randbelow(9000000000000000000) + 1000000000000000000)
         elif task_type_str == 'planned':
             determined_class = cast(Type[T], PlannedTask)
         else:
@@ -1218,7 +1219,7 @@ def deserialize_task(task_data: Dict[str, Any], task_class: Optional[Type[T]] = 
         determined_class = task_class
         # If this is an AdHocTask, ensure token is valid
         if determined_class == AdHocTask and not task_data.get('token'):  # type: ignore
-            task_data['token'] = str(random.randint(1000000000000000000, 9999999999999999999))
+            task_data['token'] = str(secrets.randbelow(9000000000000000000) + 1000000000000000000)
 
     common_args = {
         "uuid": task_data.get("uuid"),
