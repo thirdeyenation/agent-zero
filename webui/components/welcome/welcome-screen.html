@@ -16,41 +16,41 @@
                     <!-- Action Cards -->
                     <div class="welcome-actions">
                         <x-extension id="welcome-actions-start"></x-extension>
-                        <div class="welcome-action-card" @click="$store.welcomeStore.executeAction('new-chat')">
+                        <button type="button" class="welcome-action-card" @click="$store.welcomeStore.executeAction('new-chat')">
                             <span class="material-symbols-outlined welcome-action-icon">add_circle</span>
                             <h3 class="welcome-action-title">New Chat</h3>
-                        </div>
+                        </button>
 
-                        <div class="welcome-action-card" @click="$store.welcomeStore.executeAction('projects')">
+                        <button type="button" class="welcome-action-card" @click="$store.welcomeStore.executeAction('projects')">
                             <span class="material-symbols-outlined welcome-action-icon">folder</span>
                             <h3 class="welcome-action-title">Projects</h3>
-                        </div>
-                        <div class="welcome-action-card" @click="$store.welcomeStore.executeAction('memory')">
+                        </button>
+                        <button type="button" class="welcome-action-card" @click="$store.welcomeStore.executeAction('memory')">
                             <span class="material-symbols-outlined welcome-action-icon">memory</span>
                             <h3 class="welcome-action-title">Memory</h3>
-                        </div>
+                        </button>
 
-                        <div class="welcome-action-card" @click="$store.welcomeStore.executeAction('scheduler')">
+                        <button type="button" class="welcome-action-card" @click="$store.welcomeStore.executeAction('scheduler')">
                             <span class="material-symbols-outlined welcome-action-icon">schedule</span>
                             <h3 class="welcome-action-title">Tasks</h3>
-                        </div>
-                        <div class="welcome-action-card" @click="$store.welcomeStore.executeAction('settings')">
+                        </button>
+                        <button type="button" class="welcome-action-card" @click="$store.welcomeStore.executeAction('settings')">
                             <span class="material-symbols-outlined welcome-action-icon">settings</span>
                             <h3 class="welcome-action-title">Settings</h3>
-                        </div>
-                        <div class="welcome-action-card" @click="$store.welcomeStore.executeAction('plugins')">
+                        </button>
+                        <button type="button" class="welcome-action-card" @click="$store.welcomeStore.executeAction('plugins')">
                             <span class="material-symbols-outlined welcome-action-icon">extension</span>
                             <h3 class="welcome-action-title">Plugins</h3>
-                        </div>
+                        </button>
 
-                        <div class="welcome-action-card" @click="$store.welcomeStore.executeAction('files')">
+                        <button type="button" class="welcome-action-card" @click="$store.welcomeStore.executeAction('files')">
                             <span class="material-symbols-outlined welcome-action-icon">folder_open</span>
                             <h3 class="welcome-action-title">Files</h3>
-                        </div>
-                        <div class="welcome-action-card" @click="$store.welcomeStore.executeAction('website')">
+                        </button>
+                        <button type="button" class="welcome-action-card" @click="$store.welcomeStore.executeAction('website')">
                             <span class="material-symbols-outlined welcome-action-icon">language</span>
                             <h3 class="welcome-action-title">Visit Website</h3>
-                        </div>
+                        </button>
                         <x-extension id="welcome-actions-end"></x-extension>
                     </div>
 
@@ -255,6 +255,8 @@
         }
 
         .welcome-action-card {
+            appearance: none;
+            -webkit-appearance: none;
             background: var(--color-panel);
             border: 1px solid var(--color-border);
             border-radius: 12px;
@@ -262,7 +264,8 @@
             transition: all 0.3s ease;
             cursor: pointer;
             text-decoration: none;
-            color: inherit;
+            color: var(--color-text);
+            font-family: inherit;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -274,6 +277,12 @@
         .welcome-action-card:hover {
             border-color: var(--color-primary);
             background: var(--color-message-bg);
+        }
+
+        .welcome-action-card:focus-visible {
+            outline: 2px solid var(--color-primary);
+            outline-offset: 2px;
+            border-color: var(--color-primary);
         }
 
         .welcome-action-icon {

@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "/app/run_ui.py", line 1, in <module>
+    import initialize
+  File "/app/initialize.py", line 1, in <module>
+    from agent import AgentConfig
+  File "/app/agent.py", line 8, in <module>
+    import models
+  File "/app/models.py", line 17, in <module>
+    from litellm import completion, acompletion, embedding
+ModuleNotFoundError: No module named 'litellm'
