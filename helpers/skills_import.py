@@ -94,6 +94,10 @@ def _unzip_to_temp_dir(zip_path: Path) -> Path:
     target.mkdir(parents=True, exist_ok=True)
 
     with zipfile.ZipFile(zip_path, "r") as z:
+        for member in z.namelist():
+            member_path = os.path.realpath(os.path.join(target, member))
+            if not files.is_in_dir(member_path, target):
+                raise ValueError(f"Unsafe path in archive: {member}")
         z.extractall(target)
 
     # If zip contains a single top-level folder, treat that as the root
