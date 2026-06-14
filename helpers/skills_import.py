@@ -94,7 +94,12 @@ def _unzip_to_temp_dir(zip_path: Path) -> Path:
     target.mkdir(parents=True, exist_ok=True)
 
     with zipfile.ZipFile(zip_path, "r") as z:
-        z.extractall(target)
+        target_resolved = target.resolve()
+        for member in z.namelist():
+            member_path = (target_resolved / member).resolve()
+            if not member_path.is_relative_to(target_resolved):
+                raise ValueError(f"Zip Slip vulnerability detected: {member}")
+            z.extract(member, target)
 
     # If zip contains a single top-level folder, treat that as the root
     children = [p for p in target.iterdir()]
