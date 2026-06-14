@@ -39,6 +39,7 @@
         <!-- Container for textarea and expand button -->
         <div id="chat-input-container" style="position: relative;">
             <textarea id="chat-input" :placeholder="$store.chatInput.inputPlaceholder" rows="1"
+                      aria-label="Chat input"
                       @keydown.enter="if (!$event.shiftKey && !$event.isComposing && $event.keyCode !== 229) { $event.preventDefault(); $store.chatInput.sendMessage(); }"
                       @keydown.up="$store.chatInput.historyPrev($event)"
                       @keydown.down="$store.chatInput.historyNext($event)"
