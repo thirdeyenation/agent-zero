@@ -1,0 +1,3 @@
+## 2024-05-24 - Walrus Operator and Native String Split
+**Learning:** In Python list comprehensions with redundant function calls (e.g., `[str(v).strip() for v in value if str(v).strip()]`), using the walrus operator (`:=`) in Python 3.8+ to compute and bind the result once (e.g., `[stripped for v in value if (stripped := str(v).strip())]`) significantly reduces processing time. Furthermore, for basic whitespace tokenization, native `str.split()` without arguments is heavily optimized in C and up to 10x faster than `re.split(r'\s+', value)`.
+**Action:** Always prefer `str.split()` over regex for simple whitespace splitting and use the walrus operator to avoid redundant calculations in comprehensions.
