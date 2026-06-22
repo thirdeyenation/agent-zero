@@ -62,6 +62,11 @@ class ApiFilesGet(ApiHandler):
                         external_path = path
                         filename = os.path.basename(path)
 
+                    # Security check: Ensure path does not escape base directory
+                    if not files.is_in_base_dir(external_path):
+                        PrintStyle.warning(f"Path traversal attempt blocked: {path}")
+                        continue
+
                     # Check if file exists
                     if not os.path.exists(external_path):
                         PrintStyle.warning(f"File not found: {path}")
