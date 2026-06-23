@@ -1,7 +1,7 @@
 import asyncio
 from datetime import datetime
 import json
-import random
+import secrets
 import re
 from typing import Any
 import pytz
@@ -349,7 +349,7 @@ class SchedulerTool(Tool):
         system_prompt: str = kwargs.get("system_prompt", "")
         prompt: str = kwargs.get("prompt", "")
         attachments: list[str] = kwargs.get("attachments", [])
-        token: str = str(random.randint(1000000000000000000, 9999999999999999999))
+        token: str = str(secrets.randbelow(9000000000000000000) + 1000000000000000000)
         dedicated_context: bool = kwargs.get("dedicated_context", True)
 
         project_slug, project_color = self._resolve_project_metadata()
