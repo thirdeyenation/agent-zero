@@ -66,8 +66,8 @@ def docker_tag_exists(image_repo: str, tag: str) -> bool:
 
 
 def split_branches(raw: str) -> list[str]:
-    parts = re.split(r"[\s,]+", raw.strip())
-    return [part for part in parts if part]
+    # Fast path: Native str replacement and split is faster than regex compilation/execution
+    return [part for part in raw.replace(",", " ").split() if part]
 
 
 def require_env(name: str) -> str:
