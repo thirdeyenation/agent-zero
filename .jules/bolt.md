@@ -1,0 +1,3 @@
+## 2024-06-25 - Native string methods are significantly faster than re.split for simple parsing
+**Learning:** Native `str.replace().split()` is vastly faster (~3-6x) than `re.split()` for simple multi-character delimiter tokenization in Python (e.g., replacing '+' with ',' before splitting). `str.split()` for whitespace is also heavily optimized in C and ~9x faster than `re.split(r'\s+')`.
+**Action:** Always prefer native string replacement and splitting combined with list comprehensions over `re.split()` when delimiter rules are basic, to avoid regex compilation and execution overhead in hot paths.

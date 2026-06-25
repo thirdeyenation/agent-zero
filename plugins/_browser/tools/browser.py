@@ -382,7 +382,7 @@ class Browser(Tool):
         if keys is None:
             return []
         if isinstance(keys, str):
-            raw = re.split(r"\s*\+\s*|\s*,\s*", keys.strip())
+            raw = [k.strip() for k in keys.replace('+', ',').split(',')]
         elif isinstance(keys, list):
             raw = keys
         else:

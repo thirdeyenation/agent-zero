@@ -66,7 +66,7 @@ def docker_tag_exists(image_repo: str, tag: str) -> bool:
 
 
 def split_branches(raw: str) -> list[str]:
-    parts = re.split(r"[\s,]+", raw.strip())
+    parts = raw.replace(',', ' ').split()
     return [part for part in parts if part]
 
 
