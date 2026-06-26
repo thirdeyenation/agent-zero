@@ -133,7 +133,8 @@ def _coerce_list(value: Any) -> List[str]:
         if "," in value:
             parts = [p.strip() for p in value.split(",")]
         else:
-            parts = [p.strip() for p in re.split(r"\s+", value)]
+            # Fast path: Use native string split instead of regex for basic whitespace tokenization
+            parts = [p.strip() for p in value.split()]
         return [p for p in parts if p]
     return [str(value).strip()] if str(value).strip() else []
 
@@ -475,7 +476,8 @@ def search_skills(
     if not q:
         return []
 
-    raw_terms = [t for t in re.split(r"\s+", q) if t]
+    # Fast path: Use native string split instead of regex for basic whitespace tokenization
+    raw_terms = [t for t in q.split() if t]
     terms = [
         t for t in raw_terms
         if len(t) >= 3 or any(ch.isdigit() for ch in t)
