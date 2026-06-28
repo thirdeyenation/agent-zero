@@ -55,8 +55,8 @@
                 <!-- Pagination -->
                 <div class="status-pagination" x-show="$store.schedulerStore.totalPages > 1">
                     <button class="btn btn-icon" @click="$store.schedulerStore.prevPage()"
-                        :disabled="$store.schedulerStore.currentPage === 1" title="Previous Page">
-                        <span class="material-symbols-outlined">chevron_left</span>
+                        :disabled="$store.schedulerStore.currentPage === 1" aria-label="Previous Page" title="Previous Page">
+                        <span class="material-symbols-outlined" aria-hidden="true">chevron_left</span>
                     </button>
                     <div class="page-input-group">
                         <label>Page</label>
@@ -70,8 +70,8 @@
                     </div>
                     <button class="btn btn-icon" @click="$store.schedulerStore.nextPage()"
                         :disabled="$store.schedulerStore.currentPage === $store.schedulerStore.totalPages"
-                        title="Next Page">
-                        <span class="material-symbols-outlined">chevron_right</span>
+                        aria-label="Next Page" title="Next Page">
+                        <span class="material-symbols-outlined" aria-hidden="true">chevron_right</span>
                     </button>
                 </div>
             </div>
@@ -134,20 +134,20 @@
                             <td class="col-actions" @click.stop>
                                 <div class="actions-wrapper">
                                     <button class="btn btn-action"
-                                            @click="$store.schedulerStore.runTask(task.uuid)" title="Run Task">
-                                        <span class="material-symbols-outlined">play_arrow</span>
+                                            @click="$store.schedulerStore.runTask(task.uuid)" aria-label="Run Task" title="Run Task">
+                                        <span class="material-symbols-outlined" aria-hidden="true">play_arrow</span>
                                     </button>
                                     <button class="btn btn-action"
-                                            @click="$store.schedulerStore.resetTaskState(task.uuid)" title="Reset State">
-                                        <span class="material-symbols-outlined">refresh</span>
+                                            @click="$store.schedulerStore.resetTaskState(task.uuid)" aria-label="Reset State" title="Reset State">
+                                        <span class="material-symbols-outlined" aria-hidden="true">refresh</span>
                                     </button>
                                     <button class="btn btn-action"
-                                            @click="$store.schedulerStore.startEditTask(task.uuid)" title="Edit Task">
-                                        <span class="material-symbols-outlined">edit</span>
+                                            @click="$store.schedulerStore.startEditTask(task.uuid)" aria-label="Edit Task" title="Edit Task">
+                                        <span class="material-symbols-outlined" aria-hidden="true">edit</span>
                                     </button>
                                     <button class="btn btn-action delete"
-                                            @click="$confirmClick($event, () => $store.schedulerStore.deleteTask(task.uuid))" title="Delete Task">
-                                        <span class="material-symbols-outlined">delete</span>
+                                            @click="$confirmClick($event, () => $store.schedulerStore.deleteTask(task.uuid))" aria-label="Delete Task" title="Delete Task">
+                                        <span class="material-symbols-outlined" aria-hidden="true">delete</span>
                                     </button>
                                 </div>
                             </td>
@@ -173,8 +173,8 @@
 
                 <div class="status-pagination">
                     <button class="btn btn-icon" @click="$store.schedulerStore.prevPage()"
-                        :disabled="$store.schedulerStore.currentPage === 1" title="Previous Page">
-                        <span class="material-symbols-outlined">chevron_left</span>
+                        :disabled="$store.schedulerStore.currentPage === 1" aria-label="Previous Page" title="Previous Page">
+                        <span class="material-symbols-outlined" aria-hidden="true">chevron_left</span>
                     </button>
                     <div class="page-input-group">
                         <label>Page</label>
@@ -188,8 +188,8 @@
                     </div>
                     <button class="btn btn-icon" @click="$store.schedulerStore.nextPage()"
                         :disabled="$store.schedulerStore.currentPage === $store.schedulerStore.totalPages"
-                        title="Next Page">
-                        <span class="material-symbols-outlined">chevron_right</span>
+                        aria-label="Next Page" title="Next Page">
+                        <span class="material-symbols-outlined" aria-hidden="true">chevron_right</span>
                     </button>
                 </div>
             </div>
