@@ -1,0 +1,3 @@
+## 2024-07-01 - Add ARIA labels to icon-only buttons
+**Learning:** Icon-only buttons using Material Symbol ligatures (like `<span class="material-symbols-outlined">vertical_align_top</span>`) require explicit `aria-label` attributes on the `<button>` element. Also, the `<span>` icon itself must have `aria-hidden="true"` to prevent screen readers from reading the raw ligature text (e.g., "vertical underscore align underscore top").
+**Action:** When creating or modifying icon-only buttons with ligatures, always add an `aria-label` to the parent button and `aria-hidden="true"` to the inner icon span.
