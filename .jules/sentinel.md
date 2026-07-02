@@ -1,0 +1,4 @@
+## 2024-07-02 - [Fix Path Traversal in ApiFilesGet]
+**Vulnerability:** The API endpoint `api_files_get.py` allowed arbitrary file reading via path traversal (e.g., `../../../etc/passwd`) and unrestricted absolute paths, because user-provided file paths were resolved without checking if they remained within the application's base directory.
+**Learning:** User-provided file paths, even when authenticated or considered "internal" by the frontend, must never be trusted. They must be validated against the application's intended root directory after being resolved to their absolute form.
+**Prevention:** Always use `files.is_in_base_dir(resolved_path)` (or equivalent boundary checks) to validate that any file path received from a client stays within the safe boundaries before reading, writing, or executing the file.
