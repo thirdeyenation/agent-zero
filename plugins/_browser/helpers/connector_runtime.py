@@ -245,7 +245,8 @@ class ConnectorBrowserRuntime:
         if keys is None:
             return []
         if isinstance(keys, str):
-            raw = re.split(r"\s*\+\s*|\s*,\s*", keys.strip())
+            # Fast path: native string replace and split is significantly faster than re.split
+            raw = [k.strip() for k in keys.replace('+', ',').split(',')]
         elif isinstance(keys, list):
             raw = keys
         else:
