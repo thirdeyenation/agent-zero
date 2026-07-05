@@ -107,10 +107,8 @@ def resolve_download_path(path: str, base_dir: Path) -> Path:
     candidate = Path(path)
     resolved = candidate.resolve() if candidate.is_absolute() else (base_dir / candidate).resolve()
 
-    try:
-        resolved.relative_to(base_dir)
-    except ValueError as exc:
-        raise ValueError("Invalid file path") from exc
+    if not resolved.is_relative_to(base_dir):
+        raise ValueError("Invalid file path")
 
     return resolved
 
