@@ -8,6 +8,17 @@ def json_parse_dirty(json: str) -> dict[str, Any] | None:
     if not json or not isinstance(json, str):
         return None
 
+    ext_json = extract_json_object_string(json.strip())
+    if ext_json:
+        # ⚡ Bolt: Try standard fast json.loads first, fallback to DirtyJson
+        import json as builtin_json
+        try:
+            data = builtin_json.loads(ext_json)
+            if isinstance(data, dict):
+                return data
+        except builtin_json.JSONDecodeError:
+            pass
+
     first_data: dict[str, Any] | None = None
     for ext_json in extract_json_root_strings(json.strip()):
         data = _parse_json_root_object(ext_json)

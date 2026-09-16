@@ -1,0 +1,10 @@
+name: css_specialist
+description: "Cosmetic Committee: Generates custom CSS based on instructions."
+model: ""
+temperature: 0.1
+max_tokens: 4096
+
+tools: []
+
+disabled_tools:
+  - "*"

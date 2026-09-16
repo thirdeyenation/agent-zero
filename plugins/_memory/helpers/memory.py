@@ -31,7 +31,7 @@ from enum import Enum
 from agent import Agent, AgentContext
 import models
 import logging
-from simpleeval import simple_eval
+from simpleeval import SimpleEval
 
 
 # Raise the log level so WARNING messages aren't shown
@@ -575,6 +575,12 @@ class Memory:
 
         def comparator(data: dict[str, Any]):
             try:
+                class SafeNames(dict):
+                    def __missing__(self, key):
+                        return None
+                safe_data = SafeNames(data)
+                safe_funcs = {"str": str, "int": int, "float": float, "bool": bool, "len": len, "abs": abs, "min": min, "max": max, "round": round}
+                result = SimpleEval(names=safe_data, functions=safe_funcs).eval(condition)
                 result = simple_eval(condition, names=data, functions={})
                 return result
             except Exception as e:

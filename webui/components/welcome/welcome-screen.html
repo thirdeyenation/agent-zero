@@ -197,6 +197,20 @@
                                         <x-icon name="close"></x-icon>
                                     </button>
                                 </div>
+                                
+                                <!-- Dismiss Button -->
+                                <button class="welcome-banner-dismiss" 
+                                        x-show="banner.dismissible !== false"
+                                        @click.stop="$store.welcomeStore.dismissBanner(banner.id)"
+                                        title="Dismiss"
+                                        aria-label="Dismiss banner">
+                                    <span class="material-symbols-outlined">close</span>
+                                </button>
+                            </div>
+                        </template>
+                        <x-extension id="welcome-banners-end"></x-extension>
+                    </div>
+                </div>
                             </header>
                             <div class="welcome-system-body"
                                  x-html="$store.welcomeStore.systemResourceBanner?.html || ''"></div>

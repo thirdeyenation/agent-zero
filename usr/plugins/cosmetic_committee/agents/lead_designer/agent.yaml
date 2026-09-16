@@ -1,0 +1,11 @@
+name: lead_designer
+description: "Cosmetic Committee: Middle-man coordinator between Cosmo and CSS Specialists."
+model: ""
+temperature: 0.5
+max_tokens: 4096
+
+tools:
+  - "call_subordinate"
+
+disabled_tools:
+  - "*"
