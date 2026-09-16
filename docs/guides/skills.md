@@ -29,7 +29,7 @@ Click a skill to add it. Active skills are shown at the top of the selector.
 To remove a skill, use the remove button in **Active skills** or uncheck it in
 the list.
 
-Active skills are added to the **Extras** part of the system prompt. That means
+Active skills are added to the **Protocol** part of the prompt. That means
 Agent Zero sees them every turn while they are active.
 
 > [!TIP]
@@ -56,12 +56,16 @@ usually easier for the agent to follow.
 
 | Control | What it changes |
 | --- | --- |
-| **Skills** | Adds a specific procedure to the current prompt extras. |
+| **Skills** | Adds a specific procedure to the current prompt protocol. |
 | **Agent Profiles** | Changes the broader role and behavior of the chat. |
 | **Projects** | Adds workspace, files, memory, secrets, and project instructions. |
 
 If Agent Zero starts following an old procedure you no longer want, open the
 Skills selector and remove any active skill that does not belong in the chat.
+
+The Agent Editor can also set a profile-wide Skills visibility policy. That
+policy controls discovery and new loading; it does not erase skill text already
+stored in a chat's history. See [Agent Profiles](agent-profiles.md#choose-capability-access).
 
 ## Creating Skills
 

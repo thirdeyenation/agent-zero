@@ -1,16 +1,22 @@
 from agent import LoopData
 from helpers.extension import Extension
-from helpers import skills as skills_helper
+from helpers import skills as skills_helper, tool_policy
 
 
 class RecallRelevantSkills(Extension):
     async def execute(self, loop_data: LoopData = LoopData(), **kwargs):
         if not self.agent or loop_data.iteration != 0:
             return
+        if not tool_policy.resolve_tool(self.agent, "skills_tool").allowed:
+            return
 
-        user_instruction = (
-            loop_data.user_message.output_text() if loop_data.user_message else ""
-        ).strip()
+        content = loop_data.user_message.content if loop_data.user_message else ""
+        if isinstance(content, dict):
+            user_instruction = str(content.get("user_message") or "").strip()
+        else:
+            user_instruction = (
+                loop_data.user_message.output_text() if loop_data.user_message else ""
+            ).strip()
         if len(user_instruction) < 8:
             return
 

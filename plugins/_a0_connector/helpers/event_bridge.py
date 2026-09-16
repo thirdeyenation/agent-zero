@@ -79,6 +79,7 @@ def log_entry_to_connector_event(
 def get_context_log_entries(
     context_id: str,
     after: int = 0,
+    limit: int | None = None,
 ) -> tuple[list[dict[str, Any]], int]:
     """Return connector events plus the next log cursor for the context."""
     try:
@@ -88,7 +89,20 @@ def get_context_log_entries(
         if context is None:
             return [], 0
 
-        log_output = context.log.output(start=max(int(after or 0), 0))
+        start = max(int(after or 0), 0)
+        end: int | None = None
+        if limit is not None:
+            limit = max(int(limit or 0), 0)
+            if limit > 0:
+                log_lock = getattr(context.log, "_lock", None)
+                log_updates = getattr(context.log, "updates", None)
+                if log_lock is not None and isinstance(log_updates, list):
+                    with log_lock:
+                        end = min(start + limit, len(log_updates))
+                else:
+                    end = start + limit
+
+        log_output = context.log.output(start=start, end=end)
         events = [
             log_entry_to_connector_event(entry, context_id)
             for entry in log_output.items
@@ -100,6 +114,32 @@ def get_context_log_entries(
             f"[a0-connector] event_bridge error for context {context_id}: {exc}"
         )
         return [], max(int(after or 0), 0)
+
+
+def get_context_log_entry_count(context_id: str) -> int:
+    """Return the current log-output cursor for a context."""
+    try:
+        from agent import AgentContext
+
+        context = AgentContext.get(context_id)
+        if context is None:
+            return 0
+
+        log = context.log
+        log_lock = getattr(log, "_lock", None)
+        updates = getattr(log, "updates", None)
+        if isinstance(updates, list):
+            if log_lock is not None:
+                with log_lock:
+                    return len(updates)
+            return len(updates)
+
+        return int(log.output().end)
+    except Exception as exc:
+        PrintStyle.error(
+            f"[a0-connector] event_bridge cursor error for context {context_id}: {exc}"
+        )
+        return 0
 
 
 async def stream_context_events(
