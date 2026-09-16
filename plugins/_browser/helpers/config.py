@@ -11,13 +11,21 @@ PLUGIN_NAME = "_browser"
 MODEL_PRESET_KEY = "model_preset"
 DEFAULT_HOMEPAGE_KEY = "default_homepage"
 AUTOFOCUS_ACTIVE_PAGE_KEY = "autofocus_active_page"
+TAB_SCOPE_KEY = "browser_tab_scope"
 MAX_OPEN_TABS_KEY = "max_open_tabs"
 RUNTIME_BACKEND_KEY = "runtime_backend"
 HOST_BROWSER_PRIVACY_POLICY_KEY = "host_browser_privacy_policy"
 HOST_BROWSER_PROFILE_MODE_KEY = "host_browser_profile_mode"
+HOST_BROWSER_SELECTION_KEY = "host_browser_selection"
+PROXY_SERVER_KEY = "proxy_server"
+PROXY_BYPASS_KEY = "proxy_bypass"
+PROXY_USERNAME_KEY = "proxy_username"
+PROXY_PASSWORD_KEY = "proxy_password"
 RUNTIME_BACKENDS = {"container", "host_required"}
+BROWSER_TAB_SCOPES = {"per_context", "shared"}
 HOST_BROWSER_PRIVACY_POLICIES = {"enforce_local", "warn", "allow"}
 HOST_BROWSER_PROFILE_MODES = {"existing", "agent"}
+DEFAULT_BROWSER_TAB_SCOPE = "per_context"
 DEFAULT_MAX_OPEN_TABS = 32
 MIN_MAX_OPEN_TABS = 1
 HARD_MAX_OPEN_TABS = 50
@@ -53,6 +61,19 @@ def _normalize_extension_paths(value: Any) -> list[str]:
 
 def _normalize_model_preset(value: Any) -> str:
     return str(value or "").strip()
+
+
+def _normalize_host_browser_selection(value: Any) -> str:
+    raw = str(value or "").strip()
+    if not raw:
+        return ""
+    endpoint_like = "://" in raw or (
+        raw.rpartition(":")[0] and raw.rpartition(":")[2].isdigit()
+    )
+    if endpoint_like:
+        return "".join(ch for ch in raw if ch.isprintable() and not ch.isspace())[:2048]
+    normalized = raw.lower().replace(" ", "_")
+    return "".join(ch for ch in normalized if ch.isalnum() or ch in {"_", "-", ":", ".", "/"})[:200]
 
 
 def _normalize_default_homepage(value: Any) -> str:
@@ -117,6 +138,11 @@ def normalize_browser_config(settings: dict[str, Any] | None) -> dict[str, Any]:
             raw.get(AUTOFOCUS_ACTIVE_PAGE_KEY, True),
             default=True,
         ),
+        TAB_SCOPE_KEY: _normalize_choice(
+            raw.get(TAB_SCOPE_KEY, DEFAULT_BROWSER_TAB_SCOPE),
+            allowed=BROWSER_TAB_SCOPES,
+            default=DEFAULT_BROWSER_TAB_SCOPE,
+        ),
         MAX_OPEN_TABS_KEY: _normalize_int(
             raw.get(MAX_OPEN_TABS_KEY, DEFAULT_MAX_OPEN_TABS),
             default=DEFAULT_MAX_OPEN_TABS,
@@ -136,6 +162,13 @@ def normalize_browser_config(settings: dict[str, Any] | None) -> dict[str, Any]:
             allowed=HOST_BROWSER_PROFILE_MODES,
             default="existing",
         ),
+        HOST_BROWSER_SELECTION_KEY: _normalize_host_browser_selection(
+            raw.get(HOST_BROWSER_SELECTION_KEY, raw.get("host_browser_choice", ""))
+        ),
+        PROXY_SERVER_KEY: str(raw.get(PROXY_SERVER_KEY, "") or "").strip()[:2048],
+        PROXY_BYPASS_KEY: str(raw.get(PROXY_BYPASS_KEY, "") or "").strip()[:4096],
+        PROXY_USERNAME_KEY: str(raw.get(PROXY_USERNAME_KEY, "") or "")[:1024],
+        PROXY_PASSWORD_KEY: str(raw.get(PROXY_PASSWORD_KEY, "") or "")[:4096],
         MODEL_PRESET_KEY: _normalize_model_preset(raw.get(MODEL_PRESET_KEY, "")),
     }
 
@@ -144,6 +177,10 @@ def browser_runtime_config(settings: dict[str, Any] | None) -> dict[str, Any]:
     config = normalize_browser_config(settings)
     return {
         "extension_paths": config["extension_paths"],
+        PROXY_SERVER_KEY: config[PROXY_SERVER_KEY],
+        PROXY_BYPASS_KEY: config[PROXY_BYPASS_KEY],
+        PROXY_USERNAME_KEY: config[PROXY_USERNAME_KEY],
+        PROXY_PASSWORD_KEY: config[PROXY_PASSWORD_KEY],
     }
 
 
@@ -223,7 +260,24 @@ def resolve_browser_model_selection(
     if preset_name:
         preset = model_config.get_preset_by_name(preset_name)
         if isinstance(preset, dict):
-            chat_cfg = preset.get("chat", {})
+            if hasattr(model_config, "build_config_from_preset"):
+                default_preset = model_config.get_preset_by_name(
+                    model_config.DEFAULT_PRESET_NAME
+                ) or {}
+                base_config = (
+                    model_config.preset_to_config(default_preset)
+                    if hasattr(model_config, "preset_to_config")
+                    else {}
+                )
+                preset_config = model_config.build_config_from_preset(
+                    preset,
+                    base_config,
+                    strip_api_key=False,
+                    slots=("chat",),
+                )
+                chat_cfg = preset_config.get("chat_model", {})
+            else:
+                chat_cfg = preset.get("chat", {})
             if isinstance(chat_cfg, dict) and (
                 str(chat_cfg.get("provider", "") or "").strip()
                 or str(chat_cfg.get("name", "") or "").strip()
@@ -332,10 +386,12 @@ def describe_browser_extensions(settings: dict[str, Any] | None) -> dict[str, An
 
 
 def build_browser_launch_config(settings: dict[str, Any] | None) -> dict[str, Any]:
-    extensions = describe_browser_extensions(settings)
+    config = normalize_browser_config(settings)
+    extensions = describe_browser_extensions(config)
     args = list(BASE_BROWSER_ARGS)
     channel: str | None = None
     browser_mode = "chromium"
+    proxy = None
 
     if extensions["active"]:
         joined_paths = ",".join(extensions["active_paths"])
@@ -346,8 +402,19 @@ def build_browser_launch_config(settings: dict[str, Any] | None) -> dict[str, An
             ]
         )
 
+    if config[PROXY_SERVER_KEY]:
+        proxy = {"server": config[PROXY_SERVER_KEY]}
+        for config_key, proxy_key in (
+            (PROXY_BYPASS_KEY, "bypass"),
+            (PROXY_USERNAME_KEY, "username"),
+            (PROXY_PASSWORD_KEY, "password"),
+        ):
+            if config[config_key]:
+                proxy[proxy_key] = config[config_key]
+
     return {
         "args": args,
+        "proxy": proxy,
         "browser_mode": browser_mode,
         "channel": channel,
         "extensions": extensions,

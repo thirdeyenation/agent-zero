@@ -10,6 +10,7 @@ import {
   getConnectionStatus,
 } from "/index.js";
 import { store as notificationStore } from "/components/notifications/notification-store.js";
+import { store as sidebarStore } from "/components/sidebar/sidebar-store.js";
 import { store as tasksStore } from "/components/sidebar/tasks/tasks-store.js";
 import { store as syncStore } from "/components/sync/sync-store.js";
 import { store as chatInputStore } from "/components/chat/input/input-store.js";
@@ -19,6 +20,8 @@ const model = {
   selected: "",
   selectedContext: null,
   loggedIn: false,
+  expandedParents: {},
+  deletedContextIds: {},
 
   // for convenience
   getSelectedChatId() {
@@ -50,12 +53,14 @@ const model = {
     }
   },
 
-  // Update contexts from polling
+  // Update contexts from sync snapshots
   applyContexts(contextsList) {
+    const incomingContexts = Array.isArray(contextsList) ? contextsList : [];
+
     // Sort by created_at time (newer first)
-    this.contexts = contextsList.sort(
-      (a, b) => (b.created_at || 0) - (a.created_at || 0)
-    );
+    this.contexts = incomingContexts
+      .filter((context) => !this.deletedContextIds[context?.id])
+      .sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
 
     // Keep selectedContext in sync when the currently selected context's
     // metadata changes (e.g. project activation/deactivation).
@@ -64,14 +69,65 @@ const model = {
       const updated = this.contexts.find((ctx) => ctx.id === selectedId);
       if (updated) {
         this.selectedContext = updated;
+        const nextExpandedParents = { ...this.expandedParents };
+        if (updated.parent_context_id) {
+          nextExpandedParents[updated.parent_context_id] = true;
+        } else if (
+          this.hasChildren(selectedId) &&
+          nextExpandedParents[selectedId] === undefined
+        ) {
+          nextExpandedParents[selectedId] = true;
+        }
+        this.expandedParents = nextExpandedParents;
       }
     }
   },
 
+  topLevelContexts() {
+    return sidebarStore.sortRows(
+      "chat",
+      this.contexts.filter((ctx) => !ctx?.parent_context_id),
+    );
+  },
+
+  childContexts(parentId) {
+    return sidebarStore.sortRows(
+      "chat",
+      this.contexts.filter((ctx) => ctx?.parent_context_id === parentId),
+    );
+  },
+
+  hasChildren(parentId) {
+    return this.childContexts(parentId).length > 0;
+  },
+
+  isExpanded(parentId) {
+    return Boolean(this.expandedParents?.[parentId]);
+  },
+
+  toggleChildren(parentId) {
+    if (!parentId || !this.hasChildren(parentId)) return;
+    this.expandedParents = {
+      ...this.expandedParents,
+      [parentId]: !this.expandedParents?.[parentId],
+    };
+  },
+
+  displayName(context) {
+    if (!context) return "";
+    return context.parent_context_label || context.name || `Chat #${context.no}`;
+  },
+
   // Select a chat
   async selectChat(id) {
+    // The row may still have a queued click while Alpine removes it.
+    if (!id || this.deletedContextIds[id]) return;
+
     const currentContext = getContext();
-    if (id === currentContext) return; // already selected
+    if (id === currentContext) {
+      this.setSelected(id);
+      return;
+    }
 
     // Proceed with context selection
     setContext(id);
@@ -98,24 +154,41 @@ const model = {
       console.error("No chat ID provided for deletion");
       return;
     }
+    if (this.deletedContextIds[id]) return;
+
+    const removedContext = this.contexts.find((context) => context.id === id);
+    const deletingSelectedContext = this.selected === id || getContext() === id;
+
+    // Remove first, before selecting the fallback chat. Alpine batches both
+    // state changes into one render so the old row cannot remain above the new
+    // selection while the HTTP request is in flight.
+    this.deletedContextIds = { ...this.deletedContextIds, [id]: true };
+    this.contexts = this.contexts.filter((context) => context.id !== id);
 
     try {
       // Switch to another context if deleting current
-      if (this.selected === id) {
+      if (deletingSelectedContext) {
         await this.switchFromContext(id);
       }
 
       // Delete the chat on the server
       await sendJsonData("/chat_remove", { context: id });
 
-      // Update the UI - remove from contexts
-      const updatedContexts = this.contexts.filter((ctx) => ctx.id !== id);
-      // Force UI update by creating a new array
-      this.contexts = [...updatedContexts];
-
       // Show success notification
       justToast("Chat deleted successfully", "success", 1000, "chat-removal");
     } catch (e) {
+      const deletedContextIds = { ...this.deletedContextIds };
+      delete deletedContextIds[id];
+      this.deletedContextIds = deletedContextIds;
+
+      // Roll back the optimistic row removal without disturbing any chat the
+      // user selected while the request was pending.
+      if (removedContext && !this.contexts.some((context) => context.id === id)) {
+        this.contexts = [...this.contexts, removedContext].sort(
+          (a, b) => (b.created_at || 0) - (a.created_at || 0),
+        );
+      }
+
       console.error("Error deleting chat:", e);
       toastFetchError("Error deleting chat", e);
     }
@@ -170,12 +243,13 @@ const model = {
       if (response.ok) {
         await this.selectChat(response.ctxid);
         document.dispatchEvent(new CustomEvent("chat-created", { detail: { ctxid: response.ctxid } }));
-        return;
+        return response.ctxid;
       }
 
     } catch (e) {
       toastFetchError("Error creating new chat", e);
     }
+    return null;
   },
 
   deselectChat(){
