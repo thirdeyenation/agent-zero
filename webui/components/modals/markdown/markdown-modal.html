@@ -9,17 +9,23 @@
     <div x-data>
         <template x-if="$store.markdownModal">
             <div x-create="$el.closest('.modal')?.querySelector('.modal-title') && ($el.closest('.modal').querySelector('.modal-title').textContent = $store.markdownModal.title)"
+                 x-init="$store.markdownModal.onOpen()"
                  x-destroy="$store.markdownModal.cleanup()"
                  class="md-modal-root">
 
                 <div x-show="$store.markdownModal.error" class="md-modal-error">
-                    <span class="material-symbols-outlined">error</span>
+                    <x-icon name="error"></x-icon>
                     <span x-text="$store.markdownModal.error"></span>
                 </div>
 
                 <div class="md-modal-body msg-content"
-                     x-show="!$store.markdownModal.error"
+                     x-show="!$store.markdownModal.error && !$store.markdownModal.isAce"
                      x-html="$store.markdownModal.renderedHtml">
+                </div>
+
+                <div id="markdown-ace-viewer-container"
+                     class="md-modal-ace no-scrollbar"
+                     x-show="!$store.markdownModal.error && $store.markdownModal.isAce">
                 </div>
             </div>
         </template>
@@ -40,6 +46,17 @@
             padding: 1.25rem 1.5rem;
             overflow-y: auto;
             max-height: 72vh;
+        }
+
+        .md-modal-ace {
+            width: 100%;
+            height: 72vh;
+            border-radius: 0.4rem;
+            overflow: auto;
+        }
+
+        .md-modal-root {
+            overflow: hidden;
         }
 
         .md-modal-error {

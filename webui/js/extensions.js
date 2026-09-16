@@ -20,6 +20,19 @@ import * as cache from "./cache.js";
 
 const JS_CACHE_AREA = "frontend_extensions_js(extensions)(plugins)";
 const HTML_CACHE_AREA = "frontend_extensions_html(extensions)(plugins)";
+let alpineInitialized = false;
+const LOADING_SELECTOR = "x-component > .loading:empty, x-extension.loading";
+
+export let initialHtmlExtensionsLoaded = false;
+
+function checkInitialLoadComplete() {
+  if (initialHtmlExtensionsLoaded || !alpineInitialized || document.querySelector(LOADING_SELECTOR)) return;
+  globalThis.Alpine.nextTick(() => {
+    if (initialHtmlExtensionsLoaded || document.querySelector(LOADING_SELECTOR)) return;
+    initialHtmlExtensionsLoaded = true;
+    document.dispatchEvent(new Event("webui-extensions-loaded"));
+  });
+}
 
 export const API_EXTENSION_EXCLUDED_ENDPOINTS = new Set([
   "/api/load_webui_extensions",
@@ -28,6 +41,15 @@ export const API_EXTENSION_EXCLUDED_ENDPOINTS = new Set([
 export function clearCache() {
   cache.clear(JS_CACHE_AREA);
   cache.clear(HTML_CACHE_AREA);
+}
+
+function manifestExtensionPaths(assetType, extensionPoint) {
+  const manifest = globalThis.runtimeInfo?.webuiExtensions;
+  if (!manifest || typeof manifest !== "object") return null;
+  const extensionsByPoint = manifest[assetType];
+  if (!extensionsByPoint || typeof extensionsByPoint !== "object") return null;
+  const extensions = extensionsByPoint[extensionPoint];
+  return Array.isArray(extensions) ? extensions : [];
 }
 
 /**
@@ -59,14 +81,20 @@ export async function loadJsExtensions(extensionPoint) {
     const cached = cache.get(JS_CACHE_AREA, extensionPoint, null);
     if (cached != null) return cached;
 
-    /** @type {LoadWebuiExtensionsResponse} */
-    const response = await api.callJsonApi(`/api/load_webui_extensions`, {
-      extension_point: extensionPoint,
-      filters: ["*.js", "*.mjs"],
-    });
+    const manifestExtensions = manifestExtensionPaths("js", extensionPoint);
+    /** @type {WebuiExtension[]} */
+    let extensionPaths = manifestExtensions;
+    if (extensionPaths == null) {
+      /** @type {LoadWebuiExtensionsResponse} */
+      const response = await api.callJsonApi(`/api/load_webui_extensions`, {
+        extension_point: extensionPoint,
+        filters: ["*.js", "*.mjs"],
+      });
+      extensionPaths = response.extensions;
+    }
     /** @type {JsExtensionImport[]} */
     const imports = await Promise.all(
-      response.extensions.map(async (path) => ({
+      extensionPaths.map(async (path) => ({
         path,
         module: await import(normalizePath(path))
       }))
@@ -159,6 +187,7 @@ export async function reloadHtmlExtensions(roots = [document.documentElement]) {
  * @returns {Promise<void>}
  */
 export async function importHtmlExtensions(extensionPoint, targetElement) {
+  targetElement.classList.add("loading");
   try {
     const cachedHtml = cache.get(HTML_CACHE_AREA, extensionPoint, null);
     if (cachedHtml != null) {
@@ -166,13 +195,19 @@ export async function importHtmlExtensions(extensionPoint, targetElement) {
       return;
     }
 
-    /** @type {LoadWebuiExtensionsResponse} */
-    const response = await api.callJsonApi(`/api/load_webui_extensions`, {
-      extension_point: extensionPoint,
-      filters: ["*.html", "*.htm", "*.xhtml"],
-    });
+    const manifestExtensions = manifestExtensionPaths("html", extensionPoint);
+    /** @type {WebuiExtension[]} */
+    let extensionPaths = manifestExtensions;
+    if (extensionPaths == null) {
+      /** @type {LoadWebuiExtensionsResponse} */
+      const response = await api.callJsonApi(`/api/load_webui_extensions`, {
+        extension_point: extensionPoint,
+        filters: ["*.html", "*.htm", "*.xhtml"],
+      });
+      extensionPaths = response.extensions;
+    }
     let combinedHTML = "";
-    for (const extension of response.extensions) {
+    for (const extension of extensionPaths) {
       const path = normalizePath(extension);
       combinedHTML += `<x-component path="${path}"></x-component>`;
     }
@@ -181,6 +216,9 @@ export async function importHtmlExtensions(extensionPoint, targetElement) {
   } catch (error) {
     console.error("Error importing HTML extensions:", error);
     return;
+  } finally {
+    targetElement.classList.remove("loading");
+    checkInitialLoadComplete();
   }
 }
 
@@ -210,11 +248,17 @@ const extensionObserverCallback = (mutations) => {
       }
     }
   }
+  checkInitialLoadComplete();
 };
 
 /** @type {MutationObserver} */
 const extensionObserver = new MutationObserver(extensionObserverCallback);
 extensionObserver.observe(document.body, { childList: true, subtree: true });
+
+document.addEventListener("alpine:initialized", () => {
+  alpineInitialized = true;
+  checkInitialLoadComplete();
+}, { once: true });
 
 // Do an initial scan for static x-extension tags
 // that already exist in the DOM (index.html), then rely on

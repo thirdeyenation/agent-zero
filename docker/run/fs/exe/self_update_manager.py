@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import os
 import re
 import shutil
 import signal
+import stat
 import subprocess
 import sys
 import tempfile
@@ -34,7 +36,7 @@ DEFAULT_HEALTH_URL = os.environ.get(
     "http://127.0.0.1:80/api/health",
 )
 DEFAULT_HEALTH_TIMEOUT_SECONDS = int(
-    os.environ.get("A0_SELF_UPDATE_HEALTH_TIMEOUT_SECONDS", "120")
+    os.environ.get("A0_SELF_UPDATE_HEALTH_TIMEOUT_SECONDS", "180")
 )
 DEFAULT_HEALTH_POLL_INTERVAL_SECONDS = float(
     os.environ.get("A0_SELF_UPDATE_HEALTH_POLL_INTERVAL_SECONDS", "2")
@@ -44,6 +46,11 @@ DEFAULT_BACKUP_CONFLICT_POLICY = "rename"
 BACKUP_CONFLICT_POLICIES = {"rename", "overwrite", "fail"}
 MIN_SELECTOR_VERSION = (1, 0)
 LATEST_SELECTOR_TAG = "latest"
+DESKTOP_PROFILE_STATE_RELATIVE_DIRS = (
+    Path("usr/plugins/_desktop/profiles"),
+    Path("usr/_desktop/profiles"),
+    Path("tmp/_office/desktop/profiles"),
+)
 
 
 def now_iso() -> str:
@@ -361,12 +368,28 @@ def create_usr_backup(
             compression=zipfile.ZIP_DEFLATED,
             compresslevel=6,
         ) as archive:
-            for root, _, files in os.walk(usr_dir):
+            for root, dirs, files in os.walk(usr_dir):
                 root_path = Path(root)
+                root_relative = root_path.relative_to(usr_dir)
+                dirs[:] = [
+                    dirname
+                    for dirname in dirs
+                    if not should_exclude_from_usr_backup(
+                        root_relative / dirname,
+                        logger,
+                    )
+                ]
                 for filename in files:
                     source_file = root_path / filename
+                    if not should_include_usr_backup_entry(source_file, logger):
+                        continue
                     archive_name = Path("usr") / source_file.relative_to(usr_dir)
-                    archive.write(source_file, archive_name.as_posix())
+                    try:
+                        archive.write(source_file, archive_name.as_posix())
+                    except FileNotFoundError:
+                        logger.log(f"Skipping vanished usr backup entry: {source_file}")
+                    except OSError as exc:
+                        logger.log(f"Skipping usr backup entry after read error: {source_file}: {exc}")
 
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.move(str(temporary_backup), str(destination))
@@ -375,6 +398,196 @@ def create_usr_backup(
     finally:
         if temporary_backup.exists():
             temporary_backup.unlink(missing_ok=True)
+
+
+def should_exclude_from_usr_backup(
+    relative_dir: Path,
+    logger: AttemptLogger,
+) -> bool:
+    parts = relative_dir.parts
+    if parts and parts[0] == ".time_travel":
+        logger.log(
+            f"Skipping Time Travel history during usr backup: {Path('usr') / relative_dir}"
+        )
+        return True
+    if (
+        len(parts) >= 6
+        and parts[0] == "plugins"
+        and parts[1] == "_desktop"
+        and parts[2] == "profiles"
+        and parts[-2] == ".ssh"
+        and parts[-1] == "agent"
+    ):
+        logger.log(f"Skipping transient usr backup directory: {Path('usr') / relative_dir}")
+        return True
+    return False
+
+
+def should_include_usr_backup_entry(source_file: Path, logger: AttemptLogger) -> bool:
+    try:
+        source_stat = source_file.lstat()
+    except FileNotFoundError:
+        logger.log(f"Skipping vanished usr backup entry: {source_file}")
+        return False
+    except OSError as exc:
+        logger.log(f"Skipping unreadable usr backup entry: {source_file}: {exc}")
+        return False
+
+    if stat.S_ISLNK(source_stat.st_mode):
+        try:
+            target_stat = source_file.stat()
+        except FileNotFoundError:
+            logger.log(f"Skipping broken symlink during usr backup: {source_file}")
+            return False
+        except OSError as exc:
+            logger.log(
+                f"Skipping unreadable symlink target during usr backup: {source_file}: {exc}"
+            )
+            return False
+        if not stat.S_ISREG(target_stat.st_mode):
+            logger.log(
+                f"Skipping non-regular symlink target during usr backup: {source_file}"
+            )
+            return False
+        return True
+
+    if not stat.S_ISREG(source_stat.st_mode):
+        logger.log(f"Skipping non-regular usr backup entry: {source_file}")
+        return False
+
+    return True
+
+
+def clean_transient_desktop_agent_state(
+    repo_dir: Path,
+    logger: AttemptLogger,
+) -> None:
+    profile_roots = 0
+    removed = 0
+    for relative_root in DESKTOP_PROFILE_STATE_RELATIVE_DIRS:
+        profile_root = repo_dir / relative_root
+        if not _is_cleanup_directory(
+            profile_root,
+            logger,
+            "Desktop profile state",
+            missing_ok=True,
+        ):
+            continue
+        profile_roots += 1
+        try:
+            profiles = list(profile_root.iterdir())
+        except OSError as exc:
+            logger.log(f"Desktop profile state could not be listed: {profile_root}: {exc}")
+            continue
+        for profile_dir in profiles:
+            if not _is_cleanup_directory(profile_dir, logger, "Desktop profile"):
+                continue
+            removed += _clean_directory_entries(
+                profile_dir / ".ssh" / "agent",
+                logger,
+                label="desktop SSH agent",
+            )
+            removed += _clean_gnupg_agent_entries(profile_dir / ".gnupg", logger)
+
+    if removed:
+        logger.log(f"Removed {removed} transient desktop agent entries.")
+    elif profile_roots:
+        logger.log("Transient desktop agent state already clean.")
+    else:
+        logger.log("No desktop profile runtime state found, skipping transient agent cleanup.")
+
+
+def _clean_gnupg_agent_entries(gnupg_dir: Path, logger: AttemptLogger) -> int:
+    if not _is_cleanup_directory(gnupg_dir, logger, "desktop GnuPG state", missing_ok=True):
+        return 0
+    try:
+        entries = list(gnupg_dir.iterdir())
+    except OSError as exc:
+        logger.log(f"Desktop GnuPG state could not be listed: {gnupg_dir}: {exc}")
+        return 0
+
+    removed = 0
+    for entry in entries:
+        if not entry.name.startswith("S.gpg-agent"):
+            continue
+        try:
+            entry_stat = entry.lstat()
+        except FileNotFoundError:
+            continue
+        except OSError as exc:
+            logger.log(f"Skipping transient desktop GnuPG agent entry after stat error: {entry}: {exc}")
+            continue
+        if stat.S_ISREG(entry_stat.st_mode):
+            continue
+        if _remove_cleanup_entry(entry, entry_stat, logger, label="desktop GnuPG agent"):
+            removed += 1
+    return removed
+
+
+def _clean_directory_entries(directory: Path, logger: AttemptLogger, *, label: str) -> int:
+    if not _is_cleanup_directory(directory, logger, label, missing_ok=True):
+        return 0
+    try:
+        entries = list(directory.iterdir())
+    except OSError as exc:
+        logger.log(f"Transient {label} directory could not be listed: {directory}: {exc}")
+        return 0
+
+    removed = 0
+    for entry in entries:
+        try:
+            entry_stat = entry.lstat()
+        except FileNotFoundError:
+            continue
+        except OSError as exc:
+            logger.log(f"Skipping transient {label} entry after stat error: {entry}: {exc}")
+            continue
+        if _remove_cleanup_entry(entry, entry_stat, logger, label=label):
+            removed += 1
+    return removed
+
+
+def _is_cleanup_directory(
+    directory: Path,
+    logger: AttemptLogger,
+    label: str,
+    *,
+    missing_ok: bool = False,
+) -> bool:
+    try:
+        directory_stat = directory.lstat()
+    except FileNotFoundError:
+        if not missing_ok:
+            logger.log(f"{label} directory not found, skipping: {directory}")
+        return False
+    except OSError as exc:
+        logger.log(f"{label} directory could not be inspected: {directory}: {exc}")
+        return False
+
+    if stat.S_ISLNK(directory_stat.st_mode) or not stat.S_ISDIR(directory_stat.st_mode):
+        logger.log(f"{label} path is not a directory, skipping: {directory}")
+        return False
+    return True
+
+
+def _remove_cleanup_entry(
+    entry: Path,
+    entry_stat: os.stat_result,
+    logger: AttemptLogger,
+    *,
+    label: str,
+) -> bool:
+    try:
+        if stat.S_ISDIR(entry_stat.st_mode):
+            shutil.rmtree(entry)
+        else:
+            entry.unlink(missing_ok=True)
+        return True
+    except FileNotFoundError:
+        return False
+    except OSError as exc:
+        logger.log(f"Skipping transient {label} entry after error: {entry}: {exc}")
+        return False
 
 
 def run_command(
@@ -402,6 +615,47 @@ def run_command(
             or f"Command failed with exit code {completed.returncode}: {' '.join(command)}"
         )
     return completed
+
+
+def clean_uv_cache(logger: AttemptLogger) -> None:
+    uv_path = shutil.which("uv")
+    if not uv_path:
+        logger.log("uv executable not found, skipping uv cache clean.")
+        return
+
+    logger.log("Cleaning uv cache before continuing self-update startup.")
+    try:
+        run_command(
+            [uv_path, "cache", "clean"],
+            cwd=None,
+            logger=logger,
+            error_message="Failed to clean uv cache during self-update.",
+        )
+    except Exception as exc:
+        logger.log(f"uv cache clean skipped after error: {exc}")
+
+
+def refresh_codex_cli(logger: AttemptLogger) -> None:
+    codex_path = shutil.which("codex")
+    if not codex_path:
+        logger.log("Codex CLI not installed, skipping Codex refresh.")
+        return
+
+    npm_path = shutil.which("npm")
+    if not npm_path:
+        logger.log("npm executable not found, skipping Codex refresh.")
+        return
+
+    logger.log("Refreshing the installed Codex CLI after self-update.")
+    try:
+        run_command(
+            [npm_path, "install", "--global", "@openai/codex@latest"],
+            cwd=None,
+            logger=logger,
+            error_message="Failed to refresh the installed Codex CLI.",
+        )
+    except Exception as exc:
+        logger.log(f"Codex CLI refresh skipped after error: {exc}")
 
 
 def has_local_rollback_changes(repo_dir: Path) -> bool:
@@ -680,6 +934,8 @@ def restore_git_state(
 
 
 def launch_ui_process(repo_dir: Path, logger: AttemptLogger) -> subprocess.Popen[bytes]:
+    run_office_cleanup_hook(repo_dir, logger)
+
     prepare_script = repo_dir / "prepare.py"
     if prepare_script.exists():
         logger.log("Running prepare.py before UI start")
@@ -698,6 +954,31 @@ def launch_ui_process(repo_dir: Path, logger: AttemptLogger) -> subprocess.Popen
         ],
         cwd=repo_dir,
     )
+
+
+def run_office_cleanup_hook(repo_dir: Path, logger: AttemptLogger) -> None:
+    hook_path = repo_dir / "plugins" / "_office" / "hooks.py"
+    if not hook_path.exists():
+        return
+    try:
+        if str(repo_dir) not in sys.path:
+            sys.path.insert(0, str(repo_dir))
+        spec = importlib.util.spec_from_file_location("a0_office_hooks", hook_path)
+        if spec is None or spec.loader is None:
+            logger.log("Office cleanup hook could not be loaded.")
+            return
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        cleanup = getattr(module, "cleanup_stale_runtime_state", None)
+        if not callable(cleanup):
+            return
+        result = cleanup()
+        if isinstance(result, dict) and result.get("errors"):
+            logger.log(f"Office cleanup hook reported errors: {result.get('errors')}")
+        else:
+            logger.log("Office cleanup hook completed.")
+    except Exception as exc:
+        logger.log(f"Office cleanup hook skipped after error: {exc}")
 
 
 def wait_for_health(
@@ -890,6 +1171,7 @@ def execute_pending_update(
             logger=logger,
         )
         if healthy:
+            refresh_codex_cli(logger)
             record_result(
                 status="success",
                 message=f"Updated Agent Zero to branch {branch}, {resolved_target['target_description']}.",
@@ -1149,6 +1431,11 @@ def docker_run_ui() -> int:
         logger.reset()
         logger.log(f"Consumed update file at {TRIGGER_FILE}")
         logger.log_block("Trigger file content", raw_text)
+        clean_uv_cache(logger)
+        try:
+            clean_transient_desktop_agent_state(REPO_DIR, logger)
+        except Exception as exc:
+            logger.log(f"Transient desktop agent cleanup skipped after error: {exc}")
 
         try:
             current = get_repo_version_info(REPO_DIR)
@@ -1162,6 +1449,7 @@ def docker_run_ui() -> int:
                 logger.log(
                     "Requested tag already matches the installed version, skipping file replacement."
                 )
+                refresh_codex_cli(logger)
                 record_result(
                     status="skipped",
                     message="Requested tag already matches the installed version.",
@@ -1205,8 +1493,11 @@ def main(argv: list[str] | None = None) -> int:
         return docker_run_ui()
     if args[0] == "trigger-update":
         return trigger_update_command(args[1:])
+    if args[0] == "refresh-codex":
+        refresh_codex_cli(AttemptLogger(LOG_FILE))
+        return 0
     if args[0] in {"-h", "--help"}:
-        print("Usage: self_update_manager.py [docker-run-ui | trigger-update ...]")
+        print("Usage: self_update_manager.py [docker-run-ui | trigger-update ... | refresh-codex]")
         return 0
     print(f"Unknown command: {args[0]}", file=sys.stderr)
     return 1

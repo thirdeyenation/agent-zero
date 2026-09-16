@@ -3,7 +3,7 @@ import inspect
 import secrets
 from pathlib import Path
 from typing import TypeVar, Callable, Awaitable, Union, overload, cast
-from helpers import dotenv, rfc, settings, files
+from helpers import dotenv, rfc, files
 import asyncio
 import threading
 import queue
@@ -31,7 +31,7 @@ def initialize():
         "--cloudflare_tunnel",
         type=bool,
         default=False,
-        help="Use cloudflare tunnel for public URL",
+        help="Use Cloudflare Tunnel for public URL",
     )
     parser.add_argument(
         "--development", type=bool, default=False, help="Development mode"
@@ -134,6 +134,8 @@ def _get_rfc_password() -> str:
 
 
 def _get_rfc_url() -> str:
+    # Delay import to avoid a circular import with helpers.settings.
+    from helpers import settings
     set = settings.get_settings()
     url = set["rfc_url"]
     if not "://" in url:

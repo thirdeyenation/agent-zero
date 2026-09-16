@@ -1,20 +1,27 @@
 ### text_editor
-file read write patch with numbered lines
+canonical text and Markdown file read write patch with numbered lines
 not code execution rejects binary
 terminal (grep find sed) advance search/replace
+actions: read write patch
+common args: action path
+optional UI intent args: open_in_canvas
+use this tool for Markdown and plain text files; use `office_artifact` only for Office packages such as odt ods odp docx xlsx pptx
+if the user explicitly asks to open the Markdown file in the canvas/Editor after a write or patch, set `open_in_canvas: true`; otherwise omit UI flags because already-open Editor sessions refresh automatically
 
-#### text_editor:read
+#### read
 read file with numbered lines
 args path line_from line_to (inclusive optional)
-no range → first {{default_line_count}} lines
+no range -> first {{default_line_count}} lines
 long lines cropped output may trim by token limit
 read surrounding context before patching
 usage:
 ~~~json
 {
-    ...
-    "tool_name": "text_editor:read",
+    "thoughts": ["I need file context before editing."],
+    "headline": "Reading file",
+    "tool_name": "text_editor",
     "tool_args": {
+        "action": "read",
         "path": "/path/file.py",
         "line_from": 1,
         "line_to": 50
@@ -22,46 +29,52 @@ usage:
 }
 ~~~
 
-#### text_editor:write
+#### write
 create/overwrite file auto-creates dirs
 args path content
+for Markdown files, include `open_in_canvas: true` only when the user explicitly asks to open the canvas/Editor
 usage:
 ~~~json
 {
-    ...
-    "tool_name": "text_editor:write",
+    "thoughts": ["I need to create or replace the file content."],
+    "headline": "Writing file",
+    "tool_name": "text_editor",
     "tool_args": {
+        "action": "write",
         "path": "/path/file.py",
         "content": "import os\nprint('hello')\n"
     }
 }
 ~~~
 
-#### text_editor:patch
-line edits on existing file
-args path edits [{from to content}]
-from to inclusive \n in content
-{from:2 to:2 content:"x\n"} replace line
-{from:1 to:3 content:"x\n"} replace range
-{from:2 to:2} delete (no content)
-{from:2 content:"x\n"} insert before (omit to)
-use original line numbers from read 
-dont adjust for shifts no overlapping edits
+#### patch
+edit existing file. prefer exact replace for simple "change X to Y"; use patch_text for context changes; use edits only right after read for tiny line edits
+if the user says patch, change without rewriting, or don't rewrite, use action patch instead of write
+args path plus exactly one of: old_text+new_text OR patch_text string OR edits [{from to content}]
+for Markdown files, include `open_in_canvas: true` only when the user explicitly asks to open the canvas/Editor
+exact replace: `old_text` must be the exact current text span and must match once; `new_text` is the replacement
+patch_text uses current file content, no prior read required
+patch_text update-only forms:
+- insert after anchor: @@ exact existing line then +new lines
+- replace: use @@ line before target then -old +new, or @@ old target line then -same old target line +new
+- do not repeat the same old line as both a space-context line and a -removed line
+- context lines start with space, removals with -, additions with +
+- use enough unique context; add @@ anchor when repeated text exists
+edits legacy line mode: from/to inclusive, original line numbers from read, no overlaps
+edits examples: {from:2 to:2 content:"x\n"} replace; {from:2 to:2} delete; {from:2 content:"x\n"} insert before
+for edits, re-read after insert/delete or line-count-changing replace
 ensure valid syntax in content (all braces brackets tags closed)
-only replace exact lines needed dont include surrounding unchanged lines
-re-read when insert delete or N≠M replace else patch again ok
-large changes write over multiple patches
 usage:
 ~~~json
 {
-    ...
-    "tool_name": "text_editor:patch",
+    "thoughts": ["I can replace one exact current string without rewriting the whole file."],
+    "headline": "Patching file",
+    "tool_name": "text_editor",
     "tool_args": {
+        "action": "patch",
         "path": "/path/file.py",
-        "edits": [
-            {"from": 1, "content": "import sys\n"},
-            {"from": 5, "to": 5, "content": "    if x == 2:\n"}
-        ]
+        "old_text": "status = 'draft'",
+        "new_text": "status = 'ready'"
     }
 }
 ~~~

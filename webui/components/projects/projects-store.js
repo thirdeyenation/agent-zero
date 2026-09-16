@@ -5,6 +5,7 @@ import * as notifications from "/components/notifications/notification-store.js"
 import { store as chatsStore } from "/components/sidebar/chats/chats-store.js";
 import { store as browserStore } from "/components/modals/file-browser/file-browser-store.js";
 import { store as skillsImportStore } from "/components/settings/skills/skills-import-store.js";
+import { store as modelConfigStore } from "/plugins/_model_config/webui/model-config-store.js";
 import * as shortcuts from "/js/shortcuts.js";
 import { showConfirmDialog } from "/js/confirmDialog.js";
 
@@ -93,7 +94,7 @@ const model = {
   },
 
   async openCreateModal() {
-    this.selectedProject = this._createNewProjectData();
+    this.selectedProject = await this._createNewProjectData();
     await modals.openModal(createModal);
     this.selectedProject = null;
   },
@@ -161,7 +162,9 @@ const model = {
           title: project.title,
           color: project.color,
           git_url: project.git_url,
+          include_agents_md: project.include_agents_md !== false,
           git_token: project.git_token || "",
+          llm: project.llm || null,
         },
       });
 
@@ -370,6 +373,8 @@ const model = {
           notifications.NotificationPriority.NORMAL,
           true
         );
+        const contextId = chatsStore.getSelectedChatId();
+        if (contextId) await modelConfigStore.refreshSwitcher(contextId);
         return response.data;
       } else {
         notifications.toastFrontendError(
@@ -396,7 +401,7 @@ const model = {
     }
   },
 
-  _createNewProjectData() {
+  async _createNewProjectData() {
     return {
       _meta: {
         creating: true,
@@ -405,6 +410,8 @@ const model = {
       name: ``,
       title: `Project #${this.projectList.length + 1}`,
       description: "",
+      instructions: "",
+      include_agents_md: true,
       color: "",
       git_url: "",
       git_token: "",
@@ -423,7 +430,106 @@ const model = {
         creating: false,
       },
       ...projectData,
+      include_agents_md: projectData.include_agents_md !== false,
+      llm: this._normalizeProjectLlmData(projectData.llm, name),
     };
+  },
+
+  async _createProjectLlmData(projectName) {
+    await modelConfigStore.ensureLoaded();
+    const configResult = await api.callJsonApi("/plugins/_model_config/model_config_get", {
+      project_name: projectName || "",
+    });
+    const presetsResult = await api.callJsonApi("/plugins/_model_config/model_presets", {
+      action: "get",
+      project_name: projectName || "",
+    });
+    return this._normalizeProjectLlmData({
+      selected_preset: {
+        scope: "global",
+        project_name: "",
+        name: configResult.selected_preset || configResult.configured_preset || "Default",
+      },
+      global_presets: presetsResult.global_presets || presetsResult.presets || [],
+      presets: presetsResult.presets || [],
+    }, projectName);
+  },
+
+  _normalizeProjectLlmData(raw, projectName) {
+    const data = raw || {};
+    const globalPresets = this._normalizePresetsWithScope(
+      data.global_presets || [],
+      "global",
+      ""
+    );
+    const presets = [...globalPresets];
+    const selected = data.selected_preset || {
+      scope: "global",
+      project_name: "",
+      name: "Default",
+    };
+    return {
+      selected_preset: selected,
+      preset_key: this.getLlmPresetKey(selected),
+      global_presets: globalPresets,
+      project_presets: [],
+      presets,
+    };
+  },
+
+  _normalizePresetsWithScope(presets, defaultScope, projectName) {
+    return modelConfigStore._normalizePresets(presets || []).map((preset, index) => {
+      const raw = presets[index] || {};
+      return {
+        ...preset,
+        scope: raw.scope || defaultScope,
+        project_name: raw.project_name || (defaultScope === "project" ? projectName : ""),
+      };
+    });
+  },
+
+  getLlmPresetKey(preset) {
+    if (!preset) return "global||Default";
+    return `${preset.scope || "global"}|${preset.project_name || ""}|${preset.name || ""}`;
+  },
+
+  _findLlmPresetByKey(key) {
+    const llm = this.selectedProject?.llm;
+    if (!llm) return null;
+    return (llm.presets || []).find((preset) => this.getLlmPresetKey(preset) === key) || null;
+  },
+
+  applySelectedLlmPreset() {
+    const llm = this.selectedProject?.llm;
+    if (!llm) return;
+    const preset = this._findLlmPresetByKey(llm.preset_key);
+    if (!preset) return;
+    llm.selected_preset = {
+      scope: preset.scope || "global",
+      project_name: preset.project_name || "",
+      name: preset.name || "",
+    };
+  },
+
+  async editSelectedProjectPresets() {
+    const llm = this.selectedProject?.llm;
+    if (!llm) return;
+    const selectedName = llm.selected_preset?.name || "Default";
+    await modelConfigStore.openPresetEditor(selectedName);
+    await modelConfigStore.loadGlobalPresets();
+    llm.global_presets = this._normalizePresetsWithScope(
+      modelConfigStore.globalPresets,
+      "global",
+      ""
+    );
+    llm.presets = [...llm.global_presets];
+    const remappedName = modelConfigStore.remapPresetName(selectedName);
+    llm.selected_preset = {
+      scope: "global",
+      project_name: "",
+      name: remappedName,
+    };
+    llm.preset_key = this.getLlmPresetKey(llm.selected_preset);
   },
 
   async browseSelected(...relPath) {

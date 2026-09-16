@@ -10,36 +10,48 @@
     <div x-data="{ get settings() { return $store.settings.settings } }">
       <template x-if="settings">
         <div>
-        <div class="section-title">Self Update</div>
+        <div class="section-title"
+             :class="{'settings-update-title-attention': $store.settings.hasUpdateAttention}">
+          Self Update
+        </div>
+        <div class="section-description">
+          Update Agent Zero deliberately, with a backup path available before anything changes.
+        </div>
 
-        <div class="field">
-          <div class="field-label">
-            <div class="field-title">Open Self Update</div>
-            <div class="field-description">
-              Choose the target branch and tag, decide whether to zip <code>/a0/usr</code> first, and review the durable trigger, status, and log file locations used across restarts.
-            </div>
+        <div class="settings-update-card"
+             :class="{'settings-update-card-attention': $store.settings.hasUpdateAttention}">
+          <div class="settings-update-card-icon" aria-hidden="true">
+            <x-icon
+                  :name="$store.settings.hasUpdateAttention ? 'release_alert' : 'system_update_alt'"></x-icon>
+          </div>
+          <div class="settings-update-card-copy">
+            <div class="settings-update-card-title" x-text="$store.settings.updateAttentionTitle"></div>
+            <div class="settings-update-card-message" x-text="$store.settings.updateAttentionMessage"></div>
             <template x-if="!$store.settings.additional?.is_dockerized">
-              <div class="field-description">
-                This action is currently available only in dockerized installs.
+              <div class="settings-update-card-message">
+                Self-update is currently available only in dockerized installs.
               </div>
             </template>
+            <div class="settings-update-card-meta">
+              <span class="settings-update-card-badge" x-text="$store.settings.updateAttentionLabel"></span>
+            </div>
           </div>
-          <div class="field-control">
+          <div class="settings-update-card-actions">
             <button
               class="btn btn-field"
               @click="$store.selfUpdateStore.openModal()"
               :disabled="!$store.settings.additional?.is_dockerized"
             >
-              Open Self Update
+              Review Update
             </button>
           </div>
         </div>
 
         <div class="field">
           <div class="field-label">
-            <div class="field-title">Enable Update Checker</div>
+            <div class="field-title">Update notifications</div>
             <div class="field-description">
-              Periodically check for newer Agent Zero releases and show a notification when an update is recommended.
+              Check for newer releases quietly. Toasts are intentionally rate-limited; the update status here stays visible.
             </div>
           </div>
           <div class="field-control">

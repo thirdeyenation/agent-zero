@@ -57,14 +57,21 @@ class CompactChat(connector_base.ProtectedConnectorApiHandler):
             return Response("Cannot compact while agent is running", 409)
 
         stats = await get_compaction_stats(context)
-        if stats["token_count"] < MIN_COMPACTION_TOKENS:
+        can_compact = stats["token_count"] >= MIN_COMPACTION_TOKENS
+
+        if action == "stats":
+            payload: dict = {"ok": can_compact, "stats": stats}
+            if not can_compact:
+                payload["message"] = (
+                    f"Not enough content to compact (minimum {MIN_COMPACTION_TOKENS:,} tokens)"
+                )
+            return payload
+
+        if not can_compact:
             return {
                 "ok": False,
                 "message": f"Not enough content to compact (minimum {MIN_COMPACTION_TOKENS:,} tokens)",
             }
-
-        if action == "stats":
-            return {"ok": True, "stats": stats}
 
         if action == "compact":
             use_chat_model = _coerce_bool(input.get("use_chat_model", True), default=True)

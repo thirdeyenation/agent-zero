@@ -4,9 +4,9 @@ Contributions to improve Agent Zero are very welcome!  This guide outlines how t
 
 ## Getting Started
 
-- See [development](development.md) for instructions on how to set up a development environment.
-- See [extensions](../developer/extensions.md) for instructions on how to create custom extensions.
-- See [websocket infrastructure](websocket-infrastructure.md) for guidance on building real-time handlers and client integrations.
+- See [Development Setup](../setup/dev-setup.md) for a local development environment.
+- See [Create a Small Plugin](create-plugin.md) before building a new plugin.
+- Use [DeepWiki for Agent Zero](https://deepwiki.com/agent0ai/agent-zero) for architecture and source-linked internals.
 
 1. **Fork the Repository:** Fork the Agent Zero repository on GitHub.
 2. **Clone Your Fork:** Clone your forked repository to your local machine.
@@ -43,12 +43,15 @@ If your fork contains GitHub Actions workflows, be careful with GitHub's "Allow 
 ## Choosing The Right Publication Path
 
 - **Core bugfixes and docs for Agent Zero itself:** prepare them in a clean fork/clone of `agent-zero` and open a PR back to the upstream repository.
-- **Community plugins:** publish the plugin in its own public repository, then submit its `index.yaml` entry to `agent0ai/a0-plugins` as described in `../developer/plugins.md`.
+- **Community plugins:** publish the plugin in its own public repository, then submit it to [`agent0ai/a0-plugins`](https://github.com/agent0ai/a0-plugins).
 - **Skills:** develop locally in `usr/skills/`, then move stable skills to `skills/` for Agent Zero contributions or publish them in a dedicated public repository/collection.
 - **Private experiments, credentials, local R&D, or customer-specific assets:** keep them out of public forks and upstream pull requests.
 
-For a contributor-focused decision guide that covers fixes, plugins, skills, and what should stay private, see `../developer/sharing-and-safety.md`.
+For a contributor-focused decision guide that covers fixes, plugins, skills, and
+what should stay private, see [Sharing and Safety](../developer/sharing-and-safety.md).
 
 ## Documentation Stack
 
-- The documentation is built using Markdown. We appreciate your contributions even if you don't know Markdown, and look forward to improve Agent Zero for everyone's benefit.
+- Write local docs for practical setup, screenshots, and user workflows.
+- Point architecture and deep internals to [DeepWiki](https://deepwiki.com/agent0ai/agent-zero).
+- Use GitHub Flavored Markdown when it helps: tables, task lists, callouts, and fenced code blocks.

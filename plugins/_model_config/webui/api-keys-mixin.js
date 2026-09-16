@@ -1,3 +1,5 @@
+import { fetchApi } from "/js/api.js";
+
 const API_BASE = "/plugins/_model_config";
 const API_KEY_PLACEHOLDER = "************";
 

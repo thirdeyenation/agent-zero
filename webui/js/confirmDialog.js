@@ -33,6 +33,8 @@ export function showConfirmDialog(options) {
       <div class="confirm-dialog-header">
         <span class="confirm-dialog-icon material-symbols-outlined" style="color: ${typeConfig.color}">${typeConfig.icon}</span>
         <span class="confirm-dialog-title">${sanitizeHtml(title)}</span>
+        <x-icon class="confirm-dialog-icon" style="color: ${typeConfig.color}" name="${typeConfig.icon}"></x-icon>
+        <span class="confirm-dialog-title">${title}</span>
       </div>
       <div class="confirm-dialog-body">${sanitizeHtml(message)}</div>
       <div class="confirm-dialog-footer">

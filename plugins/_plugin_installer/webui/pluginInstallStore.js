@@ -4,6 +4,7 @@ import { openModal } from "/js/modals.js";
 import { renderSafeMarkdown } from "/js/safe-markdown.js";
 import { toastFrontendSuccess, toastFrontendError } from "/components/notifications/notification-store.js";
 import { showConfirmDialog } from "/js/confirmDialog.js";
+import { formatDateTime } from "/js/time-utils.js";
 import { store as imageViewerStore } from "/components/modals/image-viewer/image-viewer-store.js";
 import { store as pluginListStore } from "/components/plugins/list/pluginListStore.js";
 import { store as pluginExecuteStore } from "/components/plugins/list/plugin-execute-store.js";
@@ -12,6 +13,7 @@ import { store as pluginSettingsStore } from "/components/plugins/plugin-setting
 const PLUGIN_API = "plugins/_plugin_installer/plugin_install";
 const PER_PAGE = 24;
 const POPULAR_PLUGIN_MIN_STARS = 3;
+const NEW_PLUGIN_WINDOW_DAYS = 14;
 
 const SECURITY_WARNING = {
   title: "Security Warning",
@@ -59,6 +61,11 @@ const model = {
 
   detailThumbnailUrl: null,
 
+  // Inline error for the detail modal (e.g. update failure), structured so
+  // the UI can render it next to the action button instead of relying on a
+  // toast the user can miss.
+  detailError: null,
+
   // Tab state
   activeTab: "store",
 
@@ -68,7 +75,11 @@ const model = {
   },
 
   setBrowseFilter(filter) {
-    this.browseFilter = filter || "all";
+    const nextFilter = filter || "all";
+    this.browseFilter = nextFilter;
+    if (nextFilter === "new" && this.sortBy === "stars") {
+      this.sortBy = "updated";
+    }
     this.page = 1;
   },
 
@@ -98,6 +109,21 @@ const model = {
     return (plugin?.stars || 0) >= POPULAR_PLUGIN_MIN_STARS;
   },
 
+  _isNewPlugin(plugin) {
+    const updatedAt = (plugin?.updated || "").trim();
+    if (!updatedAt) return false;
+    const updatedMs = Date.parse(updatedAt);
+    if (Number.isNaN(updatedMs)) return false;
+
+    const nowMs = Date.now();
+    const cutoffMs = nowMs - NEW_PLUGIN_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+    return updatedMs >= cutoffMs;
+  },
+
+  isNewPlugin(plugin) {
+    return this._isNewPlugin(plugin);
+  },
+
   _getSuspensionReason(plugin) {
     return typeof plugin?.suspended === "string" ? plugin.suspended.trim() : "";
   },
@@ -111,6 +137,7 @@ const model = {
     if (filterKey === "installed") return !!plugin?.installed;
     if (filterKey === "update") return !!plugin?.has_update;
     if (filterKey === "popular") return this._isPopularPlugin(plugin);
+    if (filterKey === "new") return this._isNewPlugin(plugin);
     if (filterKey.startsWith("tag:")) {
       return this._pluginPrimaryTag(plugin) === filterKey.slice(4);
     }
@@ -153,6 +180,14 @@ const model = {
     }
 
     return (a.title || a.key).localeCompare(b.title || b.key);
+  },
+
+  _comparePluginsByUpdated(a, b) {
+    const updatedComparison = this._compareTimestamp(a?.updated, b?.updated);
+    if (updatedComparison !== 0) {
+      return updatedComparison > 0 ? -1 : 1;
+    }
+    return this._comparePluginsByStars(a, b);
   },
 
   // ── ZIP Install ──────────────────────────────
@@ -400,6 +435,11 @@ const model = {
       filters.push({ key: "popular", label: "Popular", count: popularCount });
     }
 
+    const newCount = plugins.filter((plugin) => this._isNewPlugin(plugin)).length;
+    if (newCount) {
+      filters.push({ key: "new", label: "New", count: newCount });
+    }
+
     const tagCounts = new Map();
     for (const plugin of plugins) {
       const tag = this._pluginPrimaryTag(plugin);
@@ -435,7 +475,9 @@ const model = {
           (p.tags || []).some((t) => t.toLowerCase().includes(q))
       );
     }
-    if (this.sortBy === "stars") {
+    if (this.sortBy === "updated" || this.browseFilter === "new") {
+      list.sort((a, b) => this._comparePluginsByUpdated(a, b));
+    } else if (this.sortBy === "stars") {
       list.sort((a, b) => this._comparePluginsByStars(a, b));
     } else {
       list.sort((a, b) =>
@@ -511,6 +553,7 @@ const model = {
     this.result = null;
     this.installedPluginInfo = null;
     this.readmeContent = null;
+    this.detailError = null;
     this.detailThumbnailUrl = this.getThumbnailUrl(this.selectedPlugin);
     if (this.selectedPlugin.installed) {
       this.fetchInstalledPluginInfo(this.selectedPlugin.name);
@@ -740,14 +783,7 @@ const model = {
     const date = new Date(normalizedValue);
     if (Number.isNaN(date.getTime())) return value;
 
-    return new Intl.DateTimeFormat(undefined, {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    }).format(date);
+    return formatDateTime(normalizedValue, "full");
   },
 
   getRepoCommitUrl(plugin, commitHash) {
@@ -801,6 +837,8 @@ const model = {
     });
     if (!confirmed) return;
 
+    this.detailError = null;
+
     try {
       this.loading = true;
       this.loadingMessage = "Updating";
@@ -811,7 +849,13 @@ const model = {
       });
 
       if (!(data?.ok && data?.success)) {
-        void toastFrontendError(data?.error || "Update failed", "Plugin Installer");
+        const message = data?.error || "Update failed";
+        this.detailError = {
+          kind: data?.error_kind || "update_failed",
+          message,
+          conflicting_files: Array.isArray(data?.conflicting_files) ? data.conflicting_files : [],
+        };
+        void toastFrontendError(message, "Plugin Installer");
         return;
       }
 

@@ -1,10 +1,8 @@
 import { createStore } from "/js/AlpineStore.js";
 import * as api from "/js/api.js";
+import { fetchApi } from "/js/api.js";
 import { showConfirmDialog } from "/js/confirmDialog.js";
 import { store as pluginToggleStore } from "/components/plugins/toggle/plugin-toggle-store.js";
-
-const fetchApi = globalThis.fetchApi;
-const justToast = globalThis.justToast;
 
 const model = {
     // which plugin this modal is showing
@@ -24,6 +22,7 @@ const model = {
     settingsSnapshotJson: "",
     previousProjectName: "",
     previousAgentProfileKey: "",
+    openOptions: {},
 
     _toComparableJson(value) {
         try {
@@ -35,6 +34,27 @@ const model = {
 
     get hasUnsavedChanges() {
         return this._toComparableJson(this.settings) !== (this.settingsSnapshotJson || "");
+    },
+
+    get pluginTitle() {
+        return (
+            this.pluginMeta?.display_name ||
+            this.pluginMeta?.name ||
+            this.pluginName ||
+            "Plugin"
+        );
+    },
+
+    get modalTitle() {
+        if (this.openOptions?.title) return this.openOptions.title;
+        if (this.openOptions?.focus === "chat" && this.pluginName === "_skills") {
+            return "Skills";
+        }
+        return `${this.pluginTitle} Settings`;
+    },
+
+    get hideSettingsActions() {
+        return !!this.openOptions?.hideSettingsActions || this.openOptions?.focus === "chat";
     },
 
     confirmDiscardUnsavedChanges() {
@@ -76,12 +96,17 @@ const model = {
         };
     },
 
-    _applyPluginState(pluginMeta, { projectName = "", agentProfileKey = "" } = {}) {
+    _applyPluginState(
+        pluginMeta,
+        { projectName = "", agentProfileKey = "" } = {},
+        openOptions = {},
+    ) {
         this.pluginName = pluginMeta?.name || null;
         this.pluginMeta = pluginMeta || null;
         this.settings = {};
         this.settingsSnapshotJson = "";
         this.wizardFooter = null;
+        this.openOptions = openOptions && typeof openOptions === "object" ? openOptions : {};
         this.error = null;
         this.projectName = projectName;
         this.agentProfileKey = agentProfileKey;
@@ -99,6 +124,19 @@ const model = {
         pluginToggleStore.projectName = projectName;
         pluginToggleStore.agentProfileKey = agentProfileKey;
         await pluginToggleStore.loadToggleStatus();
+    },
+
+    async setPluginEnabled(enabled) {
+        if (!pluginToggleStore?.setEnabled) return;
+        this.error = null;
+        try {
+            await pluginToggleStore.setEnabled(enabled, {
+                projectName: this.projectName || "",
+                agentProfileKey: this.agentProfileKey || "",
+            });
+        } catch (e) {
+            this.error = e?.message || "Failed to save activation state";
+        }
     },
 
     async onScopeChanged() {
@@ -230,7 +268,7 @@ const model = {
     isSaving: false,
     error: null,
 
-    async openConfig(pluginName, projectName = "", agentProfile = "") {
+    async openConfig(pluginName, projectName = "", agentProfile = "", openOptions = {}) {
         if (!pluginName) {
             throw new Error("Missing plugin name.");
         }
@@ -240,13 +278,17 @@ const model = {
         if (!pluginMeta) {
             throw new Error(`Plugin "${pluginName}" not found.`);
         }
-        if (!pluginMeta.has_config_screen) {
-            throw new Error(`Plugin "${pluginName}" has no config screen.`);
+        if (
+            !pluginMeta.has_config_screen &&
+            !pluginMeta.per_project_config &&
+            !pluginMeta.per_agent_config
+        ) {
+            throw new Error(`Plugin "${pluginName}" has no configurable scope.`);
         }
 
         await Promise.all([this.loadProjects(), this.loadAgentProfiles()]);
         const resolvedScope = this._resolveScope(pluginMeta, projectName || "", agentProfile || "");
-        this._applyPluginState(pluginMeta, resolvedScope);
+        this._applyPluginState(pluginMeta, resolvedScope, openOptions);
         await this.loadSettings();
 
         if (!pluginToggleStore?.open) {
@@ -319,7 +361,7 @@ const model = {
     async resetToDefault() {
         if (!this.pluginName) return;
         const confirmed = await showConfirmDialog({
-            title: "Reset to Default",
+            title: "Reset to default",
             message: "This will replace the current settings with the plugin defaults. Any unsaved changes will be lost.",
             confirmText: "Reset",
             type: "warning",
@@ -333,7 +375,7 @@ const model = {
         const result = await response.json().catch(() => ({}));
         if (result.ok) {
             this.settings = result.data || {};
-            justToast("Settings reset to default.", "info");
+            globalThis.justToast?.("Settings reset to default.", "info");
         }
     },
 
@@ -375,6 +417,7 @@ const model = {
         this.agentProfileKey = "";
         this.settings = {};
         this.settingsSnapshotJson = "";
+        this.openOptions = {};
         this.wizardFooter = null;
         this.previousProjectName = "";
         this.previousAgentProfileKey = "";
@@ -393,7 +436,7 @@ const model = {
 
     // Reactive URL for the plugin's settings component (used with x-html injection)
     get settingsComponentHtml() {
-        if (!this.pluginName) return "";
+        if (!this.pluginName || !this.pluginMeta?.has_config_screen) return "";
         return `<x-component path="/plugins/${this.pluginName}/webui/config.html"></x-component>`;
     },
 };

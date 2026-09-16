@@ -1,102 +1,62 @@
 # code_execution_remote tool
 
-This tool runs shell-backed execution on the **remote machine where the CLI is running**.
-It converges onto Agent Zero Core's persistent local-shell model, so the frontend session
-can execute terminal commands and shell-launched `python` / `nodejs` snippets while keeping
-session ids stable across calls.
+Run shell-backed commands on a connected A0 CLI host.
+Shown when a connected A0 CLI advertises remote execution, which the user enables
+with F4 in the CLI. Runs shell-backed execution on the machine where that CLI is
+running. Use this tool, not `code_execution_tool`, when the user asks for the
+connected local terminal, the A0 CLI host, their local machine, or explicitly
+says not to use Docker/server/container execution.
+For complex local project work, optionally load skill `host-code-execution`.
 
-## Requirements
-- A CLI client must be connected to this context via the shared `/ws` namespace.
-- The CLI client must support `connector_exec_op`.
-- Frontend execution may be locally disabled in the CLI session; in that case the result is
-  a structured `{ok: false}` error and no fallback runtime is used.
+Availability and permissions are checked when the tool runs. If no CLI is
+connected, remote execution is disabled, or local access is not Read&Write for a
+mutating command, report that to the user instead of falling back to server-side
+execution.
+
+Do not use this tool as a fallback for host-browser navigation/control. For
+"my browser", host browser, local browser/Chrome, or opening a URL in the host
+browser, use the `browser` tool. If Browser reports missing Chrome
+remote-debugging consent, tell the user to open `chrome://inspect/#remote-debugging`,
+enable "Allow remote debugging for this browser instance", run `/browser host on`,
+and retry.
 
 ## Arguments
 - `runtime`: one of `terminal`, `python`, `nodejs`, `output`, `reset`
-- `runtime=input` is a temporary deprecated compatibility alias for sending one line of
-  keyboard input into a running shell session
 - `session`: integer session id (default `0`)
+- `reset`: optional boolean for `terminal`, `python`, or `nodejs`; when true,
+  the CLI resets the session before running the supplied code
 
 Runtime-specific fields:
 - `terminal`, `python`, `nodejs`: require `code`
-- `input`: requires `keyboard` (or `code` as fallback)
 - `reset`: optional `reason`
 
-## Usage
+## Notes
+- Reuse `session` when continuing a workflow.
+- Use `output` to poll a running session and `runtime=reset` for a stuck session.
+  Use `reset: true` on a new command when you need a clean session and want to
+  run the replacement command immediately.
+- Execution and output polling timeouts follow the normal `_code_execution`
+  plugin settings. For builds, installs, servers, tests, training, and other
+  long work, redirect logs and poll with `runtime=output`.
+- Paths and shell syntax are evaluated on the CLI host, not inside Agent Zero.
+- When the user gives a relative path like `tmp/file.txt`, keep it relative to
+  the CLI host terminal. Do not prepend or `cd` to `/a0/usr/workdir`; that is the
+  Agent Zero server/Docker workdir, not the connected local terminal folder.
+- If the current terminal folder matters, run `pwd` first or include `pwd` in
+  the same command without changing directories.
 
-### Execute a terminal command
-```json
+## Usage
+~~~json
 {
+  "thoughts": [
+    "The user asked for the connected local terminal rather than Docker, so I should execute on the A0 CLI host."
+  ],
+  "headline": "Running command on connected local terminal",
   "tool_name": "code_execution_remote",
   "tool_args": {
     "runtime": "terminal",
     "session": 0,
-    "code": "pwd && ls -la"
+    "code": "pwd"
   }
 }
-```
-
-### Execute Python through the shell-backed runtime
-```json
-{
-  "tool_name": "code_execution_remote",
-  "tool_args": {
-    "runtime": "python",
-    "session": 0,
-    "code": "import os\nprint(os.getcwd())"
-  }
-}
-```
-
-### Execute Node.js through the shell-backed runtime
-```json
-{
-  "tool_name": "code_execution_remote",
-  "tool_args": {
-    "runtime": "nodejs",
-    "session": 0,
-    "code": "console.log(process.cwd())"
-  }
-}
-```
-
-### Poll output from a running session
-```json
-{
-  "tool_name": "code_execution_remote",
-  "tool_args": {
-    "runtime": "output",
-    "session": 0
-  }
-}
-```
-
-### Send keyboard input to a running session
-```json
-{
-  "tool_name": "code_execution_remote",
-  "tool_args": {
-    "runtime": "input",
-    "session": 0,
-    "keyboard": "yes"
-  }
-}
-```
-
-### Reset a session
-```json
-{
-  "tool_name": "code_execution_remote",
-  "tool_args": {
-    "runtime": "reset",
-    "session": 0,
-    "reason": "stuck process"
-  }
-}
-```
-
-## Notes
-- Session state is frontend-local and shell-backed.
-- `output` is for long-running operations where a prior call returned control before the
-  shell reached a prompt.
-- The transport uses `connector_exec_op` and `connector_exec_op_result` with shared `op_id`.
+~~~

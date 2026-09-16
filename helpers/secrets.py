@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import Dict, Optional, List, Literal, Set, Callable, Tuple, TYPE_CHECKING
 from dotenv.parser import parse_stream
 from helpers.errors import RepairableException
-from helpers import files
+from helpers import dotenv, files
 from helpers.extension import extensible
 
 if TYPE_CHECKING:
@@ -17,6 +17,12 @@ if TYPE_CHECKING:
 # New alias-based placeholder format §§secret(KEY)
 ALIAS_PATTERN = r"§§secret\(([A-Za-z_][A-Za-z0-9_]*)\)"
 DEFAULT_SECRETS_FILE = "usr/secrets.env"
+_RUNTIME_CREDENTIAL_KEYS = {
+    dotenv.KEY_AUTH_LOGIN,
+    dotenv.KEY_AUTH_PASSWORD,
+    dotenv.KEY_RFC_PASSWORD,
+    dotenv.KEY_ROOT_PASSWORD,
+}
 
 
 def alias_for_key(key: str, placeholder: str = "§§secret({key})") -> str:
@@ -160,6 +166,14 @@ class SecretsManager:
                 content = ""
 
             self._raw_snapshots[path] = content
+            if path == dotenv.get_dotenv_file_path():
+                content = "\n".join(
+                    line.raw
+                    for line in self.parse_env_lines(content)
+                    if line.type != "pair"
+                    or (line.key or "").upper().startswith("API_KEY_")
+                    or (line.key or "").upper() in _RUNTIME_CREDENTIAL_KEYS
+                )
             parts.append(content)
 
         combined = "\n".join(parts)
@@ -509,8 +523,8 @@ class SecretsManager:
 def get_secrets_manager(context: "AgentContext|None" = None) -> SecretsManager:
     from helpers import projects
 
-    # default secrets file
-    secret_files = [DEFAULT_SECRETS_FILE]
+    # Agent-facing masking covers the secret store and runtime credentials in usr/.env.
+    secret_files = [DEFAULT_SECRETS_FILE, dotenv.get_dotenv_file_path()]
 
     # use AgentContext from contextvars if no context provided
     if not context:

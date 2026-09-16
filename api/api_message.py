@@ -1,7 +1,7 @@
 import base64
 import os
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timezone
 from agent import AgentContext, UserMessage, AgentContextType
 from helpers.api import ApiHandler, Request, Response
 from helpers import files, projects
@@ -9,14 +9,9 @@ from helpers.print_style import PrintStyle
 from helpers.projects import activate_project
 from helpers.security import safe_filename
 from initialize import initialize_agent
-import threading
 
 
 class ApiMessage(ApiHandler):
-    # Track chat lifetimes for cleanup
-    _chat_lifetimes = {}
-    _cleanup_lock = threading.Lock()
-
     @classmethod
     def requires_auth(cls) -> bool:
         return False  # No web auth required
@@ -37,6 +32,16 @@ class ApiMessage(ApiHandler):
         lifetime_hours = input.get("lifetime_hours", 24)  # Default 24 hours
         project_name = input.get("project_name", None)
         agent_profile = input.get("agent_profile", None)
+        try:
+            lifetime_hours = float(lifetime_hours)
+            if lifetime_hours <= 0:
+                raise ValueError("lifetime_hours must be greater than 0")
+        except (TypeError, ValueError):
+            return Response(
+                '{"error": "lifetime_hours must be a positive number"}',
+                status=400,
+                mimetype="application/json",
+            )
         
         # Set an agent if profile provided
         override_settings = {}
@@ -116,9 +121,9 @@ class ApiMessage(ApiHandler):
                 except Exception as e:
                     return Response(f'{{"error": "Failed to activate project: {str(e)}"}}', status=400, mimetype="application/json")
 
-        # Update chat lifetime
-        with self._cleanup_lock:
-            self._chat_lifetimes[context_id] = datetime.now() + timedelta(hours=lifetime_hours)
+        # Persist API chat lifetime in context data so cleanup survives restarts.
+        context.set_data("lifetime_hours", lifetime_hours)
+        context.last_message = datetime.now(timezone.utc)
 
         # Process message
         try:
@@ -148,9 +153,6 @@ class ApiMessage(ApiHandler):
             task = context.communicate(UserMessage(message=message, attachments=attachment_paths, id=msg_id))
             result = await task.result()
 
-            # Clean up expired chats
-            self._cleanup_expired_chats()
-
             return {
                 "context_id": context_id,
                 "response": result
@@ -159,24 +161,3 @@ class ApiMessage(ApiHandler):
         except Exception as e:
             PrintStyle.error(f"External API error: {e}")
             return Response(f'{{"error": "{str(e)}"}}', status=500, mimetype="application/json")
-
-    @classmethod
-    def _cleanup_expired_chats(cls):
-        """Clean up expired chats"""
-        with cls._cleanup_lock:
-            now = datetime.now()
-            expired_contexts = [
-                context_id for context_id, expiry in cls._chat_lifetimes.items()
-                if now > expiry
-            ]
-
-            for context_id in expired_contexts:
-                try:
-                    context = AgentContext.get(context_id)
-                    if context:
-                        context.reset()
-                        AgentContext.remove(context_id)
-                    del cls._chat_lifetimes[context_id]
-                    PrintStyle().print(f"Cleaned up expired chat: {context_id}")
-                except Exception as e:
-                    PrintStyle.error(f"Failed to cleanup chat {context_id}: {e}")
