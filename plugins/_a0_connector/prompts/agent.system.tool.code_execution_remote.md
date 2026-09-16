@@ -1,9 +1,11 @@
 # code_execution_remote tool
 
-Runs shell-backed execution on the machine where a connected A0 CLI is running.
-Use this tool, not `code_execution_tool`, when the user asks for the connected
-local terminal, the A0 CLI host, their local machine, or explicitly says not to
-use Docker/server/container execution.
+Run shell-backed commands on a connected A0 CLI host.
+Shown when a connected A0 CLI advertises remote execution, which the user enables
+with F4 in the CLI. Runs shell-backed execution on the machine where that CLI is
+running. Use this tool, not `code_execution_tool`, when the user asks for the
+connected local terminal, the A0 CLI host, their local machine, or explicitly
+says not to use Docker/server/container execution.
 For complex local project work, optionally load skill `host-code-execution`.
 
 Availability and permissions are checked when the tool runs. If no CLI is
@@ -33,6 +35,9 @@ Runtime-specific fields:
 - Use `output` to poll a running session and `runtime=reset` for a stuck session.
   Use `reset: true` on a new command when you need a clean session and want to
   run the replacement command immediately.
+- Execution and output polling timeouts follow the normal `_code_execution`
+  plugin settings. For builds, installs, servers, tests, training, and other
+  long work, redirect logs and poll with `runtime=output`.
 - Paths and shell syntax are evaluated on the CLI host, not inside Agent Zero.
 - When the user gives a relative path like `tmp/file.txt`, keep it relative to
   the CLI host terminal. Do not prepend or `cd` to `/a0/usr/workdir`; that is the

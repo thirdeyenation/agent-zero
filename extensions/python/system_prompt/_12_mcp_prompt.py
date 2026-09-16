@@ -22,12 +22,12 @@ class MCPToolsPrompt(Extension):
 
 @extensible
 async def build_prompt(agent: Agent) -> str:
-    mcp_config = MCPConfig.get_instance()
+    mcp_config = MCPConfig.get_for_agent(agent)
     if not mcp_config.servers:
         return ""
 
     pre_progress = agent.context.log.progress
     agent.context.log.set_progress("Collecting MCP tools")
-    tools = mcp_config.get_tools_prompt()
+    tools = mcp_config.get_tools_prompt(agent=agent)
     agent.context.log.set_progress(pre_progress)
     return tools
