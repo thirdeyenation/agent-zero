@@ -7,6 +7,7 @@ import { ttsService } from "/js/tts-service.js";
 import {
   createActionButton,
   copyToClipboard,
+  syncActionButtons,
 } from "/components/messages/action-buttons/simple-action-buttons.js";
 import { store as stepDetailStore } from "/components/modals/process-step-detail/step-detail-store.js";
 import { store as preferencesStore } from "/components/sidebar/bottom/preferences/preferences-store.js";
@@ -182,7 +183,7 @@ export async function getMessageHandler(type) {
     // return handler from extensions
     if(typeof extData.handler == "function") return extData.handler;
     //not set by extensions, return default
-    return drawMessageDefault;
+    return drawMessageTool;
   }
 }
 
@@ -205,7 +206,7 @@ async function setMessagesNow(messages, generation) {
   const history = getChatHistoryEl();
   const followTail = shouldFollowMessageTail();
 
-  _messageWindow.merge(messages, { followTail });
+  const addedMessageKeys = _messageWindow.merge(messages, { followTail });
   bindMessageWindow(history);
   if (_messageWindowRenderPromise) await _messageWindowRenderPromise;
 
@@ -217,6 +218,7 @@ async function setMessagesNow(messages, generation) {
   const cappedProcessGroupUpdate = hasCappedProcessGroupUpdate(
     messages,
     windowMessages,
+    addedMessageKeys,
   );
   if (initialWindow || compactedTail || cappedProcessGroupUpdate) {
     return await renderMessageWindow({
@@ -661,7 +663,7 @@ function getProcessGroupRenderMessages(messages) {
   });
 }
 
-function hasCappedProcessGroupUpdate(messages, windowMessages) {
+function hasCappedProcessGroupUpdate(messages, windowMessages, addedMessageKeys) {
   if (!messages.length) return false;
   const groupStates = getProcessGroupPageState(windowMessages);
   return messages.some((message) => {
@@ -670,7 +672,7 @@ function hasCappedProcessGroupUpdate(messages, windowMessages) {
     const total = groupStates.get(group.key)?.steps.length || 0;
     const limit = _processGroupStepLimits.get(group.key) ||
       PROCESS_GROUP_STEP_PAGE_SIZE;
-    return total > limit;
+    return total > limit && addedMessageKeys.has(getMessageCacheKey(message));
   });
 }
 
@@ -1194,7 +1196,17 @@ async function restoreMessageExpansionState(history, state) {
 }
 
 function nextAnimationFrame() {
-  return new Promise((resolve) => requestAnimationFrame(() => resolve()));
+  return new Promise((resolve) => {
+    // Browsers may stop painting hidden or occluded windows. A visual layout
+    // yield must not hold state synchronization until the window is repainted.
+    const finish = () => {
+      cancelAnimationFrame(frame);
+      clearTimeout(timer);
+      resolve();
+    };
+    const frame = requestAnimationFrame(finish);
+    const timer = setTimeout(finish, 100);
+  });
 }
 
 function appendToMessageGroup(
@@ -1457,10 +1469,7 @@ export function drawProcessStep({
     "step-detail-actions",
     "step-action-buttons",
   );
-  stepActionBtns.textContent = "";
-  (actionButtons || [])
-    .filter(Boolean)
-    .forEach((button) => stepActionBtns.appendChild(button));
+  syncActionButtons(stepActionBtns, actionButtons);
 
   let detailResult = {
     content: undefined,
@@ -1473,6 +1482,7 @@ export function drawProcessStep({
       kvps,
       content,
       contentClasses,
+      code,
     });
   } else {
     discardProcessStepDetail(step);
@@ -1510,6 +1520,7 @@ function renderProcessStepDetail({
   kvps,
   content,
   contentClasses,
+  code,
 }) {
   let stepDetailScroll = stepDetail.querySelector(
     ":scope > .process-step-detail-scroll",
@@ -1524,7 +1535,7 @@ function renderProcessStepDetail({
   }
 
   const detailScroller = new Scroller(stepDetailScroll, {
-    smooth: !isMassRender(),
+    smooth: code !== "GEN" && !isMassRender(),
     toleranceRem: 4,
   });
   const kvpsTable = drawKvpsIncremental(stepDetailScroll, kvps);
@@ -1883,8 +1894,19 @@ export function drawMessageAgent({
   ...additional
 }) {
   const title = cleanStepTitle(heading);
+  const reservedKeys = new Set(["thoughts", "step", "reasoning", "tool_name", "tool_args", "args", "headline"]);
   let displayKvps = {};
   if (kvps?.thoughts) displayKvps["icon://lightbulb[Thoughts]"] = kvps.thoughts;
+  const isResponse = kvps?.tool_name === "response";
+  if (preferencesStore.showToolArgs && !isResponse) {
+    if (kvps?.tool_name) displayKvps["icon://build[Tool]"] = kvps.tool_name;
+    const toolArgs = kvps?.tool_args ?? kvps?.args;
+    if (toolArgs) {
+      Object.entries(toolArgs).forEach(([key, value]) => {
+        if (!reservedKeys.has(key)) displayKvps[key] = value;
+      });
+    }
+  }
   if (kvps?.step) displayKvps["icon://step[Step]"] = kvps.step;
   const thoughtsText = String(kvps?.thoughts ?? "");
   const headerLabels = [
@@ -2805,8 +2827,8 @@ function escapeHTML(str) {
 }
 
 function convertPathsToLinks(str) {
-  function generateLinks(match) {
-    const parts = match.split("/");
+  function generateLinks(match, path) {
+    const parts = path.split("/");
     if (!parts[0]) parts.shift(); // drop empty element left of first "
     let conc = "";
     let html = "";
@@ -2825,12 +2847,12 @@ function convertPathsToLinks(str) {
   const simplePath = `\\/${folder}*${file}(?<!\\.)`;
   const suffix = `(?=$|[\\s.,;:!?\\)\\]\\}]|&#39;|&quot;)`;
   const pathRegex = new RegExp(
-    `(?<=${prefix})(?:${spacedFilePath}|${simplePath})${suffix}`,
+    `(?<=${prefix})(?:file:\\/\\/|\\/api\\/download_work_dir_file\\?path=)?(${spacedFilePath}|${simplePath})${suffix}`,
     "g",
   );
 
-  // skip paths inside html tags, like <img src="/path/to/image">
-  const tagRegex = /(<(?:[^<>"']+|"[^"]*"|'[^']*')*>)/g;
+  // Preserve existing links and code blocks as well as HTML attributes.
+  const tagRegex = /(<a\b[^>]*>[\s\S]*?<\/a>|<pre\b[^>]*>[\s\S]*?<\/pre>|<(?:[^<>"']+|"[^"]*"|'[^']*')*>)/gi;
 
   return str
     .split(tagRegex) // keep tags & text separate
@@ -3386,8 +3408,6 @@ function setupCollapsible(
     "div",
     "step-action-buttons",
   );
-  container.textContent = "";
-
   const btn = ensureChild(container, ".expand-btn", "button", "expand-btn");
   const syncBtn = () => {
     const exp = messageDiv.classList.contains("expanded");
@@ -3409,7 +3429,7 @@ function setupCollapsible(
   btn.onclick = () =>
     setExpanded(!messageDiv.classList.contains("expanded"));
 
-  actionButtons.filter(Boolean).forEach((b) => container.appendChild(b));
+  syncActionButtons(container, actionButtons);
 
   const refreshOverflow = () => {
     const hasOverflow = measureMessageCollapseOverflow(collapseContent, {

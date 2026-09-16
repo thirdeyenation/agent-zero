@@ -12,11 +12,6 @@ from urllib.parse import urlparse
 from helpers import chat_media, media_artifacts
 
 try:
-    from helpers.ws import NAMESPACE
-except Exception:
-    NAMESPACE = "/ws"
-
-try:
     from helpers.ws_manager import ConnectionNotFoundError, get_shared_ws_manager
 except Exception:
     class ConnectionNotFoundError(RuntimeError):
@@ -27,6 +22,7 @@ except Exception:
 
 from plugins._a0_connector.helpers.ws_runtime import (
     clear_pending_browser_op,
+    emit_connector_event,
     host_browser_metadata_for_context,
     host_browser_metadata_for_sid,
     select_host_browser_candidate_sid,
@@ -103,6 +99,22 @@ _REMOTE_DEBUGGING_ERROR_TOKENS = (
     "localhost:9222",
     "blocks playwright remote debugging",
 )
+
+
+def _stable_host_browser_selection(selection: Any, metadata: Any) -> str:
+    selected = str(selection or "").strip()
+    if not selected or not isinstance(metadata, dict):
+        return selected
+    candidates = list(metadata.get("available_browsers") or [])
+    candidates.append(metadata)
+    for candidate in candidates:
+        if not isinstance(candidate, dict):
+            continue
+        endpoint = str(candidate.get("cdp_endpoint") or "").strip()
+        browser_id = str(candidate.get("id") or candidate.get("browser_id") or "").strip()
+        if endpoint == selected and browser_id:
+            return browser_id
+    return selected
 
 
 class ConnectorBrowserRuntime:
@@ -279,6 +291,7 @@ class ConnectorBrowserRuntime:
         if not sid:
             statuses = host_browser_metadata_for_context(self.context_id)
             raise RuntimeError(self._host_browser_unavailable_message(statuses))
+        payload["browser_selection"] = self._host_browser_selection(sid)
 
         if self._needs_prepare(sid, payload):
             await self._send_browser_op(
@@ -290,7 +303,7 @@ class ConnectorBrowserRuntime:
                         "context_id": self.context_id,
                         "action": "ensure",
                         "profile_mode": self._host_browser_profile_mode(),
-                        "browser_selection": self._host_browser_selection(),
+                        "browser_selection": self._host_browser_selection(sid),
                     },
                 ),
             )
@@ -303,9 +316,19 @@ class ConnectorBrowserRuntime:
         mode = str(config.get(HOST_BROWSER_PROFILE_MODE_KEY) or "existing").strip().lower()
         return "agent" if mode == "agent" else "existing"
 
-    def _host_browser_selection(self) -> str:
+    def _host_browser_selection(self, sid: str = "") -> str:
         config = get_browser_config(self.agent)
-        return str(config.get(HOST_BROWSER_SELECTION_KEY) or "").strip()
+        selection = str(config.get(HOST_BROWSER_SELECTION_KEY) or "").strip()
+        if sid:
+            return _stable_host_browser_selection(
+                selection,
+                host_browser_metadata_for_sid(sid),
+            )
+        for metadata in host_browser_metadata_for_context(self.context_id):
+            stable = _stable_host_browser_selection(selection, metadata)
+            if stable != selection:
+                return stable
+        return selection
 
     def _with_content_helper(self, sid: str, payload: dict[str, Any]) -> dict[str, Any]:
         return self._with_browser_helpers(sid, payload)
@@ -341,12 +364,12 @@ class ConnectorBrowserRuntime:
             context_id=self.context_id,
         )
         try:
-            await get_shared_ws_manager().emit_to(
-                NAMESPACE,
+            await emit_connector_event(
                 sid,
                 BROWSER_OP_EVENT,
                 payload,
                 handler_id=f"{self.__class__.__module__}.{self.__class__.__name__}",
+                manager=get_shared_ws_manager(),
             )
             response = await asyncio.wait_for(future, timeout=BROWSER_OP_TIMEOUT)
         except ConnectionNotFoundError as exc:

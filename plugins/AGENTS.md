@@ -75,11 +75,13 @@ Direct child DOX files:
 | [_chat_compaction/AGENTS.md](_chat_compaction/AGENTS.md) | Full-chat compaction into a summary message. |
 | [_chat_naming/AGENTS.md](_chat_naming/AGENTS.md) | Built-in manual and Utility Model-assisted chat naming. |
 | [_commands/AGENTS.md](_commands/AGENTS.md) | Built-in slash command manager, command file discovery, and chat composer slash picker. |
+| [_context_doctor/AGENTS.md](_context_doctor/AGENTS.md) | Tool-call JSON repair and compact persistence before default dispatch. |
+| [_context_window/AGENTS.md](_context_window/AGENTS.md) | Context-window token accounting, API, composer indicator, and visibility control. |
 | [_code_execution/AGENTS.md](_code_execution/AGENTS.md) | Terminal, Python, and Node.js execution tools and shell runtimes. |
 | [_desktop/AGENTS.md](_desktop/AGENTS.md) | Linux desktop runtime, sessions, and desktop surface. |
 | [_discovery/AGENTS.md](_discovery/AGENTS.md) | Welcome-screen plugin discovery cards and promotions. |
 | [_document_query/AGENTS.md](_document_query/AGENTS.md) | Document parsing, indexing, and Q&A tools. |
-| [_editor/AGENTS.md](_editor/AGENTS.md) | Native Markdown editor surface and sessions. |
+| [_editor/AGENTS.md](_editor/AGENTS.md) | Shared text/code editor surface and sessions. |
 | [_email_integration/AGENTS.md](_email_integration/AGENTS.md) | IMAP/Exchange polling and SMTP reply integration. |
 | [_error_retry/AGENTS.md](_error_retry/AGENTS.md) | Critical exception retry lifecycle hooks. |
 | [_goal/AGENTS.md](_goal/AGENTS.md) | Built-in chat goal strip, `/goal` slash command, and agent-facing goal tools. |
