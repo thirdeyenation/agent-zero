@@ -1,10 +1,14 @@
-import { fetchApi } from "/js/api.js";
+import { callJsonApi, fetchApi } from "/js/api.js";
 
 const API_BASE = "/plugins/_model_config";
-const CREATE_AGENT_PROFILE_PROMPT = `I want to create a new Agent Zero agent profile.
-
-Use the a0-create-agent skill. Guide me gently with one or two questions per turn. Start by asking what this agent should be excellent at, infer sensible defaults, and only produce the AgentProfileBlueprint JSON after we confirm the compact profile summary. Prefer a normal user profile in /a0/usr/agents unless I choose another scope.`;
-
+const BUILT_IN_AGENT_COLORS = {
+  agent0: "#8E44AD",
+  default: "#D35400",
+  developer: "#202124",
+  hacker: "#C0392B",
+  researcher: "#6C5CE7",
+  "tiny-local": "#E67E22",
+};
 function normalizeModelIdentity(value) {
   if (!value || typeof value !== "object") return null;
   const provider = String(value.provider || "").trim();
@@ -13,52 +17,78 @@ function normalizeModelIdentity(value) {
   return { provider, name };
 }
 
-function formatModelIdentity(value) {
-  if (!value) return "";
-  if (value.provider && value.name) return `${value.provider}/${value.name}`;
-  return value.name || value.provider || "";
+export function getModelLeafName(value) {
+  const name = String(typeof value === "string" ? value : value?.name || "").trim();
+  if (!name) return "";
+  const leaf = name.slice(name.lastIndexOf("/") + 1).trim();
+  return leaf || name;
 }
 
 export const switcherState = {
   switcherAllowed: false,
   switcherOverride: null,
+  switcherConfiguredPreset: "Default",
+  switcherEffectivePreset: "Default",
   switcherPresets: [],
   switcherLoading: true,
   agentProfiles: [],
   agentProfilesLoading: true,
-  agentProfileSettings: null,
+  agentProfilesLoaded: false,
+  agentProfilesLoadSeq: 0,
   agentProfileSaving: false,
 };
 
+let agentProfilesRequest = null;
+let agentProfilesRequestContext = "";
+
 export const switcherMethods = {
   async loadAgentProfiles(force = false) {
-    if (!force && this.agentProfiles.length > 0 && this.agentProfileSettings) return this.agentProfiles;
-    this.agentProfilesLoading = true;
-    try {
-      const res = await fetchApi("/settings_get", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      });
-      const data = await res.json();
-      this.agentProfileSettings = data.settings || {};
-      this.agentProfiles = (data.additional?.agent_subdirs || [])
-        .map(profile => ({
-          key: profile.value || profile.key || "",
-          label: profile.label || profile.value || profile.key || "",
-        }))
-        .filter(profile => profile.key && profile.key !== "_example");
-    } catch (e) {
-      console.error("Agent profile list load failed:", e);
-      this.agentProfiles = [];
-    } finally {
-      this.agentProfilesLoading = false;
+    const contextId = window.Alpine?.store("chats")?.selected || "";
+    if (agentProfilesRequest && agentProfilesRequestContext === contextId) {
+      return agentProfilesRequest;
     }
-    return this.agentProfiles;
+    if (!force && this.agentProfilesLoaded) return this.agentProfiles;
+    const requestSeq = ++this.agentProfilesLoadSeq;
+    this.agentProfilesLoading = true;
+    const request = (async () => {
+      try {
+        const data = await callJsonApi("/plugins/_agent_editor/agent_editor", {
+          action: "list",
+          context_id: contextId,
+        });
+        if (requestSeq !== this.agentProfilesLoadSeq) return this.agentProfiles;
+        this.agentProfiles = (data.profiles || [])
+          .filter(profile => profile.id && !["_example", "default"].includes(profile.id) && profile.enabled !== false)
+          .map(profile => ({
+            key: profile.id,
+            label: profile.title || profile.id,
+            avatar: profile.avatar || null,
+            avatarUrl: profile.avatar_url || "",
+          }));
+        this.agentProfilesLoaded = true;
+      } catch (e) {
+        if (requestSeq !== this.agentProfilesLoadSeq) return this.agentProfiles;
+        console.error("Agent profile list load failed:", e);
+        this.agentProfiles = [];
+        this.agentProfilesLoaded = false;
+      } finally {
+        if (requestSeq === this.agentProfilesLoadSeq) {
+          this.agentProfilesLoading = false;
+        }
+      }
+      return this.agentProfiles;
+    })();
+    agentProfilesRequest = request;
+    agentProfilesRequestContext = contextId;
+    try {
+      return await request;
+    } finally {
+      if (agentProfilesRequest === request) agentProfilesRequest = null;
+    }
   },
 
   async loadSwitcherState(contextId) {
-    const result = { allowed: false, presets: [], override: null };
+    const result = { allowed: false, presets: [], override: null, configuredPreset: "Default", effectivePreset: "Default" };
     try {
       await this.loadGlobalPresets();
       result.presets = this.globalPresets.filter(p => p.name);
@@ -71,6 +101,8 @@ export const switcherMethods = {
         const overData = await overRes.json();
         result.allowed = !!overData.allowed;
         result.override = overData.override || null;
+        result.configuredPreset = overData.configured_preset || "Default";
+        result.effectivePreset = overData.effective_preset || result.configuredPreset;
       }
     } catch (e) {
       console.error("Model switcher load failed:", e);
@@ -85,7 +117,8 @@ export const switcherMethods = {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "set_preset", context_id: contextId, preset_name: presetName }),
       });
-      return !!(await res.json()).ok;
+      const data = await res.json();
+      return data?.ok ? data : null;
     } catch (e) {
       console.error("Failed to set preset override:", e);
       return false;
@@ -99,7 +132,8 @@ export const switcherMethods = {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "clear", context_id: contextId }),
       });
-      return !!(await res.json()).ok;
+      const data = await res.json();
+      return data?.ok ? data : null;
     } catch (e) {
       console.error("Failed to clear override:", e);
       return false;
@@ -108,44 +142,25 @@ export const switcherMethods = {
 
   getAgentProfileList(activeKey = "", activeLabel = "") {
     const profiles = [...(this.agentProfiles || [])];
-    if (activeKey && !profiles.some(profile => profile.key === activeKey)) {
+    if (activeKey && activeKey !== "default" && !profiles.some(profile => profile.key === activeKey)) {
       profiles.unshift({ key: activeKey, label: activeLabel || activeKey });
     }
     return profiles;
   },
 
-  async createAgentProfileChat(currentContextId = "") {
-    try {
-      const res = await fetchApi("/chat_create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ current_context: currentContextId || "" }),
-      });
-      const data = await res.json();
-      if (!data.ok || !data.ctxid) return false;
-
-      const chatsStore = window.Alpine?.store("chats");
-      if (chatsStore?.selectChat) {
-        await chatsStore.selectChat(data.ctxid);
-      } else {
-        window.setContext?.(data.ctxid);
-      }
-
-      const chatInputStore = window.Alpine?.store("chatInput");
-      if (chatInputStore) {
-        chatInputStore.message = CREATE_AGENT_PROFILE_PROMPT;
-        setTimeout(() => {
-          chatInputStore.adjustTextareaHeight?.();
-          chatInputStore.focus?.();
-        }, 0);
-      }
-
-      return true;
-    } catch (e) {
-      console.error("Failed to create agent profile chat:", e);
-      window.toastFetchError?.("Failed to start profile creator", e);
-      return false;
-    }
+  getAgentProfileVisual(profileKey, profileLabel = "") {
+    const profile = this.agentProfiles.find(item => item.key === profileKey) || {};
+    const label = profile.label || profileLabel || profileKey || "Agent";
+    const palette = ["#6C5CE7", "#0984E3", "#00A884", "#D35400", "#C0392B", "#8E44AD"];
+    let hash = 0;
+    for (const char of profileKey || label) hash = ((hash * 31) + char.charCodeAt(0)) >>> 0;
+    return {
+      url: profile.avatarUrl || "",
+      color: profile.avatar?.kind === "color"
+        ? profile.avatar.value
+        : BUILT_IN_AGENT_COLORS[profileKey] || palette[hash % palette.length],
+      initials: label.trim().split(/\s+/).slice(0, 2).map(word => word[0]).join("").toUpperCase() || "A",
+    };
   },
 
   async selectAgentProfile(contextId, agentProfile) {
@@ -178,6 +193,7 @@ export const switcherMethods = {
         selectedContext.agent_profile = data.agent_profile || agentProfile;
         selectedContext.agent_profile_label = label;
       }
+      await this.refreshSwitcher(contextId);
       window.justToast?.(`Agent profile: ${label}`, "success", 1600, "agent-profile-switch");
       return true;
     } catch (e) {
@@ -208,6 +224,8 @@ export const switcherMethods = {
       this.switcherAllowed = state.allowed;
       this.switcherPresets = state.presets;
       this.switcherOverride = state.override;
+      this.switcherConfiguredPreset = state.configuredPreset;
+      this.switcherEffectivePreset = state.effectivePreset;
     } catch (e) {
       console.error('Model switcher refresh failed:', e);
     } finally {
@@ -216,30 +234,41 @@ export const switcherMethods = {
   },
 
   async selectPresetSwitch(contextId, presetName) {
-    const ok = await this.setPresetOverride(contextId, presetName);
-    if (ok) this.switcherOverride = { preset_name: presetName };
-    return ok;
+    const data = await this.setPresetOverride(contextId, presetName);
+    if (data) {
+      const selected = data.preset_name || presetName;
+      this.switcherOverride = { preset_name: selected };
+      this.switcherEffectivePreset = selected;
+    }
+    return !!data;
   },
 
   async clearOverrideSwitch(contextId) {
-    const ok = await this.clearOverride(contextId);
-    if (ok) this.switcherOverride = null;
-    return ok;
+    const data = await this.clearOverride(contextId);
+    if (data) {
+      this.switcherOverride = null;
+      this.switcherEffectivePreset = data.effective_preset || this.switcherConfiguredPreset || 'Default';
+    }
+    return !!data;
   },
 
   getSwitcherLabel() {
     const o = this.switcherOverride;
-    if (!o) return 'Default LLM';
-    if (o.preset_name) return o.preset_name;
+    const presetName = this.switcherEffectivePreset || o?.preset_name || 'Default';
+    const preset = this.getActivePreset();
+    if (preset) {
+      const mainModelName = getModelLeafName(preset.chat);
+      return mainModelName ? `${presetName} ${mainModelName}` : presetName;
+    }
+    if (!o || o.preset_name) return presetName;
 
     const models = this.getCustomOverrideModels();
-    return formatModelIdentity(models.main) || formatModelIdentity(models.utility) || o.name || o.provider || 'Custom';
+    const mainModelName = getModelLeafName(models.main);
+    return mainModelName ? `Custom ${mainModelName}` : 'Custom';
   },
 
   getActivePreset() {
-    const o = this.switcherOverride;
-    if (!o || !o.preset_name) return null;
-    return this.switcherPresets.find(p => p.name === o.preset_name) || null;
+    return this.switcherPresets.find(p => p.name === this.switcherEffectivePreset) || null;
   },
 
   getActiveModels() {
@@ -248,6 +277,7 @@ export const switcherMethods = {
       return {
         main: normalizeModelIdentity(preset.chat),
         utility: normalizeModelIdentity(preset.utility),
+        embedding: normalizeModelIdentity(preset.embedding),
       };
     }
     return this.getCustomOverrideModels();
@@ -255,10 +285,11 @@ export const switcherMethods = {
 
   getCustomOverrideModels() {
     const o = this.switcherOverride;
-    if (!o || o.preset_name) return { main: null, utility: null };
+    if (!o || o.preset_name) return { main: null, utility: null, embedding: null };
     return {
       main: normalizeModelIdentity(o.chat || o),
       utility: normalizeModelIdentity(o.utility),
+      embedding: normalizeModelIdentity(o.embedding),
     };
   },
 };

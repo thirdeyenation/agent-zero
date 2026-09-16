@@ -4,6 +4,7 @@ import { openModal } from "/js/modals.js";
 import { renderSafeMarkdown } from "/js/safe-markdown.js";
 import { toastFrontendSuccess, toastFrontendError } from "/components/notifications/notification-store.js";
 import { showConfirmDialog } from "/js/confirmDialog.js";
+import { formatDateTime } from "/js/time-utils.js";
 import { store as imageViewerStore } from "/components/modals/image-viewer/image-viewer-store.js";
 import { store as pluginListStore } from "/components/plugins/list/pluginListStore.js";
 import { store as pluginExecuteStore } from "/components/plugins/list/plugin-execute-store.js";
@@ -59,6 +60,11 @@ const model = {
   installedPluginInfo: null,
 
   detailThumbnailUrl: null,
+
+  // Inline error for the detail modal (e.g. update failure), structured so
+  // the UI can render it next to the action button instead of relying on a
+  // toast the user can miss.
+  detailError: null,
 
   // Tab state
   activeTab: "store",
@@ -547,6 +553,7 @@ const model = {
     this.result = null;
     this.installedPluginInfo = null;
     this.readmeContent = null;
+    this.detailError = null;
     this.detailThumbnailUrl = this.getThumbnailUrl(this.selectedPlugin);
     if (this.selectedPlugin.installed) {
       this.fetchInstalledPluginInfo(this.selectedPlugin.name);
@@ -776,14 +783,7 @@ const model = {
     const date = new Date(normalizedValue);
     if (Number.isNaN(date.getTime())) return value;
 
-    return new Intl.DateTimeFormat(undefined, {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    }).format(date);
+    return formatDateTime(normalizedValue, "full");
   },
 
   getRepoCommitUrl(plugin, commitHash) {
@@ -837,6 +837,8 @@ const model = {
     });
     if (!confirmed) return;
 
+    this.detailError = null;
+
     try {
       this.loading = true;
       this.loadingMessage = "Updating";
@@ -847,7 +849,13 @@ const model = {
       });
 
       if (!(data?.ok && data?.success)) {
-        void toastFrontendError(data?.error || "Update failed", "Plugin Installer");
+        const message = data?.error || "Update failed";
+        this.detailError = {
+          kind: data?.error_kind || "update_failed",
+          message,
+          conflicting_files: Array.isArray(data?.conflicting_files) ? data.conflicting_files : [],
+        };
+        void toastFrontendError(message, "Plugin Installer");
         return;
       }
 
