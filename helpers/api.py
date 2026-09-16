@@ -16,6 +16,7 @@ from flask import (
     redirect,
     url_for,
 )
+import secrets
 from werkzeug.wrappers.response import Response as BaseResponse
 from helpers.print_style import PrintStyle
 from helpers.errors import format_error
@@ -180,6 +181,8 @@ def requires_auth(f):
         user_pass_hash = login.get_credentials_hash()
         if not user_pass_hash:
             return await f(*args, **kwargs)
+        if not secrets.compare_digest(str(session.get("authentication") or ""), str(user_pass_hash or "")):
+            return redirect(url_for("login_handler"))
         if session.get("authentication") != user_pass_hash:
             return redirect(url_for("login_handler", next=get_current_request_next_url()))
         return await f(*args, **kwargs)
@@ -196,7 +199,7 @@ def csrf_protect(f):
         header = request.headers.get("X-CSRF-Token")
         cookie = request.cookies.get("csrf_token_" + runtime.get_runtime_id())
         sent = header or cookie
-        if not token or not sent or token != sent:
+        if not token or not sent or not secrets.compare_digest(str(token or ""), str(sent or "")):
             return Response("CSRF token missing or invalid", 403)
         return await f(*args, **kwargs)
 

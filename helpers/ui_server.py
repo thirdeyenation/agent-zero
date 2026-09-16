@@ -258,6 +258,7 @@ class UiRouteHandlers:
     @extensible
     async def login_handler(self):
         error = None
+        import secrets
         fallback_url = url_for("serve_index")
         next_url = get_safe_next_url(
             request.form.get("next") if request.method == "POST" else request.args.get("next"),
@@ -268,7 +269,8 @@ class UiRouteHandlers:
             user = dotenv.get_dotenv_value("AUTH_LOGIN")
             password = dotenv.get_dotenv_value("AUTH_PASSWORD")
 
-            if request.form["username"] == user and request.form["password"] == password:
+            if request.form.get("username") == user and \
+               secrets.compare_digest(str(request.form.get("password", "")), str(password or "")):
                 session["authentication"] = login.get_credentials_hash()
                 return redirect(next_url or fallback_url)
             else:
