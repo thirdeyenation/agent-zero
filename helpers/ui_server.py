@@ -266,9 +266,17 @@ class UiRouteHandlers:
         )
 
         if request.method == "POST":
-            user = dotenv.get_dotenv_value("AUTH_LOGIN")
-            password = dotenv.get_dotenv_value("AUTH_PASSWORD")
+            env_user = dotenv.get_dotenv_value("AUTH_LOGIN")
+            env_pass = dotenv.get_dotenv_value("AUTH_PASSWORD")
 
+            form_user = request.form.get("username", "")
+            form_pass = request.form.get("password", "")
+
+            # Use secrets.compare_digest for secure comparison
+            valid_user = isinstance(env_user, str) and isinstance(form_user, str) and secrets.compare_digest(form_user, env_user)
+            valid_pass = isinstance(env_pass, str) and isinstance(form_pass, str) and secrets.compare_digest(form_pass, env_pass)
+
+            if valid_user and valid_pass:
             if request.form.get("username") == user and \
                secrets.compare_digest(str(request.form.get("password", "")), str(password or "")):
                 session["authentication"] = login.get_credentials_hash()
