@@ -8,6 +8,7 @@ from helpers.security import safe_filename
 from datetime import datetime
 
 from helpers import files
+from helpers.localization import Localization
 from helpers.print_style import PrintStyle
 
 
@@ -42,7 +43,7 @@ class FileBrowser:
         try:
             # Resolve the target directory path
             target_file = (self.base_dir / current_path / filename).resolve()
-            if not str(target_file).startswith(str(self.base_dir)):
+            if not target_file.is_relative_to(self.base_dir):
                 raise ValueError("Invalid target directory")
 
             os.makedirs(target_file.parent, exist_ok=True)
@@ -62,7 +63,7 @@ class FileBrowser:
         try:
             # Resolve the target directory path
             target_dir = (self.base_dir / current_path).resolve()
-            if not str(target_dir).startswith(str(self.base_dir)):
+            if not target_dir.is_relative_to(self.base_dir):
                 raise ValueError("Invalid target directory")
 
             os.makedirs(target_dir, exist_ok=True)
@@ -94,7 +95,7 @@ class FileBrowser:
         try:
             # Resolve the full path while preventing directory traversal
             full_path = (self.base_dir / file_path).resolve()
-            if not str(full_path).startswith(str(self.base_dir)):
+            if not full_path.is_relative_to(self.base_dir):
                 raise ValueError("Invalid path")
 
             if os.path.exists(full_path):
@@ -118,13 +119,13 @@ class FileBrowser:
                 raise ValueError("New name cannot include path separators")
 
             full_path = (self.base_dir / file_path).resolve()
-            if not str(full_path).startswith(str(self.base_dir)):
+            if not full_path.is_relative_to(self.base_dir):
                 raise ValueError("Invalid path")
             if not full_path.exists():
                 raise FileNotFoundError("File or folder not found")
 
             new_path = full_path.with_name(new_name)
-            if not str(new_path).startswith(str(self.base_dir)):
+            if not new_path.is_relative_to(self.base_dir):
                 raise ValueError("Invalid target path")
             if full_path == new_path:
                 return True
@@ -137,6 +138,62 @@ class FileBrowser:
             PrintStyle.error(f"Error renaming {file_path}: {e}")
             raise
 
+    def move_items(self, file_paths: List[str], destination_path: str) -> List[str]:
+        if not file_paths:
+            raise ValueError("No items selected")
+
+        base_dir = self.base_dir.resolve()
+        destination = (self.base_dir / destination_path).resolve()
+        if not destination.is_relative_to(base_dir):
+            raise ValueError("Invalid destination path")
+        if not destination.is_dir():
+            raise NotADirectoryError("Destination folder not found")
+
+        moves: List[Tuple[Path, Path]] = []
+        targets: set[Path] = set()
+        for file_path in dict.fromkeys(file_paths):
+            requested = self.base_dir / file_path
+            source = requested.parent.resolve() / requested.name
+            if not source.is_relative_to(base_dir) or source == base_dir:
+                raise ValueError("Invalid source path")
+            if not source.exists() and not source.is_symlink():
+                raise FileNotFoundError(f"Item not found: {source.name}")
+            if source == destination:
+                raise ValueError("A folder cannot be moved into itself")
+            if (
+                source.is_dir()
+                and not source.is_symlink()
+                and destination.is_relative_to(source)
+            ):
+                raise ValueError("A folder cannot be moved into itself")
+
+            target = destination / source.name
+            if target == source:
+                raise ValueError(f"{source.name} is already in this folder")
+            if target.exists() or target.is_symlink():
+                raise FileExistsError(
+                    f'An item named "{source.name}" already exists'
+                )
+            if target in targets:
+                raise FileExistsError(f'Multiple items are named "{source.name}"')
+            targets.add(target)
+            moves.append((source, target))
+
+        moved: List[Tuple[Path, Path]] = []
+        try:
+            for source, target in moves:
+                os.rename(source, target)
+                moved.append((source, target))
+        except Exception:
+            for source, target in reversed(moved):
+                try:
+                    os.rename(target, source)
+                except Exception as rollback_error:
+                    PrintStyle.error(f"Error restoring {source}: {rollback_error}")
+            raise
+
+        return [str(target) for _, target in moved]
+
     def create_folder(self, parent_path: str, folder_name: str) -> bool:
         try:
             if not folder_name or folder_name in {".", ".."}:
@@ -145,11 +202,11 @@ class FileBrowser:
                 raise ValueError("Folder name cannot include path separators")
 
             parent_full = (self.base_dir / parent_path).resolve()
-            if not str(parent_full).startswith(str(self.base_dir)):
+            if not parent_full.is_relative_to(self.base_dir):
                 raise ValueError("Invalid parent path")
 
             target_dir = (parent_full / folder_name).resolve()
-            if not str(target_dir).startswith(str(self.base_dir)):
+            if not target_dir.is_relative_to(self.base_dir):
                 raise ValueError("Invalid target path")
             if target_dir.exists():
                 raise FileExistsError("Folder already exists")
@@ -169,7 +226,7 @@ class FileBrowser:
                 raise ValueError("File exceeds 1 MB and cannot be edited")
 
             full_path = (self.base_dir / file_path).resolve()
-            if not str(full_path).startswith(str(self.base_dir)):
+            if not full_path.is_relative_to(self.base_dir):
                 raise ValueError("Invalid path")
             if full_path.exists() and full_path.is_dir():
                 raise ValueError("Target is a directory")
@@ -260,7 +317,10 @@ class FileBrowser:
                         entry_data: Dict[str, Any] = {
                             "name": filename,
                             "path": str(entry_path.relative_to(self.base_dir)),
-                            "modified": datetime.fromtimestamp(stat_info.st_mtime).isoformat()
+                            "modified": datetime.fromtimestamp(
+                                stat_info.st_mtime,
+                                tz=Localization.get().get_tzinfo(),
+                            ).isoformat()
                         }
 
                         # Add symlink information if this is a symlink
@@ -307,8 +367,12 @@ class FileBrowser:
         try:
             # Resolve the full path while preventing directory traversal
             full_path = (self.base_dir / current_path).resolve()
-            if not str(full_path).startswith(str(self.base_dir)):
+            if not full_path.is_relative_to(self.base_dir):
                 raise ValueError("Invalid path")
+            if not full_path.exists():
+                raise FileNotFoundError("Directory not found")
+            if not full_path.is_dir():
+                raise NotADirectoryError("Path is not a directory")
 
             # Use ls command instead of os.scandir for better error handling
             files, folders = self._get_files_via_ls(full_path)
@@ -338,7 +402,12 @@ class FileBrowser:
 
         except Exception as e:
             PrintStyle.error(f"Error reading directory: {e}")
-            return {"entries": [], "current_path": "", "parent_path": ""}
+            return {
+                "entries": [],
+                "current_path": current_path,
+                "parent_path": "",
+                "error": str(e),
+            }
 
     def get_full_path(self, file_path: str, allow_dir: bool = False) -> str:
         """Get full file path if it exists and is within base_dir"""

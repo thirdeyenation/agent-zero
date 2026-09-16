@@ -119,6 +119,7 @@ The toolbar menu includes:
 The full settings include:
 
 - **Browser location:** Use the Docker browser or **Bring Your Own Browser** through A0 CLI.
+- **Proxy:** Optionally route the Docker browser through an HTTP or SOCKS proxy, with bypass and authentication settings.
 - **Page content access:** Controls host-browser page text and screenshots.
 - **Starting page:** The default URL for new Browser sessions.
 - **Autofocus active page:** Lets an already-open Browser surface follow the agent's browsing.
@@ -135,10 +136,15 @@ can show in the Canvas.
 In normal Docker installs, the needed browser is already included. In local
 development, Agent Zero can install it the first time it is needed.
 
+To use a proxy, enter its server in Browser settings, for example
+`http://proxy.example:3128` or `socks5://proxy.example:1080`. Add an optional
+comma-separated bypass list, username, and password when the proxy requires
+them. Saving proxy changes restarts active Docker Browser sessions.
+
 ## Bring Your Own Browser
 
-Bring Your Own Browser lets Agent Zero use Chrome, Edge, or Chromium on your own
-computer through A0 CLI.
+Bring Your Own Browser lets Agent Zero use Chrome, Edge, Brave, Opera, Vivaldi,
+or Chromium on your own computer through A0 CLI.
 
 Use it when the page, login, or browser profile should stay on your machine.
 
@@ -146,8 +152,36 @@ Requirements:
 
 - [ ] Keep A0 CLI connected to the Agent Zero chat.
 - [ ] Choose **Bring Your Own Browser** in Browser settings.
-- [ ] Use Chrome, Edge, or Chromium on the host.
-- [ ] For personal Chrome remote debugging, open the host browser first, go to `chrome://inspect/#remote-debugging`, and enable **Allow remote debugging for this browser instance**.
+- [ ] Use a Chromium-family browser on the host: Chrome, Edge, Brave, Opera, Vivaldi, or Chromium.
+- [ ] For an already-open browser, open its remote debugging page and enable **Allow remote debugging for this browser instance**.
+
+Remote debugging pages:
+
+| Browser | Page |
+| --- | --- |
+| Chrome, Edge, Brave, Vivaldi, Chromium | `chrome://inspect/#remote-debugging` |
+| Opera | `opera://inspect/#remote-debugging` |
+
+The **Host browser** list shows Automatic, currently advertised debug endpoints,
+and **Custom endpoint**. If a browser does not appear after enabling remote
+debugging, restart or reconnect the local A0 CLI. Restarting only the Agent Zero
+Web UI server does not refresh the browser inventory; the list comes from the
+connected CLI.
+
+As a fallback, launch the browser with an explicit debugging port and profile
+directory:
+
+```bash
+opera --remote-debugging-port=9222 --user-data-dir="$HOME/.config/a0-opera-debug"
+```
+
+Then choose **Custom endpoint** in Browser settings and enter `localhost:9222`
+or `http://localhost:9222`. A full DevTools WebSocket endpoint also works. The
+same forms can be passed to A0 CLI:
+
+```bash
+export A0_HOST_BROWSER_REMOTE_DEBUGGING_ENDPOINTS="http://localhost:9222"
+```
 
 ![Host browser remote debugging setting](../res/usage/browser/host-browser-remote-debugging-setting.png)
 
