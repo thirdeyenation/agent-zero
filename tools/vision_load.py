@@ -1,13 +1,10 @@
-import base64
 from helpers.print_style import PrintStyle
 from helpers.tool import Tool, Response
-from helpers import runtime, files, images, plugins
+from helpers import runtime, files, plugins, ephemeral_images, images, chat_media
 from mimetypes import guess_type
 from helpers import history
 
-# image optimization and token estimation for context window
-MAX_PIXELS = 768_000
-QUALITY = 75
+# image token estimation for context window
 TOKENS_ESTIMATE = 1500
 
 
@@ -17,13 +14,41 @@ class VisionLoad(Tool):
         self.images_dict = {}
         self.loaded_paths: list[str] = []
         self.skipped_paths: list[str] = []
-        template: list[dict[str, str]] = []  # type: ignore
 
         max_embeds = self._get_max_embeds()
-        limited_paths = paths if max_embeds <= 0 else paths[-max_embeds:]
-        self.skipped_paths = paths[:-max_embeds] if max_embeds > 0 and len(paths) > max_embeds else []
+        requested = [
+            (str(path or "").strip(), self._display_input_path(str(path or "").strip(), idx + 1))
+            for idx, path in enumerate(paths)
+        ]
+        limited_paths = requested if max_embeds <= 0 else requested[-max_embeds:]
+        self.skipped_paths = (
+            [display for _, display in requested[:-max_embeds]]
+            if max_embeds > 0 and len(requested) > max_embeds
+            else []
+        )
 
-        for path in limited_paths:
+        for idx, (path, display_path) in enumerate(limited_paths):
+            if not path:
+                continue
+            if ephemeral_images.is_ref(path):
+                image = ephemeral_images.consume_image(
+                    path,
+                    context_id=self._context_id(),
+                )
+                if image is None:
+                    continue
+                display = image.display_name or display_path
+                stored_ref = self._store_ephemeral_image(image)
+                if stored_ref:
+                    self.images_dict[display] = stored_ref
+                    self.loaded_paths.append(display)
+                continue
+            if self._is_data_image_url(path):
+                stored_ref = self._store_data_url(path, preferred_name=f"vision-load-{idx + 1}.png")
+                if stored_ref:
+                    self.images_dict[display_path] = stored_ref
+                    self.loaded_paths.append(display_path)
+                continue
             if not await runtime.call_development_function(files.exists, str(path)):
                 continue
 
@@ -31,30 +56,11 @@ class VisionLoad(Tool):
                 mime_type, _ = guess_type(str(path))
                 if mime_type and mime_type.startswith("image/"):
                     try:
-                        # Read binary file
-                        file_content = await runtime.call_development_function(
-                            files.read_file_base64, str(path)
-                        )
-                        file_content = base64.b64decode(file_content)
-                        # Compress and convert to JPEG
-                        compressed = images.compress_image(
-                            file_content, max_pixels=MAX_PIXELS, quality=QUALITY
-                        )
-                        # Encode as base64
-                        file_content_b64 = base64.b64encode(compressed).decode("utf-8")
-
-                        # DEBUG: Save compressed image
-                        # await runtime.call_development_function(
-                        #     files.write_file_base64, str(path), file_content_b64
-                        # )
-
-                        # Construct the data URL (always JPEG after compression)
-                        self.images_dict[path] = file_content_b64
-                        self.loaded_paths.append(path)
-                    except Exception as e:
-                        self.images_dict[path] = None
-                        PrintStyle().error(f"Error processing image {path}: {e}")
-                        self.agent.context.log.log("warning", f"Error processing image {path}: {e}")
+                        stored_ref = self._store_local_image(path, preferred_name=files.basename(path))
+                        self.images_dict[display_path] = stored_ref
+                        self.loaded_paths.append(display_path)
+                    except (FileNotFoundError, OSError, ValueError):
+                        continue
 
         return Response(message="dummy", break_loop=False)
 
@@ -63,6 +69,65 @@ class VisionLoad(Tool):
         chat_cfg = cfg.get("chat_model", {})
         max_embeds = chat_cfg.get("max_embeds", 10)
         return int(max_embeds or 0)
+
+    def _context_id(self) -> str:
+        return str(getattr(getattr(self.agent, "context", None), "id", "") or "").strip()
+
+    def _store_ephemeral_image(self, image: ephemeral_images.EphemeralImage) -> str:
+        context_id = self._context_id()
+        if not context_id:
+            return image.data_url
+        source = chat_media.infer_source(image.ref, image.display_name)
+        category = chat_media.category_for_source(source)
+        saved = chat_media.save_image_base64(
+            context_id=context_id,
+            data=image.data,
+            mime_type=image.mime,
+            category=category,
+            source=source,
+            preferred_name=image.display_name,
+        )
+        return saved.a0_path
+
+    def _store_data_url(self, data_url: str, *, preferred_name: str = "") -> str:
+        context_id = self._context_id()
+        if not context_id:
+            return data_url
+        source = chat_media.infer_source(data_url, preferred_name)
+        category = chat_media.category_for_source(source)
+        saved = chat_media.save_image_data_url(
+            context_id=context_id,
+            data_url=data_url,
+            category=category,
+            source=source,
+            preferred_name=preferred_name,
+        )
+        return saved.a0_path
+
+    def _store_local_image(self, path: str, *, preferred_name: str = "") -> str:
+        context_id = self._context_id()
+        if not context_id:
+            return images.to_data_url(path)
+        return chat_media.materialize_image_ref(
+            context_id=context_id,
+            url=path,
+            source=chat_media.infer_source(path, preferred_name),
+            preferred_name=preferred_name,
+        )
+
+    @staticmethod
+    def _is_data_image_url(value: str) -> bool:
+        normalized = str(value or "").strip().lower()
+        return normalized.startswith("data:image/") and ";base64," in normalized
+
+    @classmethod
+    def _display_input_path(cls, value: str, index: int) -> str:
+        if ephemeral_images.is_ref(value):
+            return ephemeral_images.display_ref(value)
+        if cls._is_data_image_url(value):
+            prefix = value.split(",", 1)[0]
+            return f"{prefix},<ephemeral-image-{index}>"
+        return value
 
     async def after_execution(self, response: Response, **kwargs):
 
@@ -80,12 +145,12 @@ class VisionLoad(Tool):
         )
         if self.images_dict:
             self.agent.hist_add_tool_result(self.name, summary, id=self.log.id if self.log else "")
-            for path, image in self.images_dict.items():
-                if image:
+            for path, image_path in self.images_dict.items():
+                if image_path:
                     content.append(
                         {
                             "type": "image_url",
-                            "image_url": {"url": f"data:image/jpeg;base64,{image}"},
+                            "image_url": {"url": image_path},
                         }
                     )
                 else:
@@ -96,7 +161,7 @@ class VisionLoad(Tool):
                         }
                     )
             # append as raw message content for LLMs with vision tokens estimate
-            msg = history.RawMessage(raw_content=content, preview="<Base64 encoded image data>")
+            msg = history.RawMessage(raw_content=content, preview="<Image attachments loaded by path>")
             self.agent.hist_add_message(
                 False, content=msg, tokens=TOKENS_ESTIMATE * len(content)
             )

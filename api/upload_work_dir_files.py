@@ -2,9 +2,10 @@ import base64
 from werkzeug.datastructures import FileStorage
 from helpers.api import ApiHandler, Request, Response
 from helpers.file_browser import FileBrowser
-from helpers import files, runtime
+from helpers import files, runtime, extension
 from api import get_work_dir_files
 import os
+import posixpath
 
 
 class UploadWorkDirFiles(ApiHandler):
@@ -22,6 +23,21 @@ class UploadWorkDirFiles(ApiHandler):
 
         if not successful and failed:
             raise Exception("All uploads failed")
+
+        if successful:
+            await extension.call_extensions_async(
+                "workdir_file_mutation_after",
+                agent=None,
+                data={
+                    "action": "upload",
+                    "path": current_path,
+                    "paths": [
+                        posixpath.join(str(current_path).rstrip("/"), name)
+                        for name in successful
+                    ],
+                    "current_path": current_path,
+                },
+            )
 
         # result = browser.get_files(current_path)
         result = await runtime.call_development_function(get_work_dir_files.get_files, current_path)
@@ -61,4 +77,3 @@ async def upload_files(uploaded_files: list[FileStorage], current_path: str):
 async def upload_file(current_path: str, filename: str, base64_content: str):
     browser = FileBrowser()
     return browser.save_file_b64(current_path, filename, base64_content)
-

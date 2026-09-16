@@ -181,7 +181,25 @@ export const store = createStore("whatsappConfig", {
   },
 
   projectSummary() {
-    return this.config?.project ? `Project: ${this.config.project}` : "No project";
+    return this.config?.project ? `Project: ${this.projectLabel(this.config.project)}` : "No project";
+  },
+
+  projectOptionValue(project) {
+    return String(project?.key || project?.name || "");
+  },
+
+  projectOptionLabel(project) {
+    return project?.label || project?.title || project?.name || project?.key || "";
+  },
+
+  projectLabel(projectKey) {
+    const normalizedProjectKey = String(projectKey || "").trim();
+    if (!normalizedProjectKey) return "";
+    const project = (this.projects || []).find((item) =>
+      String(item?.key || "") === normalizedProjectKey || String(item?.name || "") === normalizedProjectKey
+    );
+    if (project) return this.projectOptionLabel(project);
+    return normalizedProjectKey;
   },
 
   async testConnection() {

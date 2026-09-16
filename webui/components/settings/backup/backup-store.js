@@ -1,4 +1,11 @@
 import { createStore } from "/js/AlpineStore.js";
+import {
+  formatDateTime,
+  getCurrentUserDateString,
+  getCurrentUserISOString,
+  getUserHour12,
+  getUserTimezone,
+} from "/js/time-utils.js";
 
 // Global function references
 const sendJsonData = globalThis.sendJsonData;
@@ -70,7 +77,11 @@ const model = {
 
   // File operations logging
   addFileOperation(message) {
-    const timestamp = new Date().toLocaleTimeString();
+    const timestamp = new Intl.DateTimeFormat(undefined, {
+      timeStyle: "medium",
+      hour12: getUserHour12(),
+      timeZone: getUserTimezone(),
+    }).format(new Date());
     this.fileOperationsLog += `[${timestamp}] ${message}\n`;
 
     // Auto-scroll to bottom - use setTimeout since $nextTick is not available in stores
@@ -84,6 +95,22 @@ const model = {
 
   clearFileOperations() {
     this.fileOperationsLog = '';
+  },
+
+  createDownloadToastGroup(prefix) {
+    return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  },
+
+  showDownloadPreparingToast(group) {
+    window.toastFrontendInfo?.("Preparing download...", "Download", 0, group, undefined, true);
+  },
+
+  showDownloadStartedToast(group) {
+    window.toastFrontendInfo?.("Downloading...", "Download", 3, group, undefined, true);
+  },
+
+  showDownloadErrorToast(group, message) {
+    window.toastFrontendError?.(message || "Download failed", "Download Error", 8, group, undefined, true);
   },
 
   // Cleanup method for modal close
@@ -101,7 +128,7 @@ const model = {
 
   // Get default backup metadata with resolved patterns from backend
   async getDefaultBackupMetadata() {
-    const timestamp = new Date().toISOString();
+    const timestamp = getCurrentUserISOString();
 
     try {
       // Get resolved default patterns from backend
@@ -113,7 +140,7 @@ const model = {
         const exclude_patterns = response.default_patterns.exclude_patterns;
 
         return {
-          backup_name: `agent-zero-backup-${timestamp.slice(0, 10)}`,
+          backup_name: `agent-zero-backup-${getCurrentUserDateString()}`,
           include_hidden: true,
           include_patterns: include_patterns,
           exclude_patterns: exclude_patterns,
@@ -389,12 +416,15 @@ const model = {
       return;
     }
 
+    const downloadToastGroup = this.createDownloadToastGroup("backup-create");
+
     try {
       this.loading = true;
       this.loadingMessage = 'Creating backup...';
       this.error = '';
       this.clearFileOperations();
       this.addFileOperation('Starting backup creation...');
+      this.showDownloadPreparingToast(downloadToastGroup);
 
       const metadata = this.backupMetadataConfig;
 
@@ -421,7 +451,7 @@ const model = {
         window.URL.revokeObjectURL(url);
 
         this.addFileOperation('Backup created and downloaded successfully!');
-        window.toastFrontendInfo('Backup created and downloaded successfully', 'Backup Status');
+        this.showDownloadStartedToast(downloadToastGroup);
       } else {
         // Try to parse error response
         const errorText = await response.text();
@@ -432,18 +462,23 @@ const model = {
           this.error = `Backup creation failed: ${response.status} ${response.statusText}`;
         }
         this.addFileOperation(`Error: ${this.error}`);
+        this.showDownloadErrorToast(downloadToastGroup, this.error);
       }
 
     } catch (error) {
       this.error = `Backup error: ${error.message}`;
       this.addFileOperation(`Error: ${error.message}`);
+      this.showDownloadErrorToast(downloadToastGroup, this.error);
     } finally {
       this.loading = false;
     }
   },
 
   async downloadBackup(backupPath, backupName) {
+    const downloadToastGroup = this.createDownloadToastGroup("backup-download");
+
     try {
+      this.showDownloadPreparingToast(downloadToastGroup);
       const response = await fetchApi('/backup_download', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -458,9 +493,16 @@ const model = {
         a.download = `${backupName}.zip`;
         a.click();
         window.URL.revokeObjectURL(url);
+        this.showDownloadStartedToast(downloadToastGroup);
+      } else {
+        const errorText = await response.text();
+        this.error = errorText || `Download failed: ${response.status}`;
+        this.showDownloadErrorToast(downloadToastGroup, this.error);
       }
     } catch (error) {
       console.error('Download error:', error);
+      this.error = error.message || 'Download failed';
+      this.showDownloadErrorToast(downloadToastGroup, this.error);
     }
   },
 
@@ -810,7 +852,7 @@ const model = {
   // Utility
   formatTimestamp(timestamp) {
     if (!timestamp) return 'Unknown';
-    return new Date(timestamp).toLocaleString();
+    return formatDateTime(timestamp, "full");
   },
 
   formatFileSize(bytes) {
@@ -822,7 +864,7 @@ const model = {
 
   formatDate(dateString) {
     if (!dateString) return 'Unknown';
-    return new Date(dateString).toLocaleDateString();
+    return formatDateTime(dateString, "date");
   }
 };
 

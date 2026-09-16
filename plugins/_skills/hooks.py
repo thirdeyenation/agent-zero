@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from plugins._skills.helpers.runtime import coerce_config
+from helpers.skills import normalize_skills_config
 
 
 def get_plugin_config(default=None, **kwargs):
-    return coerce_config(default)
+    return normalize_skills_config(default)
 
 
 def save_plugin_config(settings=None, **kwargs):
-    return coerce_config(settings)
+    return normalize_skills_config(settings)

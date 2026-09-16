@@ -62,6 +62,51 @@ const PRESETS = {
   },
 };
 
+const PROVIDER_OPTIONS = [
+  {
+    value: "gmail",
+    label: "Gmail",
+    hint: "Google app password",
+    logo: "gmail",
+    logoText: "M",
+  },
+  {
+    value: "icloud",
+    label: "iCloud Mail",
+    hint: "Apple app-specific password",
+    logo: "icloud",
+    logoText: "cloud",
+  },
+  {
+    value: "microsoft365",
+    label: "Outlook / Microsoft 365",
+    hint: "Microsoft mailbox preset",
+    logo: "microsoft365",
+    logoText: "",
+  },
+  {
+    value: "yahoo",
+    label: "Yahoo Mail",
+    hint: "Yahoo app password",
+    logo: "yahoo",
+    logoText: "Y!",
+  },
+  {
+    value: "exchange",
+    label: "Exchange",
+    hint: "Organization Exchange server",
+    logo: "exchange",
+    logoText: "X",
+  },
+  {
+    value: "custom-imap",
+    label: "Custom IMAP",
+    hint: "Manual server settings",
+    logo: "custom-imap",
+    logoText: "dns",
+  },
+];
+
 function ensureConfig(config) {
   if (!config || typeof config !== "object") return;
   if (!Array.isArray(config.handlers)) config.handlers = [];
@@ -74,11 +119,16 @@ export const store = createStore("emailConfig", {
   testing: null,
   testResults: null,
   testResultsFor: null,
+  providerPickerOpen: null,
   guideOpen: false,
   didInit: false,
   projects: [],
   modelPresets: [],
   presets: PRESETS,
+
+  get providerOptions() {
+    return PROVIDER_OPTIONS;
+  },
 
   get handlers() {
     ensureConfig(this.config);
@@ -86,6 +136,8 @@ export const store = createStore("emailConfig", {
   },
 
   async init(config, context = null) {
+    if (!config || typeof config !== "object") return;
+
     this.config = config || null;
     this.context = context;
     this.didInit = false;
@@ -94,8 +146,12 @@ export const store = createStore("emailConfig", {
     this.testing = null;
     this.testResults = null;
     this.testResultsFor = null;
+    this.providerPickerOpen = null;
     this.guideOpen = this.handlers.length === 0 && window.innerWidth > 720;
     if (this.handlers.length === 0) this._startInitialHandlerFlow();
+    if (this.editing !== null && !this.hasProvider(this.handlers[this.editing])) {
+      this.providerPickerOpen = this.editing;
+    }
     this.didInit = true;
 
     const [projectsResult, presetsResult] = await Promise.allSettled([
@@ -116,6 +172,7 @@ export const store = createStore("emailConfig", {
     this.testing = null;
     this.testResults = null;
     this.testResultsFor = null;
+    this.providerPickerOpen = null;
     this.guideOpen = false;
     this.didInit = false;
   },
@@ -124,6 +181,7 @@ export const store = createStore("emailConfig", {
     return {
       name: "",
       enabled: false,
+      provider: "",
       account_type: "imap",
       imap_server: "",
       imap_port: 993,
@@ -148,6 +206,7 @@ export const store = createStore("emailConfig", {
     ensureConfig(this.config);
     this.config.handlers.push(this.newHandler());
     this.editing = this.config.handlers.length - 1;
+    this.providerPickerOpen = this.editing;
     this.testResults = null;
     this.testResultsFor = null;
   },
@@ -156,6 +215,8 @@ export const store = createStore("emailConfig", {
     this.handlers.splice(idx, 1);
     if (this.editing === idx) this.editing = null;
     if (this.editing !== null && this.editing > idx) this.editing -= 1;
+    if (this.providerPickerOpen === idx) this.providerPickerOpen = null;
+    if (this.providerPickerOpen !== null && this.providerPickerOpen > idx) this.providerPickerOpen -= 1;
     if (this.testResultsFor === idx) {
       this.testResults = null;
       this.testResultsFor = null;
@@ -164,6 +225,11 @@ export const store = createStore("emailConfig", {
 
   toggleEditing(idx) {
     this.editing = this.editing === idx ? null : idx;
+    if (this.editing === null) {
+      this.providerPickerOpen = null;
+    } else if (!this.hasProvider(this.handlers[idx])) {
+      this.providerPickerOpen = idx;
+    }
     if (this.testResultsFor !== idx) {
       this.testResults = null;
       this.testResultsFor = null;
@@ -171,6 +237,10 @@ export const store = createStore("emailConfig", {
   },
 
   providerValue(handler) {
+    if (!handler || typeof handler !== "object") return "";
+    const explicitProvider = String(handler.provider || "").trim();
+    if (explicitProvider && this.presets[explicitProvider]) return explicitProvider;
+
     const incoming = String(handler.imap_server || "").trim().toLowerCase();
     const outgoing = String(handler.smtp_server || "").trim().toLowerCase();
     const accountType = handler.account_type || "imap";
@@ -184,8 +254,28 @@ export const store = createStore("emailConfig", {
     return "custom-imap";
   },
 
+  hasProvider(handler) {
+    return Boolean(this.providerValue(handler));
+  },
+
+  showProviderChoices(handler, idx) {
+    return !this.hasProvider(handler) || this.providerPickerOpen === idx;
+  },
+
+  changeProvider(idx) {
+    this.providerPickerOpen = this.providerPickerOpen === idx ? null : idx;
+  },
+
   providerLabel(value) {
     return this.presets[value]?.label || "Custom IMAP";
+  },
+
+  selectProvider(handler, value, idx = null) {
+    this.applyProvider(handler, value);
+    this.providerPickerOpen = null;
+    this.testResults = null;
+    this.testResultsFor = null;
+    if (idx !== null) this.editing = idx;
   },
 
   applyProvider(handler, value) {
@@ -194,6 +284,7 @@ export const store = createStore("emailConfig", {
     const previous = this.providerValue(handler);
 
     handler.account_type = preset.account_type;
+    handler.provider = value;
 
     if (value === "custom-imap") {
       if (previous !== "custom-imap") {

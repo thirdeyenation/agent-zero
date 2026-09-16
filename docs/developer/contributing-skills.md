@@ -123,8 +123,8 @@ More instructions...
 
 ## Related Skills
 
-- [related-skill-1](../related-skill-1/SKILL.md)
-- [related-skill-2](../related-skill-2/SKILL.md)
+- `related-skill-1`
+- `related-skill-2`
 ```
 
 ### Required Fields

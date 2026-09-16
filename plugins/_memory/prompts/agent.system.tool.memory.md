@@ -1,14 +1,21 @@
 ## memory tools
 use when durable recall or storage is useful
-- `memory_load`: args `query`, optional `threshold`, `limit`, `filter`
-- `memory_save`: args `text`, optional `area` and metadata kwargs
-- `memory_delete`: arg `ids` comma-separated ids
-- `memory_forget`: args `query`, optional `threshold`, `filter`
+- `memory_load`: search stored memories by meaning and metadata
+- `memory_save`: store durable information for future recall
+- `memory_delete`: delete memories by exact ID
+- `memory_forget`: find and remove memories matching a query
+args: load uses `query`, optional `threshold`, `limit`, `filter`; save uses `text`, optional `area` and metadata; delete uses comma-separated `ids`; forget uses `query`, optional `threshold`, `filter`
 
 notes:
 - `threshold` is similarity from `0` to `1`
 - `filter` is a metadata expression (e.g. `area=='main'`)
 - confirm destructive changes when accuracy matters
+- memories usually include timestamp metadata; use it as a soft recency signal, not a hard TTL
+- when the user updates a durable fact/preference, load related memories first, forget/delete superseded versions, then save one complete current version
+- do not append a second memory for the same mutable subject when the new statement replaces the old one
+- do not forget a memory only because it is old; forget it when current evidence shows it is stale, false, superseded, duplicated, or unwanted
+- `memory_forget` also cleans exact matches and derived fragment/solution records related to removed memories
+- use `memory_save` for stable current facts, not short-lived test markers, greetings, or one-off conversation events
 
 example:
 ~~~json

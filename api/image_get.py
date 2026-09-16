@@ -1,10 +1,29 @@
 import base64
 import os
+from pathlib import Path
 from urllib.parse import quote
 from helpers.api import ApiHandler, Request, Response, send_file
 from helpers import files, runtime
 import io
 from mimetypes import guess_type
+
+
+IMAGE_EXTENSIONS = (
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".gif",
+    ".bmp",
+    ".webp",
+    ".svg",
+    ".ico",
+    ".svgz",
+)
+SVG_EXTENSIONS = (".svg", ".svgz")
+SVG_CONTENT_SECURITY_POLICY = (
+    "sandbox; default-src 'none'; script-src 'none'; "
+    "img-src 'self' data:; style-src 'unsafe-inline'"
+)
 
 
 class ImageGet(ApiHandler):
@@ -16,48 +35,35 @@ class ImageGet(ApiHandler):
     async def process(self, input: dict, request: Request) -> dict | Response:
         # input data
         path = input.get("path", request.args.get("path", ""))
-        metadata = (
-            input.get("metadata", request.args.get("metadata", "false")).lower()
-            == "true"
-        )
 
         if not path:
             raise ValueError("No path provided")
-
-        # no real need to check, we have the extension filter in place
-        # check if path is within base directory
-        # if runtime.is_development():
-        #     in_base = files.is_in_base_dir(files.fix_dev_path(path))
-        # else:
-        #     in_base = files.is_in_base_dir(path)
-        # if not in_base and not files.is_in_dir(path, "/root"):
-        #     raise ValueError("Path is outside of allowed directory")
 
         # get file extension and info
         file_ext = os.path.splitext(path)[1].lower()
         filename = os.path.basename(path)
 
-        # list of allowed image extensions
-        image_extensions = [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".svg", ".ico", ".svgz"]
-
-        # # If metadata is requested, return file information
-        # if metadata:
-        #     return _get_file_metadata(path, filename, file_ext, image_extensions)
-       
-        if file_ext in image_extensions:
+        if file_ext in IMAGE_EXTENSIONS:
+            try:
+                local_path = _resolve_allowed_image_path(path)
+            except ValueError as exc:
+                return Response(str(exc), status=403, mimetype="text/plain")
 
             # in development environment, try to serve the image from local file system if exists, otherwise from docker
             if runtime.is_development():
-                # Convert /a0/... Docker paths to local absolute paths
-                local_path = files.fix_dev_path(path)
                 if files.exists(local_path):
                     response = send_file(local_path)
                 else:
                     # Try fetching from Docker via RFC as fallback
                     try:
-                        if await runtime.call_development_function(files.exists, path):
+                        remote_path = await runtime.call_development_function(
+                            _resolve_allowed_image_path, path
+                        )
+                        if await runtime.call_development_function(
+                            files.exists, remote_path
+                        ):
                             b64_content = await runtime.call_development_function(
-                                files.read_file_base64, path
+                                files.read_file_base64, remote_path
                             )
                             file_content = base64.b64decode(b64_content)
                             mime_type, _ = guess_type(filename)
@@ -74,19 +80,48 @@ class ImageGet(ApiHandler):
                     except Exception:
                         response = _send_fallback_icon("image")
             else:
-                if files.exists(path):
-                    response = send_file(path)
+                if files.exists(local_path):
+                    response = send_file(local_path)
                 else:
                     response = _send_fallback_icon("image")
 
-            # Add cache headers for better device sync performance
-            response.headers["Cache-Control"] = "public, max-age=3600"
-            response.headers["X-File-Type"] = "image"
-            response.headers["X-File-Name"] = quote(filename)
+            _set_image_headers(response, filename, file_ext)
             return response
         else:
             # Handle non-image files with fallback icons
             return _send_file_type_icon(file_ext, filename)
+
+
+def _resolve_allowed_image_path(path: str) -> str:
+    """Resolve a requested image path and keep it inside Agent Zero's base dir."""
+
+    if runtime.is_development():
+        candidate = Path(files.fix_dev_path(path))
+    else:
+        candidate = Path(files.get_abs_path(path))
+
+    if not candidate.is_absolute():
+        candidate = Path(files.get_base_dir()) / candidate
+
+    base_dir = Path(files.get_base_dir()).resolve()
+    resolved = candidate.resolve(strict=False)
+
+    try:
+        resolved.relative_to(base_dir)
+    except ValueError as exc:
+        raise ValueError("Path is outside of allowed directory") from exc
+
+    return str(resolved)
+
+
+def _set_image_headers(response: Response, filename: str, file_ext: str) -> None:
+    # Add cache headers for better device sync performance.
+    response.headers["Cache-Control"] = "public, max-age=3600"
+    response.headers["X-File-Type"] = "image"
+    response.headers["X-File-Name"] = quote(filename)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    if file_ext in SVG_EXTENSIONS:
+        response.headers["Content-Security-Policy"] = SVG_CONTENT_SECURITY_POLICY
 
 
 def _send_file_type_icon(file_ext, filename=None):

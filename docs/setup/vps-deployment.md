@@ -15,10 +15,10 @@
 4. [Apache Reverse Proxy Configuration](#apache-reverse-proxy-configuration)
 5. [SSL/TLS Configuration](#ssltls-configuration)
 6. [Authentication Setup](#authentication-setup)
-7. [Domain & DNS Setup](#domain--dns-setup)
-8. [Verification & Testing](#verification--testing)
+7. [Domain & DNS Setup](#domain-dns-setup)
+8. [Verification & Testing](#verification-testing)
 9. [Troubleshooting](#troubleshooting)
-10. [Maintenance & Updates](#maintenance--updates)
+10. [Maintenance & Updates](#maintenance-updates)
 11. [Quick Reference](#quick-reference)
 
 ---
@@ -708,7 +708,6 @@ curl -I https://your-domain.com/login
 | Environment File | `/opt/a0-instance/.env` |
 | Memory Storage | `/opt/a0-instance/memory/` |
 | Work Directory | `/opt/a0-instance/work_dir/` |
-| Logs | `/opt/a0-instance/logs/` |
 | Apache Config (Standard) | `/etc/apache2/sites-available/` |
 | Apache Config (DirectAdmin) | `/etc/httpd/conf/extra/httpd-includes.conf` |
 | DirectAdmin SSL Certs | `/usr/local/directadmin/data/users/USER/domains/` |

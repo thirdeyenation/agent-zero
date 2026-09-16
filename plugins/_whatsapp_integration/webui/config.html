@@ -209,9 +209,11 @@
                                 <div class="field-control">
                                     <select :value="config.project" @change="config.project = $event.target.value">
                                         <option value="">No project</option>
-                                        <template x-for="proj in $store.whatsappConfig.projects" :key="proj.name">
-                                            <option :value="proj.name" x-text="proj.title || proj.name"
-                                                :selected="config.project === proj.name"></option>
+                                        <template x-for="proj in $store.whatsappConfig.projects" :key="$store.whatsappConfig.projectOptionValue(proj)">
+                                            <option :value="$store.whatsappConfig.projectOptionValue(proj)"
+                                                x-text="$store.whatsappConfig.projectOptionLabel(proj)"
+                                                :selected="config.project === $store.whatsappConfig.projectOptionValue(proj)">
+                                            </option>
                                         </template>
                                     </select>
                                 </div>
@@ -262,8 +264,8 @@
                         <details class="wa-advanced">
                             <summary>
                                 <span>Advanced</span>
-                                <span class="material-symbols-outlined wa-advanced-chevron"
-                                    aria-hidden="true">keyboard_arrow_down</span>
+                                <x-icon class="wa-advanced-chevron"
+                                    aria-hidden="true" name="keyboard_arrow_down"></x-icon>
                             </summary>
                             <div class="wa-advanced-body">
                                 <div class="wa-info-box">

@@ -37,6 +37,22 @@ class TokenStatus(connector_base.ProtectedConnectorApiHandler):
             except (TypeError, ValueError):
                 token_count = None
 
+        # ctx_window is only refreshed inside prepare_prompt (LLM turns). After load or
+        # between runs it is often missing while history already holds the conversation.
+        if token_count is None and agent is not None:
+            try:
+                from helpers import tokens as tokens_helper
+                from helpers.history import output_text
+
+                history_output = agent.history.output()
+                full_text = output_text(
+                    history_output, ai_label="assistant", human_label="user"
+                )
+                if full_text.strip():
+                    token_count = tokens_helper.approximate_prompt_tokens(full_text)
+            except Exception:
+                token_count = None
+
         context_window: int | None = None
         try:
             from plugins._model_config.helpers.model_config import get_chat_model_config

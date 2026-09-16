@@ -9,19 +9,74 @@ from helpers.tool import Response, Tool
 from helpers.ws import NAMESPACE
 from helpers.ws_manager import ConnectionNotFoundError, get_shared_ws_manager
 
+from plugins._a0_connector.helpers.exec_config import build_exec_config
 from plugins._a0_connector.helpers.ws_runtime import (
     clear_pending_exec_op,
-    select_target_sid,
+    remote_exec_metadata_for_sid,
+    remote_file_metadata_for_sid,
+    remote_tool_sids_for_context,
+    select_remote_exec_target_sid,
     store_pending_exec_op,
 )
 
 
-EXEC_OP_TIMEOUT = 120.0
+EXEC_OP_TRANSPORT_GRACE = 15.0
+EXEC_OP_DEFAULT_TIMEOUT = 120.0
 EXEC_OP_EVENT = "connector_exec_op"
+_TIMEOUT_KEYS = (
+    "first_output_timeout",
+    "between_output_timeout",
+    "max_exec_timeout",
+    "dialog_timeout",
+)
 
 
 class CodeExecutionRemote(Tool):
     """Send shell-backed frontend execution operations to the connected CLI machine."""
+
+    @staticmethod
+    def _runtime_requires_write_access(runtime: str) -> bool:
+        return runtime in {"terminal", "python", "nodejs", "input"}
+
+    @staticmethod
+    def _coerce_bool(value: Any) -> bool:
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, (int, float)):
+            return bool(value)
+        if isinstance(value, str):
+            return value.strip().lower() in {"1", "true", "yes", "on"}
+        return False
+
+    @staticmethod
+    def _timeout_group_for_runtime(
+        runtime: str,
+        exec_config: dict[str, Any],
+    ) -> dict[str, int] | None:
+        if runtime == "output":
+            source = exec_config.get("output_timeouts")
+        elif runtime in {"terminal", "python", "nodejs", "input"}:
+            source = exec_config.get("code_exec_timeouts")
+        else:
+            return None
+
+        if not isinstance(source, dict):
+            return None
+
+        timeouts: dict[str, int] = {}
+        for key in _TIMEOUT_KEYS:
+            try:
+                timeouts[key] = max(0, int(source[key]))
+            except (KeyError, TypeError, ValueError):
+                return None
+        return timeouts
+
+    @staticmethod
+    def _wait_timeout_for_runtime(runtime: str, exec_config: dict[str, Any]) -> float:
+        timeouts = CodeExecutionRemote._timeout_group_for_runtime(runtime, exec_config)
+        if not timeouts:
+            return EXEC_OP_DEFAULT_TIMEOUT
+        return max(float(value) for value in timeouts.values()) + EXEC_OP_TRANSPORT_GRACE
 
     def get_log_object(self):
         import uuid
@@ -60,12 +115,38 @@ class CodeExecutionRemote(Tool):
             )
 
         context_id = self.agent.context.id
-        sid = select_target_sid(context_id)
+        candidates = remote_tool_sids_for_context(context_id)
+        require_writes = self._runtime_requires_write_access(runtime)
+        sid = select_remote_exec_target_sid(context_id, require_writes=require_writes)
         if not sid:
+            exec_enabled = False
+            write_blocked = False
+            for candidate_sid in candidates:
+                exec_metadata = remote_exec_metadata_for_sid(candidate_sid)
+                if exec_metadata is None or not exec_metadata.get("enabled"):
+                    continue
+                exec_enabled = True
+                if not require_writes:
+                    break
+                file_metadata = remote_file_metadata_for_sid(candidate_sid)
+                if file_metadata is None or (
+                    not file_metadata.get("enabled", True)
+                    or not file_metadata.get("write_enabled")
+                ):
+                    write_blocked = True
+
             return Response(
                 message=(
-                    "code_execution_remote: no CLI client connected to this context. "
-                    "Make sure the CLI is connected and subscribed."
+                    "code_execution_remote: no connected CLI currently allows "
+                    "shell-backed execution that may modify local files. Press F3 to switch "
+                    "the CLI to Read&Write. `runtime=output` and `runtime=reset` remain "
+                    "available for existing sessions."
+                    if candidates and require_writes and exec_enabled and write_blocked
+                    else "code_execution_remote: no connected CLI currently has "
+                    "remote execution enabled. Connect the CLI and press F4 to switch exec on."
+                    if candidates
+                    else "code_execution_remote: no CLI client connected to Agent Zero. "
+                    "Make sure the CLI is connected to this instance."
                 ),
                 break_loop=False,
             )
@@ -85,6 +166,8 @@ class CodeExecutionRemote(Tool):
             "session": session,
             "context_id": context_id,
         }
+        if runtime != "reset" and self._coerce_bool(self.args.get("reset")):
+            payload["reset"] = True
 
         if runtime in {"terminal", "python", "nodejs"}:
             code = self.args.get("code")
@@ -111,6 +194,11 @@ class CodeExecutionRemote(Tool):
             if reason is not None:
                 payload["reason"] = str(reason)
 
+        exec_config = build_exec_config(agent=self.agent)
+        if timeouts := self._timeout_group_for_runtime(runtime, exec_config):
+            payload["timeouts"] = timeouts
+        wait_timeout = self._wait_timeout_for_runtime(runtime, exec_config)
+
         loop = asyncio.get_running_loop()
         future: asyncio.Future[dict[str, Any]] = loop.create_future()
         store_pending_exec_op(
@@ -129,7 +217,7 @@ class CodeExecutionRemote(Tool):
                 payload,
                 handler_id=f"{self.__class__.__module__}.{self.__class__.__name__}",
             )
-            result = await asyncio.wait_for(future, timeout=EXEC_OP_TIMEOUT)
+            result = await asyncio.wait_for(future, timeout=wait_timeout)
         except ConnectionNotFoundError:
             clear_pending_exec_op(op_id)
             return Response(
@@ -144,7 +232,8 @@ class CodeExecutionRemote(Tool):
             return Response(
                 message=(
                     "code_execution_remote: timed out waiting for CLI to respond "
-                    f"to runtime={runtime!r} in session {session}"
+                    f"to runtime={runtime!r} in session {session} after "
+                    f"{wait_timeout:g} seconds"
                 ),
                 break_loop=False,
             )
