@@ -74,7 +74,7 @@ Use the selector to add or remove active skills.
 
 ![Skills selector](../res/usage/webui/skills-selector-checked.png)
 
-Active skills are added to the **Extras** part of the system prompt, so keep the
+Active skills are added to the **Protocol** part of the prompt, so keep the
 list short and intentional. See the [Skills guide](skills.md).
 
 ### Agent Profiles
@@ -84,13 +84,14 @@ chat.
 
 ![Agent Profile selector](../res/usage/webui/agent-profile-selector.png)
 
-Use the profile menu near the chat input to switch the current chat. Use
-**Settings -> Agent Config** when you want to change the default for new chats.
+Use the profile menu near the chat input to switch the current chat or edit a
+profile. Select **Manage agents** to create, duplicate, reset, delete, or change
+profile availability for Global or one project.
 
-The same menu includes **Create new Agent Profile**. It places a ready-to-send
-message in the input so Agent Zero can guide you through creating a new profile.
+![Manage agents with a project-specific availability choice](../res/usage/webui/agent-profile-manager.png)
 
-![Create Agent Profile prompt](../res/usage/webui/agent-profile-create-prompt.png)
+Use **Settings -> Agent Config** when you want to change the default profile for
+new Global chats.
 
 See the [Agent Profiles guide](agent-profiles.md).
 
@@ -314,17 +315,26 @@ Open **Settings -> External Services -> Flare Tunnel** to create or stop a tunne
 
 ## Voice Interface
 
-Agent Zero supports text-to-speech and speech-to-text.
+Agent Zero supports text-to-speech and speech-to-text through built-in voice plugins:
+
+- `_kokoro_tts` provides container-side Kokoro speech synthesis when enabled.
+- `_whisper_stt` provides local Whisper transcription and adds the microphone control when enabled.
+- Browser-native `speechSynthesis` remains the fallback output path when `_kokoro_tts` is disabled.
+
+Use the **Voice** section in Agent settings or the plugin settings in **Agent Plugins** to configure providers. Use the sidebar **Speech** preference when you want Agent Zero to read responses automatically.
 
 Use speech when you want to listen while doing something else, dictate a prompt,
 or make the interface more accessible.
 
 ![Text to speech controls](../res/usage/ui-tts-stop-speech1.png)
 
-Speech-to-text settings live in Settings and include model size, language code,
-silence threshold, and recording behavior.
+Speech-to-text settings live in the Whisper STT plugin card and include model size, language code, voice message handling, silence threshold, and recording behavior. The microphone button appears in the chat input when `_whisper_stt` is enabled.
 
 ![Speech to text settings](../res/usage/ui-settings-5-speech-to-text.png)
+
+> [!IMPORTANT]
+> Whisper STT and Kokoro TTS operate locally within the Docker/container runtime when their plugins are enabled.
+> Browser fallback TTS runs locally in the browser. No voice path requires OpenAI APIs.
 
 ## Mathematical Expressions
 
