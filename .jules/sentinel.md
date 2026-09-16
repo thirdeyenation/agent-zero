@@ -1,3 +1,7 @@
+## 2026-05-17 - Prevent XSS in generic UI components
+**Vulnerability:** XSS vulnerability in `showConfirmDialog` via unsafe `innerHTML` interpolation of `title` and `message`.
+**Learning:** Generic UI components that accept parameters often construct DOM elements using template literals and `innerHTML`, making them vulnerable if untrusted input is passed.
+**Prevention:** Always use `textContent` for text-only inputs, or sanitize HTML inputs using `DOMPurify` (e.g., `sanitizeHtml`) before injecting them into the DOM.
 ## 2025-06-22 - Path Traversal in File Downloads
 **Vulnerability:** The `api_files_get.py` file retrieval endpoint allowed fetching arbitrary files from the system by accepting absolute paths, as it did not validate if the resolved paths fell within the intended base directory.
 **Learning:** Using `os.path.basename` combined with strings is not sufficient for secure file retrieval if earlier code can interpret user inputs as complete absolute file paths bypassing directory construction.
