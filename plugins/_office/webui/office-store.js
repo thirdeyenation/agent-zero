@@ -1,7 +1,7 @@
 import { createStore } from "/js/AlpineStore.js";
 import { callJsonApi } from "/js/api.js";
 import { store as fileBrowserStore } from "/components/modals/file-browser/file-browser-store.js";
-import { open as openSurface } from "/js/surfaces.js";
+import { getCurrentUserDateString } from "/js/time-utils.js";
 
 const SAVE_MESSAGE_MS = 1800;
 const DESKTOP_DOCUMENT_EXTENSIONS = new Set(["odt", "ods", "odp", "docx", "xlsx", "pptx"]);
@@ -123,7 +123,7 @@ const model = {
         const home = await callOffice("home");
         workdirPath = home?.path || workdirPath;
       } catch {
-        // The file browser can still open with the static fallback.
+        // Keep the configured default path when the home lookup is unavailable.
       }
     }
     await fileBrowserStore.open(workdirPath);
@@ -141,18 +141,6 @@ const model = {
       if (response?.ok === false) {
         this.error = response.error || "Document could not be opened.";
         return null;
-      }
-      if (response?.requires_editor) {
-        const document = normalizeDocument(response.document || response);
-        this.setMessage(`${documentLabel(document)} opens in Editor.`);
-        await openSurface("editor", {
-          path: document.path || response.path || "",
-          file_id: document.file_id || response.file_id || "",
-          refresh: true,
-          source: "office-editor-handoff",
-        });
-        await this.refresh();
-        return response;
       }
       if (response?.requires_desktop || this.isDesktopDocument(response)) {
         const document = normalizeDocument(response.document || response);
@@ -185,8 +173,7 @@ const model = {
   },
 
   defaultTitle(kind, fmt) {
-    const date = new Date().toISOString().slice(0, 10);
-    if (fmt === "md") return `Document ${date}`;
+    const date = getCurrentUserDateString();
     if (fmt === "odt") return `Writer ${date}`;
     if (fmt === "docx") return `DOCX ${date}`;
     if (kind === "spreadsheet") return `Spreadsheet ${date}`;
@@ -210,25 +197,25 @@ const model = {
     root.className = "office-header-actions";
     root.innerHTML = `
       <button type="button" class="office-header-new-button" aria-haspopup="menu" aria-expanded="false">
-        <span class="material-symbols-outlined" aria-hidden="true">add</span>
+        <x-icon aria-hidden="true" name="add"></x-icon>
         <span>New</span>
-        <span class="material-symbols-outlined office-new-chevron" aria-hidden="true">expand_more</span>
+        <x-icon class="office-new-chevron" aria-hidden="true" name="expand_more"></x-icon>
       </button>
       <div class="office-new-menu" role="menu" hidden>
         <button type="button" class="office-new-menu-item" role="menuitem" data-office-new-action="open">
-          <span class="material-symbols-outlined" aria-hidden="true">folder_open</span>
+          <x-icon aria-hidden="true" name="folder_open"></x-icon>
           <span>Open</span>
         </button>
         <button type="button" class="office-new-menu-item" role="menuitem" data-office-new-action="writer">
-          <span class="material-symbols-outlined" aria-hidden="true">description</span>
+          <x-icon aria-hidden="true" name="description"></x-icon>
           <span>Writer</span>
         </button>
         <button type="button" class="office-new-menu-item" role="menuitem" data-office-new-action="spreadsheet">
-          <span class="material-symbols-outlined" aria-hidden="true">table_chart</span>
+          <x-icon aria-hidden="true" name="table_chart"></x-icon>
           <span>Spreadsheet</span>
         </button>
         <button type="button" class="office-new-menu-item" role="menuitem" data-office-new-action="presentation">
-          <span class="material-symbols-outlined" aria-hidden="true">co_present</span>
+          <x-icon aria-hidden="true" name="co_present"></x-icon>
           <span>Presentation</span>
         </button>
       </div>
