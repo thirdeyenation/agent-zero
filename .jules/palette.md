@@ -1,0 +1,3 @@
+## 2025-06-11 - Adding Keyboard Accessibility to Alpine.js Action Cards
+**Learning:** When using structural UI elements like `.welcome-action-card` `<div>`s in Alpine.js for interactive behaviors (`@click`), they must explicitly include `role="button"`, `tabindex="0"`, and keyboard event handlers (`@keydown.enter` and `@keydown.space.prevent`) to be accessible to keyboard and screen reader users. The application heavily relies on these custom div-based cards without inherent keyboard focusability.
+**Action:** Always scan for `@click` handlers on non-native interactive elements (like `<div>` or `<span>`) across the codebase and ensure they are paired with appropriate ARIA roles, tabindex, and keydown listeners to guarantee WCAG compliance.

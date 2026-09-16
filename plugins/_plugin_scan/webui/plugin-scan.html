@@ -40,11 +40,9 @@
         <!-- Actions -->
         <div class="scan-actions">
           <button class="button" @click="$store.pluginScan.copyPrompt()">Copy Prompt</button>
-          <button class="button confirm" @click="$store.pluginScan.runScan()"
-                  :disabled="$store.pluginScan.scanning || $store.pluginScan.queued">
-            <span x-show="$store.pluginScan.queued"><span class="scan-spinner"></span>Queued…</span>
-            <span x-show="$store.pluginScan.scanning && !$store.pluginScan.queued"><span class="scan-spinner"></span>Scanning…</span>
-            <span x-show="!$store.pluginScan.scanning && !$store.pluginScan.queued">Run Scan</span>
+          <button class="button confirm" @click="$store.pluginScan.runScan()">
+            <span x-show="$store.pluginScan.scanning"><span class="scan-spinner"></span>Run Another Scan</span>
+            <span x-show="!$store.pluginScan.scanning">Run Scan</span>
           </button>
           <button class="button" @click="$store.pluginScan.openChatInNewWindow()"
                   x-show="$store.pluginScan.scanCtxId"

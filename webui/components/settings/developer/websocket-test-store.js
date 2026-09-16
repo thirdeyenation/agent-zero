@@ -7,15 +7,17 @@ import {
 import { store as notificationStore } from "/components/notifications/notification-store.js";
 import { store as chatsStore } from "/components/sidebar/chats/chats-store.js";
 import { store as syncStore } from "/components/sync/sync-store.js";
+import { getCurrentUserISOString, getUserTimezone } from "/js/time-utils.js";
 
 const MAX_PAYLOAD_BYTES = 50 * 1024 * 1024;
 const TOAST_DURATION = 5;
 
-const websocket = getNamespacedClient("/dev_websocket_test");
-const stateSocket = getNamespacedClient("/webui");
+const websocket = getNamespacedClient("/ws");
+websocket.addHandlers(["ws_dev_test"]);
+const stateSocket = websocket; // same /ws namespace client
 
 function now() {
-  return new Date().toISOString();
+  return getCurrentUserISOString();
 }
 
 function payloadSize(value) {
@@ -163,7 +165,8 @@ const model = {
     websocket.off("ws_tester_broadcast");
     websocket.off("ws_tester_persistence");
     websocket.off("ws_tester_broadcast_demo");
-    stateSocket.off("state_push");
+    // NOTE: Do NOT blanket-remove state_push — that nukes syncStore's handler.
+    // The _subscriptionHandlers loop above already removes tester-specific handlers.
   },
 
   appendLog(message) {
@@ -457,7 +460,7 @@ const model = {
       await this.ensureSubscribed("state_push", true);
       this.appendLog("Subscribed to state_push.");
 
-      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const timezone = getUserTimezone();
       const response = await stateSocket.request(
         "state_request",
         {
@@ -720,6 +723,10 @@ const model = {
     } finally {
       stateSocket.request = originalRequest;
       globalThis.poll = originalPoll;
+      // Clear dangling retry timers left by simulated failures.
+      syncStore._clearHandshakeRetry();
+      syncStore._handshakeRetryAttempt = 0;
+      syncStore._handshakeFailureCount = 0;
     }
   },
 
@@ -729,6 +736,10 @@ const model = {
       return { ok: false, label, error: "syncStore._handlePush not available" };
     }
     const originalSendStateRequest = syncStore.sendStateRequest;
+    const savedMode = syncStore.mode;
+    const savedEpoch = syncStore.runtimeEpoch;
+    const savedSeq = syncStore.lastSeq;
+    const savedNeedsHandshake = syncStore.needsHandshake;
     let calls = [];
     try {
       if (typeof originalSendStateRequest !== "function") {
@@ -773,6 +784,23 @@ const model = {
       return { ok: false, label, error: error.message || error };
     } finally {
       syncStore.sendStateRequest = originalSendStateRequest;
+      // Restore syncStore state that the test mutated to avoid leaving the
+      // UI stuck in HANDSHAKE_PENDING after the suite finishes.
+      syncStore.runtimeEpoch = savedEpoch;
+      syncStore.lastSeq = savedSeq;
+      syncStore.needsHandshake = savedNeedsHandshake;
+      // Re-establish a real handshake to return to HEALTHY.
+      // Clear any dangling retry state before attempting recovery.
+      syncStore._clearHandshakeRetry();
+      syncStore._handshakeRetryAttempt = 0;
+      syncStore._handshakeFailureCount = 0;
+      try {
+        await syncStore.sendStateRequest({ forceFull: true });
+      } catch (_) {
+        // Best-effort recovery; let the normal retry mechanism take over
+        // instead of forcing HEALTHY with stale handshake state.
+        syncStore.needsHandshake = true;
+      }
     }
   },
 

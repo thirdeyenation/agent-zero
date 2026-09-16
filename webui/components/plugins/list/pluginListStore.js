@@ -1,9 +1,7 @@
 import { createStore } from "/js/AlpineStore.js";
 import * as api from "/js/api.js";
-import { marked } from "/vendor/marked/marked.esm.js";
-import { addBlankTargetsToLinks } from "/js/messages.js";
+import { renderSafeMarkdown } from "/js/safe-markdown.js";
 import { store as pluginSettingsStore } from "/components/plugins/plugin-settings-store.js";
-import { store as pluginToggleStore } from "/components/plugins/toggle/plugin-toggle-store.js";
 import { store as pluginExecuteStore } from "/components/plugins/list/plugin-execute-store.js";
 import { store as fileBrowserStore } from "/components/modals/file-browser/file-browser-store.js";
 import { store as markdownModalStore } from "/components/modals/markdown/markdown-store.js";
@@ -12,6 +10,8 @@ import {
   store as notificationStore,
   defaultPriority,
 } from "/components/notifications/notification-store.js";
+
+const MODAL_PATH = "components/plugins/list/plugin-list.html";
 
 // define the model object holding data and functions
 const model = {
@@ -23,11 +23,22 @@ const model = {
   readmeLoading: false,
   readmeError: "",
 
+  async open(tab = "custom") {
+    await this.setTab(tab);
+    window.openModal?.(MODAL_PATH);
+  },
+
   async init() {
     this.loading = false;
-    await this.setTab('custom');
-    if (this.plugins.length === 0) {
-        await this.setTab('builtin');
+    // If a tab is already selected (e.g. via open()), use it. 
+    // Otherwise default to custom -> builtin fallback.
+    if (this.activeTab && this.activeTab !== "custom") {
+      await this.setTab(this.activeTab);
+    } else {
+      await this.setTab("custom");
+      if (this.plugins.length === 0) {
+        await this.setTab("builtin");
+      }
     }
   },
 
@@ -82,59 +93,66 @@ const model = {
     pluginExecuteStore.open(plugin);
   },
 
-  async openPluginConfig(plugin) {
-    if (!plugin?.name || !plugin?.has_config_screen) return;
+  canOpenPluginConfig(plugin) {
+    return !!(
+      plugin?.has_config_screen ||
+      plugin?.per_project_config ||
+      plugin?.per_agent_config
+    );
+  },
+
+  async openPluginConfig(pluginOrName) {
+    const pluginName =
+      typeof pluginOrName === "string" ? pluginOrName : pluginOrName?.name;
+    if (!pluginName) return;
+
+    if (
+      typeof pluginOrName === "object" &&
+      !this.canOpenPluginConfig(pluginOrName)
+    )
+      return;
+
     try {
       if (!pluginSettingsStore?.openConfig) {
         throw new Error("Plugin settings store is unavailable.");
       }
-      await pluginSettingsStore.openConfig(plugin.name);
+      await pluginSettingsStore.openConfig(pluginName);
     } catch (e) {
       showErrorNotification(e, "Failed to open plugin config");
     }
   },
 
-  async openPluginAdvancedToggle(plugin) {
-    if (!plugin?.name) return;
-    this.selectedPlugin = plugin;
-    try {
-        if (!pluginToggleStore?.open) {
-            throw new Error("Plugin toggle store is unavailable.");
-        }
-        await pluginToggleStore.open(plugin);
-        window.openModal?.("components/plugins/toggle/plugin-toggle-advanced.html");
-    } catch (e) {
-        showErrorNotification(e, "Failed to open plugin switch");
-    }
+  isPluginEnabled(plugin) {
+    if (plugin?.always_enabled) return true;
+    return plugin?.toggle_state === "enabled";
   },
 
-  async updateToggle(plugin, value) {
-    if (!plugin?.name) return;
-    
-    if (value === 'advanced') {
-        await this.openPluginAdvancedToggle(plugin);
-        return; 
-    }
+  toggleStatusLabel(plugin) {
+    return this.isPluginEnabled(plugin) ? "ON" : "OFF";
+  },
 
-    const enabled = value === 'enabled';
-    const clearOverrides = plugin.toggle_state === 'advanced';
-    if (clearOverrides && !window.confirm(
-        `"${plugin.display_name || plugin.name}" has per-scope activation rules that will be removed. Set globally to ${enabled ? 'ON' : 'OFF'}?`
-    )) return;
+  async updateToggle(plugin, enabled) {
+    if (!plugin?.name) return;
+    if (plugin.always_enabled) return;
+
+    const nextEnabled = !!enabled;
+    const previousState = plugin.toggle_state;
+    plugin.toggle_state = nextEnabled ? "enabled" : "disabled";
 
     this.loading = true;
     try {
         const response = await api.callJsonApi("plugins", {
             action: "toggle_plugin",
             plugin_name: plugin.name,
-            enabled: enabled,
+            enabled: nextEnabled,
             project_name: "",
             agent_profile: "",
-            clear_overrides: clearOverrides,
+            clear_overrides: false,
         });
         if (response?.error) throw new Error(response.error);
         await this.refresh();
     } catch (e) {
+        plugin.toggle_state = previousState;
         showErrorNotification(e, "Failed to toggle plugin");
         this.loading = false;
     }
@@ -167,8 +185,7 @@ const model = {
         doc: "readme",
       });
       if (response?.error) throw new Error(response.error);
-      const html = marked.parse(response.content || "", { breaks: true });
-      this.readmeContent = addBlankTargetsToLinks(html);
+      this.readmeContent = renderSafeMarkdown(response.content || "");
     } catch (e) {
       const error = e instanceof Error ? e : new Error(String(e));
       this.readmeError = error.message || "Failed to load README";

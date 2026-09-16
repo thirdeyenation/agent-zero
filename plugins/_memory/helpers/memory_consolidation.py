@@ -1,7 +1,6 @@
 import asyncio
 import json
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from enum import Enum
 
@@ -9,6 +8,7 @@ from langchain_core.documents import Document
 
 from plugins._memory.helpers.memory import Memory
 from helpers.dirty_json import DirtyJson
+from helpers.localization import Localization
 from helpers.log import LogItem
 from helpers.print_style import PrintStyle
 from agent import Agent
@@ -36,7 +36,7 @@ class ConsolidationConfig:
     keyword_extraction_msg_prompt: str = "memory.keyword_extraction.msg.md"
     processing_timeout_seconds: int = 60
     # Add safety threshold for REPLACE actions
-    replace_similarity_threshold: float = 0.9  # Higher threshold for replacement safety
+    replace_similarity_threshold: float = 0.75  # Threshold tuned for real cosine similarity scores
 
 
 @dataclass
@@ -336,73 +336,52 @@ class MemoryConsolidator:
 
         all_similar = []
 
-        # Step 2: Semantic similarity search with scores
-        semantic_similar = await db.search_similarity_threshold(
+        # Step 2: Semantic similarity search with real scores
+        semantic_results = await db.search_similarity_threshold_with_scores(
             query=new_memory,
             limit=self.config.max_similar_memories,
             threshold=self.config.similarity_threshold,
             filter=f"area == '{area}'"
         )
-        all_similar.extend(semantic_similar)
+        for doc, score in semantic_results:
+            doc.metadata['_consolidation_similarity'] = score
+            all_similar.append(doc)
 
-        # Step 3: Keyword-based searches
+        # Step 3: Keyword-based searches with real scores
         for query in search_queries:
             if query.strip():
-                # Fix division by zero: ensure len(search_queries) > 0
-                queries_count = max(1, len(search_queries))  # Prevent division by zero
-                keyword_similar = await db.search_similarity_threshold(
+                queries_count = max(1, len(search_queries))
+                keyword_results = await db.search_similarity_threshold_with_scores(
                     query=query.strip(),
                     limit=max(3, self.config.max_similar_memories // queries_count),
                     threshold=self.config.similarity_threshold,
                     filter=f"area == '{area}'"
                 )
-                all_similar.extend(keyword_similar)
+                for doc, score in keyword_results:
+                    doc.metadata['_consolidation_similarity'] = score
+                    all_similar.append(doc)
 
-        # Step 4: Deduplicate by document ID and store similarity info
-        seen_ids = set()
-        unique_similar = []
+        # Step 4: Deduplicate by document ID, keep highest score per memory ID
+        best_by_id: Dict[str, Document] = {}
         for doc in all_similar:
             doc_id = doc.metadata.get('id')
-            if doc_id and doc_id not in seen_ids:
-                seen_ids.add(doc_id)
-                unique_similar.append(doc)
-
-        # Step 5: Calculate similarity scores for replacement validation
-        # Since FAISS doesn't directly expose similarity scores, use ranking-based estimation
-        # CRITICAL: All documents must have similarity >= search_threshold since FAISS returned them
-        # FIXED: Use conservative scoring that keeps all scores in safe consolidation range
-        similarity_scores = {}
-        total_docs = len(unique_similar)
-        search_threshold = self.config.similarity_threshold
-        safety_threshold = self.config.replace_similarity_threshold
-
-        for i, doc in enumerate(unique_similar):
-            doc_id = doc.metadata.get('id')
             if doc_id:
-                # Convert ranking to similarity score with conservative distribution
-                if total_docs == 1:
-                    ranking_similarity = 1.0  # Single document gets perfect score
-                else:
-                    # Use conservative scoring: distribute between safety_threshold and 1.0
-                    # This ensures all scores are suitable for consolidation
-                    # First document gets 1.0, last gets safety_threshold (0.9 by default)
-                    ranking_factor = 1.0 - (i / (total_docs - 1))
-                    score_range = 1.0 - safety_threshold  # e.g., 1.0 - 0.9 = 0.1
-                    ranking_similarity = safety_threshold + (score_range * ranking_factor)
+                existing = best_by_id.get(doc_id)
+                if (
+                    existing is None
+                    or doc.metadata.get('_consolidation_similarity', 0)
+                    > existing.metadata.get('_consolidation_similarity', 0)
+                ):
+                    best_by_id[doc_id] = doc
+        unique_similar = list(best_by_id.values())
 
-                    # Ensure minimum score is search_threshold for logical consistency
-                    ranking_similarity = max(ranking_similarity, search_threshold)
+        # Step 5: Sort by similarity score descending
+        unique_similar.sort(
+            key=lambda d: d.metadata.get('_consolidation_similarity', 0),
+            reverse=True
+        )
 
-                similarity_scores[doc_id] = ranking_similarity
-
-        # Step 6: Add similarity score to document metadata for LLM analysis
-        for doc in unique_similar:
-            doc_id = doc.metadata.get('id')
-            estimated_similarity = similarity_scores.get(doc_id, 0.7)
-            # Store for later validation
-            doc.metadata['_consolidation_similarity'] = estimated_similarity
-
-        # Step 7: Limit to max context for LLM
+        # Step 6: Limit to max context for LLM
         limited_similar = unique_similar[:self.config.max_llm_context_memories]
 
         return limited_similar
@@ -749,9 +728,11 @@ class MemoryConsolidator:
                 updated_count += 1
                 updated_ids.append(new_id)
 
-        # Step 2: Insert additional new memory if provided
+        # Step 2: Insert the new memory only when no existing memory was updated.
+        # UPDATE means "repopulate the existing subject", not "append another
+        # equally-important memory". This keeps mutable facts from piling up.
         new_memory_id = None
-        if result.new_memory_content:
+        if result.new_memory_content and not updated_ids:
             # LLM metadata takes precedence over original metadata when there are conflicts
             final_metadata = {
                 'area': area,
@@ -772,7 +753,7 @@ class MemoryConsolidator:
 
     def _get_timestamp(self) -> str:
         """Get current timestamp in standard format."""
-        return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        return Localization.get().now_iso(timespec="seconds")
 
 
 # Factory function for easy instantiation
@@ -782,7 +763,7 @@ def create_memory_consolidator(agent: Agent, **config_overrides) -> MemoryConsol
 
     Available configuration options:
     - similarity_threshold: Discovery threshold for finding related memories (default 0.7)
-    - replace_similarity_threshold: Safety threshold for REPLACE actions (default 0.9)
+    - replace_similarity_threshold: Safety threshold for REPLACE actions (default 0.75)
     - max_similar_memories: Maximum memories to discover (default 10)
     - max_llm_context_memories: Maximum memories to send to LLM (default 5)
     - processing_timeout_seconds: Timeout for consolidation processing (default 30)

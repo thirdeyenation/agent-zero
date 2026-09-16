@@ -3,7 +3,7 @@ import os
 
 from helpers.api import ApiHandler, Input, Output, Request
 from helpers.file_browser import FileBrowser
-from helpers import runtime, files
+from helpers import runtime, files, extension
 
 MAX_EDIT_FILE_SIZE = 1024 * 1024
 BINARY_SAMPLE_SIZE = 10 * 1024
@@ -51,6 +51,15 @@ class EditWorkDirFile(ApiHandler):
             if not res:
                 return {"error": "Failed to save file"}
 
+            await extension.call_extensions_async(
+                "workdir_file_mutation_after",
+                agent=None,
+                data={
+                    "action": "edit",
+                    "path": file_path,
+                    "paths": [file_path],
+                },
+            )
             return {"ok": True}
         except Exception as e:
             # Extract clean error message from exception

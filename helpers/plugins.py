@@ -44,7 +44,8 @@ _META_TARGET_RE = re.compile(
 )
 
 
-type ToggleState = Literal["enabled", "disabled", "advanced"]
+type ToggleState = Literal["enabled", "disabled"]
+type CallerContext = Literal["ui", "agent", "api"]
 
 
 class PluginAssetFile(TypedDict):
@@ -202,13 +203,13 @@ def clear_plugin_cache(plugin_names: list[str] | None = None):
     for area in areas:
         cache.clear(area)
 
-    from helpers.websocket_manager import send_data
+    from helpers.ws_manager import send_data
 
     DeferredTask().start_task(
         send_data,
-        endpoint_name="/webui",
-        event_name="clear_cache",
-        data={"areas": areas},
+        "clear_cache",
+        {"areas": areas},
+        endpoint_name="/ws",
     )
 
 
@@ -218,6 +219,17 @@ def get_plugin_roots(plugin_name: str = "") -> List[str]:
         files.get_abs_path(files.USER_DIR, files.PLUGINS_DIR, plugin_name),
         files.get_abs_path(files.PLUGINS_DIR, plugin_name),
     ]
+
+
+def get_plugin_name_from_path(path: str | Path) -> str:
+    """Return the plugin directory name for a path under a canonical plugin root."""
+    candidate = Path(path).absolute()
+    for root in get_plugin_roots():
+        try:
+            return candidate.relative_to(Path(root).absolute()).parts[0]
+        except (IndexError, ValueError):
+            continue
+    return ""
 
 
 def get_plugins_list():
@@ -464,6 +476,11 @@ def get_enabled_plugins(agent: Agent | None):
     active = []
 
     for plugin in plugins:
+        meta = get_plugin_meta(plugin)
+        if meta and meta.always_enabled:
+            active.append(plugin)
+            continue
+
         # plugins are toggled via .enabled / .disabled files
         # every plugin is on by default, unless disabled in usr dir
         enabled = True
@@ -517,29 +534,14 @@ def get_toggle_state(plugin_name: str) -> ToggleState:
     if meta.always_enabled:
         return "enabled"
 
-    # root plugin paths
+    # List-level activation is the global/root state. Scoped project/profile
+    # overrides are managed inside the plugin config modal.
     plugin_paths = get_plugin_roots(plugin_name)
-    state = (
+    return (
         "enabled"
         if determined_toggle_from_paths(True, reversed(plugin_paths))
         else "disabled"
     )
-
-    # additional toggles in project/agent directories, return advanced
-    if meta.per_agent_config or meta.per_project_config:
-        configs = find_plugin_assets(
-            TOGGLE_FILE_PATTERN,
-            plugin_name=plugin_name,
-            project_name="*" if meta.per_project_config else "",
-            agent_profile="*" if meta.per_agent_config else "",
-            only_first=False,
-        )
-
-        # Advanced if there are specific overrides (project or agent specific)
-        if any(c.get("project_name") or c.get("agent_profile") for c in configs):
-            state = "advanced"
-
-    return state
 
 
 @extension.extensible
@@ -550,6 +552,10 @@ def toggle_plugin(
     agent_profile: str = "",
     clear_overrides: bool = False,
 ):
+    meta = get_plugin_meta(plugin_name)
+    if meta and meta.always_enabled and not enabled:
+        raise ValueError(f'Plugin "{plugin_name}" is always enabled.')
+
     if clear_overrides:
         all_toggles = find_plugin_assets(
             TOGGLE_FILE_PATTERN,
@@ -585,6 +591,7 @@ def get_plugin_config(
     agent: Agent | None = None,
     project_name: str | None = None,
     agent_profile: str | None = None,
+    caller: CallerContext = "api",
 ):
 
     default_used = False
@@ -607,9 +614,10 @@ def get_plugin_config(
 
     # use default config if not found
     if not file_path:
-        file_path = files.get_abs_path(
-            find_plugin_dir(plugin_name), CONFIG_DEFAULT_FILE_NAME
-        )
+        plugin_dir = find_plugin_dir(plugin_name)
+        if not plugin_dir:
+            return None
+        file_path = files.get_abs_path(plugin_dir, CONFIG_DEFAULT_FILE_NAME)
         default_used = True
 
     result = None
@@ -629,15 +637,18 @@ def get_plugin_config(
         agent=agent,
         project_name=project_name,
         agent_profile=agent_profile,
+        hook_context={"caller": caller},
     )
 
     return result
 
 
 def get_default_plugin_config(plugin_name: str):
-    file_path = files.get_abs_path(
-        find_plugin_dir(plugin_name), CONFIG_DEFAULT_FILE_NAME
-    )
+    plugin_dir = find_plugin_dir(plugin_name)
+    if not plugin_dir:
+        return None
+
+    file_path = files.get_abs_path(plugin_dir, CONFIG_DEFAULT_FILE_NAME)
 
     # call plugin hook to get the result
     result = call_plugin_hook(
@@ -655,7 +666,11 @@ def get_default_plugin_config(plugin_name: str):
 
 @extension.extensible
 def save_plugin_config(
-    plugin_name: str, project_name: str, agent_profile: str, settings: dict
+    plugin_name: str,
+    project_name: str,
+    agent_profile: str,
+    settings: dict,
+    caller: CallerContext = "api",
 ):
     file_path = determine_plugin_asset_path(
         plugin_name, project_name, agent_profile, CONFIG_FILE_NAME
@@ -669,6 +684,7 @@ def save_plugin_config(
         project_name=project_name,
         agent_profile=agent_profile,
         settings=settings,
+        hook_context={"caller": caller},
     )
 
     # or do standard load
@@ -749,13 +765,12 @@ def find_plugin_assets(
             )
             if _collect(path, project_name, agent_profile):
                 return results
-        if not agent_profile or agent_profile == "*":
-            # project/.a0proj/plugins/<plugin_name>/...
-            path = projects.get_project_meta(
-                project_name, files.PLUGINS_DIR, plugin_name, *subpaths
-            )
-            if _collect(path, project_name, ""):
-                return results
+        # project/.a0proj/plugins/<plugin_name>/... (always check as fallback, even when agent_profile is set)
+        path = projects.get_project_meta(
+            project_name, files.PLUGINS_DIR, plugin_name, *subpaths
+        )
+        if _collect(path, project_name, ""):
+            return results
 
     # usr/agents/<profile>/plugins/<plugin_name>/...
     if agent_profile:
@@ -853,9 +868,9 @@ def send_frontend_reload_notification(plugin_names: list[str] | None = None):
             type=notification.NotificationType.INFO,
             priority=notification.NotificationPriority.NORMAL,
             title="Plugins with frontend extensions updated, page reload recommended",
-            message="""<button type="button" class="button confirm" onclick="window.location.reload()"><span class="icon material-symbols-outlined">refresh</span>Reload page</button>""",
+            message="""<div class="toast-action-row"><button type="button" class="button confirm" @click.stop="$store.notificationStore.dismissToastAndReload(toast.toastId)"><span class="icon material-symbols-outlined">refresh</span>Reload page</button></div>""",
             detail="",
-            display_time=display_time,
+            display_time=0,
             group="plugins_changed",
             id="plugins_frontend_reload",
         )

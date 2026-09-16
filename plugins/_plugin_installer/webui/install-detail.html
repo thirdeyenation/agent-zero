@@ -17,7 +17,7 @@
                                 @error="$store.pluginInstallStore.detailThumbnailUrl = null">
                         </template>
                         <template x-if="!$store.pluginInstallStore.getDetailThumbnailUrl()">
-                            <span class="material-symbols-outlined pi-hero-placeholder">extension</span>
+                            <x-icon class="pi-hero-placeholder" name="extension"></x-icon>
                         </template>
                     </div>
                     <div class="pi-hero-info">
@@ -25,6 +25,12 @@
                             <div class="pi-hero-main">
                                 <h2 class="pi-hero-title" x-text="$store.pluginInstallStore.selectedPlugin.title || $store.pluginInstallStore.selectedPlugin.key"></h2>
                                 <div class="pi-status-badges">
+                                    <template x-if="$store.pluginInstallStore.selectedPlugin.suspended">
+                                        <span class="pi-card-suspended-pill">
+                                            <x-icon name="priority_high"></x-icon>
+                                            <span>Suspended</span>
+                                        </span>
+                                    </template>
                                     <template x-if="$store.pluginInstallStore.selectedPlugin.installed">
                                         <span class="pi-card-installed-pill">Installed</span>
                                     </template>
@@ -40,7 +46,7 @@
                                         </span>
                                     </template>
                                     <span class="pi-hero-stars">
-                                        <span class="material-symbols-outlined">star</span>
+                                        <x-icon name="star"></x-icon>
                                         <span x-text="($store.pluginInstallStore.selectedPlugin.stars || 0)"></span>
                                         <template x-if="$store.pluginInstallStore.selectedPlugin.github">
                                             <a :href="$store.pluginInstallStore.selectedPlugin.github"
@@ -63,42 +69,53 @@
                                     <template x-if="$store.pluginInstallStore.installedPluginInfo.has_main_screen">
                                         <button type="button" class="button"
                                             @click="$store.pluginInstallStore.handleOpenPlugin()">
-                                            <span class="icon material-symbols-outlined">dashboard</span> Open
+                                            <x-icon class="icon" name="dashboard"></x-icon> Open
                                         </button>
                                     </template>
                                     <template x-if="$store.pluginInstallStore.installedPluginInfo.has_config_screen">
                                         <button type="button" class="button"
                                             @click="$store.pluginInstallStore.handleOpenConfig()">
-                                            <span class="icon material-symbols-outlined">settings</span> Config
+                                            <x-icon class="icon" name="settings"></x-icon> Config
                                         </button>
                                     </template>
                                     <template x-if="$store.pluginInstallStore.installedPluginInfo.has_readme">
                                         <button type="button" class="button"
                                             @click="$store.pluginInstallStore.handleOpenDoc('readme')">
-                                            <span class="icon material-symbols-outlined">description</span> README
+                                            <x-icon class="icon" name="description"></x-icon> README
                                         </button>
                                     </template>
                                     <template x-if="$store.pluginInstallStore.installedPluginInfo.has_license">
                                         <button type="button" class="button"
                                             @click="$store.pluginInstallStore.handleOpenDoc('license')">
-                                            <span class="icon material-symbols-outlined">gavel</span> License
+                                            <x-icon class="icon" name="gavel"></x-icon> License
                                         </button>
                                     </template>
                                     <template x-if="$store.pluginInstallStore.installedPluginInfo.has_execute_script">
                                         <button type="button" class="button"
                                             @click="$store.pluginInstallStore.handleOpenExecute()">
-                                            <span class="icon material-symbols-outlined">terminal</span> Script
+                                            <x-icon class="icon" name="terminal"></x-icon> Script
                                         </button>
                                     </template>
                                     <button type="button" class="button"
                                         @click="$store.pluginInstallStore.handleOpenInfo()">
-                                        <span class="icon material-symbols-outlined">info</span> Info
+                                        <x-icon class="icon" name="info"></x-icon> Info
                                     </button>
                                 </div>
                             </template>
                         </div>
                     </div>
                 </div>
+
+                <template x-if="$store.pluginInstallStore.selectedPlugin.suspended">
+                    <div class="pi-suspension-banner">
+                        <x-icon name="priority_high"></x-icon>
+                        <div class="pi-suspension-banner-copy">
+                            <div class="pi-suspension-banner-title">Plugin has been suspended for the following reasons:</div>
+                            <div class="pi-suspension-banner-explanation"
+                                 x-text="$store.pluginInstallStore.selectedPlugin.suspended"></div>
+                        </div>
+                    </div>
+                </template>
 
                 <div class="pi-description" x-text="$store.pluginInstallStore.selectedPlugin.description || 'No description available.'"></div>
 
@@ -127,7 +144,7 @@
                                 </span>
                             </template>
                             <template x-if="!$store.pluginInstallStore.loading">
-                                <span class="material-symbols-outlined">download</span>
+                                <x-icon name="download"></x-icon>
                             </template>
                             <template x-if="!$store.pluginInstallStore.loading">
                                 <span>Install</span>
@@ -145,7 +162,7 @@
                                 </span>
                             </template>
                             <template x-if="!$store.pluginInstallStore.loading">
-                                <span class="material-symbols-outlined">system_update</span>
+                                <x-icon name="system_update"></x-icon>
                             </template>
                             <template x-if="!$store.pluginInstallStore.loading">
                                 <span>Update</span>
@@ -161,7 +178,7 @@
                                 <span x-text="$store.pluginInstallStore.loadingMessage || 'Uninstalling...'"></span>
                             </span>
                             <span x-show="!$store.pluginInstallStore.loading">
-                                <span class="material-symbols-outlined">delete</span>
+                                <x-icon name="delete"></x-icon>
                             </span>
                             <span x-show="!$store.pluginInstallStore.loading">
                                 <span>Uninstall</span>
@@ -170,11 +187,27 @@
                     </template>
                     <template x-if="$store.pluginInstallStore.selectedPlugin.discussion">
                         <a :href="$store.pluginInstallStore.selectedPlugin.discussion" target="_blank" class="pi-btn-discussion">
-                            <span class="material-symbols-outlined">forum</span>
+                            <x-icon name="forum"></x-icon>
                             <span>Discussion</span>
                         </a>
                     </template>
                 </div>
+
+                <template x-if="$store.pluginInstallStore.detailError">
+                    <div class="pi-detail-error">
+                        <div class="pi-detail-error-header">
+                            <x-icon name="error"></x-icon>
+                            <span x-text="$store.pluginInstallStore.detailError.message"></span>
+                        </div>
+                        <template x-if="$store.pluginInstallStore.detailError.conflicting_files?.length">
+                            <ul class="pi-detail-error-files">
+                                <template x-for="f in $store.pluginInstallStore.detailError.conflicting_files" :key="f">
+                                    <li x-text="f"></li>
+                                </template>
+                            </ul>
+                        </template>
+                    </div>
+                </template>
 
                 <div class="pi-readme-section" x-show="$store.pluginInstallStore.readmeContent || $store.pluginInstallStore.readmeLoading">
                     <div class="pi-readme-header">Readme</div>
@@ -235,19 +268,19 @@
                     <div class="pi-developer-links">
                         <template x-if="$store.pluginInstallStore.selectedPlugin.github">
                             <a :href="$store.pluginInstallStore.selectedPlugin.github" target="_blank" class="pi-dev-link">
-                                <span class="material-symbols-outlined">code</span>
+                                <x-icon name="code"></x-icon>
                                 <span>GitHub Repository</span>
                             </a>
                         </template>
                         <template x-if="$store.pluginInstallStore.selectedPlugin.key">
                             <a :href="$store.pluginInstallStore.getIndexUrl($store.pluginInstallStore.selectedPlugin.key)" target="_blank" class="pi-dev-link">
-                                <span class="material-symbols-outlined">inventory_2</span>
+                                <x-icon name="inventory_2"></x-icon>
                                 <span>Plugin Index</span>
                             </a>
                         </template>
                         <template x-if="$store.pluginInstallStore.getReportUrl($store.pluginInstallStore.selectedPlugin)">
                             <a :href="$store.pluginInstallStore.getReportUrl($store.pluginInstallStore.selectedPlugin)" target="_blank" class="pi-dev-link pi-report-link">
-                                <span class="material-symbols-outlined">report</span>
+                                <x-icon name="report"></x-icon>
                                 <span>Report malicious plugin</span>
                             </a>
                         </template>
@@ -435,6 +468,27 @@
             color: #1d4ed8;
         }
 
+        .pi-card-suspended-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            padding: 0.24rem 0.5rem;
+            border-radius: 0.5rem;
+            background: rgba(245, 158, 11, 0.16);
+            color: #f59e0b;
+            font-size: 0.72rem;
+            font-weight: 700;
+        }
+
+        .pi-card-suspended-pill .material-symbols-outlined {
+            font-size: 0.95rem;
+        }
+
+        body.light-mode .pi-card-suspended-pill {
+            background: rgba(245, 158, 11, 0.2);
+            color: #b45309;
+        }
+
         .pi-status-badges .pi-card-installed-pill {
             position: static;
             top: auto;
@@ -442,6 +496,12 @@
         }
 
         .pi-status-badges .pi-card-update-pill {
+            position: static;
+            top: auto;
+            right: auto;
+        }
+
+        .pi-status-badges .pi-card-suspended-pill {
             position: static;
             top: auto;
             right: auto;
@@ -464,6 +524,47 @@
             line-height: 1.6;
             color: var(--color-text-primary);
             margin-bottom: 1.5rem;
+        }
+
+        .pi-suspension-banner {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+            padding: 0.9rem 1rem;
+            border: 1px solid rgba(245, 158, 11, 0.32);
+            border-radius: 10px;
+            background: rgba(245, 158, 11, 0.12);
+            color: #f59e0b;
+        }
+
+        .pi-suspension-banner .material-symbols-outlined {
+            font-size: 1.2rem;
+            line-height: 1.2;
+            flex-shrink: 0;
+        }
+
+        .pi-suspension-banner-copy {
+            min-width: 0;
+        }
+
+        .pi-suspension-banner-title {
+            font-size: 0.92rem;
+            font-weight: 700;
+            line-height: 1.45;
+        }
+
+        .pi-suspension-banner-explanation {
+            margin-top: 0.2rem;
+            font-size: 0.92rem;
+            line-height: 1.55;
+            white-space: pre-line;
+        }
+
+        body.light-mode .pi-suspension-banner {
+            border-color: rgba(217, 119, 6, 0.28);
+            background: rgba(245, 158, 11, 0.14);
+            color: #b45309;
         }
 
         .pi-actions-primary {

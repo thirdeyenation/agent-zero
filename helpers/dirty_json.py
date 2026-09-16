@@ -25,6 +25,14 @@ class DirtyJson:
         self.current_char = None
         self.result = None
         self.stack = []
+        self.completed = False
+        self._parsing_started = False
+
+    def _pop_stack(self, root_closed: bool = False):
+        """Pop from the parsing stack and mark completed only on an explicit root close."""
+        self.stack.pop()
+        if root_closed and self._parsing_started and not self.stack:
+            self.completed = True
 
     @staticmethod
     def parse_string(json_string):
@@ -95,6 +103,8 @@ class DirtyJson:
             self._advance()
 
     def _parse(self):
+        if self.completed and not self.stack:
+            return
         if self.result is None:
             self.result = self._parse_value()
         else:
@@ -102,6 +112,8 @@ class DirtyJson:
 
     def _continue_parsing(self):
         while self.current_char is not None:
+            if self.completed and not self.stack:
+                return
             if isinstance(self.result, dict):
                 self._parse_object_content()
             elif isinstance(self.result, list):
@@ -114,7 +126,9 @@ class DirtyJson:
     def _parse_value(self):
         self._skip_whitespace()
         if self.current_char == "{":
-            if self._peek(1) == "{":  # Handle {{
+            # Only treat doubled braces as a wrapper at the root; nested objects
+            # must keep their closing braces paired correctly.
+            if not self.stack and self._peek(1) == "{":  # Handle {{
                 self._advance(2)
             return self._parse_object()
         elif self.current_char == "[":
@@ -153,6 +167,7 @@ class DirtyJson:
         obj = {}
         self._advance()  # Skip opening brace
         self.stack.append(obj)
+        self._parsing_started = True
         self._parse_object_content()
         return obj
 
@@ -160,14 +175,16 @@ class DirtyJson:
         while self.current_char is not None:
             self._skip_whitespace()
             if self.current_char == "}":
-                if self._peek(1) == "}":  # Handle }}
+                # Root-level wrapper outputs may end in "}}"; nested objects must
+                # still close one brace at a time.
+                if len(self.stack) == 1 and self._peek(1) == "}":  # Handle }}
                     self._advance(2)
                 else:
                     self._advance()
-                self.stack.pop()
+                self._pop_stack(root_closed=True)
                 return
             if self.current_char is None:
-                self.stack.pop()
+                self._pop_stack()
                 return  # End of input reached while parsing object
 
             key = self._parse_key()
@@ -190,14 +207,14 @@ class DirtyJson:
                 continue
             elif self.current_char != "}":
                 if self.current_char is None:
-                    self.stack.pop()
+                    self._pop_stack()
                     return  # End of input reached after value
                 continue
 
     def _parse_key(self):
         self._skip_whitespace()
         if self.current_char in ['"', "'"]:
-            return self._parse_string()
+            return self._parse_string(is_key=True)
         else:
             return self._parse_unquoted_key()
 
@@ -216,6 +233,7 @@ class DirtyJson:
         arr = []
         self._advance()  # Skip opening bracket
         self.stack.append(arr)
+        self._parsing_started = True
         self._parse_array_content()
         return arr
 
@@ -224,7 +242,7 @@ class DirtyJson:
             self._skip_whitespace()
             if self.current_char == "]":
                 self._advance()
-                self.stack.pop()
+                self._pop_stack(root_closed=True)
                 return
             value = self._parse_value()
             self.stack[-1].append(value)
@@ -236,17 +254,24 @@ class DirtyJson:
                 if self.current_char is None or self.current_char == "]":
                     if self.current_char == "]":
                         self._advance()
-                    self.stack.pop()
+                    self._pop_stack(root_closed=True)
                     return
             elif self.current_char != "]":
-                self.stack.pop()
+                self._pop_stack()
                 return
 
-    def _parse_string(self):
+    def _parse_string(self, is_key: bool = False):
         result = ""
         quote_char = self.current_char
         self._advance()  # Skip opening quote
-        while self.current_char is not None and self.current_char != quote_char:
+        while self.current_char is not None:
+            if self.current_char == quote_char:
+                if self._is_closing_quote(is_key):
+                    break
+                result += self.current_char
+                self._advance()
+                continue
+
             if self.current_char == "\\":
                 self._advance()
                 if self.current_char in ['"', "'", "\\", "/", "b", "f", "n", "r", "t"]:
@@ -279,6 +304,67 @@ class DirtyJson:
         if self.current_char == quote_char:
             self._advance()  # Skip closing quote
         return result
+
+    def _is_closing_quote(self, is_key: bool) -> bool:
+        next_index = self._skip_padding_from(self.index + 1)
+        if next_index >= len(self.json_string):
+            return True
+
+        next_char = self.json_string[next_index]
+        if is_key:
+            return next_char in [":", ",", "}", "]"]
+
+        if next_char in [",", "}", "]"]:
+            return True
+
+        return self._looks_like_missing_comma_before_key(next_index)
+
+    def _looks_like_missing_comma_before_key(self, index: int) -> bool:
+        if not self.stack or not isinstance(self.stack[-1], dict):
+            return False
+        if index >= len(self.json_string) or self.json_string[index] not in ['"', "'"]:
+            return False
+
+        quote_char = self.json_string[index]
+        index += 1
+        while index < len(self.json_string):
+            char = self.json_string[index]
+            if char == "\\":
+                index += 2
+                continue
+            if char == quote_char:
+                next_index = self._skip_padding_from(index + 1)
+                return (
+                    next_index < len(self.json_string)
+                    and self.json_string[next_index] == ":"
+                )
+            if char in ["\n", "\r", "{", "}", "[", "]", ","]:
+                return False
+            index += 1
+
+        return False
+
+    def _skip_padding_from(self, index: int) -> int:
+        while index < len(self.json_string):
+            char = self.json_string[index]
+            if char.isspace():
+                index += 1
+            elif char == "/" and index + 1 < len(self.json_string):
+                next_char = self.json_string[index + 1]
+                if next_char == "/":
+                    index += 2
+                    while index < len(self.json_string) and self.json_string[index] != "\n":
+                        index += 1
+                elif next_char == "*":
+                    end = self.json_string.find("*/", index + 2)
+                    if end == -1:
+                        return len(self.json_string)
+                    index = end + 2
+                else:
+                    break
+            else:
+                break
+        return index
 
     def _parse_multiline_string(self):
         result = ""

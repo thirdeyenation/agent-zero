@@ -1,6 +1,6 @@
 ---
 name: a0-manage-plugin
-description: Manage Agent Zero plugins lifecycle: browse the Plugin Hub, scan for security, install from Git/ZIP/Plugin Hub, update, uninstall, enable, disable, debug, and troubleshoot. Use when asked to install, update, uninstall, remove, scan, find, search, enable, disable, debug, or troubleshoot a plugin.
+description: "Manage Agent Zero plugins lifecycle: browse the Plugin Hub, scan for security, install from Git/ZIP/Plugin Hub, update, uninstall, enable, disable, debug, and troubleshoot. Use when asked to install, update, uninstall, remove, scan, find, search, enable, disable, debug, or troubleshoot a plugin."
 version: 1.2.0
 tags: ["plugins", "install", "uninstall", "update", "scan", "security", "debug", "troubleshoot", "plugin-hub", "manage"]
 trigger_patterns:
@@ -358,7 +358,7 @@ Plugins with `always_enabled: true` in `plugin.yaml` cannot be toggled (framewor
 
 ## References
 
-- Plugin architecture: `/a0/docs/agents/AGENTS.plugins.md`
+- Plugin architecture: `/a0/plugins/AGENTS.md`
 - Developer lifecycle guide: `/a0/docs/developer/plugins.md`
 - Debug a broken plugin: read `/a0/skills/a0-debug-plugin/SKILL.md`
 - Create a new plugin: read `/a0/skills/a0-create-plugin/SKILL.md`

@@ -2,6 +2,7 @@ handlers: []
 # Example handler:
 # - name: support
 #   enabled: true
+#   provider: gmail
 #   account_type: imap
 #   imap_server: imap.gmail.com
 #   imap_port: 993
@@ -16,5 +17,6 @@ handlers: []
 #   sender_whitelist: []
 #   project: ""
 #   dispatcher_model: utility
+#   chat_model_preset: ""       # Optional preset from Model Configuration for new email chats
 #   dispatcher_instructions: ""
 #   agent_instructions: ""

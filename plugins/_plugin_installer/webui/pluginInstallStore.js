@@ -1,10 +1,10 @@
 import { createStore } from "/js/AlpineStore.js";
 import * as api from "/js/api.js";
-import { addBlankTargetsToLinks } from "/js/messages.js";
 import { openModal } from "/js/modals.js";
-import { marked } from "/vendor/marked/marked.esm.js";
+import { renderSafeMarkdown } from "/js/safe-markdown.js";
 import { toastFrontendSuccess, toastFrontendError } from "/components/notifications/notification-store.js";
 import { showConfirmDialog } from "/js/confirmDialog.js";
+import { formatDateTime } from "/js/time-utils.js";
 import { store as imageViewerStore } from "/components/modals/image-viewer/image-viewer-store.js";
 import { store as pluginListStore } from "/components/plugins/list/pluginListStore.js";
 import { store as pluginExecuteStore } from "/components/plugins/list/plugin-execute-store.js";
@@ -12,6 +12,8 @@ import { store as pluginSettingsStore } from "/components/plugins/plugin-setting
 
 const PLUGIN_API = "plugins/_plugin_installer/plugin_install";
 const PER_PAGE = 24;
+const POPULAR_PLUGIN_MIN_STARS = 3;
+const NEW_PLUGIN_WINDOW_DAYS = 14;
 
 const SECURITY_WARNING = {
   title: "Security Warning",
@@ -59,6 +61,11 @@ const model = {
 
   detailThumbnailUrl: null,
 
+  // Inline error for the detail modal (e.g. update failure), structured so
+  // the UI can render it next to the action button instead of relying on a
+  // toast the user can miss.
+  detailError: null,
+
   // Tab state
   activeTab: "store",
 
@@ -68,7 +75,11 @@ const model = {
   },
 
   setBrowseFilter(filter) {
-    this.browseFilter = filter || "all";
+    const nextFilter = filter || "all";
+    this.browseFilter = nextFilter;
+    if (nextFilter === "new" && this.sortBy === "stars") {
+      this.sortBy = "updated";
+    }
     this.page = 1;
   },
 
@@ -78,52 +89,6 @@ const model = {
     let url = githubUrl.trim().replace(/\.git$/i, "");
     if (!url.includes("github.com")) return null;
     return url.replace("https://github.com/", "https://raw.githubusercontent.com/");
-  },
-
-  _rebaseReadmeLinks(html, githubUrl, branch) {
-    if (!html || typeof html !== "string" || !githubUrl || !branch) return html;
-
-    let repoUrl;
-    try {
-      repoUrl = new URL(githubUrl.trim().replace(/\.git$/i, ""));
-    } catch {
-      return html;
-    }
-
-    if (repoUrl.hostname !== "github.com") return html;
-
-    const [owner, repo] = repoUrl.pathname
-      .replace(/^\/+|\/+$/g, "")
-      .split("/");
-    if (!owner || !repo) return html;
-
-    const repoBlobBase = `https://github.com/${owner}/${repo}/blob/${branch}`;
-    const doc = new DOMParser().parseFromString(html, "text/html");
-
-    doc.querySelectorAll("a[href]").forEach((anchor) => {
-      const href = (anchor.getAttribute("href") || "").trim();
-      if (
-        !href ||
-        href.startsWith("#") ||
-        href.startsWith("//") ||
-        /^[a-zA-Z][a-zA-Z\d+.-]*:/.test(href)
-      ) {
-        return;
-      }
-
-      try {
-        const resolved = new URL(href, "https://repo-root.invalid/");
-        const repoPath = resolved.pathname.replace(/^\/+/, "");
-        anchor.setAttribute(
-          "href",
-          `${repoBlobBase}/${repoPath}${resolved.search}${resolved.hash}`,
-        );
-      } catch {
-        // Leave malformed links unchanged.
-      }
-    });
-
-    return doc.body.innerHTML;
   },
 
   _pluginPrimaryTag(plugin) {
@@ -140,11 +105,39 @@ const model = {
       .join(" ");
   },
 
+  _isPopularPlugin(plugin) {
+    return (plugin?.stars || 0) >= POPULAR_PLUGIN_MIN_STARS;
+  },
+
+  _isNewPlugin(plugin) {
+    const updatedAt = (plugin?.updated || "").trim();
+    if (!updatedAt) return false;
+    const updatedMs = Date.parse(updatedAt);
+    if (Number.isNaN(updatedMs)) return false;
+
+    const nowMs = Date.now();
+    const cutoffMs = nowMs - NEW_PLUGIN_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+    return updatedMs >= cutoffMs;
+  },
+
+  isNewPlugin(plugin) {
+    return this._isNewPlugin(plugin);
+  },
+
+  _getSuspensionReason(plugin) {
+    return typeof plugin?.suspended === "string" ? plugin.suspended.trim() : "";
+  },
+
+  isPluginSuspended(plugin) {
+    return !!this._getSuspensionReason(plugin);
+  },
+
   _matchesBrowseFilter(plugin, filterKey) {
     if (!filterKey || filterKey === "all") return true;
     if (filterKey === "installed") return !!plugin?.installed;
     if (filterKey === "update") return !!plugin?.has_update;
-    if (filterKey === "popular") return (plugin?.stars || 0) >= 3;
+    if (filterKey === "popular") return this._isPopularPlugin(plugin);
+    if (filterKey === "new") return this._isNewPlugin(plugin);
     if (filterKey.startsWith("tag:")) {
       return this._pluginPrimaryTag(plugin) === filterKey.slice(4);
     }
@@ -171,6 +164,30 @@ const model = {
     if (timestampComparison !== 0) return timestampComparison > 0;
 
     return true;
+  },
+
+  _comparePluginsByStars(a, b) {
+    const aSuspended = this.isPluginSuspended(a);
+    const bSuspended = this.isPluginSuspended(b);
+    if (aSuspended !== bSuspended) {
+      return aSuspended ? 1 : -1;
+    }
+
+    const aStars = aSuspended ? 0 : Number(a?.stars) || 0;
+    const bStars = bSuspended ? 0 : Number(b?.stars) || 0;
+    if (aStars !== bStars) {
+      return bStars - aStars;
+    }
+
+    return (a.title || a.key).localeCompare(b.title || b.key);
+  },
+
+  _comparePluginsByUpdated(a, b) {
+    const updatedComparison = this._compareTimestamp(a?.updated, b?.updated);
+    if (updatedComparison !== 0) {
+      return updatedComparison > 0 ? -1 : 1;
+    }
+    return this._comparePluginsByStars(a, b);
   },
 
   // ── ZIP Install ──────────────────────────────
@@ -388,6 +405,7 @@ const model = {
         commit: val?.commit || val?.latest_commit || "",
         updated: val?.updated || val?.latest_commit_timestamp || "",
         version: val?.version || "",
+        suspended: this._getSuspensionReason(val),
         installed,
       };
 
@@ -412,9 +430,14 @@ const model = {
     const updateCount = plugins.filter((plugin) => plugin.has_update).length;
     filters.push({ key: "update", label: "Update", count: updateCount });
 
-    const popularCount = plugins.filter((plugin) => (plugin.stars || 0) > 0).length;
+    const popularCount = plugins.filter((plugin) => this._isPopularPlugin(plugin)).length;
     if (popularCount) {
       filters.push({ key: "popular", label: "Popular", count: popularCount });
+    }
+
+    const newCount = plugins.filter((plugin) => this._isNewPlugin(plugin)).length;
+    if (newCount) {
+      filters.push({ key: "new", label: "New", count: newCount });
     }
 
     const tagCounts = new Map();
@@ -452,8 +475,10 @@ const model = {
           (p.tags || []).some((t) => t.toLowerCase().includes(q))
       );
     }
-    if (this.sortBy === "stars") {
-      list.sort((a, b) => (b.stars || 0) - (a.stars || 0));
+    if (this.sortBy === "updated" || this.browseFilter === "new") {
+      list.sort((a, b) => this._comparePluginsByUpdated(a, b));
+    } else if (this.sortBy === "stars") {
+      list.sort((a, b) => this._comparePluginsByStars(a, b));
     } else {
       list.sort((a, b) =>
         (a.title || a.key).localeCompare(b.title || b.key)
@@ -528,6 +553,7 @@ const model = {
     this.result = null;
     this.installedPluginInfo = null;
     this.readmeContent = null;
+    this.detailError = null;
     this.detailThumbnailUrl = this.getThumbnailUrl(this.selectedPlugin);
     if (this.selectedPlugin.installed) {
       this.fetchInstalledPluginInfo(this.selectedPlugin.name);
@@ -551,9 +577,10 @@ const model = {
           if (!response.ok) continue;
 
           const readme = await response.text();
-          let html = marked.parse(readme, { breaks: true });
-          html = this._rebaseReadmeLinks(html, plugin?.github, branch);
-          this.readmeContent = addBlankTargetsToLinks(html);
+          this.readmeContent = renderSafeMarkdown(readme, {
+            githubUrl: plugin?.github,
+            branch,
+          });
           return;
         } catch (error) {
           lastError = error;
@@ -756,14 +783,7 @@ const model = {
     const date = new Date(normalizedValue);
     if (Number.isNaN(date.getTime())) return value;
 
-    return new Intl.DateTimeFormat(undefined, {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    }).format(date);
+    return formatDateTime(normalizedValue, "full");
   },
 
   getRepoCommitUrl(plugin, commitHash) {
@@ -817,6 +837,8 @@ const model = {
     });
     if (!confirmed) return;
 
+    this.detailError = null;
+
     try {
       this.loading = true;
       this.loadingMessage = "Updating";
@@ -827,7 +849,13 @@ const model = {
       });
 
       if (!(data?.ok && data?.success)) {
-        void toastFrontendError(data?.error || "Update failed", "Plugin Installer");
+        const message = data?.error || "Update failed";
+        this.detailError = {
+          kind: data?.error_kind || "update_failed",
+          message,
+          conflicting_files: Array.isArray(data?.conflicting_files) ? data.conflicting_files : [],
+        };
+        void toastFrontendError(message, "Plugin Installer");
         return;
       }
 

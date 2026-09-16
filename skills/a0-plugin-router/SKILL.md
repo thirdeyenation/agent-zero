@@ -76,7 +76,7 @@ always_enabled: false        # forces ON, disables toggle (framework use only)
 | `extensions/webui/<point>/` | HTML/JS injected into UI breakpoints |
 | `webui/config.html` | Plugin settings UI |
 | `webui/*.html`, `webui/*.js` | Full plugin pages and Alpine stores |
-| `hooks.py` | Framework runtime hooks (install, pre_update, cache, registration) |
+| `hooks.py` | Framework runtime hooks (install, uninstall, pre_update, cache, registration) |
 | `execute.py` | User-triggered script (setup, maintenance, repair) |
 | `default_config.yaml` | Settings defaults |
 | `README.md` | Optional locally; strongly recommended for community plugins so Plugin Hub users can inspect the plugin |
@@ -111,7 +111,7 @@ For `@extensible` targets, the only valid implicit hook layout is `extensions/py
 
 ### Deep-Dive References
 
-- Architecture + extension points: `/a0/docs/agents/AGENTS.plugins.md`
+- Architecture + extension points: `/a0/plugins/AGENTS.md`
 - Developer guide: `/a0/docs/developer/plugins.md`
-- Component system: `/a0/docs/agents/AGENTS.components.md`
-- Modal system: `/a0/docs/agents/AGENTS.modals.md`
+- Component system: `/a0/webui/components/AGENTS.md`
+- Modal system: `/a0/webui/js/AGENTS.md` and `/a0/webui/css/AGENTS.md`

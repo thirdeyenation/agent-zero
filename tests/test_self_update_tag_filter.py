@@ -1,6 +1,9 @@
 import importlib.util
+import socket
 import sys
+import tempfile
 import types
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -320,9 +323,14 @@ def test_self_update_update_info_uses_current_branch_for_latest_version(monkeypa
         "get_selector_tag_options",
         lambda branch, *, repo_dir=None, current_version=None: (
             [{"value": "latest", "label": "latest (v1.4)"}],
-            [],
+            [2] if branch == "main" else [],
             "",
         ),
+    )
+    monkeypatch.setattr(
+        self_update,
+        "get_available_tags",
+        lambda branch, *, repo_dir=None, query="": (["v1.4", "v1.2"], ""),
     )
     monkeypatch.setattr(
         self_update,
@@ -358,6 +366,102 @@ def test_self_update_update_info_uses_current_branch_for_latest_version(monkeypa
         "display_version": "v1.4",
         "commit": "def5678abcd",
         "short_commit": "def5678",
+        "released_at": "",
+    }
+    assert info["main_branch_latest"] == {
+        "branch": "main",
+        "supported": True,
+        "describe": "v1.4",
+        "short_tag": "v1.4",
+        "display_version": "v1.4",
+        "commit": "def5678abcd",
+        "short_commit": "def5678",
+        "released_at": "",
+    }
+    assert info["major_upgrade_versions"] == [2]
+
+
+def test_self_update_main_branch_latest_stays_within_current_major(monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        self_update,
+        "get_available_branch_values",
+        lambda repo_dir=None: ["main", "development"],
+    )
+    monkeypatch.setattr(
+        self_update,
+        "get_available_tags",
+        lambda branch, *, repo_dir=None, query="": (
+            ["v2.0", "v1.4", "v1.2"],
+            "",
+        ),
+    )
+    monkeypatch.setattr(
+        self_update,
+        "_get_branch_head_info",
+        lambda branch, repo_dir=None: {
+            "describe": "v2.0",
+            "short_tag": "v2.0",
+            "commit": "feedbee1234",
+            "released_at": "2026-03-30 15:15:50",
+        },
+    )
+    monkeypatch.setattr(
+        self_update,
+        "_run_git",
+        lambda repo_dir, *args: {
+            ("rev-parse", "refs/tags/v1.4^{commit}"): "deadbeef1234",
+        }[args],
+    )
+    monkeypatch.setattr(
+        self_update,
+        "_get_tag_release_time_in_repo",
+        lambda repo_dir, tag: "2026-02-01 08:30:00" if tag == "v1.4" else "",
+    )
+
+    info = self_update.get_current_major_main_latest_info("v1.2", repo_dir=tmp_path)
+
+    assert info == {
+        "branch": "main",
+        "supported": True,
+        "describe": "v1.4",
+        "short_tag": "v1.4",
+        "display_version": "v1.4",
+        "commit": "deadbeef1234",
+        "short_commit": "deadbee",
+        "released_at": "2026-02-01 08:30:00",
+    }
+
+
+def test_self_update_remote_branch_head_info_resolves_release_time_before_temp_repo_is_removed(
+    monkeypatch,
+):
+    monkeypatch.setattr(self_update, "_remote_branch_head_cache", {})
+
+    def fake_run_git(repo_dir, *args):
+        if args[:2] == ("init", "--bare"):
+            return ""
+        if args[0] == "fetch":
+            return ""
+        if args[:3] == ("describe", "--tags", "--always"):
+            return "v1.5"
+        if args[:2] == ("rev-parse", "refs/remotes/origin/main"):
+            return "abc1234def5678"
+        raise AssertionError(args)
+
+    monkeypatch.setattr(self_update, "_run_git", fake_run_git)
+    monkeypatch.setattr(
+        self_update,
+        "_get_tag_release_time_in_repo",
+        lambda repo_dir, tag: "2026-03-30 15:15:50" if Path(repo_dir).exists() else "",
+    )
+
+    info = self_update._get_remote_branch_head_info("main")
+
+    assert info == {
+        "describe": "v1.5",
+        "short_tag": "v1.5",
+        "commit": "abc1234def5678",
+        "released_at": "2026-03-30 15:15:50",
     }
 
 
@@ -376,9 +480,16 @@ def test_self_update_frontend_uses_preloaded_select():
     assert "const MIN_SELECTOR_VERSION = [1, 0];" in content
     assert "availableTagOptions: []" in content
     assert "higherMajorVersions: []" in content
+    assert "majorUpgradeVersions: []" in content
+    assert 'activeTab: "quick"' in content
+    assert "get hasPendingInitialLoad()" in content
+    assert "get isCheckingStatus()" in content
+    assert "get hasMajorUpgrade()" in content
+    assert "get majorUpgradeBannerMessage()" in content
     assert "this.applyAvailableTags({" in content
     assert "response.available_tag_options" in content
     assert "response.available_higher_major_versions" in content
+    assert "response.major_upgrade_versions" in content
     assert "response.tag_options" in content
     assert "response.higher_major_versions" in content
     assert "response.pending || {" in content
@@ -390,8 +501,20 @@ def test_self_update_frontend_uses_preloaded_select():
     assert "Release tag must be v1.0 or newer." in content
     assert "isLatestSelectorTag(value)" in content
     assert "this.isSelectableTag(this.form.tag)" in content
+    assert "get mainBranchLatestTag()" in content
+    assert "quickUpdateAvailable" in content
+    assert "scheduleQuickUpdate()" in content
+    assert 'branch: "main"' in content
+    assert "quickComparisonIcon" in content
+    assert "quickComparisonIconClass" in content
+    assert "Checking update status..." in content
+    assert '"CHECKING"' in content
+    assert '"Loading"' in content
+    assert "formatReleaseTimestamp(value)" in content
     assert "getLastStatusBadgeClass(status)" in content
     assert "this.info?.current?.display_version" in content
+    assert "this.info?.main_branch_latest?.display_version" in content
+    assert "this.info?.current?.released_at" in content
     assert "resetRestartState()" in content
     assert "restartRequestStarted" in content
     assert "restartResponse.status >= 500" in content
@@ -433,14 +556,41 @@ def test_self_update_modal_uses_standard_select_and_manual_backup():
     assert "$store.selfUpdateStore.availableTagOptions" in content
     assert "$store.selfUpdateStore.info?.current?.describe" in content
     assert "current_branch_latest?.display_version" in content
+    assert "mainBranchLatestVersion" in content
     assert "tagOption.label" in content
+    assert 'id="self-update-quick-tab"' in content
+    assert 'id="self-update-advanced-tab"' in content
     assert 'data-bs-target="#self-update-last-attempt-collapse"' in content
+    assert "New major version available" in content
+    assert 'x-show="$store.selfUpdateStore.hasMajorUpgrade"' in content
+    assert "$store.selfUpdateStore.majorUpgradeBannerMessage" in content
+    assert "Website installation guide" in content
     assert "self-update-header-status" in content
+    assert ".status-pill.self-update-quick-status" in content
     assert "getLastStatusLabel($store.selfUpdateStore.info?.last_status?.status)" in content
+    assert "Current version vs latest on main" not in content
+    assert "quickComparisonIcon" in content
+    assert "quickComparisonIconClass" in content
+    assert "{ spinning: $store.selfUpdateStore.isCheckingStatus }" in content
+    assert "{ 'btn-field': !$store.selfUpdateStore.quickUpdateAvailable }" in content
+    assert "{ 'btn-field': !$store.selfUpdateStore.canScheduleUpdate }" in content
+    assert "formatReleaseTimestamp($store.selfUpdateStore.currentReleasedAt)" in content
+    assert "formatReleaseTimestamp($store.selfUpdateStore.mainBranchLatestReleasedAt)" in content
     assert "Latest version" in content
     assert "Docker update guide" in content
     assert "https://www.agent-zero.ai/p/docs/get-started/" in content
+    assert "Version numbers use the format <code>vMAJOR.MINOR</code>" in content
+    assert "requires a newer" in content
+    assert "Docker image." in content
+    assert "minor release line" in content
+    assert "Agent Zero self-update inside the existing image." in content
+    assert "On development branches you may also see versions like <code>v1.5+2</code>" in content
+    assert "This suffix is not used on" in content
+    assert "Only versions from the current major release line are listed here." in content
     assert "Manual backup" in content
+    assert ">Refresh Status<" not in content
+    assert "Refresh" in content
+    assert "Loading update status..." not in content
     assert 'type="button"' in content
     assert "@blur" not in content
     assert "selectTag(tag)" not in content
@@ -606,6 +756,404 @@ def test_self_update_manager_queues_update_with_main_latest_defaults(monkeypatch
     assert payload["backup_conflict_policy"] == "rename"
     assert captured["path"] == manager.TRIGGER_FILE
     assert captured["payload"]["tag"] == "latest"
+
+
+def test_self_update_manager_usr_backup_skips_broken_symlinks(tmp_path):
+    manager = load_self_update_manager()
+    repo_dir = tmp_path / "repo"
+    usr_dir = repo_dir / "usr"
+    venv_bin = usr_dir / "workdir" / "reachy-mini-mcp" / ".venv" / "bin"
+    venv_bin.mkdir(parents=True)
+    (usr_dir / "settings.json").write_text('{"ok": true}\n', encoding="utf-8")
+    broken_symlink = venv_bin / "python"
+    broken_symlink.symlink_to("/missing/host/python")
+
+    backup_path = manager.create_usr_backup(
+        repo_dir=repo_dir,
+        backup_path=str(tmp_path / "backups"),
+        backup_name="usr-backup.zip",
+        conflict_policy="rename",
+        logger=manager.NullLogger(),
+    )
+
+    with zipfile.ZipFile(backup_path) as archive:
+        names = set(archive.namelist())
+
+    assert "usr/settings.json" in names
+    assert "usr/workdir/reachy-mini-mcp/.venv/bin/python" not in names
+
+
+def test_self_update_manager_usr_backup_skips_runtime_sockets():
+    manager = load_self_update_manager()
+    with tempfile.TemporaryDirectory(prefix="a0su-", dir="/tmp") as temp_root:
+        repo_dir = Path(temp_root) / "repo"
+        usr_dir = repo_dir / "usr"
+        gnupg_dir = (
+            usr_dir
+            / "plugins"
+            / "_desktop"
+            / "profiles"
+            / "agent-zero-desktop"
+            / ".gnupg"
+        )
+        gnupg_dir.mkdir(parents=True)
+        (usr_dir / "settings.json").write_text('{"ok": true}\n', encoding="utf-8")
+        socket_path = gnupg_dir / "S.gpg-agent"
+        messages = []
+
+        class ListLogger:
+            def log(self, message=""):
+                messages.append(message)
+
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as runtime_socket:
+            runtime_socket.bind(str(socket_path))
+            backup_path = manager.create_usr_backup(
+                repo_dir=repo_dir,
+                backup_path=str(Path(temp_root) / "backups"),
+                backup_name="usr-backup.zip",
+                conflict_policy="rename",
+                logger=ListLogger(),
+            )
+
+        with zipfile.ZipFile(backup_path) as archive:
+            names = set(archive.namelist())
+
+        assert "usr/settings.json" in names
+        assert (
+            "usr/plugins/_desktop/profiles/agent-zero-desktop/.gnupg/S.gpg-agent"
+            not in names
+        )
+        assert any(
+            "Skipping non-regular usr backup entry" in message
+            for message in messages
+        )
+
+
+def test_self_update_manager_usr_backup_skips_time_travel_history(tmp_path):
+    manager = load_self_update_manager()
+    repo_dir = tmp_path / "repo"
+    usr_dir = repo_dir / "usr"
+    time_travel = usr_dir / ".time_travel" / "workspaces" / "demo" / "repo.git"
+    time_travel.mkdir(parents=True)
+    (usr_dir / "settings.json").write_text('{"ok": true}\n', encoding="utf-8")
+    (time_travel / "objects.pack").write_text("history\n", encoding="utf-8")
+    messages = []
+
+    class ListLogger:
+        def log(self, message=""):
+            messages.append(message)
+
+    backup_path = manager.create_usr_backup(
+        repo_dir=repo_dir,
+        backup_path=str(tmp_path / "backups"),
+        backup_name="usr-backup.zip",
+        conflict_policy="rename",
+        logger=ListLogger(),
+    )
+
+    with zipfile.ZipFile(backup_path) as archive:
+        names = set(archive.namelist())
+
+    assert "usr/settings.json" in names
+    assert "usr/.time_travel/workspaces/demo/repo.git/objects.pack" not in names
+    assert any(
+        "Skipping Time Travel history during usr backup: usr/.time_travel" in message
+        for message in messages
+    )
+
+
+def test_self_update_manager_usr_backup_skips_transient_desktop_ssh_agent_dir(tmp_path):
+    manager = load_self_update_manager()
+    repo_dir = tmp_path / "repo"
+    usr_dir = repo_dir / "usr"
+    ssh_dir = (
+        usr_dir
+        / "plugins"
+        / "_desktop"
+        / "profiles"
+        / "agent-zero-desktop"
+        / ".ssh"
+    )
+    transient_agent_dir = ssh_dir / "agent"
+    transient_agent_dir.mkdir(parents=True)
+    (transient_agent_dir / "socket").write_text("ephemeral\n", encoding="utf-8")
+    (ssh_dir / "config").write_text("Host github.com\n", encoding="utf-8")
+    (usr_dir / "settings.json").write_text('{"ok": true}\n', encoding="utf-8")
+    messages = []
+
+    class ListLogger:
+        def log(self, message=""):
+            messages.append(message)
+
+    backup_path = manager.create_usr_backup(
+        repo_dir=repo_dir,
+        backup_path=str(tmp_path / "backups"),
+        backup_name="usr-backup.zip",
+        conflict_policy="rename",
+        logger=ListLogger(),
+    )
+
+    with zipfile.ZipFile(backup_path) as archive:
+        names = set(archive.namelist())
+
+    assert "usr/settings.json" in names
+    assert "usr/plugins/_desktop/profiles/agent-zero-desktop/.ssh/config" in names
+    assert (
+        "usr/plugins/_desktop/profiles/agent-zero-desktop/.ssh/agent/socket"
+        not in names
+    )
+    assert any(
+        "Skipping transient usr backup directory: "
+        "usr/plugins/_desktop/profiles/agent-zero-desktop/.ssh/agent" in message
+        for message in messages
+    )
+
+
+def test_self_update_manager_cleans_transient_desktop_agent_state():
+    manager = load_self_update_manager()
+    with tempfile.TemporaryDirectory(prefix="a0su-", dir="/tmp") as temp_root:
+        repo_dir = Path(temp_root) / "repo"
+        current_profile = (
+            repo_dir
+            / "usr"
+            / "plugins"
+            / "_desktop"
+            / "profiles"
+            / "agent-zero-desktop"
+        )
+        legacy_profile = (
+            repo_dir
+            / "tmp"
+            / "_office"
+            / "desktop"
+            / "profiles"
+            / "agent-zero-desktop"
+        )
+        agent_dir = current_profile / ".ssh" / "agent"
+        gnupg_dir = legacy_profile / ".gnupg"
+        nested_dir = agent_dir / "nested"
+        agent_dir.mkdir(parents=True)
+        gnupg_dir.mkdir(parents=True)
+        nested_dir.mkdir()
+        (agent_dir / "socket").write_text("ephemeral\n", encoding="utf-8")
+        (nested_dir / "token").write_text("ephemeral\n", encoding="utf-8")
+        (agent_dir / "broken-link").symlink_to("/missing/ssh-agent-socket")
+        (gnupg_dir / "pubring.kbx").write_text("keyring\n", encoding="utf-8")
+        (gnupg_dir / "private-keys-v1.d").mkdir()
+        (gnupg_dir / "private-keys-v1.d" / "key.key").write_text(
+            "private\n",
+            encoding="utf-8",
+        )
+        (gnupg_dir / "S.gpg-agent.regular").write_text(
+            "regular files do not break backup reads\n",
+            encoding="utf-8",
+        )
+        ssh_socket_path = agent_dir / "runtime.sock"
+        gpg_socket_path = gnupg_dir / "S.gpg-agent"
+        messages = []
+
+        class ListLogger:
+            def log(self, message=""):
+                messages.append(message)
+
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as ssh_socket:
+            ssh_socket.bind(str(ssh_socket_path))
+            with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as gpg_socket:
+                gpg_socket.bind(str(gpg_socket_path))
+
+        manager.clean_transient_desktop_agent_state(repo_dir, ListLogger())
+
+        assert agent_dir.exists()
+        assert list(agent_dir.iterdir()) == []
+        assert (gnupg_dir / "pubring.kbx").read_text(encoding="utf-8") == "keyring\n"
+        assert (gnupg_dir / "private-keys-v1.d" / "key.key").read_text(
+            encoding="utf-8"
+        ) == "private\n"
+        assert (gnupg_dir / "S.gpg-agent.regular").read_text(encoding="utf-8")
+        assert not gpg_socket_path.exists()
+        assert any(
+            "Removed 5 transient desktop agent entries." in message
+            for message in messages
+        )
+
+
+def test_self_update_manager_cleans_transient_desktop_agent_state_skips_missing(
+    tmp_path,
+):
+    manager = load_self_update_manager()
+    repo_dir = tmp_path / "repo"
+    messages = []
+
+    class ListLogger:
+        def log(self, message=""):
+            messages.append(message)
+
+    manager.clean_transient_desktop_agent_state(repo_dir, ListLogger())
+
+    assert any(
+        "No desktop profile runtime state found, skipping transient agent cleanup." in message
+        for message in messages
+    )
+
+
+def test_self_update_manager_desktop_ssh_cleanup_failure_does_not_block_startup(
+    monkeypatch,
+    tmp_path,
+):
+    manager = load_self_update_manager()
+    request_data = {"branch": "main", "tag": "v1.2", "requested_at": "now"}
+    current_info = {
+        "branch": "main",
+        "describe": "v1.2",
+        "short_tag": "v1.2",
+        "commit": "abc1234",
+        "short_commit": "abc1234",
+    }
+    launched = []
+    fake_process = object()
+
+    monkeypatch.setattr(manager, "LOG_FILE", tmp_path / "a0-self-update.log")
+    monkeypatch.setattr(
+        manager,
+        "load_request_file",
+        lambda: (request_data, "branch: main\ntag: v1.2\n"),
+    )
+    monkeypatch.setattr(manager, "clean_uv_cache", lambda logger: None)
+    monkeypatch.setattr(
+        manager,
+        "clean_transient_desktop_agent_state",
+        lambda repo_dir, logger: (_ for _ in ()).throw(RuntimeError("cleanup boom")),
+    )
+    monkeypatch.setattr(manager, "get_repo_version_info", lambda repo_dir: current_info)
+    monkeypatch.setattr(manager, "record_result", lambda **kwargs: None)
+    monkeypatch.setattr(
+        manager,
+        "launch_ui_process",
+        lambda repo_dir, logger: launched.append(repo_dir) or fake_process,
+    )
+    monkeypatch.setattr(manager, "wait_for_process", lambda process: 0)
+
+    assert manager.docker_run_ui() == 0
+    assert launched == [manager.REPO_DIR]
+    assert "Transient desktop agent cleanup skipped after error: cleanup boom" in (
+        tmp_path / "a0-self-update.log"
+    ).read_text(encoding="utf-8")
+
+
+def test_self_update_manager_clean_uv_cache_uses_uv_when_available(monkeypatch):
+    manager = load_self_update_manager()
+    commands = []
+    monkeypatch.setattr(
+        manager.shutil,
+        "which",
+        lambda executable: "/usr/local/bin/uv" if executable == "uv" else None,
+    )
+
+    def fake_run_command(command, *, cwd, logger, error_message=None):
+        commands.append((command, cwd, error_message))
+
+    monkeypatch.setattr(manager, "run_command", fake_run_command)
+
+    manager.clean_uv_cache(manager.NullLogger())
+
+    assert commands == [
+        (
+            ["/usr/local/bin/uv", "cache", "clean"],
+            None,
+            "Failed to clean uv cache during self-update.",
+        )
+    ]
+
+
+def test_self_update_manager_clean_uv_cache_skips_when_uv_missing(monkeypatch):
+    manager = load_self_update_manager()
+    commands = []
+    monkeypatch.setattr(manager.shutil, "which", lambda executable: None)
+    monkeypatch.setattr(
+        manager,
+        "run_command",
+        lambda command, **kwargs: commands.append(command),
+    )
+
+    manager.clean_uv_cache(manager.NullLogger())
+
+    assert commands == []
+
+
+def test_self_update_manager_clean_uv_cache_is_best_effort(monkeypatch):
+    manager = load_self_update_manager()
+    messages = []
+    monkeypatch.setattr(
+        manager.shutil,
+        "which",
+        lambda executable: "/usr/local/bin/uv" if executable == "uv" else None,
+    )
+
+    class Logger:
+        def log(self, message=""):
+            messages.append(message)
+
+        def log_block(self, title, content):
+            return None
+
+    def fail_run_command(command, **kwargs):
+        raise RuntimeError("cache cleanup failed")
+
+    monkeypatch.setattr(manager, "run_command", fail_run_command)
+
+    manager.clean_uv_cache(Logger())
+
+    assert any("uv cache clean skipped after error" in message for message in messages)
+
+
+def test_self_update_manager_refreshes_installed_codex_best_effort(monkeypatch):
+    manager = load_self_update_manager()
+    commands = []
+    messages = []
+    paths = {"codex": "/usr/local/bin/codex", "npm": "/usr/bin/npm"}
+    monkeypatch.setattr(manager.shutil, "which", paths.get)
+
+    class Logger:
+        def log(self, message=""):
+            messages.append(message)
+
+        def log_block(self, title, content):
+            return None
+
+    def fail_run_command(command, **kwargs):
+        commands.append(command)
+        raise RuntimeError("registry unavailable")
+
+    monkeypatch.setattr(manager, "run_command", fail_run_command)
+
+    manager.refresh_codex_cli(Logger())
+
+    assert commands == [["/usr/bin/npm", "install", "--global", "@openai/codex@latest"]]
+    assert any("Codex CLI refresh skipped after error" in message for message in messages)
+
+
+def test_self_update_manager_skips_codex_refresh_when_not_installed(monkeypatch):
+    manager = load_self_update_manager()
+    commands = []
+    monkeypatch.setattr(manager.shutil, "which", lambda executable: None)
+    monkeypatch.setattr(
+        manager,
+        "run_command",
+        lambda command, **kwargs: commands.append(command),
+    )
+
+    manager.refresh_codex_cli(manager.NullLogger())
+
+    assert commands == []
+
+
+def test_self_update_manager_refresh_codex_command(monkeypatch):
+    manager = load_self_update_manager()
+    loggers = []
+    monkeypatch.setattr(manager, "refresh_codex_cli", lambda logger: loggers.append(logger))
+
+    assert manager.main(["refresh-codex"]) == 0
+    assert len(loggers) == 1
 
 
 def test_self_update_manager_latest_on_main_uses_current_major_release(monkeypatch):

@@ -138,16 +138,31 @@ print('Done')
 "
 ```
 
+If the `uninstall()` hook is not running when the plugin is removed:
+- Check the function is named exactly `uninstall` (not `on_uninstall` or similar)
+- Check for exceptions in the function
+- The `uninstall()` hook is called by `uninstall_plugin()` in `helpers/plugins.py` before the plugin directory is deleted. If the user removed the plugin manually (`rm -rf`), the hook was bypassed — always use the API or UI to uninstall.
+- Manually trigger it in the **framework runtime** the same way:
+
+```bash
+cd /a0 && /opt/venv-a0/bin/python -c "
+import asyncio
+from helpers.plugins import call_plugin_hook
+asyncio.run(call_plugin_hook('<plugin_name>', 'uninstall'))
+print('Done')
+"
+```
+
 ---
 
 ## 8. Check Agent Zero logs
 
 ```bash
-# Find recent log files
-ls -lt /a0/logs/*.html | head -5
+# Run from the Docker host; replace the name if needed
+docker logs --tail 200 a0-instance
 ```
 
-Plugin-related errors appear as Python tracebacks mentioning the plugin path.
+Plugin-related errors appear in the container output as Python tracebacks mentioning the plugin path.
 
 ---
 
@@ -168,5 +183,5 @@ Plugins are re-scanned when:
 
 ## References
 
-- Plugin architecture: `/a0/docs/agents/AGENTS.plugins.md`
+- Plugin architecture: `/a0/plugins/AGENTS.md`
 - Manage (install/update/uninstall): read `/a0/skills/a0-manage-plugin/SKILL.md`

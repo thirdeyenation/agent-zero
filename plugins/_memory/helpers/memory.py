@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import Any, List, Sequence
 from langchain.storage import InMemoryByteStore, LocalFileStore
 from langchain.embeddings import CacheBackedEmbeddings
@@ -18,12 +17,13 @@ from langchain_community.vectorstores.utils import (
 )
 from langchain_core.embeddings import Embeddings
 
-import os, json
+import os, json, hashlib, re
 
 import numpy as np
 
 from helpers.print_style import PrintStyle
 from helpers import files, plugins, projects
+from helpers.localization import Localization
 from langchain_core.documents import Document
 from . import knowledge_import
 from helpers.log import Log, LogItem
@@ -178,14 +178,19 @@ class Memory:
 
         # if db folder exists and is not empty:
         if os.path.exists(db_dir) and files.exists(db_dir, "index.faiss"):
-            db = MyFaiss.load_local(
-                folder_path=db_dir,
-                embeddings=embedder,
-                allow_dangerous_deserialization=True,
-                distance_strategy=DistanceStrategy.COSINE,
-                # normalize_L2=True,
-                relevance_score_fn=Memory._cosine_normalizer,
-            )  # type: ignore
+            if not Memory._verify_index_hash(db_dir):
+                PrintStyle(font_color="yellow").print(
+                    f"FAISS index hash mismatch in '{db_dir}' — index will be rebuilt."
+                )
+            else:
+                db = MyFaiss.load_local(
+                    folder_path=db_dir,
+                    embeddings=embedder,
+                    allow_dangerous_deserialization=True,
+                    distance_strategy=DistanceStrategy.COSINE,
+                    # normalize_L2=True,
+                    relevance_score_fn=Memory._cosine_normalizer,
+                )  # type: ignore
 
             # if there is a mismatch in embeddings used, re-index the whole DB
             emb_ok = False
@@ -345,12 +350,31 @@ class Memory:
             filter=comparator,
         )
 
+    async def search_similarity_threshold_with_scores(
+        self, query: str, limit: int, threshold: float, filter: str = ""
+    ) -> list[tuple[Document, float]]:
+        comparator = Memory._get_comparator(filter) if filter else None
+
+        return await self.db.asimilarity_search_with_relevance_scores(
+            query,
+            k=limit,
+            score_threshold=threshold,
+            filter=comparator,
+        )
+
     async def delete_documents_by_query(
-        self, query: str, threshold: float, filter: str = ""
+        self,
+        query: str,
+        threshold: float,
+        filter: str = "",
+        *,
+        include_exact: bool = False,
+        cascade: bool = False,
     ):
         k = 100
         tot = 0
         removed = []
+        removed_ids: set[str] = set()
 
         while True:
             # Perform similarity search with score
@@ -362,6 +386,7 @@ class Memory:
             # Extract document IDs and filter based on score
             # document_ids = [result[0].metadata["id"] for result in docs if result[1] < score_limit]
             document_ids = [result.metadata["id"] for result in docs]
+            removed_ids.update(str(doc_id) for doc_id in document_ids)
 
             # Delete documents with IDs over the threshold score
             if document_ids:
@@ -375,15 +400,45 @@ class Memory:
             if len(document_ids) < k:
                 break
 
+        if include_exact:
+            exact_docs = self._find_exact_query_docs(query, filter, removed_ids)
+            if exact_docs:
+                exact_ids = [doc.metadata["id"] for doc in exact_docs]
+                await self.db.adelete(ids=exact_ids)
+                removed += exact_docs
+                removed_ids.update(str(doc_id) for doc_id in exact_ids)
+                tot += len(exact_ids)
+
+        if cascade and removed_ids:
+            related_docs = self._find_related_docs_by_ids(removed_ids)
+            if related_docs:
+                related_ids = [doc.metadata["id"] for doc in related_docs]
+                await self.db.adelete(ids=related_ids)
+                removed += related_docs
+                removed_ids.update(str(doc_id) for doc_id in related_ids)
+                tot += len(related_ids)
+
         if tot:
             self._save_db()  # persist
         return removed
 
-    async def delete_documents_by_ids(self, ids: list[str]):
+    async def delete_documents_by_ids(
+        self, ids: list[str], *, cascade: bool = False, filter: str = ""
+    ):
         # aget_by_ids is not yet implemented in faiss, need to do a workaround
         rem_docs = await self.db.aget_by_ids(
             ids
         )  # existing docs to remove (prevents error)
+        rem_ids = [doc.metadata["id"] for doc in rem_docs]
+
+        if cascade:
+            related_docs = self._find_related_docs_by_ids(set(ids) | set(rem_ids))
+            if related_docs:
+                existing = {doc.metadata["id"] for doc in rem_docs}
+                rem_docs.extend(
+                    doc for doc in related_docs if doc.metadata["id"] not in existing
+                )
+
         if rem_docs:
             rem_ids = [doc.metadata["id"] for doc in rem_docs]  # ids to remove
             await self.db.adelete(ids=rem_ids)
@@ -428,13 +483,96 @@ class Memory:
             if not self.db.get_by_ids(doc_id):  # check if exists
                 return doc_id
 
+    def _find_exact_query_docs(
+        self, query: str, filter: str, skip_ids: set[str]
+    ) -> list[Document]:
+        needle = _normalize_memory_match_text(query)
+        if len(needle) < 3:
+            return []
+
+        docs: list[Document] = []
+        comparator = Memory._get_comparator(filter) if filter else None
+        for doc in self.db.get_all_docs().values():
+            doc_id = str(doc.metadata.get("id", ""))
+            if not doc_id or doc_id in skip_ids:
+                continue
+            if comparator and not comparator(doc.metadata):
+                continue
+            haystack = _normalize_memory_match_text(
+                f"{doc.page_content}\n{json.dumps(doc.metadata, sort_keys=True, default=str)}"
+            )
+            if needle in haystack:
+                docs.append(doc)
+        return docs
+
+    def _find_related_docs_by_ids(
+        self, ids: set[str], filter: str = ""
+    ) -> list[Document]:
+        ids = {str(doc_id) for doc_id in ids if str(doc_id)}
+        if not ids:
+            return []
+
+        docs: list[Document] = []
+        comparator = Memory._get_comparator(filter) if filter else None
+        for doc in self.db.get_all_docs().values():
+            doc_id = str(doc.metadata.get("id", ""))
+            if not doc_id or doc_id in ids:
+                continue
+            if comparator and not comparator(doc.metadata):
+                continue
+            if _metadata_references_any(doc.metadata, ids):
+                docs.append(doc)
+        return docs
+
     @staticmethod
     def _save_db_file(db: MyFaiss, memory_subdir: str):
         abs_dir = abs_db_dir(memory_subdir)
         db.save_local(folder_path=abs_dir)
+        Memory._write_index_hash(abs_dir)
+
+    @staticmethod
+    def _write_index_hash(abs_dir: str) -> None:
+        faiss_path = os.path.join(abs_dir, "index.faiss")
+        hash_path = os.path.join(abs_dir, "index.faiss.sha256")
+        try:
+            h = hashlib.sha256()
+            with open(faiss_path, "rb") as f:
+                for chunk in iter(lambda: f.read(65536), b""):
+                    h.update(chunk)
+            with open(hash_path, "w") as f:
+                f.write(h.hexdigest())
+        except Exception as e:
+            PrintStyle(font_color="yellow").print(f"Warning: could not write FAISS hash: {e}")
+
+    @staticmethod
+    def _verify_index_hash(abs_dir: str) -> bool:
+        faiss_path = os.path.join(abs_dir, "index.faiss")
+        hash_path = os.path.join(abs_dir, "index.faiss.sha256")
+        if not os.path.exists(hash_path):
+            return True
+        try:
+            with open(hash_path, "r") as f:
+                stored = f.read().strip()
+            h = hashlib.sha256()
+            with open(faiss_path, "rb") as f:
+                for chunk in iter(lambda: f.read(65536), b""):
+                    h.update(chunk)
+            return h.hexdigest() == stored
+        except Exception as e:
+            PrintStyle(font_color="yellow").print(f"Warning: FAISS hash check failed: {e}")
+            return True
 
     @staticmethod
     def _get_comparator(condition: str):
+        _FILTER_SAFE = re.compile(
+            r"^[a-zA-Z0-9_\-\.\ \t'\"=<>!()\[\],:\+]+$"
+        )
+        if len(condition) > 512 or not _FILTER_SAFE.match(condition):
+            PrintStyle.error(
+                f"Memory filter rejected (unsafe characters or too long): {condition!r}"
+            )
+            return lambda _data: False
+
         def comparator(data: dict[str, Any]):
             try:
                 class SafeNames(dict):
@@ -443,6 +581,7 @@ class Memory:
                 safe_data = SafeNames(data)
                 safe_funcs = {"str": str, "int": int, "float": float, "bool": bool, "len": len, "abs": abs, "min": min, "max": max, "round": round}
                 result = SimpleEval(names=safe_data, functions=safe_funcs).eval(condition)
+                result = simple_eval(condition, names=data, functions={})
                 return result
             except Exception as e:
                 PrintStyle.error(f"Error evaluating condition: {e}")
@@ -476,7 +615,7 @@ class Memory:
 
     @staticmethod
     def get_timestamp():
-        return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        return Localization.get().now_iso(timespec="seconds")
 
 
 def get_custom_knowledge_subdir_abs(agent: Agent) -> str:
@@ -491,6 +630,23 @@ def get_custom_knowledge_subdir_abs(agent: Agent) -> str:
 def reload():
     # clear the memory index, this will force all DBs to reload
     Memory.index = {}
+
+
+def _normalize_memory_match_text(value: str) -> str:
+    return " ".join(str(value or "").casefold().split())
+
+
+def _metadata_references_any(value: Any, ids: set[str]) -> bool:
+    if isinstance(value, dict):
+        return any(_metadata_references_any(item, ids) for item in value.values())
+    if isinstance(value, (list, tuple, set)):
+        return any(_metadata_references_any(item, ids) for item in value)
+    text = str(value or "").strip()
+    if not text:
+        return False
+    if text in ids:
+        return True
+    return any(doc_id in text.split(",") for doc_id in ids)
 
 
 def abs_db_dir(memory_subdir: str) -> str:

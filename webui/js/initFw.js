@@ -1,5 +1,6 @@
 import * as initializer from "./initializer.js";
 import * as _modals from "./modals.js";
+import "./surfaces.js";
 import * as _components from "./components.js";
 import * as extensions from "./extensions.js";
 import { registerAlpineMagic } from "./confirmClick.js";

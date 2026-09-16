@@ -23,7 +23,7 @@
 
                 <div class="pi-index-toolbar">
                     <label class="pi-search-field">
-                        <span class="material-symbols-outlined">search</span>
+                        <x-icon name="search"></x-icon>
                         <input type="text"
                             class="pi-search-input"
                             x-model="$store.pluginInstallStore.search"
@@ -36,6 +36,7 @@
                         <select class="pi-sort-select"
                             x-model="$store.pluginInstallStore.sortBy">
                             <option value="stars">Stars</option>
+                            <option value="updated">Newest</option>
                             <option value="name">Name</option>
                         </select>
                     </label>
@@ -46,7 +47,7 @@
                         title="Reload Plugin Hub"
                         @click="$store.pluginInstallStore.reloadIndex()"
                         :disabled="$store.pluginInstallStore.loading">
-                        <span class="material-symbols-outlined">refresh</span>
+                        <x-icon name="refresh"></x-icon>
                     </button>
                 </div>
 
@@ -56,7 +57,8 @@
                             class="pi-filter-chip"
                             :class="{
                                 active: $store.pluginInstallStore.browseFilter === filter.key,
-                                'pi-filter-chip-update': filter.key === 'update' && filter.count > 0
+                                'pi-filter-chip-update': filter.key === 'update' && filter.count > 0,
+                                'pi-filter-chip-new': filter.key === 'new' && filter.count > 0
                             }"
                             @click="$store.pluginInstallStore.setBrowseFilter(filter.key)">
                             <span x-text="filter.label"></span>
@@ -66,7 +68,7 @@
                 </div>
 
                 <div x-show="$store.pluginInstallStore.loading" class="pi-state-card pi-state-loading">
-                    <span class="material-symbols-outlined">progress_activity</span>
+                    <x-icon name="progress_activity"></x-icon>
                     <div>
                         <div class="pi-state-title">Loading Plugin Hub</div>
                         <div class="pi-state-text" x-text="$store.pluginInstallStore.loadingMessage || 'Loading plugins...'"></div>
@@ -83,7 +85,7 @@
                                         <img :src="plugin.thumbnail" :alt="plugin.title" loading="lazy">
                                     </template>
                                     <template x-if="!plugin.thumbnail">
-                                        <span class="material-symbols-outlined pi-card-placeholder">extension</span>
+                                        <x-icon class="pi-card-placeholder" name="extension"></x-icon>
                                     </template>
                                 </div>
 
@@ -95,7 +97,7 @@
                                     </div>
 
                                     <span class="pi-card-stars">
-                                        <span class="material-symbols-outlined">star</span>
+                                        <x-icon name="star"></x-icon>
                                         <span x-text="plugin.stars || 0"></span>
                                     </span>
 
@@ -116,7 +118,7 @@
                                 <div class="pi-card-bubbles pi-card-bubbles-tags">
                                     <template x-if="$store.pluginInstallStore.getBrowsePrimaryTag(plugin)">
                                         <span class="pi-card-bubble pi-card-bubble-tag">
-                                            <span class="material-symbols-outlined">sell</span>
+                                            <x-icon name="sell"></x-icon>
                                             <span class="pi-card-bubble-text"
                                                 x-text="$store.pluginInstallStore.getBrowsePrimaryTag(plugin)"></span>
                                         </span>
@@ -124,16 +126,28 @@
                                 </div>
 
                                 <div class="pi-card-bubbles pi-card-bubbles-status">
+                                    <template x-if="plugin.suspended">
+                                        <span class="pi-card-bubble pi-card-bubble-suspended">
+                                            <x-icon name="priority_high"></x-icon>
+                                            <span class="pi-card-bubble-text">Suspended</span>
+                                        </span>
+                                    </template>
                                     <template x-if="plugin.installed">
                                         <span class="pi-card-bubble pi-card-bubble-installed">
-                                            <span class="material-symbols-outlined">check_circle</span>
+                                            <x-icon name="check_circle"></x-icon>
                                             <span class="pi-card-bubble-text">Installed</span>
                                         </span>
                                     </template>
                                     <template x-if="plugin.has_update">
                                         <span class="pi-card-bubble pi-card-bubble-update">
-                                            <span class="material-symbols-outlined">update</span>
+                                            <x-icon name="update"></x-icon>
                                             <span class="pi-card-bubble-text">New version</span>
+                                        </span>
+                                    </template>
+                                    <template x-if="$store.pluginInstallStore.isNewPlugin(plugin)">
+                                        <span class="pi-card-bubble pi-card-bubble-new">
+                                            <x-icon name="new_releases"></x-icon>
+                                            <span class="pi-card-bubble-text">New</span>
                                         </span>
                                     </template>
                                 </div>
@@ -145,7 +159,7 @@
 
                 <div x-show="$store.pluginInstallStore.index && !$store.pluginInstallStore.loading && $store.pluginInstallStore.filteredPlugins.length === 0"
                     class="pi-state-card pi-state-empty">
-                    <span class="material-symbols-outlined">search_off</span>
+                    <x-icon name="search_off"></x-icon>
                     <div>
                         <div class="pi-state-title">No plugins match this view</div>
                         <div class="pi-state-text">
@@ -158,7 +172,7 @@
                     <button class="button"
                         :disabled="$store.pluginInstallStore.page <= 1"
                         @click="$store.pluginInstallStore.setPage($store.pluginInstallStore.page - 1)">
-                        <span class="material-symbols-outlined">chevron_left</span>
+                        <x-icon name="chevron_left"></x-icon>
                     </button>
                     <span class="pi-page-info"
                         x-text="'Page ' + $store.pluginInstallStore.page + ' of ' + $store.pluginInstallStore.totalPages">
@@ -166,7 +180,7 @@
                     <button class="button"
                         :disabled="$store.pluginInstallStore.page >= $store.pluginInstallStore.totalPages"
                         @click="$store.pluginInstallStore.setPage($store.pluginInstallStore.page + 1)">
-                        <span class="material-symbols-outlined">chevron_right</span>
+                        <x-icon name="chevron_right"></x-icon>
                     </button>
                 </div>
             </div>
@@ -357,6 +371,23 @@
             color: #bfdbfe;
         }
 
+        .pi-filter-chip-new {
+            border-color: rgba(34, 197, 94, 0.22);
+            color: #86efac;
+        }
+
+        .pi-filter-chip-new:hover,
+        .pi-filter-chip-new.active {
+            border-color: rgba(34, 197, 94, 0.4);
+            background: rgba(34, 197, 94, 0.14);
+            color: #bbf7d0;
+        }
+
+        .pi-filter-chip-new .pi-filter-count {
+            background: rgba(34, 197, 94, 0.16);
+            color: #bbf7d0;
+        }
+
         body.light-mode .pi-filter-chip-update {
             border-color: rgba(37, 99, 235, 0.35);
             background: rgba(37, 99, 235, 0.08);
@@ -373,6 +404,24 @@
         body.light-mode .pi-filter-chip-update .pi-filter-count {
             background: rgba(37, 99, 235, 0.18);
             color: #1e3a8a;
+        }
+
+        body.light-mode .pi-filter-chip-new {
+            border-color: rgba(22, 163, 74, 0.35);
+            background: rgba(22, 163, 74, 0.08);
+            color: #166534;
+        }
+
+        body.light-mode .pi-filter-chip-new:hover,
+        body.light-mode .pi-filter-chip-new.active {
+            border-color: rgba(21, 128, 61, 0.5);
+            background: rgba(22, 163, 74, 0.14);
+            color: #14532d;
+        }
+
+        body.light-mode .pi-filter-chip-new .pi-filter-count {
+            background: rgba(22, 163, 74, 0.16);
+            color: #14532d;
         }
 
         .pi-filter-count {
@@ -641,6 +690,32 @@
             border-color: rgba(59, 130, 246, 0.3);
         }
 
+        .pi-card-bubble-new .material-symbols-outlined {
+            color: #4ade80;
+        }
+
+        .pi-card-bubble-new .pi-card-bubble-text {
+            color: #4ade80;
+        }
+
+        .pi-card-bubble-new:hover {
+            background: rgba(34, 197, 94, 0.1);
+            border-color: rgba(34, 197, 94, 0.3);
+        }
+
+        .pi-card-bubble-suspended .material-symbols-outlined {
+            color: #f59e0b;
+        }
+
+        .pi-card-bubble-suspended .pi-card-bubble-text {
+            color: #f59e0b;
+        }
+
+        .pi-card-bubble-suspended:hover {
+            background: rgba(245, 158, 11, 0.12);
+            border-color: rgba(245, 158, 11, 0.35);
+        }
+
         body.light-mode .pi-card-bubble-installed .material-symbols-outlined,
         body.light-mode .pi-card-bubble-installed .pi-card-bubble-text {
             color: #166534;
@@ -659,6 +734,26 @@
         body.light-mode .pi-card-bubble-update:hover {
             background: rgba(59, 130, 246, 0.1);
             border-color: rgba(59, 130, 246, 0.35);
+        }
+
+        body.light-mode .pi-card-bubble-new .material-symbols-outlined,
+        body.light-mode .pi-card-bubble-new .pi-card-bubble-text {
+            color: #166534;
+        }
+
+        body.light-mode .pi-card-bubble-new:hover {
+            background: rgba(34, 197, 94, 0.12);
+            border-color: rgba(34, 197, 94, 0.35);
+        }
+
+        body.light-mode .pi-card-bubble-suspended .material-symbols-outlined,
+        body.light-mode .pi-card-bubble-suspended .pi-card-bubble-text {
+            color: #b45309;
+        }
+
+        body.light-mode .pi-card-bubble-suspended:hover {
+            background: rgba(245, 158, 11, 0.16);
+            border-color: rgba(217, 119, 6, 0.35);
         }
 
         .pi-pagination {

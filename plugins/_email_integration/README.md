@@ -22,9 +22,11 @@ It supports both:
 - **Dispatcher workflow**
   - Reuses or creates a background `Email Dispatcher` context.
   - Uses model prompts to decide whether an email belongs to an existing chat or should open a new one.
+  - Supports handler-level model presets for new chats, in addition to the dispatcher's utility/chat routing mode.
 - **Thread routing**
   - Can continue an existing chat by thread ID found in the email subject.
   - Falls back to model-based dispatch if no direct thread match is available.
+  - Email replies inside an existing Agent Zero thread can use `/project`, `/config`, and `/send` control commands.
 - **Notifications and persistence**
   - Saves chats after routing and emits notifications about new or continued conversations.
 

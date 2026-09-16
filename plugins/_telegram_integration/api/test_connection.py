@@ -12,9 +12,9 @@ class TestConnection(ApiHandler):
 
         if not token:
             results.append({
-                "test": "Token",
+                "test": "Bot token",
                 "ok": False,
-                "message": "No bot token provided",
+                "message": "Add your bot token first.",
             })
             return {"success": False, "results": results}
 
@@ -23,15 +23,15 @@ class TestConnection(ApiHandler):
             from plugins._telegram_integration.helpers.bot_manager import test_token
             ok, message = await test_token(token)
             results.append({
-                "test": "Bot Token",
+                "test": "Telegram bot",
                 "ok": ok,
-                "message": message,
+                "message": "Telegram accepted the bot token." if ok else message,
             })
         except Exception as e:
             results.append({
-                "test": "Bot Token",
+                "test": "Telegram bot",
                 "ok": False,
-                "message": format_error(e),
+                "message": f"Could not validate the bot token: {format_error(e)}",
             })
 
         return {"success": all(r["ok"] for r in results), "results": results}

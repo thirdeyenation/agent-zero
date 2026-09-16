@@ -21,9 +21,10 @@ Related skills: `/a0/skills/a0-review-plugin/SKILL.md` | `/a0/skills/a0-contribu
 
 Primary references:
 - /a0/AGENTS.md (Full-stack architecture & AgentContext)
-- /a0/docs/agents/AGENTS.components.md (Component system deep dive)
-- /a0/docs/agents/AGENTS.modals.md (Modal system & CSS conventions)
-- /a0/docs/agents/AGENTS.plugins.md (Extension points, plugin.yaml, settings system, Plugin Index)
+- /a0/plugins/AGENTS.md (Plugin contract, plugin.yaml, settings, banners, extension contracts, Plugin Index)
+- /a0/webui/components/AGENTS.md (Component system and modal component conventions)
+- /a0/webui/js/AGENTS.md (Modal stack, API helpers, extension loader)
+- /a0/webui/css/AGENTS.md (Modal CSS and shared visual primitives)
 - /a0/docs/developer/plugins.md (Developer lifecycle and publishing)
 
 ---
@@ -176,6 +177,33 @@ save_plugin_config(
 )
 ```
 
+### Configuration Hook Caller Context
+
+Use caller context only when the same settings need different behavior for a
+known origin. An unlabeled call remains compatible and uses `"api"`; a
+plugin-controlled runtime path can opt in explicitly:
+
+```python
+settings = get_plugin_config("my-plugin", agent=agent, caller="agent") or {}
+```
+
+Its `hooks.py` receives `hook_context={"caller": ...}`. For example, a plugin
+can redact a stored credential for a UI-specific path while preserving its
+normal runtime configuration:
+
+```python
+def get_plugin_config(default=None, hook_context=None, **kwargs):
+    caller = (hook_context or {}).get("caller", "api")
+    return redact_for_display(default) if caller == "ui" else default
+```
+
+The available values are `"ui"`, `"agent"`, and `"api"`. Existing hooks do
+not need to change: the framework safely ignores this new argument for hooks
+that do not accept it. This is behavior metadata, never authorization; do not
+use it to grant or deny access to secrets or other protected data. A
+`config.html` alone does not set the caller; its backend load/save path must
+pass it explicitly.
+
 ---
 
 ## Directory Layout
@@ -282,6 +310,7 @@ If your plugin needs framework-internal hook points, add a `hooks.py` file at th
 - Current built-in usage:
   - the plugin installer calls `install()` in `hooks.py` after placing a plugin in `usr/plugins/`
   - the plugin updater calls `pre_update()` in `hooks.py` immediately before pulling new plugin code into place
+  - the plugin uninstaller calls `uninstall()` in `hooks.py` before deleting the plugin directory — use this to clean up any dependencies or state created by `install()`
 - Hook functions may be sync or async.
 - Hooks should be reversible and cleanup-safe. Prefer framework-managed state and plugin-owned paths over permanent system modifications.
 

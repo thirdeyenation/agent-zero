@@ -11,11 +11,13 @@ This plugin builds a structured scanning prompt from a selectable checklist, run
 - **Prompt-driven scan**
   - Loads scan checks and a markdown prompt template from the plugin's `webui/` assets.
 - **Temporary scan context**
-  - Creates a temporary chat context, sends the generated prompt as a user message, waits for the model result, and then removes the chat.
+  - Creates a temporary chat context, logs the generated prompt into it, starts the agent immediately, and waits for the model result.
+- **Parallel-friendly execution**
+  - Each scan runs in its own chat context; the plugin does not serialize scans behind a "wait for another scan" queue.
 - **Selectable checks**
   - Supports scanning all checks by default or only the subset selected by the caller.
 - **UI integration**
-  - Includes API endpoints and web UI files for queueing, starting, and running scans.
+  - Includes API endpoints and web UI files for logging the prompt, starting the scan, and running scans synchronously.
 
 ## Key Files
 
@@ -24,8 +26,8 @@ This plugin builds a structured scanning prompt from a selectable checklist, run
 - **Prompt builder**
   - `helpers/prompt.py` loads check definitions and renders the final scan prompt.
 - **Additional APIs**
-  - `api/plugin_scan_queue.py`
-  - `api/plugin_scan_start.py`
+  - `api/plugin_scan_queue.py` logs the prompt into the temporary chat.
+  - `api/plugin_scan_start.py` starts the agent in that chat.
 
 ## Configuration Scope
 

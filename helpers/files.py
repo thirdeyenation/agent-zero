@@ -291,15 +291,22 @@ def is_probably_binary_file(
 
 
 def replace_placeholders_text(_content: str, **kwargs):
+    # Fast path: Early return if no template placeholders exist to avoid expensive looping.
+    if "{{" not in _content:
+        return _content
     # Replace placeholders with values from kwargs
     for key, value in kwargs.items():
         placeholder = "{{" + key + "}}"
-        strval = str(value)
-        _content = _content.replace(placeholder, strval)
+        if placeholder in _content:
+            strval = str(value)
+            _content = _content.replace(placeholder, strval)
     return _content
 
 
 def replace_placeholders_json(_content: str, **kwargs):
+    # Fast path: Early return if no template placeholders exist to avoid expensive looping.
+    if "{{" not in _content:
+        return _content
     # Replace placeholders with values from kwargs
     for key, value in kwargs.items():
         placeholder = "{{" + key + "}}"
@@ -439,6 +446,17 @@ def find_existing_paths_by_pattern(pattern: str):
 
 
 def remove_code_fences(text):
+def remove_code_fences(text, language: str | None = None):
+    if language:
+        pattern = (
+            rf"(?ims)^[ \t]*(```|~~~)[ \t]*{re.escape(language)}[ \t]*\r?\n"
+            r"(.*?)^[ \t]*\1[ \t]*\r?$"
+        )
+        return re.sub(pattern, lambda match: match.group(2), text)
+
+    # Pattern to match code fences with optional language specifier
+    pattern = r"(```|~~~)(.*?\n)(.*?)(\1)"
+
     # Function to replace the code fences
     def replacer(match):
         return match.group(3)  # Return the code without fences

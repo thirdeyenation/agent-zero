@@ -1,17 +1,34 @@
 # Self Update
 
+## Using Self Update in the Web UI
+
+For day-to-day upgrades inside a running instance:
+
+1. Open **Settings UI → Update** tab
+2. Open **Self Update**
+3. Wait for the update checker to see if you have the latest version or if there's an available update.
+
+The UI will tell you when a new A0 update is available for download. Backups are automatically managed internally during the update process.
+
+![Self Update modal showing the current v2.0 state](../res/usage/updating/self-update-v2-current.png)
+
+---
+
+## Technical reference
+
 Agent Zero includes a Docker-oriented self-update flow for switching to a specific repository version tag on `main`, `testing`, or `development`.
 
 ## How it works
 
-1. The WebUI writes a YAML request file outside `/a0` so the request survives upgrades and downgrades.
+1. The Web UI writes a YAML request file outside `/a0` so the request survives upgrades and downgrades.
 2. Agent Zero restarts.
 3. The durable updater in `/exe` reads the YAML request before starting the UI.
-4. If requested, it creates a zip backup of `/a0/usr`.
-5. It fetches the requested branch and update target from the official Agent Zero repository.
-6. It updates `/a0` while preserving gitignored paths such as `/a0/usr`.
-7. It starts Agent Zero again and waits for `/api/health` to become healthy.
-8. If the UI does not become healthy within the allowed time, it restores the previous checkout and starts that version again.
+4. It cleans the root `uv` cache when `uv` is available.
+5. If requested, it creates a zip backup of `/a0/usr`.
+6. It fetches the requested branch and update target from the official Agent Zero repository.
+7. It updates `/a0` while preserving gitignored paths such as `/a0/usr`.
+8. It starts Agent Zero again and waits for `/api/health` to become healthy.
+9. If the UI does not become healthy within the allowed time, it restores the previous checkout and starts that version again.
 
 ## Durable files
 
@@ -25,15 +42,12 @@ Because these files live in `/exe`, you can recover from an older downgraded `/a
 
 ## Backup behavior
 
-The updater can create a zip backup of `/a0/usr` before replacing repository files.
+The updater automatically creates a backup of `a0/usr`.
 
-- The default backup directory is `/root/update-backups`
-- The default file name format is `usr-YYYYMMDD-HHMMSS.zip`
-- Conflict handling supports rename, overwrite, or fail-before-restart
 
 ## Version selection
 
-The WebUI preloads repository version choices for the selected branch into a standard selector.
+The Web UI preloads repository version choices for the selected branch into a standard selector.
 
 Only versions from the current major release line are listed in the selector. If newer major lines are available on the selected branch, the UI shows an attention banner that links to the Docker update guide.
 
@@ -58,6 +72,24 @@ Tags below `v1.0` are ignored by the selector and rejected by the self-update re
 Self-update is intentionally limited to changes within the same major line.
 
 If a newer major line exists, the UI points you to the Docker setup guide because those upgrades require downloading a new Docker image. They can include operating system level changes or other breaking changes outside the repository checkout.
+
+## v1.20 to v2.0
+
+Use the Docker image update path for v1.20 -> v2.0. Self Update can show that a
+newer major release line exists, but it intentionally keeps the version selector
+inside the current major line.
+
+![Self Update warning for a newer major release line](../res/usage/updating/self-update-v1-to-v2-warning.png)
+
+The important part is moving a backup zip into a fresh v2.0 container:
+
+1. In the old v1.20 Web UI, create a backup from **Settings -> Check for Updates -> Backup & Restore -> Create Backup**.
+2. Pull `agent0ai/agent-zero:latest` in Docker Desktop or Docker CLI. For the v2.0 release, `latest` is the v2.0 image.
+3. Start a new container from that image, or use the **latest** card in **Agent Zero Launcher**.
+4. Restore the downloaded backup zip into the new v2.0 Instance.
+5. Verify the new Instance before deleting the old v1.20 container.
+
+For command examples, see [Updating from v1.20 to v2.0](../setup/installation.md#updating-from-v120-to-v20).
 
 ## Safety notes
 

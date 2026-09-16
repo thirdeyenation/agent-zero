@@ -1,11 +1,10 @@
 from abc import abstractmethod
 import json
-import socket
-import struct
 import threading
+from urllib.parse import urlsplit, unquote
 from functools import wraps
 from pathlib import Path
-from typing import Union, TypedDict, Dict, Any
+from typing import Union, Dict, Any
 from flask import (
     Request,
     Response,
@@ -17,9 +16,8 @@ from flask import (
     redirect,
     url_for,
 )
+import secrets
 from werkzeug.wrappers.response import Response as BaseResponse
-from agent import AgentContext
-from initialize import initialize_agent
 from helpers.print_style import PrintStyle
 from helpers.errors import format_error
 from helpers import files, cache
@@ -27,10 +25,10 @@ from helpers import files, cache
 ThreadLockType = Union[threading.Lock, threading.RLock]
 
 CACHE_AREA = "api_handlers(api)"
-cache.toggle_area(CACHE_AREA, False)  # cache off for now
+# cache.toggle_area(CACHE_AREA, False)  # cache off for now
 
 Input = dict
-Output = Union[Dict[str, Any], Response, TypedDict]  # type: ignore
+Output = Union[Dict[str, Any], Response]
 
 
 class ApiHandler:
@@ -99,59 +97,49 @@ class ApiHandler:
 
     # get context to run agent zero in
     def use_context(self, ctxid: str, create_if_not_exists: bool = True):
-        with self.thread_lock:
-            if not ctxid:
-                first = AgentContext.first()
-                if first:
-                    AgentContext.use(first.id)
-                    return first
-                context = AgentContext(config=initialize_agent(), set_current=True)
-                return context
-            got = AgentContext.use(ctxid)
-            if got:
-                return got
-            if create_if_not_exists:
-                context = AgentContext(
-                    config=initialize_agent(), id=ctxid, set_current=True
-                )
-                return context
-            else:
-                raise Exception(f"Context {ctxid} not found")
+        from helpers.context_utils import use_context as _use_context
+        return _use_context(self.thread_lock, ctxid, create_if_not_exists)
 
 
-def is_loopback_address(address: str) -> bool:
-    loopback_checker = {
-        socket.AF_INET: lambda x: (
-            struct.unpack("!I", socket.inet_aton(x))[0] >> (32 - 8)
-        )
-        == 127,
-        socket.AF_INET6: lambda x: x == "::1",
-    }
-    address_type = "hostname"
-    try:
-        socket.inet_pton(socket.AF_INET6, address)
-        address_type = "ipv6"
-    except socket.error:
-        try:
-            socket.inet_pton(socket.AF_INET, address)
-            address_type = "ipv4"
-        except socket.error:
-            address_type = "hostname"
+from helpers.network import is_loopback_address
 
-    if address_type == "ipv4":
-        return loopback_checker[socket.AF_INET](address)
-    elif address_type == "ipv6":
-        return loopback_checker[socket.AF_INET6](address)
-    else:
-        for family in (socket.AF_INET, socket.AF_INET6):
-            try:
-                r = socket.getaddrinfo(address, None, family, socket.SOCK_STREAM)
-            except socket.gaierror:
-                return False
-            for family, _, _, _, sockaddr in r:
-                if not loopback_checker[family](sockaddr[0]):
-                    return False
-        return True
+
+def is_safe_next_url(value: str | None) -> bool:
+    """Return True when value is a safe same-origin redirect target."""
+    if not value:
+        return False
+    if "\r" in value or "\n" in value:
+        return False
+    # Reject raw backslashes (browsers normalize `/\host` to `//host` -> external).
+    if "\\" in value:
+        return False
+
+    # Decode percent-escapes so encoded backslashes (e.g. `%5C`) are caught too.
+    decoded = unquote(value)
+    if "\\" in decoded:
+        return False
+
+    parsed = urlsplit(decoded)
+    if parsed.scheme or parsed.netloc:
+        return False
+
+    # Require an absolute path within this origin, but reject protocol-relative URLs.
+    return parsed.path.startswith("/") and not parsed.path.startswith("//")
+
+
+def get_safe_next_url(value: str | None, fallback: str | None = None) -> str | None:
+    """Return value if it is a safe next URL, otherwise return a safe fallback."""
+    if is_safe_next_url(value):
+        return value
+    if is_safe_next_url(fallback):
+        return fallback
+    return None
+
+
+def get_current_request_next_url() -> str:
+    """Return the current request path/query as a safe relative redirect target."""
+    next_url = request.full_path if request.query_string else request.path
+    return get_safe_next_url(next_url, url_for("serve_index")) or url_for("serve_index")
 
 
 def requires_api_key(f):
@@ -193,8 +181,10 @@ def requires_auth(f):
         user_pass_hash = login.get_credentials_hash()
         if not user_pass_hash:
             return await f(*args, **kwargs)
-        if session.get("authentication") != user_pass_hash:
+        if not secrets.compare_digest(str(session.get("authentication") or ""), str(user_pass_hash or "")):
             return redirect(url_for("login_handler"))
+        if session.get("authentication") != user_pass_hash:
+            return redirect(url_for("login_handler", next=get_current_request_next_url()))
         return await f(*args, **kwargs)
 
     return decorated
@@ -209,7 +199,7 @@ def csrf_protect(f):
         header = request.headers.get("X-CSRF-Token")
         cookie = request.cookies.get("csrf_token_" + runtime.get_runtime_id())
         sent = header or cookie
-        if not token or not sent or token != sent:
+        if not token or not sent or not secrets.compare_digest(str(token or ""), str(sent or "")):
             return Response("CSRF token missing or invalid", 403)
         return await f(*args, **kwargs)
 
@@ -287,10 +277,13 @@ def register_api_route(app: Flask, lock: ThreadLockType) -> None:
 
 def register_watchdogs():
     from helpers import watchdog
+    from helpers.ws import CACHE_AREA as WS_CACHE_AREA
+
 
     def on_api_change(items: list[watchdog.WatchItem]):
         PrintStyle.debug("API endpoint watchdog triggered:", items)
         cache.clear(CACHE_AREA)
+        cache.clear(WS_CACHE_AREA)
 
     watchdog.add_watchdog(
         "api_handlers",

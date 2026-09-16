@@ -2,6 +2,7 @@ import base64
 from io import BytesIO
 import mimetypes
 import os
+from pathlib import Path
 
 from flask import Response
 from helpers.api import ApiHandler, Input, Output, Request
@@ -85,6 +86,24 @@ def make_disposition(download_name: str) -> str:
     return f'attachment; filename="{ascii_fallback}"; filename*=UTF-8\'\'{utf8_name}'
 
 
+def resolve_download_path(path: str) -> str:
+    """Resolve a requested download path from the File Browser root."""
+    base_dir = Path("/")
+    candidate = Path(path)
+
+    if candidate.is_absolute():
+        resolved = candidate.resolve()
+    else:
+        resolved = (base_dir / candidate).resolve()
+
+    try:
+        resolved.relative_to(base_dir)
+    except ValueError as exc:
+        raise ValueError("Invalid file path") from exc
+
+    return str(resolved)
+
+
 class DownloadFile(ApiHandler):
 
     @classmethod
@@ -98,6 +117,13 @@ class DownloadFile(ApiHandler):
         if not file_path.startswith("/"):
             file_path = f"/{file_path}"
 
+        try:
+            file_path = await runtime.call_development_function(
+                resolve_download_path, file_path
+            )
+        except ValueError as exc:
+            return Response(str(exc), status=400)
+
         file = await runtime.call_development_function(
             file_info.get_file_info, file_path
         )
@@ -107,17 +133,19 @@ class DownloadFile(ApiHandler):
 
         if file["is_dir"]:
             zip_file = await runtime.call_development_function(files.zip_dir, file["abs_path"])
+            directory_name = os.path.basename(file_path.rstrip("/")) or "directory"
+            download_name = f"{directory_name}.zip"
             if runtime.is_development():
                 b64 = await runtime.call_development_function(fetch_file, zip_file)
                 file_data = BytesIO(base64.b64decode(b64))
                 return stream_file_download(
                     file_data,
-                    download_name=os.path.basename(zip_file)
+                    download_name=download_name
                 )
             else:
                 return stream_file_download(
                     zip_file,
-                    download_name=f"{os.path.basename(file_path)}.zip"
+                    download_name=download_name
                 )
         elif file["is_file"]:
             if runtime.is_development():
