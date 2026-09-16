@@ -96,18 +96,19 @@ def cleanup_playwright_cache() -> dict:
 
 
 def _best_playwright_cache(candidates: list[Path]) -> Path | None:
-    valid = [path for path in candidates if path.is_dir() and find_playwright_binary(path)]
+    # Optimization: Cache `find_playwright_binary` result with the walrus operator to prevent redundant filesystem globbing
+    valid = [(path, binary) for path in candidates if path.is_dir() and (binary := find_playwright_binary(path))]
     if not valid:
         return None
 
-    def modified_at(path: Path) -> float:
-        binary = find_playwright_binary(path)
+    def modified_at(item: tuple[Path, Path]) -> float:
+        path, binary = item
         try:
             return binary.stat().st_mtime if binary else path.stat().st_mtime
         except OSError:
             return 0
 
-    return max(valid, key=modified_at)
+    return max(valid, key=modified_at)[0]
 
 
 def _next_backup_path(path: Path) -> Path:
