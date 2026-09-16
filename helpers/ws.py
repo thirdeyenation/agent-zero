@@ -1,5 +1,6 @@
 import os
 import threading
+import secrets
 import uuid
 from abc import abstractmethod
 from dataclasses import dataclass
@@ -13,6 +14,7 @@ from flask import Flask, session, request
 from helpers import files, cache
 from helpers.print_style import PrintStyle
 from helpers.errors import format_error
+from helpers.tunnel_origins import get_active_tunnel_origins, origin_key
 
 if TYPE_CHECKING:
     from helpers.ws_manager import WsManager
@@ -146,6 +148,11 @@ def validate_ws_origin(environ: dict[str, Any]) -> tuple[bool, str | None]:
 
     for host, port in candidates:
         if origin_host == host and origin_port == port:
+            return True, None
+
+    request_origin_key = (origin_parsed.scheme, origin_host, int(origin_port))
+    for active_origin in get_active_tunnel_origins():
+        if origin_key(active_origin) == request_origin_key:
             return True, None
 
     if origin_host not in {host for host, _ in candidates}:
@@ -394,21 +401,21 @@ def _check_security(handler_cls: type[WsHandler], ctx: _SecurityContext) -> dict
     if handler_cls.requires_auth():
         from helpers import login
         user_pass_hash = login.get_credentials_hash()
-        if user_pass_hash and ctx.auth_hash != user_pass_hash:
+        if user_pass_hash and not secrets.compare_digest(str(ctx.auth_hash or ""), str(user_pass_hash or "")):
             return {"code": "AUTH_REQUIRED", "error": "Authentication required"}
 
     if handler_cls.requires_csrf():
         if not ctx.csrf_token:
             return {"code": "CSRF_MISSING", "error": "CSRF token not initialised"}
-        if not ctx.client_csrf_token or ctx.client_csrf_token != ctx.csrf_token:
+        if not ctx.client_csrf_token or not secrets.compare_digest(str(ctx.client_csrf_token or ""), str(ctx.csrf_token or "")):
             return {"code": "CSRF_INVALID", "error": "CSRF token missing or invalid"}
-        if ctx.csrf_cookie != ctx.csrf_token:
+        if not secrets.compare_digest(str(ctx.csrf_cookie or ""), str(ctx.csrf_token or "")):
             return {"code": "CSRF_COOKIE", "error": "CSRF cookie mismatch"}
 
     if handler_cls.requires_api_key():
         from helpers.settings import get_settings
         valid_key = get_settings().get("mcp_server_token")
-        if not ctx.api_key or ctx.api_key != valid_key:
+        if not ctx.api_key or not secrets.compare_digest(str(ctx.api_key or ""), str(valid_key or "")):
             return {"code": "API_KEY_REQUIRED", "error": "API key required"}
 
     return None
@@ -535,7 +542,7 @@ def register_ws_namespace(
         return True
 
     @socketio_server.on("disconnect", namespace=NAMESPACE)  # type: ignore
-    async def _on_disconnect(sid):
+    async def _on_disconnect(sid, reason=None):
         with _contexts_lock:
             activated = _active_handlers.pop(sid, {})
             _ws_contexts.pop(sid, None)

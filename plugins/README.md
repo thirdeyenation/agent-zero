@@ -11,7 +11,7 @@ This directory contains the system-level plugins bundled with Agent Zero.
 
 For detailed guides on how to create, extend, or configure plugins, refer to:
 
-- [`docs/agents/AGENTS.plugins.md`](../docs/agents/AGENTS.plugins.md): Full-stack plugin architecture, manifest format, extension points, and Plugin Index submission.
+- [`plugins/AGENTS.md`](AGENTS.md): Bundled and custom plugin architecture, manifest format, extension points, banners, and Plugin Index submission rules.
 - [`docs/developer/plugins.md`](../docs/developer/plugins.md): Human-facing developer guide covering the full plugin lifecycle.
 - [`AGENTS.md`](../AGENTS.md): Main framework guide and backend context.
 - [`skills/a0-plugin-router/SKILL.md`](../skills/a0-plugin-router/SKILL.md): Agent-facing entry point that routes plugin tasks to the appropriate specialist skill.
@@ -69,6 +69,29 @@ Plugins can also include an optional `hooks.py` at the plugin root. The framewor
 - If you need to install into the separate agent runtime or into the system environment, explicitly target that environment from a subprocess by selecting the correct interpreter, virtualenv, or package manager.
 
 In Docker, `hooks.py` normally affects `/opt/venv-a0`; the agent execution runtime is `/opt/venv`.
+
+### Configuration Hook Context
+
+Configuration hooks can distinguish why settings are being read or saved. Pass
+`caller="ui"` or `caller="agent"` to `get_plugin_config(...)` or
+`save_plugin_config(...)`; calls without it keep the compatible default,
+`"api"`.
+
+The hook receives this as `hook_context={"caller": ...}`:
+
+```python
+def get_plugin_config(default=None, hook_context=None, **kwargs):
+    caller = (hook_context or {}).get("caller", "api")
+    if caller == "ui":
+        return redact_for_display(default)
+    return default
+```
+
+Existing hooks need no change: hooks that ignore `hook_context`, including
+strict signatures without `**kwargs`, retain their previous behavior. Use the
+context only for behavior selection in plugin-controlled flows; it is not an
+authorization boundary. A `config.html` alone does not set the caller; the
+backend code loading or saving that configuration must pass it explicitly.
 
 ## Plugin Index & Community Sharing
 

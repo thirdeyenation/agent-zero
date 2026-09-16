@@ -1,14 +1,9 @@
 import * as API from "/js/api.js";
-import { store as settingsStore } from "/components/settings/settings-store.js";
+import { store as markdownModalStore } from "/components/modals/markdown/markdown-store.js";
 import { store as chatsStore } from "/components/sidebar/chats/chats-store.js";
-import { store as projectsStore } from "/components/projects/projects-store.js";
-import {
-  toastFrontendError,
-  toastFrontendInfo,
-} from "/components/notifications/notification-store.js";
+import { toastFrontendError } from "/components/notifications/notification-store.js";
 
 const CATALOG_API = "/plugins/_skills/skills_catalog";
-const MAX_ACTIVE_SKILLS_FALLBACK = 5;
 
 function normalizeEntry(entry) {
   if (!entry) return null;
@@ -35,59 +30,66 @@ function entryKey(entry) {
   return String(entry.path || entry.name || "").trim().toLowerCase();
 }
 
+function entryKeys(entry) {
+  return [entry?.path, entry?.name]
+    .map((value) => String(value || "").trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function entriesMatch(left, right) {
+  const rightKeys = new Set(entryKeys(right));
+  if (rightKeys.size === 0) return false;
+  return entryKeys(left).some((key) => rightKeys.has(key));
+}
+
 function ensureConfig(config) {
   if (!config || typeof config !== "object") return;
-  const activeSkills = Array.isArray(config.active_skills) ? config.active_skills : [];
+  const hiddenSkills = Array.isArray(config.hidden_skills) ? config.hidden_skills : [];
+
+  config.hidden_skills = compactEntries(hiddenSkills);
+}
+
+function compactEntries(entries, limit = null) {
   const normalized = [];
   const seen = new Set();
 
-  for (const item of activeSkills) {
+  for (const item of entries || []) {
     const entry = normalizeEntry(item);
     const key = entryKey(entry);
     if (!entry || !key || seen.has(key)) continue;
     seen.add(key);
-    normalized.push(entry);
+    normalized.push({
+      ...(entry.name ? { name: entry.name } : {}),
+      ...(entry.path ? { path: entry.path } : {}),
+    });
+    if (limit !== null && normalized.length >= limit) break;
   }
 
-  config.active_skills = normalized;
+  return normalized;
 }
 
 window.createSkillsConfigModel = (context, config) => ({
   loadingCatalog: false,
+  mutatingChat: false,
   catalog: [],
   search: "",
-  maxActiveSkills: MAX_ACTIVE_SKILLS_FALLBACK,
+  selectedSkills: [],
+  hiddenSkills: [],
+  chatContextAvailable: false,
 
   initDefaults() {
     ensureConfig(config);
+    this.selectedSkills = [];
+    this.hiddenSkills = [...this.hiddenEntries];
   },
 
-  get activeEntries() {
+  get isChatMode() {
+    return context?.openOptions?.focus === "chat";
+  },
+
+  get hiddenEntries() {
     ensureConfig(config);
-    return config.active_skills;
-  },
-
-  get selectedCount() {
-    return this.activeEntries.length;
-  },
-
-  get selectedCountLabel() {
-    return `${this.selectedCount} / ${this.maxActiveSkills}`;
-  },
-
-  get limitDescription() {
-    return `Max in extras: ${this.maxActiveSkills}`;
-  },
-
-  get activeProject() {
-    return chatsStore.selectedContext?.project || null;
-  },
-
-  get scopeSummary() {
-    if (context.projectName) {
-      return `Project: ${context.projectLabel(context.projectName)}`;
-    }
-    return "Project: Global";
+    return config.hidden_skills;
   },
 
   get catalogMap() {
@@ -123,12 +125,45 @@ window.createSkillsConfigModel = (context, config) => ({
     return entryKey(entry);
   },
 
-  isSelected(skill) {
-    return this.activeEntries.some((entry) => entryKey(entry) === entryKey(skill));
+  pinnedSubtitle() {
+    return "These skills are loaded into the current chat history.";
   },
 
-  isCheckboxDisabled(skill) {
-    return !this.isSelected(skill) && this.selectedCount >= this.maxActiveSkills;
+  allSkillsSubtitle() {
+    return this.isChatMode
+      ? "Check a skill to load it into this chat. Use the eye control to hide or show it in this chat."
+      : "Check a skill to load it into the current chat. Use the eye control to hide or show it in this scope.";
+  },
+
+  hiddenStateLabel() {
+    return this.isChatMode ? "Hidden in this chat" : "Hidden by default";
+  },
+
+  visibilityButtonTitle(skill) {
+    if (this.isHidden(skill)) {
+      return this.isChatMode ? "Show in this chat" : "Show by default";
+    }
+    return this.isChatMode ? "Hide in this chat" : "Hide by default";
+  },
+
+  visibilityButtonIcon(skill) {
+    return this.isHidden(skill) ? "visibility_off" : "visibility";
+  },
+
+  isHidden(skill) {
+    return this.hiddenSkills.some((entry) => entriesMatch(entry, skill));
+  },
+
+  isSelected(skill) {
+    return this.selectedSkills.some((entry) => entriesMatch(entry, skill));
+  },
+
+  isPinDisabled(skill) {
+    return this.mutatingChat || !this.chatContextAvailable || this.isSelected(skill);
+  },
+
+  isVisibilityDisabled() {
+    return this.mutatingChat || (this.isChatMode && !this.chatContextAvailable);
   },
 
   isEntryMissing(entry) {
@@ -147,11 +182,9 @@ window.createSkillsConfigModel = (context, config) => ({
 
   secondaryLabelForEntry(entry) {
     const skill = this._resolveEntry(entry);
-    if (skill) {
-      return `${skill.origin} | ${skill.path}`;
-    }
-    if (entry?.path) return `Not visible in the current catalog | ${entry.path}`;
-    return "Not visible in the current catalog";
+    if (skill) return `${skill.origin} | ${skill.path}`;
+    if (entry?.path) return `Not visible in the current list | ${entry.path}`;
+    return "Not visible in the current list";
   },
 
   _resolveEntry(entry) {
@@ -163,38 +196,82 @@ window.createSkillsConfigModel = (context, config) => ({
     return name ? this.catalogMap.get(name) || null : null;
   },
 
-  toggleSkill(skill, selected) {
-    ensureConfig(config);
-    const key = entryKey(skill);
-    const nextEntries = this.activeEntries.filter((entry) => entryKey(entry) !== key);
+  _setSelectedSkills(entries) {
+    const normalized = [];
+    const seen = new Set();
 
-    if (selected) {
-      if (this.selectedCount >= this.maxActiveSkills) {
-        void toastFrontendInfo(
-          `You can activate at most ${this.maxActiveSkills} skills in extras.`,
-          "Skills"
-        );
-        return;
-      }
+    for (const entry of entries) {
+      const item = normalizeEntry(entry);
+      const key = entryKey(item);
+      if (!item || !key || seen.has(key)) continue;
+      seen.add(key);
+      normalized.push(item);
+    }
 
+    this.selectedSkills = normalized;
+  },
+
+  _setHiddenSkills(entries, { writeConfig = true } = {}) {
+    const normalized = compactEntries(entries);
+    this.hiddenSkills = normalized;
+    if (writeConfig) {
+      config.hidden_skills = normalized;
+    }
+  },
+
+  async toggleSkillVisibility(skill, selected) {
+    const previous = [...this.hiddenSkills];
+    const nextEntries = this.hiddenSkills.filter((entry) => !entriesMatch(entry, skill));
+
+    if (!selected) {
       nextEntries.push({
         name: String(skill.name || "").trim(),
         path: String(skill.path || "").trim(),
       });
     }
 
-    config.active_skills = nextEntries;
+    this._setHiddenSkills(nextEntries, { writeConfig: !this.isChatMode });
+
+    if (this.isChatMode && this.chatContextAvailable) {
+      const ok = await this.submitChatAction(selected ? "show" : "hide", skill);
+      if (!ok) {
+        this._setHiddenSkills(previous, { writeConfig: false });
+      }
+    }
   },
 
-  removeEntry(entry) {
-    ensureConfig(config);
-    const key = entryKey(entry);
-    config.active_skills = this.activeEntries.filter((item) => entryKey(item) !== key);
+  async toggleVisibility(skill) {
+    await this.toggleSkillVisibility(skill, this.isHidden(skill));
   },
 
-  clearSelections() {
-    ensureConfig(config);
-    config.active_skills = [];
+  async togglePinnedSkill(skill, selected) {
+    if (!selected || this.isSelected(skill)) {
+      await this.loadCatalog();
+      return;
+    }
+
+    if (!this.chatContextAvailable) {
+      await toastFrontendError("Open a chat before loading a skill.", "Skills");
+      await this.loadCatalog();
+      return;
+    }
+
+    await this.submitChatAction("activate", skill);
+  },
+
+  applyCatalogState(response) {
+    this.chatContextAvailable = !!response?.context_available;
+    const activeFromChat = Array.isArray(response?.active_skills) ? response.active_skills : null;
+    const hiddenFromChat = Array.isArray(response?.hidden_skills) ? response.hidden_skills : null;
+    const hiddenFromConfig = this.hiddenEntries;
+
+    this._setSelectedSkills(
+      activeFromChat || [],
+    );
+    this._setHiddenSkills(
+      this.isChatMode ? hiddenFromChat || [] : hiddenFromConfig,
+      { writeConfig: !this.isChatMode },
+    );
   },
 
   async loadCatalog() {
@@ -203,67 +280,85 @@ window.createSkillsConfigModel = (context, config) => ({
       const response = await API.callJsonApi(CATALOG_API, {
         action: "list",
         project_name: context.projectName || "",
+        context_id: chatsStore.selectedContext?.id || "",
       });
 
       if (!response?.ok) {
-        throw new Error(response?.error || "Failed to load skills catalog");
+        throw new Error(response?.error || "Failed to load skills");
       }
 
       this.catalog = Array.isArray(response.skills) ? response.skills : [];
-      this.maxActiveSkills = Number(response.max_active_skills) || MAX_ACTIVE_SKILLS_FALLBACK;
+      this.applyCatalogState(response);
     } catch (error) {
       this.catalog = [];
-      this.maxActiveSkills = MAX_ACTIVE_SKILLS_FALLBACK;
-      await toastFrontendError(error?.message || "Failed to load skills catalog", "Skills");
+      ensureConfig(config);
+      this.chatContextAvailable = false;
+      this._setSelectedSkills([]);
+      this._setHiddenSkills(this.hiddenEntries);
+      await toastFrontendError(error?.message || "Failed to load skills", "Skills");
     } finally {
       this.loadingCatalog = false;
     }
   },
 
-  async navigateAway(callback) {
-    if (context.hasUnsavedChanges && !context.confirmDiscardUnsavedChanges()) {
-      return;
-    }
+  async submitChatAction(action, skill = null) {
+    this.mutatingChat = true;
+    try {
+      const response = await API.callJsonApi(CATALOG_API, {
+        action,
+        context_id: chatsStore.selectedContext?.id || "",
+        project_name: context.projectName || "",
+        ...(skill
+          ? {
+              skill: {
+                name: String(skill.name || "").trim(),
+                path: String(skill.path || "").trim(),
+              },
+            }
+          : {}),
+      });
 
-    await window.closeModal?.();
-    await callback();
+      if (!response?.ok) {
+        throw new Error(response?.error || "Failed to update skills");
+      }
+
+      this.catalog = Array.isArray(response.skills) ? response.skills : this.catalog;
+      this.chatContextAvailable = !!response.context_available;
+      this.applyCatalogState(response);
+      return true;
+    } catch (error) {
+      await toastFrontendError(error?.message || "Failed to update skills", "Skills");
+      return false;
+    } finally {
+      this.mutatingChat = false;
+    }
   },
 
-  async openSettingsSkills() {
-    await this.navigateAway(async () => {
-      await settingsStore.open("skills");
-    });
-  },
+  async openSkill(skill) {
+    try {
+      const response = await API.callJsonApi(CATALOG_API, {
+        action: "get_doc",
+        context_id: chatsStore.selectedContext?.id || "",
+        project_name: context.projectName || "",
+        skill: {
+          name: String(skill?.name || "").trim(),
+          path: String(skill?.path || "").trim(),
+        },
+      });
 
-  async openActiveProjectSkills() {
-    const projectName = this.activeProject?.name;
-    if (!projectName) {
-      await toastFrontendInfo("No active project is selected in the current chat.", "Skills");
-      return;
-    }
+      if (!response?.ok) {
+        throw new Error(response?.error || "Failed to open skill");
+      }
+      if (!markdownModalStore?.open) {
+        throw new Error("Markdown viewer is unavailable");
+      }
 
-    await this.navigateAway(async () => {
-      await projectsStore.openEditModal(projectName);
-      this.scrollProjectSkillsSection();
-    });
-  },
-
-  scrollProjectSkillsSection(attempt = 0) {
-    const headers = Array.from(
-      document.querySelectorAll(".project-detail-header .projects-project-card-title")
-    );
-    const target = headers.find(
-      (header) => header.textContent?.trim().toLowerCase() === "skills"
-    );
-    const section = target?.closest(".project-detail");
-
-    if (section) {
-      section.scrollIntoView({ behavior: "smooth", block: "start" });
-      return;
-    }
-
-    if (attempt < 12) {
-      window.setTimeout(() => this.scrollProjectSkillsSection(attempt + 1), 120);
+      markdownModalStore.open(response.filename || "SKILL.md", response.content || "", {
+        viewer: "ace",
+      });
+      window.openModal?.("components/modals/markdown/markdown-modal.html");
+    } catch (error) {
+      await toastFrontendError(error?.message || "Failed to open skill", "Skills");
     }
   },
 });

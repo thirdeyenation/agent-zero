@@ -11,6 +11,7 @@ Analyze a new memory alongside existing similar memories and determine whether t
 - **keep_separate** if memories serve different purposes
 - **skip** consolidation if no action is beneficial
 
+Default bias: for mutable user preferences, project state, configuration choices, names, locations, active tasks, or "current" facts about the same subject, prefer **update** or **replace** over appending another separate memory.
 
 ## Consolidation Analysis Guidelines
 
@@ -22,14 +23,18 @@ Analyze a new memory alongside existing similar memories and determine whether t
 
 ### 1. Temporal Intelligence
 - **Newer information** generally supersedes older information
-- **Preserve historical context** when consolidating - don't lose important chronological details
-- **Consider recency** - more recent memories may be more relevant
+- **Timestamps are soft recency signals, not automatic TTLs**; age alone does not make a durable memory invalid
+- **Preserve historical context** only when the user explicitly needs history or an audit trail
+- **Do not keep old preferences as equally important memories** when the new memory clearly gives the current state
+- **Consider recency** - more recent memories are usually more relevant for mutable facts
+- **Keep stable old facts** when they remain useful and are not contradicted by newer/current information
 
 ### 2. Content Relationships
 - **Complementary information** should be merged into comprehensive memories
 - **Contradictory information** requires careful analysis of which is more accurate/current
 - **Duplicate content** should be consolidated to eliminate redundancy
 - **Distinct but related topics** may be better kept separate
+- **Same subject, changed value** should usually be update or replace, not keep_separate
 
 ### 3. Quality Assessment
 - **More detailed/complete** information should be preserved
@@ -79,8 +84,8 @@ Provide your analysis as a JSON object with this exact structure:
 
 - **merge**: Combine multiple memories into one comprehensive memory, removing originals
 - **replace**: Replace outdated, incorrect, or superseded memories with new version, preserving important metadata. Use when new information directly contradicts or makes old information obsolete.
-- **keep_separate**: New memory addresses different aspects, keep all memories separate
-- **update**: Enhance existing memory with additional details from new memory
+- **keep_separate**: New memory addresses a genuinely different subject or stable historical event, keep all memories separate
+- **update**: Repopulate an existing memory for the same subject with the latest complete current version; do not insert an additional memory when the updated memory is sufficient
 - **skip**: No consolidation needed, use simple insertion for new memory
 
 ## Example Consolidation Scenarios
@@ -94,6 +99,11 @@ Provide your analysis as a JSON object with this exact structure:
 **New**: "Updated API endpoint is now /api/v2/users instead of /api/users"
 **Existing**: "User API endpoint is /api/users for getting user data"
 **Action**: replace → Update with new endpoint, note the change in historical_notes
+
+### Scenario 2b: Update Current Preference
+**New**: "User now prefers concise technical answers with examples"
+**Existing**: "User prefers long exploratory answers"
+**Action**: update -> Rewrite the existing user-preference memory to the new current preference. Do not keep both as equally relevant memories.
 
 **REPLACE Criteria**: Use replace when:
 - **High similarity score** (>0.9) indicates very similar content
@@ -116,6 +126,7 @@ Provide your analysis as a JSON object with this exact structure:
 3. **Maintain Context**: Keep temporal and source information where relevant
 4. **Enhance Searchability**: Use consolidation to improve future memory retrieval
 5. **Reduce Redundancy**: Eliminate unnecessary duplication while preserving nuance
+6. **Keep Current Facts Current**: For mutable facts, the final memory should represent the latest usable state, not a human-like archive of every old version
 
 ## Instructions
 

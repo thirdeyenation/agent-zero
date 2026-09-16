@@ -339,7 +339,7 @@ export const store = createStore("telegramConfig", {
       showNext: () => this.showFooterNav && !this.isLastStep,
       nextLabel: () => this.nextButtonLabel,
       nextDisabled: () => this.nextDisabled,
-      showSave: () => this.showFooterNav && this.isLastStep,
+      showSave: () => !this.showFooterNav || this.isLastStep,
       onBack: () => this.previousStep(),
       onNext: () => this.nextStep(),
     };

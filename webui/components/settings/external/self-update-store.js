@@ -2,6 +2,7 @@ import { createStore } from "/js/AlpineStore.js";
 import * as API from "/js/api.js";
 import { store as notificationStore } from "/components/notifications/notification-store.js";
 import { openModal, closeModal } from "/js/modals.js";
+import { formatDateTime } from "/js/time-utils.js";
 
 const HEALTH_POLL_INTERVAL_MS = 2000;
 const HEALTH_WAIT_BUFFER_MS = 30000;
@@ -218,7 +219,7 @@ const model = {
       return `This instance is significantly behind the latest release currently available on main. Restart Agent Zero to move to ${this.mainBranchLatestVersion}.`;
     }
     if (this.quickUpdateComparison === 0) {
-      return "This instance already matches the latest version currently available on main.";
+      return "You already have the latest version of Agent Zero main branch";
     }
     return "This checkout already reports a newer tagged version than main.";
   },
@@ -332,7 +333,7 @@ const model = {
   formatTimestamp(value) {
     if (!value) return "";
     try {
-      return new Date(value).toLocaleString();
+      return formatDateTime(value, "full");
     } catch {
       return value;
     }

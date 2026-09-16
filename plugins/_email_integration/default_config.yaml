@@ -2,6 +2,7 @@ handlers: []
 # Example handler:
 # - name: support
 #   enabled: true
+#   provider: gmail
 #   account_type: imap
 #   imap_server: imap.gmail.com
 #   imap_port: 993

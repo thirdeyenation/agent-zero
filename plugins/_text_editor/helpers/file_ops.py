@@ -10,6 +10,9 @@ import tempfile
 from typing import TypedDict
 
 from helpers import tokens
+from plugins._text_editor.helpers.context_patch import (
+    apply_context_patch_with_metadata,
+)
 
 _BINARY_PEEK = 8192
 
@@ -208,6 +211,20 @@ class PatchResult(TypedDict):
     error: str
 
 
+class ContextPatchFileResult(TypedDict):
+    total_lines: int
+    hunk_count: int
+    line_from: int
+    line_to: int
+
+
+class ExactReplaceFileResult(TypedDict):
+    total_lines: int
+    replacement_count: int
+    line_from: int
+    line_to: int
+
+
 def validate_edits(edits: list | None) -> tuple[list[dict], str]:
     """
     Normalise and validate an edits array.
@@ -350,6 +367,82 @@ def patch_file(path: str, edits: list | None) -> PatchResult:
         return PatchResult(total_lines=0, edit_count=0, error=str(exc))
 
     return PatchResult(total_lines=total, edit_count=len(parsed), error="")
+
+
+def apply_context_patch_file(path: str, patch_text: str) -> ContextPatchFileResult:
+    """Apply a context patch to an existing text file."""
+    path = os.path.expanduser(path)
+    if not os.path.isfile(path):
+        raise FileNotFoundError("file not found")
+
+    with open(path, "r", encoding="utf-8", errors="replace") as src:
+        content = src.read()
+
+    result = apply_context_patch_with_metadata(content, patch_text)
+    dir_name = os.path.dirname(path) or "."
+    fd, tmp_path = tempfile.mkstemp(dir=dir_name, suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as dst:
+            dst.write(result.content)
+        shutil.move(tmp_path, path)
+    except Exception:
+        if os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+        raise
+
+    return ContextPatchFileResult(
+        total_lines=_count_content_lines(result.content),
+        hunk_count=result.hunk_count,
+        line_from=result.line_from,
+        line_to=result.line_to,
+    )
+
+
+def apply_exact_replace_file(
+    path: str, old_text: str, new_text: str
+) -> ExactReplaceFileResult:
+    """Replace exactly one text span in an existing text file."""
+    path = os.path.expanduser(path)
+    if not os.path.isfile(path):
+        raise FileNotFoundError("file not found")
+    if not old_text:
+        raise ValueError("old_text is required for exact replace")
+
+    with open(path, "r", encoding="utf-8", errors="replace") as src:
+        content = src.read()
+
+    match_count = content.count(old_text)
+    if match_count == 0:
+        raise ValueError("old_text not found")
+    if match_count > 1:
+        raise ValueError(
+            f"old_text matched {match_count} times; provide a longer exact span"
+        )
+    if old_text == new_text:
+        raise ValueError("old_text and new_text are identical")
+
+    start = content.index(old_text)
+    line_from = content[:start].count("\n") + 1
+    line_to = line_from + max(_count_content_lines(old_text) - 1, 0)
+    new_content = content.replace(old_text, new_text, 1)
+
+    dir_name = os.path.dirname(path) or "."
+    fd, tmp_path = tempfile.mkstemp(dir=dir_name, suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as dst:
+            dst.write(new_content)
+        shutil.move(tmp_path, path)
+    except Exception:
+        if os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+        raise
+
+    return ExactReplaceFileResult(
+        total_lines=_count_content_lines(new_content),
+        replacement_count=1,
+        line_from=line_from,
+        line_to=line_to,
+    )
 
 
 # ------------------------------------------------------------------

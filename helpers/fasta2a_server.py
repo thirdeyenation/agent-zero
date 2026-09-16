@@ -1,12 +1,15 @@
 # noqa: D401 (docstrings) – internal helper
 import asyncio
+import secrets
 import uuid
 import atexit
+import json
 from typing import Any, List
 import contextlib
 import threading
 
 from helpers import settings, projects
+from starlette.responses import Response as StarletteResponse
 from starlette.requests import Request
 
 # Local imports
@@ -59,6 +62,27 @@ except ImportError:  # pragma: no cover – library not installed
     Message = Artifact = AgentProvider = Skill = Any  # type: ignore
 
 _PRINTER = PrintStyle(italic=True, font_color="purple", padding=False)
+
+
+def _enable_streaming_capability(agent_card_body: bytes) -> bytes:
+    """Return an agent-card JSON body with A2A streaming enabled."""
+    agent_card = json.loads(agent_card_body)
+    capabilities = agent_card.get("capabilities")
+    if not isinstance(capabilities, dict):
+        capabilities = {}
+        agent_card["capabilities"] = capabilities
+    capabilities["streaming"] = True
+    return json.dumps(agent_card, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+
+
+class AgentZeroFastA2A(FastA2A):  # type: ignore[misc]
+    """FastA2A app with Agent Zero defaults layered over library defaults."""
+
+    async def _agent_card_endpoint(self, request: Request) -> StarletteResponse:
+        response = await super()._agent_card_endpoint(request)
+        body = _enable_streaming_capability(response.body)
+        self._agent_card_json_schema = body
+        return StarletteResponse(content=body, media_type="application/json")
 
 
 class AgentZeroWorker(Worker):  # type: ignore[misc]
@@ -242,7 +266,7 @@ class DynamicA2AProxy:
             }
 
             # Create new FastA2A app with proper thread safety
-            new_app = FastA2A(  # type: ignore
+            new_app = AgentZeroFastA2A(  # type: ignore
                 storage=storage,
                 broker=broker,
                 name="Agent Zero",
@@ -457,7 +481,7 @@ class DynamicA2AProxy:
             cfg = settings.get_settings()
             expected_token = cfg.get("mcp_server_token")
 
-            if expected_token and request_token != expected_token:
+            if expected_token and not secrets.compare_digest(str(request_token or ""), str(expected_token or "")):
                 # Invalid token, return 401
                 await send({
                     'type': 'http.response.start',

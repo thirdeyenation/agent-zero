@@ -87,8 +87,8 @@ def make_disposition(download_name: str) -> str:
 
 
 def resolve_download_path(path: str) -> str:
-    """Resolve a requested download path and keep it within the runtime base dir."""
-    base_dir = Path(files.get_base_dir()).resolve()
+    """Resolve a requested download path from the File Browser root."""
+    base_dir = Path("/")
     candidate = Path(path)
 
     if candidate.is_absolute():
@@ -133,17 +133,19 @@ class DownloadFile(ApiHandler):
 
         if file["is_dir"]:
             zip_file = await runtime.call_development_function(files.zip_dir, file["abs_path"])
+            directory_name = os.path.basename(file_path.rstrip("/")) or "directory"
+            download_name = f"{directory_name}.zip"
             if runtime.is_development():
                 b64 = await runtime.call_development_function(fetch_file, zip_file)
                 file_data = BytesIO(base64.b64decode(b64))
                 return stream_file_download(
                     file_data,
-                    download_name=os.path.basename(zip_file)
+                    download_name=download_name
                 )
             else:
                 return stream_file_download(
                     zip_file,
-                    download_name=f"{os.path.basename(file_path)}.zip"
+                    download_name=download_name
                 )
         elif file["is_file"]:
             if runtime.is_development():

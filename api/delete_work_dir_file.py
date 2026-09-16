@@ -2,7 +2,7 @@ from helpers.api import ApiHandler, Input, Output, Request, Response
 
 
 from helpers.file_browser import FileBrowser
-from helpers import files, runtime
+from helpers import files, runtime, extension
 from api import get_work_dir_files
 
 
@@ -19,6 +19,16 @@ class DeleteWorkDirFile(ApiHandler):
             res = await runtime.call_development_function(delete_file, file_path)
 
             if res:
+                await extension.call_extensions_async(
+                    "workdir_file_mutation_after",
+                    agent=None,
+                    data={
+                        "action": "delete",
+                        "path": file_path,
+                        "paths": [file_path],
+                        "current_path": current_path,
+                    },
+                )
                 # Get updated file list
                 # result = browser.get_files(current_path)
                 result = await runtime.call_development_function(get_work_dir_files.get_files, current_path)

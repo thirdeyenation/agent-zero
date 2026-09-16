@@ -6,6 +6,7 @@ import sys
 
 from helpers.api import Request, Response
 import plugins._a0_connector.api.v1.base as connector_base
+from plugins._a0_connector.helpers.version import agent_zero_version
 
 
 _BASE_FEATURES = [
@@ -17,22 +18,33 @@ _BASE_FEATURES = [
     "pause",
     "nudge",
     "message_send",
+    "message_queue",
     "log_tail",
     "projects",
     "text_editor_remote",
     "code_execution_remote",
+    "computer_use_remote",
+    "browser_host_remote",
+    "connector_browser_op",
     "remote_file_tree",
     "token_status",
+    "launcher_gateway",
+    "launcher_gateway_file_write",
 ]
 
 _OPTIONAL_FEATURES: dict[str, tuple[str, ...]] = {
     "settings_get": ("helpers.settings", "helpers.subagents"),
     "settings_set": ("helpers.settings", "helpers.subagents"),
+    "agent_profile_set": ("api.agent_profile_set",),
+    "agent_editor": ("plugins._agent_editor.api.agent_editor",),
     "agents_list": ("helpers.subagents",),
     "skills_list": ("helpers.skills", "helpers.files", "helpers.projects", "helpers.runtime"),
+    "skills_activate": ("helpers.skills", "helpers.persist_chat"),
     "skills_delete": ("helpers.skills", "helpers.files", "helpers.projects", "helpers.runtime"),
+    "installed_plugins": ("helpers.plugins",),
     "model_presets": ("plugins._model_config.helpers.model_config",),
     "model_switcher": ("plugins._model_config.helpers.model_config",),
+    "browser_runtime_config": ("plugins._browser.helpers.config", "helpers.plugins"),
     "compact_chat": (
         "plugins._chat_compaction.helpers.compactor",
         "plugins._model_config.helpers.model_config",
@@ -72,6 +84,7 @@ class Capabilities(connector_base.PublicConnectorApiHandler):
         return {
             "protocol": "a0-connector.v1",
             "version": "0.1.0",
+            "agent_zero_version": agent_zero_version(),
             "auth": ["session"],
             "auth_required": bool(login.is_login_required()),
             "transports": ["http", "websocket"],
@@ -79,7 +92,8 @@ class Capabilities(connector_base.PublicConnectorApiHandler):
             "websocket_namespace": "/ws",
             "websocket_handlers": ["plugins/_a0_connector/ws_connector"],
             "attachments": {
-                "mode": "base64",
+                "mode": "path_or_url",
+                "http_upload": "base64_to_file",
                 "max_files": 20,
             },
             "features": _feature_list(),

@@ -1,1 +1,1 @@
-# Helpers for the Skill Switchboard plugin.
+# Plugin-local helpers for the Skills UI plugin.

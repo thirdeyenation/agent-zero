@@ -40,7 +40,8 @@ If yes:
 3. Test it locally from `usr/plugins/`.
 4. Submit its `index.yaml` entry to `agent0ai/a0-plugins`.
 
-See [`plugins.md`](plugins.md) for the Plugin Index rules and packaging details.
+See [`agent0ai/a0-plugins`](https://github.com/agent0ai/a0-plugins) for the
+current Plugin Index rules and packaging details.
 
 ### 3. Is this a reusable skill?
 
