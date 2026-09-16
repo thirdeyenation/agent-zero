@@ -11,14 +11,18 @@ function buildButton() {
   button.className = "chat-bottom-menu-item";
   button.id = BUTTON_ID;
   button.innerHTML = `
-    <span class="material-symbols-outlined" aria-hidden="true">menu_book</span>
+    <x-icon aria-hidden="true" name="menu_book"></x-icon>
     <span>Skills</span>
   `;
 
   button.addEventListener("click", async () => {
     chatInputStore.closeChatMoreMenu();
     const projectName = chatsStore.selectedContext?.project?.name || "";
-    await pluginSettingsStore.openConfig("_skills", projectName, "", { focus: "chat" });
+    await pluginSettingsStore.openConfig("_skills", projectName, "", {
+      focus: "chat",
+      hideSettingsActions: true,
+      title: "Skills",
+    });
   });
 
   return button;

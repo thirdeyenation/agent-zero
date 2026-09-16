@@ -4,9 +4,19 @@ import { callJsExtensions } from "/js/extensions.js";
 
 // Modal functionality
 const modalStack = [];
+const RESTORABLE_MODAL_STACK_KEY = "a0.modalStack.restorable";
+let restoringModalSession = false;
+let restoredModalSession = false;
 
 function sameModalPath(left = "", right = "") {
   return String(left || "").replace(/^\/+/, "") === String(right || "").replace(/^\/+/, "");
+}
+
+function isReloadNavigation() {
+  const navigation = performance.getEntriesByType?.("navigation")?.[0];
+  if (navigation?.type) return navigation.type === "reload";
+  if (!performance.navigation) return false;
+  return performance.navigation?.type === performance.navigation?.TYPE_RELOAD;
 }
 
 function modalHasClass(modalOrElement, className) {
@@ -34,6 +44,42 @@ function modalSuppressesBackdrop(modalOrElement) {
     || modalDatasetFlag(modalOrElement, "modalNoBackdrop");
 }
 
+function modalRestoreMode(modalOrElement) {
+  const element = modalOrElement?.element || modalOrElement;
+  const inner = element?.querySelector?.(".modal-inner");
+  return String(element?.dataset?.modalRestore || inner?.dataset?.modalRestore || "").trim();
+}
+
+function modalCanRestore(modalOrElement) {
+  return modalRestoreMode(modalOrElement) === "surface";
+}
+
+function restorableModalSnapshot() {
+  return modalStack
+    .filter((modal) => modalCanRestore(modal))
+    .map((modal) => ({ path: modal.path }));
+}
+
+export function persistRestorableModalStack(options = {}) {
+  if (restoringModalSession && options.force !== true) return;
+  try {
+    const modals = restorableModalSnapshot();
+    if (modals.length === 0) {
+      sessionStorage.removeItem(RESTORABLE_MODAL_STACK_KEY);
+      return;
+    }
+    sessionStorage.setItem(
+      RESTORABLE_MODAL_STACK_KEY,
+      JSON.stringify({
+        version: 1,
+        modals,
+      }),
+    );
+  } catch (error) {
+    console.warn("Could not persist restorable modals", error);
+  }
+}
+
 function dispatchModalEvent(name, modal, detail = {}) {
   document.dispatchEvent(
     new CustomEvent(name, {
@@ -52,6 +98,7 @@ function activateModal(modal) {
   updateModalZIndexes();
   restoreModalScrollSnapshot(modal);
   dispatchModalEvent("modal-activated", modal);
+  persistRestorableModalStack();
 }
 
 function findModalIndexByPath(modalPath) {
@@ -107,7 +154,7 @@ document.body.appendChild(backdrop);
 // Function to update z-index for all modals and backdrop
 function updateModalZIndexes() {
   // Base z-index for modals
-  const baseZIndex = 3000;
+  const baseZIndex = 5000;
 
   // Update z-index for all modals
   modalStack.forEach((modal, index) => {
@@ -225,9 +272,11 @@ export async function openModal(modalPath, beforeClose = null) {
         currentTopModal.savedScrollSnapshot = captureModalScrollSnapshot(currentTopModal);
       }
 
+      const returnFocus = document.activeElement;
       // Create new modal instance
       const modal = createModalElement(modalPath);
       modal.beforeClose = beforeClose;
+      modal.returnFocus = returnFocus;
       openCtx.modal = modal;
 
       new MutationObserver(
@@ -308,9 +357,50 @@ export function getModalStack() {
 export function refreshModalStack() {
   if (modalStack.length === 0) {
     updateModalZIndexes();
+    persistRestorableModalStack();
     return;
   }
   activateModal(modalStack[modalStack.length - 1]);
+}
+
+export function restoreRestorableModalStack() {
+  if (restoredModalSession) return;
+  if (!isReloadNavigation()) {
+    sessionStorage.removeItem(RESTORABLE_MODAL_STACK_KEY);
+    return;
+  }
+  restoredModalSession = true;
+
+  let saved;
+  try {
+    saved = JSON.parse(sessionStorage.getItem(RESTORABLE_MODAL_STACK_KEY) || "{}");
+  } catch (error) {
+    console.warn("Could not restore restorable modals", error);
+    sessionStorage.removeItem(RESTORABLE_MODAL_STACK_KEY);
+    return;
+  }
+
+  const paths = Array.isArray(saved?.modals)
+    ? saved.modals
+      .map((entry) => String(entry?.path || "").trim())
+      .filter(Boolean)
+    : [];
+  if (paths.length === 0) return;
+
+  restoringModalSession = true;
+  for (const path of paths) {
+    try {
+      const openPromise = ensureModalOpen(path);
+      openPromise?.catch?.((error) => console.error(`Failed to restore modal ${path}`, error));
+    } catch (error) {
+      console.error(`Failed to restore modal ${path}`, error);
+    }
+  }
+
+  globalThis.setTimeout?.(() => {
+    restoringModalSession = false;
+    persistRestorableModalStack({ force: true });
+  }, 1500);
 }
 
 export async function ensureModalOpen(modalPath, beforeClose = null) {
@@ -347,6 +437,7 @@ export async function closeModal(modalPath = null) {
     // Just get the last modal (removal happens after beforeClose)
     modal = modalStack[modalStack.length - 1];
   }
+  const wasTop = modalIndex === modalStack.length - 1;
 
   const closeCtx = { modalPath: modalPath ?? null, modal, cancel: false };
   await callJsExtensions("close_modal_before", closeCtx);
@@ -419,6 +510,7 @@ export async function closeModal(modalPath = null) {
     } else {
       activateModal(modalStack[modalStack.length - 1]);
     }
+    if (wasTop && modal.returnFocus?.isConnected) modal.returnFocus.focus();
 
     document.dispatchEvent(
       new CustomEvent("modal-closed", {
@@ -428,6 +520,7 @@ export async function closeModal(modalPath = null) {
         },
       }),
     );
+    persistRestorableModalStack();
 
     return true;
   });

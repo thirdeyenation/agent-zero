@@ -1,13 +1,15 @@
 from git import Git, Repo
 from giturlparse import parse
-from datetime import datetime
+from datetime import datetime, timezone
 from dataclasses import dataclass
 import os
 import subprocess
 import base64
 import re
+import time
 from urllib.parse import urlparse, urlunparse
 from helpers import files
+from helpers.localization import Localization
 
 
 def strip_auth_from_url(url: str) -> str:
@@ -98,7 +100,10 @@ class GitRepoReleaseInfo:
 
 
 def _format_git_timestamp(timestamp: int) -> str:
-    return datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
+    return datetime.fromtimestamp(
+        timestamp,
+        tz=timezone.utc,
+    ).strftime('%Y-%m-%d %H:%M:%S')
 
 
 def _split_describe_version(describe: str) -> tuple[str, int]:
@@ -449,7 +454,36 @@ def clone_repo(url: str, dest: str, token: str | None = None):
     return Repo(dest)
 
 
-def update_repo(repo_path: str) -> Repo:
+class DirtyTreeConflictError(Exception):
+    """Raised when a dirty plugin cannot be updated without overwriting local edits."""
+
+    def __init__(self, conflicting_files: list[str]):
+        super().__init__(
+            "Local changes conflict with the update. "
+            "Your plugin was restored without applying the update."
+        )
+        self.conflicting_files = conflicting_files
+
+
+def _list_dirty_tracked_files(repo: "Repo") -> list[str]:
+    """Return tracked files with uncommitted modifications, excluding A0 metadata."""
+    def _is_a0_file(path: str) -> bool:
+        return path.startswith(".a0proj") or path == ".a0proj"
+
+    changed = {d.a_path for d in repo.index.diff(None)}
+    changed.update(d.a_path for d in repo.index.diff("HEAD"))
+    return sorted(p for p in changed if p and not _is_a0_file(p))
+
+
+def update_repo(repo_path: str, auto_stash: bool = True) -> Repo:
+    """Fast-forward the repo to its tracking branch.
+
+    When `auto_stash` is True (default) and the working tree has uncommitted
+    changes to tracked files, those changes are stashed before the pull and
+    reapplied afterwards. If they conflict with the update, the repo and local
+    edits are restored to their original state before `DirtyTreeConflictError`
+    is raised.
+    """
     repo = Repo(repo_path)
     if repo.bare:
         raise ValueError(f"Repository at {repo_path} is bare and cannot be updated.")
@@ -465,8 +499,31 @@ def update_repo(repo_path: str) -> Repo:
     env = os.environ.copy()
     env['GIT_TERMINAL_PROMPT'] = '0'
 
-    with repo.git.custom_environment(**env):
-        repo.remotes[tracking_branch.remote_name].pull(branch)
+    dirty_files = _list_dirty_tracked_files(repo) if auto_stash else []
+    original_head = repo.head.commit.hexsha
+    if dirty_files:
+        stash_msg = f"a0-auto-stash-{int(time.time())}"
+        repo.git.stash("push", "-m", stash_msg, "--", *dirty_files)
+
+    def restore_original_state():
+        repo.git.reset("--hard", original_head)
+        if dirty_files:
+            repo.git.stash("pop")
+
+    try:
+        with repo.git.custom_environment(**env):
+            repo.remotes[tracking_branch.remote_name].pull(branch)
+    except Exception:
+        if dirty_files:
+            restore_original_state()
+        raise
+
+    if dirty_files:
+        try:
+            repo.git.stash("pop")
+        except Exception:
+            restore_original_state()
+            raise DirtyTreeConflictError(dirty_files)
 
     return repo
 
@@ -517,7 +574,10 @@ def get_repo_status(repo_path: str) -> dict:
                 "hash": commit.hexsha[:7],
                 "message": str(commit.message).split("\n")[0][:80],
                 "author": str(commit.author),
-                "date": datetime.fromtimestamp(commit.committed_date).strftime('%Y-%m-%d %H:%M')
+                "date": datetime.fromtimestamp(
+                    commit.committed_date,
+                    tz=Localization.get().get_tzinfo(),
+                ).strftime('%Y-%m-%d %H:%M %Z')
             }
         except Exception:
             pass

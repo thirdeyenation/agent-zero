@@ -29,7 +29,7 @@
 
                 <!-- Context toolbar: Project + Agent profile (only when at least one scope is configurable) -->
                 <div class="plugin-settings-scope-section"
-                     x-show="context.perProjectConfig || context.perAgentConfig">
+                     x-show="(context.perProjectConfig || context.perAgentConfig) && !context.hideSettingsActions">
                     <div class="plugin-settings-scope-header">
                         <div class="plugin-settings-scope-header-copy">
                             <div class="plugin-settings-scope-title">Settings scope</div>
@@ -49,8 +49,8 @@
                             <label class="toggle">
                                 <input type="checkbox"
                                        :checked="$store.pluginToggle?.status === 'enabled'"
-                                       :disabled="$store.pluginToggle?.isSaving"
-                                       @change="$store.pluginToggle.setEnabled($event.target.checked)">
+                                       :disabled="$store.pluginToggle?.isSaving || context.isLoading"
+                                       @change="context.setPluginEnabled($event.target.checked)">
                                 <span class="toggler"></span>
                             </label>
                             <span class="plugin-toggle-status-text" x-text="$store.pluginToggle?.statusLabel"></span>
@@ -88,27 +88,27 @@
                         </label>
 
                         <button type="button" class="button plugin-settings-toolbar-button" title="Show existing configurations" @click="context.openConfigListModal()">
-                            <span class="icon material-symbols-outlined">list</span>
+                            <x-icon class="icon" name="list"></x-icon>
                         </button>
 
                     </div>
                 </div>
 
                 <div x-show="context.scopeMismatchMessage" class="plugin-settings-scope-info">
-                    <span class="material-symbols-outlined">info</span>
+                    <x-icon name="info"></x-icon>
                     <span x-text="context.scopeMismatchMessage"></span>
                 </div>
                 </div>
 
                 <!-- Error -->
                 <div x-show="context.error" class="plugin-settings-error">
-                    <span class="material-symbols-outlined">error</span>
+                    <x-icon name="error"></x-icon>
                     <span x-text="context.error"></span>
                 </div>
 
                 <!-- Loading -->
                 <div x-show="context.isLoading" class="plugin-settings-loading">
-                    <span class="material-symbols-outlined spinning">progress_activity</span>
+                    <x-icon class="spinning" name="progress_activity"></x-icon>
                     <span>Loading settings...</span>
                 </div>
 
@@ -116,6 +116,13 @@
                 <div x-show="!context.isLoading"
                      class="plugin-settings-body"
                      x-html="context.settingsComponentHtml">
+                </div>
+                <div x-show="!context.isLoading && !context.pluginMeta?.has_config_screen"
+                     class="plugin-settings-body">
+                    <div class="section-title">Scoped configurations</div>
+                    <div class="section-description">
+                        Use the scope controls and list button above to review or remove existing configurations.
+                    </div>
                 </div>
 
             </div>
@@ -136,9 +143,10 @@
 
                 <div class="plugin-settings-footer-actions">
                     <button class="btn"
+                            x-show="!context.hideSettingsActions && context.pluginMeta?.has_config_screen"
                             @click="context.resetToDefault()"
                             :disabled="context?.isSaving || context?.isLoading">
-                        Default
+                        Reset to default
                     </button>
                     <button class="btn btn-field"
                             x-show="context.wizardFooter?.showNext?.()"
@@ -147,7 +155,7 @@
                         <span x-text="context.wizardFooter?.nextLabel?.() || 'Next'"></span>
                     </button>
                     <button class="btn btn-ok"
-                            x-show="!context.wizardFooter || context.wizardFooter?.showSave?.()"
+                            x-show="!context.hideSettingsActions && context.pluginMeta?.has_config_screen && (!context.wizardFooter || context.wizardFooter?.showSave?.())"
                             @click="context.save()"
                             :disabled="context?.isSaving || context?.isLoading">
                         Save
