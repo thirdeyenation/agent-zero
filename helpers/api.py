@@ -150,11 +150,11 @@ def requires_api_key(f):
         valid_api_key = get_settings()["mcp_server_token"]
 
         if api_key := request.headers.get("X-API-KEY"):
-            if api_key != valid_api_key:
+            if not secrets.compare_digest(str(api_key or ""), str(valid_api_key or "")):
                 return Response("Invalid API key", 401)
         elif request.json and request.json.get("api_key"):
             api_key = request.json.get("api_key")
-            if api_key != valid_api_key:
+            if not secrets.compare_digest(str(api_key or ""), str(valid_api_key or "")):
                 return Response("Invalid API key", 401)
         else:
             return Response("API key required", 401)
@@ -182,8 +182,6 @@ def requires_auth(f):
         if not user_pass_hash:
             return await f(*args, **kwargs)
         if not secrets.compare_digest(str(session.get("authentication") or ""), str(user_pass_hash or "")):
-            return redirect(url_for("login_handler"))
-        if session.get("authentication") != user_pass_hash:
             return redirect(url_for("login_handler", next=get_current_request_next_url()))
         return await f(*args, **kwargs)
 
