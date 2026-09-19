@@ -23,3 +23,7 @@
 **Vulnerability:** Path traversal vulnerability in `api_files_get` where users could request paths outside the base directory using `../` sequences or absolute paths.
 **Learning:** Incomplete validation when converting internal to external paths left arbitrary file read open.
 **Prevention:** Always validate that user-provided file paths are contained within the intended base directory using `files.is_in_base_dir` after absolute resolution.
+## 2024-05-15 - Path Traversal in File Info API
+**Vulnerability:** The `/api/file_info` endpoint allowed path traversal (`../../`) because it used `files.get_abs_path(path)` but did not explicitly check if the resulting absolute path resided within the intended base directory.
+**Learning:** Just resolving to an absolute path does not prevent escaping the sandbox if the input contains `../`. The filesystem functions like `os.path.exists()` and `os.stat()` will still succeed for paths outside the base directory.
+**Prevention:** Always validate that user-provided file paths are contained within the intended base directory using `files.is_in_base_dir(abs_path)` after absolute resolution.

@@ -30,7 +30,10 @@ async def get_file_info(path: str) -> FileInfo:
     exists = os.path.exists(abs_path)
     message = ""
 
-    if not exists:
+    if not files.is_in_base_dir(abs_path):
+        exists = False
+        message = f"Access denied: {path} is outside the allowed directory."
+    elif not exists:
         message = f"File {path} not found."
 
     return {
