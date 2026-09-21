@@ -23,3 +23,7 @@
 **Vulnerability:** Path traversal vulnerability in `api_files_get` where users could request paths outside the base directory using `../` sequences or absolute paths.
 **Learning:** Incomplete validation when converting internal to external paths left arbitrary file read open.
 **Prevention:** Always validate that user-provided file paths are contained within the intended base directory using `files.is_in_base_dir` after absolute resolution.
+## 2024-05-24 - Fix Path Traversal in File Downloads
+**Vulnerability:** The API file download logic `resolve_download_path` used a hardcoded `Path("/")` as the base directory and solely relied on `.relative_to(base_dir)` to prevent traversal. However, `.relative_to(Path("/"))` never fails for absolute paths, completely failing to restrict access to system files (e.g. `/etc/passwd`).
+**Learning:** `pathlib.Path.relative_to()` is insufficient for security boundaries when the base directory is the system root (`/`).
+**Prevention:** Always anchor path resolution to the application's restricted root (e.g., `helpers.files.get_base_dir()`) and definitively enforce the boundary using `helpers.files.is_in_base_dir(resolved_path)`.

@@ -70,7 +70,8 @@ def selected_archive_name(count: int) -> str:
 
 
 def create_selected_zip(paths: list[str], current_path: str = "") -> str:
-    base_dir = Path("/")
+    from helpers import files
+    base_dir = Path(files.get_base_dir())
     current_dir = resolve_download_path(current_path, base_dir) if current_path else None
     if current_dir and current_dir.is_file():
         current_dir = current_dir.parent
@@ -101,6 +102,7 @@ def create_selected_zip(paths: list[str], current_path: str = "") -> str:
 
 
 def resolve_download_path(path: str, base_dir: Path) -> Path:
+    from helpers import files
     if not path:
         raise ValueError("Invalid file path")
 
@@ -111,6 +113,9 @@ def resolve_download_path(path: str, base_dir: Path) -> Path:
         resolved.relative_to(base_dir)
     except ValueError as exc:
         raise ValueError("Invalid file path") from exc
+
+    if not files.is_in_base_dir(str(resolved)):
+        raise ValueError("Invalid file path")
 
     return resolved
 
