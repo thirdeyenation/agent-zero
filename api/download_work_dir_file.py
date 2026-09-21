@@ -88,7 +88,7 @@ def make_disposition(download_name: str) -> str:
 
 def resolve_download_path(path: str) -> str:
     """Resolve a requested download path from the File Browser root."""
-    base_dir = Path("/")
+    base_dir = Path(files.get_base_dir())
     candidate = Path(path)
 
     if candidate.is_absolute():
@@ -100,6 +100,9 @@ def resolve_download_path(path: str) -> str:
         resolved.relative_to(base_dir)
     except ValueError as exc:
         raise ValueError("Invalid file path") from exc
+
+    if not files.is_in_base_dir(str(resolved)):
+        raise ValueError("Invalid file path")
 
     return str(resolved)
 
