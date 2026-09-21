@@ -7,3 +7,6 @@
 ## 2023-10-27 - Early returns on template substitution
 **Learning:** Found that `replace_placeholders_text` and `replace_placeholders_json` do expensive string manipulations even when no placeholders exist in the text. Checking `if "{{" not in _content:` provides an extremely fast fast-path early return.
 **Action:** Always add early-exit checks for common trigger substrings (like `{{` for templates) before iterating over large variable dictionaries to perform string replacement.
+## 2024-05-24 - Replace regex split with native string split
+**Learning:** Native string methods (`str.split()` or `str.replace().split()`) are significantly faster than `re.split()` for basic tokenization and delimiter separation (often ~3-10x faster), completely bypassing regex compilation overhead.
+**Action:** Use native string methods like `str.replace().split()` in place of simple delimiter regexes (`re.split(r"\s*\+\s*|\s*,\s*", ...)`), keeping the results stripped using list comprehension.
