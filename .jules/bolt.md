@@ -7,3 +7,6 @@
 ## 2023-10-27 - Early returns on template substitution
 **Learning:** Found that `replace_placeholders_text` and `replace_placeholders_json` do expensive string manipulations even when no placeholders exist in the text. Checking `if "{{" not in _content:` provides an extremely fast fast-path early return.
 **Action:** Always add early-exit checks for common trigger substrings (like `{{` for templates) before iterating over large variable dictionaries to perform string replacement.
+## 2025-01-28 - Async SSH Connection Blocking Loop Fix
+**Learning:** The SSH connection process in `plugins/_code_execution/helpers/shell_ssh.py` used `time.sleep(0.1)` and `time.sleep(5)` within the `async def connect()` loop during retries and prompt polling. This synchronous sleep completely blocked the application's single `asyncio` event loop for up to 5 seconds during network timeouts, starving all concurrent connections and API handlers across the server.
+**Action:** Always prefer `await asyncio.sleep()` over `time.sleep()` in any async-capable methods, especially when handling unpredictable network I/O or polling loops, to yield control back to the event loop.
