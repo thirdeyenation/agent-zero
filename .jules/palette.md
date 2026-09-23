@@ -1,3 +1,6 @@
 ## 2025-06-11 - Adding Keyboard Accessibility to Alpine.js Action Cards
 **Learning:** When using structural UI elements like `.welcome-action-card` `<div>`s in Alpine.js for interactive behaviors (`@click`), they must explicitly include `role="button"`, `tabindex="0"`, and keyboard event handlers (`@keydown.enter` and `@keydown.space.prevent`) to be accessible to keyboard and screen reader users. The application heavily relies on these custom div-based cards without inherent keyboard focusability.
 **Action:** Always scan for `@click` handlers on non-native interactive elements (like `<div>` or `<span>`) across the codebase and ensure they are paired with appropriate ARIA roles, tabindex, and keydown listeners to guarantee WCAG compliance.
+## 2025-06-11 - Fixing broken and duplicated icon-only buttons
+**Learning:** Found malformed icon-only buttons in `webui/index.html` where buttons lacked closing tags and duplicated elements caused UI/accessibility breakage. Adding `aria-hidden="true"` to inner `<x-icon>` tags correctly prevents screen readers from redundantly announcing ligature text.
+**Action:** Always scan for duplicate interactive elements when refactoring, and ensure icon-only buttons apply `aria-hidden="true"` to their inner icons while the parent `<button>` provides the `aria-label`.
