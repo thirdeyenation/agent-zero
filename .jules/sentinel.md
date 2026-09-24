@@ -23,3 +23,7 @@
 **Vulnerability:** Path traversal vulnerability in `api_files_get` where users could request paths outside the base directory using `../` sequences or absolute paths.
 **Learning:** Incomplete validation when converting internal to external paths left arbitrary file read open.
 **Prevention:** Always validate that user-provided file paths are contained within the intended base directory using `files.is_in_base_dir` after absolute resolution.
+## 2025-02-18 - Path Traversal Prevention in API Handlers
+**Vulnerability:** The FileInfoApi endpoint accepted arbitrary paths and resolved them via `files.get_abs_path()`. Because `get_abs_path()` uses standard `os.path.join`, it allowed paths like `../../../../etc/passwd` to traverse outside the base directory.
+**Learning:** In Python, resolving paths with standard `os.path.join()` or `Path().resolve()` without bounds checking enables arbitrary file read/write vulnerabilities, as absolute/relative boundaries are not intrinsically enforced.
+**Prevention:** To prevent Path Traversal, always validate that user-provided file paths are contained within the intended base directory after absolute resolution using explicit checks like `files.is_in_base_dir(abs_path)`.
