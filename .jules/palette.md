@@ -1,3 +1,6 @@
 ## 2025-06-11 - Adding Keyboard Accessibility to Alpine.js Action Cards
 **Learning:** When using structural UI elements like `.welcome-action-card` `<div>`s in Alpine.js for interactive behaviors (`@click`), they must explicitly include `role="button"`, `tabindex="0"`, and keyboard event handlers (`@keydown.enter` and `@keydown.space.prevent`) to be accessible to keyboard and screen reader users. The application heavily relies on these custom div-based cards without inherent keyboard focusability.
 **Action:** Always scan for `@click` handlers on non-native interactive elements (like `<div>` or `<span>`) across the codebase and ensure they are paired with appropriate ARIA roles, tabindex, and keydown listeners to guarantee WCAG compliance.
+## 2024-09-25 - Fix legacy material symbol usage
+**Learning:** Found legacy material symbol elements (`<span class="material-symbols-outlined">`) without `aria-hidden="true"`, causing screen readers to dictate the raw ligature names. Additionally, first-party authoring dictates the usage of `<x-icon>` component for icons.
+**Action:** When working on UI enhancements in this repository, always replace legacy material symbols (`<span class="material-symbols-outlined">`) with the designated `<x-icon name="...">` tag and apply proper ARIA properties when needed.
