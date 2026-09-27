@@ -27,7 +27,7 @@
             <li class="chat-tree-item"
               :class="{ 'sidebar-list-divider': $store.sidebar.hasRowDividerBefore('chat', context, contextIndex, $store.chats.topLevelContexts()) }">
               <div :class="{'chat-container': true, 'chat-has-children': $store.chats.hasChildren(context.id), 'chat-selected': context.id === $store.chats.selected}"
-                @click="$store.chats.selectChat(context.id)">
+                role="button" tabindex="0" @click="$store.chats.selectChat(context.id)" @keydown.enter="$store.chats.selectChat(context.id)" @keydown.space.prevent="$store.chats.selectChat(context.id)">
                 <button class="chat-expand-btn"
                         x-show="$store.chats.hasChildren(context.id)"
                         :class="{ 'is-visible': $store.chats.hasChildren(context.id), 'is-expanded': $store.chats.isExpanded(context.id) }"
@@ -57,7 +57,7 @@
                 <template x-for="(child, childIndex) in $store.chats.childContexts(context.id)" :key="child.id">
                   <li :class="{ 'sidebar-list-divider': $store.sidebar.hasRowDividerBefore('chat', child, childIndex, $store.chats.childContexts(context.id)) }">
                     <div :class="{'chat-container': true, 'chat-child-container': true, 'chat-selected': child.id === $store.chats.selected}"
-                      @click="$store.chats.selectChat(child.id)">
+                      role="button" tabindex="0" @click="$store.chats.selectChat(child.id)" @keydown.enter="$store.chats.selectChat(child.id)" @keydown.space.prevent="$store.chats.selectChat(child.id)">
                       <div class="chat-child-indent"></div>
                       <div class="chat-list-button">
                         <span :class="{'project-color-ball': true, 'heartbeat': child.running}"
