@@ -8,7 +8,7 @@ import zipfile
 from flask import Response
 
 from helpers.api import ApiHandler, Input, Output, Request
-from helpers import runtime
+from helpers import runtime, files
 from helpers.localization import Localization
 from api.download_work_dir_file import fetch_file, stream_file_download
 
@@ -105,12 +105,11 @@ def resolve_download_path(path: str, base_dir: Path) -> Path:
         raise ValueError("Invalid file path")
 
     candidate = Path(path)
-    resolved = candidate.resolve() if candidate.is_absolute() else (base_dir / candidate).resolve()
+    actual_base_dir = Path(files.get_base_dir()).resolve()
+    resolved = candidate.resolve() if candidate.is_absolute() else (actual_base_dir / candidate).resolve()
 
-    try:
-        resolved.relative_to(base_dir)
-    except ValueError as exc:
-        raise ValueError("Invalid file path") from exc
+    if not files.is_in_base_dir(str(resolved)):
+        raise ValueError("Invalid file path")
 
     return resolved
 
