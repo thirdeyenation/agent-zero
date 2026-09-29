@@ -7,3 +7,6 @@
 ## 2023-10-27 - Early returns on template substitution
 **Learning:** Found that `replace_placeholders_text` and `replace_placeholders_json` do expensive string manipulations even when no placeholders exist in the text. Checking `if "{{" not in _content:` provides an extremely fast fast-path early return.
 **Action:** Always add early-exit checks for common trigger substrings (like `{{` for templates) before iterating over large variable dictionaries to perform string replacement.
+## 2026-09-29 - Use non-blocking sleep in asynchronous API endpoints
+**Learning:** `api/mcp_servers_apply.py` uses synchronous `time.sleep(1)` inside an `async def process` method, which blocks the event loop. This leads to performance bottlenecks and poor concurrency for any asynchronous application architecture.
+**Action:** Replace `time.sleep()` with non-blocking `await asyncio.sleep()` in asynchronous handlers to ensure high concurrency and responsive execution flow.
