@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ipaddress
 import json
+import secrets
 import time
 from typing import Any, Callable
 
@@ -555,7 +556,7 @@ def _proxy_authorized() -> bool:
     cfg = codex_config()
     token = cfg["proxy_token"]
     supplied = _supplied_proxy_token()
-    if token and supplied == token:
+    if token and secrets.compare_digest(str(supplied or ""), str(token or "")):
         return True
     if cfg["require_proxy_token"]:
         return False

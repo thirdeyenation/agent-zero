@@ -23,3 +23,7 @@
 **Vulnerability:** Path traversal vulnerability in `api_files_get` where users could request paths outside the base directory using `../` sequences or absolute paths.
 **Learning:** Incomplete validation when converting internal to external paths left arbitrary file read open.
 **Prevention:** Always validate that user-provided file paths are contained within the intended base directory using `files.is_in_base_dir` after absolute resolution.
+## 2024-05-27 - Timing Attack in OAuth Codex Proxy Token Validation
+**Vulnerability:** The proxy token validation logic in the OAuth Codex plugin (`plugins/_oauth/helpers/routes.py`) used a standard `==` string comparison to verify the provided authentication token against the expected `proxy_token`.
+**Learning:** Standard equality comparisons terminate on the first mismatched character. This allows attackers to perform timing attacks against the proxy endpoints, potentially inferring the proxy token character by character based on server response times.
+**Prevention:** Always use constant-time comparison methods like `secrets.compare_digest()` when validating sensitive tokens or secrets, and ensure inputs are cast to strings (handling `None`) to avoid `TypeError`.
