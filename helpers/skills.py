@@ -139,7 +139,8 @@ def _coerce_list(value: Any) -> List[str]:
         if "," in value:
             parts = [p.strip() for p in value.split(",")]
         else:
-            parts = [p.strip() for p in re.split(r"\s+", value)]
+            # Native string split is ~10x faster than re.split(r"\s+") and handles multiple spaces
+            parts = value.split()
         return [p for p in parts if p]
     return [str(value).strip()] if str(value).strip() else []
 
