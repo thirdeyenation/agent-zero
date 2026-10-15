@@ -1,0 +1,3 @@
+## 2024-10-15 - Missing ARIA labels on icon-only and symbol-only buttons
+**Learning:** The application heavily relies on symbol-only buttons (like &times;) and custom <x-icon> elements inside icon-only buttons without explicit aria-label or aria-hidden attributes. This pattern severely degrades screen reader accessibility, as users only hear cryptic characters or nothing at all.
+**Action:** When adding or refactoring icon-only buttons, always ensure the parent <button> has a descriptive aria-label (potentially dynamic, like :aria-label="'Remove ' + attachment.name") and that any purely visual inner icons have aria-hidden="true".

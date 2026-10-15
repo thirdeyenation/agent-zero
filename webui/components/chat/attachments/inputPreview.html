@@ -21,7 +21,9 @@
                         </div>
                     </template>
                     <button @click="$store.chatAttachments.removeAttachment(index)"
-                        class="remove-attachment">&times;</button>
+                        class="remove-attachment"
+                        :title="'Remove ' + attachment.name"
+                        :aria-label="'Remove ' + attachment.name">&times;</button>
                 </div>
             </template>
         </div>
