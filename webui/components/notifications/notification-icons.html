@@ -9,17 +9,23 @@
         <template x-if="$store.notificationStore">
             <!-- Notification Toggle Button -->
             <div class="notification-toggle"
+                 role="button"
+                 tabindex="0"
                  :class="{
                      'has-unread': $store.notificationStore.unreadPrioCount > 0,
                      'has-notifications': $store.notificationStore.notifications.length > 0
                  }"
                  @click="$store.notificationStore.openModal()"
+                 @keydown.enter="$store.notificationStore.openModal()"
+                 @keydown.space.prevent="$store.notificationStore.openModal()"
+                 :aria-label="$store.notificationStore.unreadPrioCount > 0 ? `View Notifications, ${$store.notificationStore.unreadPrioCount} unread` : 'View Notifications'"
                  title="View Notifications">
-                <div class="notification-icon">
+                <div class="notification-icon" aria-hidden="true">
                     <x-icon name="notifications"></x-icon>
                 </div>
                 <span x-show="$store.notificationStore.unreadPrioCount > 0"
                       class="notification-badge"
+                      aria-hidden="true"
                       x-text="$store.notificationStore.unreadPrioCount"></span>
             </div>
         </template>
