@@ -1,0 +1,3 @@
+## 2024-03-24 - Async API Handlers Blocking Event Loop
+**Learning:** `ApiHandler` endpoints in `api/` that are defined as `async def process(...)` run in an asyncio event loop (they are not offloaded to thread pools like normal synchronous requests in many frameworks). Any synchronous blocking calls like `time.sleep()` within these handlers will stall the entire event loop, preventing all other concurrent connections and async tasks from executing for the duration of the sleep.
+**Action:** When implementing deliberate delays in `async def` methods, always use `await asyncio.sleep(X)` instead of `time.sleep(X)`.
