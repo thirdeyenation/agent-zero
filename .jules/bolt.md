@@ -1,0 +1,3 @@
+## 2024-05-18 - Replacing Synchronous Sleep with Asynchronous Sleep in API Handlers
+**Learning:** In this codebase, API endpoints inheriting from `helpers.api.ApiHandler` implement an `async def process(...)` method that executes directly on the main asyncio event loop. I observed a `time.sleep(1)` inside `api/mcp_servers_apply.py` which blocks the event loop and stalls the entire server.
+**Action:** Replace synchronous blocking operations (such as `time.sleep()`) with asynchronous equivalents (e.g., `await asyncio.sleep()`) to prevent stalling the entire server when executing in `async def process(...)`.
