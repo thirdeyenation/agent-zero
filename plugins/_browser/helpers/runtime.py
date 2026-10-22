@@ -969,7 +969,8 @@ class _BrowserRuntimeCore:
         if keys is None:
             return []
         if isinstance(keys, str):
-            raw = re.split(r"\s*\+\s*|\s*,\s*", keys.strip())
+            # Bolt: Native str.split is faster than re.split for tokenizing delimiters
+            raw = [k.strip() for k in keys.replace('+', ',').split(',')]
         elif isinstance(keys, list):
             raw = keys
         else:

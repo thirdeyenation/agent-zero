@@ -1,0 +1,3 @@
+## 2023-10-24 - Native string methods are faster than re.split
+**Learning:** For basic tokenization (like splitting browser key combos on '+' or ','), native `str.replace().split()` is ~3x faster than `re.split()`. Compiling and executing regex with variable whitespace consumes unnecessary time when `.strip()` inside a list comprehension easily cleans up tokenized parts.
+**Action:** Always prefer native string methods (like `split()` or `.replace().split()`) over `re.split()` to avoid regex compilation and matching overhead when delimiters are simple characters, preserving whitespace cleanup inside list comprehensions.
