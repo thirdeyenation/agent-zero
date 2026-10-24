@@ -16,7 +16,7 @@
       <div class="attachment-wrapper chat-more-dropdown" @click.outside="$store.chatInput.closeChatMoreMenu()"
         @keydown.escape.window="$store.chatInput.closeChatMoreMenu()">
         <button type="button" class="chat-more-trigger" @click.stop="$store.chatInput.toggleChatMoreMenu()"
-          :aria-expanded="$store.chatInput.chatMoreMenuOpen.toString()" aria-label="More actions">
+          :aria-expanded="$store.chatInput.chatMoreMenuOpen.toString()" aria-label="More actions" title="More actions">
           <x-icon aria-hidden="true" name="add"></x-icon>
         </button>
         <div class="chat-more-panel" x-show="$store.chatInput.chatMoreMenuOpen" x-transition style="display: none;">
