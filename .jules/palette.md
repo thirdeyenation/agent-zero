@@ -1,0 +1,3 @@
+## 2024-10-24 - Missing ARIA labels in chat action menu
+**Learning:** Icon-only action buttons in complex interaction panels (like the chat-more menu) often lack screen-reader accessible names because visual icons (like SVG or the custom `x-icon` tag) do not inherently supply textual meaning unless specifically tied to an `aria-label` or explicitly hidden via `aria-hidden="true"`.
+**Action:** Always ensure that icon-only buttons in interactive menus are explicitly labeled using `aria-label` for screen reader accessibility, and provide a `title` tooltip for sighted users if the button purpose isn't immediately obvious.
