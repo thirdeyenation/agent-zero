@@ -19,8 +19,8 @@
         <span class="chat-name"
           x-text="$store.chats.displayName(context)"></span>
       </div>
-      <button class="btn-icon-action chat-list-action-btn" title="Close chat" @click.stop="$confirmClick($event, () => $store.chats.killChat(context.id))">
-        <x-icon name="close"></x-icon>
+      <button class="btn-icon-action chat-list-action-btn" title="Close chat" aria-label="Close chat" @click.stop="$confirmClick($event, () => $store.chats.killChat(context.id))">
+        <x-icon aria-hidden="true" name="close"></x-icon>
       </button>
       <button type="button" class="btn-icon-action chat-list-action-btn"
         aria-label="More chat actions" aria-haspopup="menu"

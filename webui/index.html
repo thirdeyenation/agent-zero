@@ -224,17 +224,17 @@
 
               <!-- Chat Navigation Buttons (floating over chat area) -->
               <div id="chat-nav-buttons" aria-label="Chat navigation" x-cloak>
-                <button class="btn-icon-action" title="Scroll to top" @click="$store.chatNavigation.scrollToTop()">
-                  <x-icon name="vertical_align_top"></x-icon>
+                <button class="btn-icon-action" title="Scroll to top" aria-label="Scroll to top" @click="$store.chatNavigation.scrollToTop()">
+                  <x-icon aria-hidden="true" name="vertical_align_top"></x-icon>
                 </button>
-                <button class="btn-icon-action" title="Previous user message" @click="$store.chatNavigation.scrollToPrevUserMessage()">
-                  <x-icon name="keyboard_arrow_up"></x-icon>
+                <button class="btn-icon-action" title="Previous user message" aria-label="Previous user message" @click="$store.chatNavigation.scrollToPrevUserMessage()">
+                  <x-icon aria-hidden="true" name="keyboard_arrow_up"></x-icon>
                 </button>
-                <button class="btn-icon-action" title="Next user message" @click="$store.chatNavigation.scrollToNextUserMessage()">
-                  <x-icon name="keyboard_arrow_down"></x-icon>
+                <button class="btn-icon-action" title="Next user message" aria-label="Next user message" @click="$store.chatNavigation.scrollToNextUserMessage()">
+                  <x-icon aria-hidden="true" name="keyboard_arrow_down"></x-icon>
                 </button>
-                <button class="btn-icon-action" title="Scroll to bottom" @click="$store.chatNavigation.scrollToBottom()">
-                  <x-icon name="vertical_align_bottom"></x-icon>
+                <button class="btn-icon-action" title="Scroll to bottom" aria-label="Scroll to bottom" @click="$store.chatNavigation.scrollToBottom()">
+                  <x-icon aria-hidden="true" name="vertical_align_bottom"></x-icon>
                 </button>
               </div>
             </div>
